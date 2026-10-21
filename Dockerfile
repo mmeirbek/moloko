@@ -15,6 +15,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
 COPY public ./public
+COPY .claude/agents ./.claude/agents
 RUN mkdir -p /data
 EXPOSE 3000
 CMD ["node", "--disable-warning=ExperimentalWarning", "dist/server.js"]

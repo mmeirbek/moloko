@@ -35,6 +35,8 @@ export const config = {
   // Если SESSION_SECRET не задан, сессии сбрасываются при каждом рестарте — это не страшно, просто снова войти.
   sessionSecret: process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString("hex"),
   auth: authMode(),
+  // Bash агентам выключен: он выполняет любые команды на сервере. Включайте, только если понимаете риск.
+  allowBash: process.env.ALLOW_BASH === "1",
   maxTurns: int("MAX_TURNS", 60),
   // Сколько отделов могут работать одновременно. Каждый отдел — отдельный процесс Claude Code (~300 МБ памяти).
   maxParallel: int("MAX_PARALLEL", 3),

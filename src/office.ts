@@ -1,4 +1,5 @@
-import { DEFAULT_GROUPS } from "./agents/defaults.js";
+import { DEFAULT_GROUPS, NEW_AGENTS_GROUP } from "./agents/defaults.js";
+import { readAgentFiles, roleFromDescription } from "./agents/files.js";
 import { emit } from "./bus.js";
 import {
   all,
@@ -31,21 +32,71 @@ export function defaultModel(): string {
 
 // ---------- Отделы и субагенты ----------
 
-export function seedOffice() {
-  if (get<{ n: number }>("SELECT COUNT(*) AS n FROM groups")!.n > 0) return;
-  DEFAULT_GROUPS.forEach((g, gi) => {
-    run(
-      "INSERT INTO groups (id, name, motto, color, lead_prompt, position) VALUES (?, ?, ?, ?, ?, ?)",
-      g.id, g.name, g.motto, g.color, g.lead_prompt, gi,
-    );
-    g.subagents.forEach((s, si) => {
+export const MAX_SUBAGENTS = 4;
+
+export function initOffice() {
+  if (get<{ n: number }>("SELECT COUNT(*) AS n FROM groups")!.n === 0) {
+    DEFAULT_GROUPS.forEach((g, gi) => {
       run(
-        `INSERT INTO subagents (id, group_id, name, role, description, prompt, web, files, position)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        s.id, g.id, s.name, s.role, s.description, s.prompt, s.web ? 1 : 0, s.files ? 1 : 0, si,
+        "INSERT INTO groups (id, name, motto, color, lead_prompt, position) VALUES (?, ?, ?, ?, ?, ?)",
+        g.id, g.name, g.motto, g.color, g.lead_prompt, gi,
       );
     });
-  });
+  }
+  syncAgentFiles();
+}
+
+function groupSize(id: string) {
+  return get<{ n: number }>("SELECT COUNT(*) AS n FROM subagents WHERE group_id = ?", id)!.n;
+}
+
+// Куда посадить нового агента из файла: в его отдел по раскладке, иначе в «Новые агенты» (с местом).
+function groupForNewAgent(name: string): string {
+  const preferred = DEFAULT_GROUPS.find((g) => g.agents.includes(name));
+  if (preferred && getGroup(preferred.id) && groupSize(preferred.id) < MAX_SUBAGENTS) return preferred.id;
+  const spare = all<GroupRow>("SELECT * FROM groups WHERE name LIKE ? ORDER BY position", NEW_AGENTS_GROUP.name + "%").find(
+    (g) => groupSize(g.id) < MAX_SUBAGENTS,
+  );
+  if (spare) return spare.id;
+  const id = "new-" + Date.now().toString(36);
+  const position = (get<{ p: number | null }>("SELECT MAX(position) AS p FROM groups")!.p ?? 0) + 1;
+  run(
+    "INSERT INTO groups (id, name, motto, color, lead_prompt, position) VALUES (?, ?, ?, ?, ?, ?)",
+    id, NEW_AGENTS_GROUP.name, NEW_AGENTS_GROUP.motto, NEW_AGENTS_GROUP.color, NEW_AGENTS_GROUP.lead_prompt, position,
+  );
+  return id;
+}
+
+// Файлы .claude/agents — источник правды: при каждом старте офис подтягивает изменения,
+// добавляет новых агентов и убирает тех, чей файл удалён. Отдел агента при этом сохраняется.
+export function syncAgentFiles() {
+  const files = readAgentFiles();
+  const names = new Set(files.map((f) => f.name));
+  for (const s of all<SubagentRow>("SELECT * FROM subagents WHERE source_file IS NOT NULL")) {
+    if (!names.has(s.id)) run("DELETE FROM subagents WHERE id = ?", s.id);
+  }
+  for (const f of files) {
+    const tools = f.tools ? JSON.stringify(f.tools) : null;
+    const web = !f.tools || f.tools.some((t) => t === "WebSearch" || t === "WebFetch") ? 1 : 0;
+    const writes = !f.tools || f.tools.some((t) => t === "Write" || t === "Edit") ? 1 : 0;
+    const role = roleFromDescription(f.description);
+    if (getSubagent(f.name)) {
+      run(
+        `UPDATE subagents SET name = ?, role = ?, description = ?, prompt = ?, web = ?, files = ?, model = ?, tools = ?, source_file = ?
+         WHERE id = ?`,
+        f.name, role, f.description, f.prompt, web, writes, f.model, tools, f.file, f.name,
+      );
+    } else {
+      const groupId = groupForNewAgent(f.name);
+      const position = (get<{ p: number | null }>("SELECT MAX(position) AS p FROM subagents WHERE group_id = ?", groupId)!.p ?? -1) + 1;
+      run(
+        `INSERT INTO subagents (id, group_id, name, role, description, prompt, web, files, model, tools, source_file, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        f.name, groupId, f.name, role, f.description, f.prompt, web, writes, f.model, tools, f.file, position,
+      );
+    }
+  }
+  console.log(`🧑‍💻 Субагентов из .claude/agents: ${files.length}`);
 }
 
 export function listGroupRows(): GroupRow[] {

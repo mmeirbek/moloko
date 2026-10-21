@@ -5,8 +5,8 @@ import { config } from "./config.js";
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
-// v2: офис из отделов с субагентами. Старая база (office.db) просто остаётся рядом и не используется.
-export const db = new DatabaseSync(path.join(config.dataDir, "office-v2.db"));
+// v3: отделы из ваших субагентов (.claude/agents). Старые базы остаются рядом и не используются.
+export const db = new DatabaseSync(path.join(config.dataDir, "office-v3.db"));
 
 db.exec(`
   PRAGMA journal_mode = WAL;
@@ -33,6 +33,8 @@ db.exec(`
     web         INTEGER NOT NULL DEFAULT 0,
     files       INTEGER NOT NULL DEFAULT 1,
     model       TEXT,
+    tools       TEXT,
+    source_file TEXT,
     position    INTEGER NOT NULL DEFAULT 0
   );
 
@@ -119,6 +121,10 @@ export interface SubagentRow {
   web: number;
   files: number;
   model: string | null;
+  // JSON-список инструментов из файла агента; null — по флагам web/files.
+  tools: string | null;
+  // Имя файла в .claude/agents, если агент описан там (тогда редактируется только файлом).
+  source_file: string | null;
   position: number;
 }
 

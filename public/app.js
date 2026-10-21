@@ -32,10 +32,9 @@ const GROUP_STATUS = {
 
 // Примеры заданий для стартовых отделов — чтобы не думать, с чего начать.
 const EXAMPLES = {
-  intel: ["Найди 5 главных конкурентов моего проекта и сравни их", "Какие AI-инструменты для малого бизнеса набирают популярность в 2026?"],
-  studio: ["Напиши пост для Telegram о запуске моего пет-проекта", "Сделай контент-план на неделю для Instagram кофейни"],
-  lab: ["Сделай простой лендинг на HTML для моего проекта", "Напиши скрипт на Python, который переименует фото по дате"],
-  hq: ["Посчитай юнит-экономику подписки за 5$ в месяц", "Составь план поиска первых 10 клиентов"],
+  study: ["Хочу 1450 на SAT, экзамен через 8 недель, сейчас около 1250 — составь план", "Проверь моё эссе IELTS Writing Task 2: …", "Давай потренируем IELTS Speaking Part 1"],
+  lab: ["Сделай ревью кода в папке code/ на диске", "Напиши и запусти тесты для code/bot/ — особенно казахские буквы и эмодзи"],
+  ideas: ["Разбери идею: Telegram-бот, который подбирает хакатоны в Казахстане", "Собери дайджест за неделю и сохрани в файл"],
 };
 
 // ---------- Утилиты ----------
@@ -875,7 +874,8 @@ function openSubagentCard(id) {
     <div class="agent-head">${subPortrait(s, "ava-xl")}<div><h3>${esc(s.name)}</h3><div class="muted">${esc(s.role)} · отдел «${esc(g.name)}»</div>
       <div class="member-doing">${mood === "idle" ? "💤 Сейчас свободен" : mood === "waiting" ? "✋ Ждёт вашего ответа" : "⌨ " + esc(s.run.activity || s.run.description)}</div></div></div>
     <div class="box px"><div class="box-title">КОГДА ЕГО ЗОВУТ</div>${esc(s.description)}</div>
-    <div class="box px"><div class="box-title">УМЕЕТ</div>📖 читать файлы${s.files ? " · 📝 писать файлы" : ""}${s.web ? " · 🌐 искать в интернете" : ""} · ✋ спрашивать вас</div>
+    <div class="box px"><div class="box-title">ИНСТРУМЕНТЫ</div>${s.tools ? JSON.parse(s.tools).map((t) => `<code>${esc(t)}</code>`).join(" ") : `📖 читать файлы${s.files ? " · 📝 писать файлы" : ""}${s.web ? " · 🌐 искать в интернете" : ""}`} · ✋ спрашивать вас</div>
+    ${s.source_file ? `<p class="hint">Описан в файле <code>.claude/agents/${esc(s.source_file)}</code>${s.model ? ` · модель ${esc(s.model)}` : ""}</p>` : ""}
     ${s.run ? `<div class="box px"><div class="box-title">ТЕКУЩЕЕ ПОРУЧЕНИЕ</div>${esc(s.run.description)}</div>` : ""}
     <div class="actions"><button class="btn" data-edit-sub="${esc(s.id)}">Настроить</button><button class="btn" data-open-room="${esc(g.id)}">Весь отдел</button></div>
   </div>`);
@@ -1142,6 +1142,7 @@ function openGroupForm(id) {
 // Форма субагента
 function openSubagentForm(id, groupId) {
   const existing = id ? subById(id) : null;
+  if (existing?.source_file) return openFileAgentCard(existing);
   const s = existing ?? { name: "", role: "", description: "", prompt: "", web: 0, files: 1, model: null };
   const gid = existing?.group_id ?? groupId;
   openSheet(`<h3>${id ? "Субагент" : "Новый субагент"}</h3>
@@ -1160,8 +1161,38 @@ function openSubagentForm(id, groupId) {
     </form>`);
 }
 
+// Агент из .claude/agents: правится только файлом, но отдел можно поменять здесь.
+function openFileAgentCard(s) {
+  const groups = state.groups
+    .map((g) => `<option value="${esc(g.id)}" ${g.id === s.group_id ? "selected" : ""} ${g.id !== s.group_id && g.subagents.length >= 4 ? "disabled" : ""}>${esc(g.name)} (${g.subagents.length}/4)</option>`)
+    .join("");
+  openSheet(`<div style="${gstyle(s.group)}">
+    <div class="agent-head">${subPortrait(s, "ava-xl")}<div><h3>${esc(s.name)}</h3><div class="muted">${esc(s.role)}</div></div></div>
+    <div class="box px"><div class="box-title">ОПИСАНИЕ (DESCRIPTION)</div>${esc(s.description)}</div>
+    <div class="box px"><div class="box-title">ИНСТРУМЕНТЫ</div>${s.tools ? JSON.parse(s.tools).map((t) => `<code>${esc(t)}</code>`).join(" ") : "все"}${s.model ? ` · модель <code>${esc(s.model)}</code>` : ""}</div>
+    <details class="box px"><summary>Системный промпт</summary><div class="md">${md(s.prompt)}</div></details>
+    <p class="hint">Этот агент описан в <code>.claude/agents/${esc(s.source_file)}</code>. Чтобы изменить его, правьте файл в репозитории: офис подхватит изменения после перезапуска.</p>
+    <form class="form" id="move-form" data-id="${esc(s.id)}">
+      <label>Отдел<select name="group">${groups}</select></label>
+      <div class="actions"><button class="btn primary" type="submit">Перевести</button></div>
+    </form></div>`);
+}
+
 $("#sheet-body").addEventListener("submit", async (e) => {
   const form = e.target;
+  if (form.id === "move-form") {
+    e.preventDefault();
+    try {
+      const target = form.group.value;
+      await api(`/subagents/${form.dataset.id}/group`, { method: "PUT", body: { group_id: target } });
+      await refresh();
+      closeSheet();
+      toast(`Переведён в «${groupById(target)?.name}»`);
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
+  }
   if (form.id !== "group-form" && form.id !== "sub-form") return;
   e.preventDefault();
   const f = new FormData(form);

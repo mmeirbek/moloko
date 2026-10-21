@@ -141,6 +141,13 @@ ${roster}
 }
 
 function subagentPrompt(s: SubagentRow, group: GroupRow): string {
+  // Агент из файла .claude/agents — его промпт как есть, плюс короткая справка об офисе.
+  if (s.source_file) {
+    return `${s.prompt}
+
+---
+Контекст офиса: ты работаешь субагентом в отделе «${group.name}» виртуального офиса. Текущая папка — общий диск офиса (используй относительные пути). Пользователь читает ответы с телефона; если тебе нужен его ответ или уточнение — задай вопрос инструментом ask_boss и дождись ответа.`;
+  }
   return `Ты — ${s.name}, ${s.role} в отделе «${group.name}» виртуального офиса.
 
 ${s.prompt}
@@ -166,8 +173,15 @@ function truncate(s: string, n: number) {
   return flat.length > n ? flat.slice(0, n) + "…" : flat;
 }
 
+const OFFICE_TOOLS = new Set(["Read", "Glob", "Grep", "Write", "Edit", "WebSearch", "WebFetch"]);
+
+// Инструменты субагента: из файла агента (если указаны) или по флагам; Bash — только с ALLOW_BASH=1.
 function toolsFor(s: SubagentRow): string[] {
-  return ["Read", "Glob", "Grep", ...(s.files ? ["Write", "Edit"] : []), ...(s.web ? ["WebSearch", "WebFetch"] : []), ASK_TOOL];
+  const wanted: string[] = s.tools
+    ? JSON.parse(s.tools)
+    : ["Read", "Glob", "Grep", ...(s.files ? ["Write", "Edit"] : []), ...(s.web ? ["WebSearch", "WebFetch"] : [])];
+  const tools = wanted.filter((t) => OFFICE_TOOLS.has(t) || (t === "Bash" && config.allowBash));
+  return [...new Set([...tools, ASK_TOOL])];
 }
 
 // Окружение процесса Claude Code: оставляем ровно один способ оплаты, чтобы случайно не платить не тем.
@@ -260,7 +274,8 @@ async function groupLoop(task: TaskRow, group: GroupRow, controller: AbortContro
     ],
   });
 
-  const allTools = ["Agent", "Task", "Read", "Glob", "Grep", "Write", "Edit", "WebSearch", "WebFetch", ASK_TOOL];
+  const needsBash = config.allowBash && subs.some((s) => toolsFor(s).includes("Bash"));
+  const allTools = ["Agent", "Task", "Read", "Glob", "Grep", "Write", "Edit", "WebSearch", "WebFetch", ...(needsBash ? ["Bash"] : []), ASK_TOOL];
   const q = query({
     prompt: taskPrompt(task),
     options: {
@@ -270,7 +285,7 @@ async function groupLoop(task: TaskRow, group: GroupRow, controller: AbortContro
       systemPrompt: leadPrompt(group, subs),
       tools: allTools.filter((t) => t !== ASK_TOOL),
       allowedTools: allTools,
-      disallowedTools: ["Bash"],
+      disallowedTools: needsBash ? [] : ["Bash"],
       // Без интерактивных вопросов: правки файлов разрешены, но хук guardFiles пускает только внутрь диска офиса.
       permissionMode: "acceptEdits",
       settingSources: [],

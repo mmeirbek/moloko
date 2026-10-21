@@ -286,6 +286,7 @@ input:focus, textarea:focus, select:focus { box-shadow: 0 -3px 0 0 var(--accent)
 .md ul, .md ol { margin: 4px 0 6px; padding-left: 20px; }
 .md h3, .md h4 { margin: 8px 0 4px; font-size: 20px; color: var(--accent); }
 .msg.boss .md h4 { color: inherit; }
+code { font: 14px/1.4 ui-monospace, Menlo, monospace; background: rgba(0,0,0,.3); padding: 0 4px; overflow-wrap: anywhere; }
 .md code { background: rgba(0,0,0,.3); padding: 0 4px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; }
 .md pre { background: #0b1020; padding: 10px; overflow-x: auto; font-size: 13px; box-shadow: 0 0 0 2px var(--ink); }
 .md pre code { background: none; padding: 0; }

@@ -22,9 +22,10 @@ import {
   getSubagent,
   getTask,
   listGroups,
+  initOffice,
   listSubagents,
+  MAX_SUBAGENTS,
   pendingQuestions,
-  seedOffice,
   setSetting,
   spentTodayUsd,
 } from "./office.js";
@@ -32,9 +33,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(here, "..", "public");
 
-const MAX_SUBAGENTS = 4;
-
-seedOffice();
+initOffice();
 
 const app = express();
 app.set("trust proxy", 1);
@@ -275,6 +274,9 @@ api.put("/groups/:id", (req, res) => {
 api.delete("/groups/:id", (req, res) => {
   const g = getGroup(req.params.id);
   if (!g) return res.status(404).json({ error: "Отдел не найден" });
+  if (listSubagents(g.id).some((s) => s.source_file)) {
+    return res.status(400).json({ error: "В отделе есть агенты из .claude/agents — сначала переведите их в другие отделы." });
+  }
   for (const t of all<TaskRow>("SELECT * FROM tasks WHERE group_id = ? AND status IN ('queued','working','waiting')", g.id)) cancelTask(t.id);
   run("DELETE FROM groups WHERE id = ?", g.id);
   emit({ type: "group_deleted", id: g.id });
@@ -302,9 +304,28 @@ api.post("/groups/:id/subagents", (req, res) => {
   res.json({ subagent: getSubagent(id) });
 });
 
+const FROM_FILE = "Этот агент описан в файле .claude/agents — правьте файл, офис подхватит изменения после перезапуска.";
+
+// Перевести субагента в другой отдел — можно и для агентов из файлов.
+api.put("/subagents/:id/group", (req, res) => {
+  const s = getSubagent(req.params.id);
+  const target = getGroup(String(req.body?.group_id ?? ""));
+  if (!s || !target) return res.status(404).json({ error: "Не найдено" });
+  if (s.group_id === target.id) return res.json({ subagent: s });
+  if (listSubagents(target.id).length >= MAX_SUBAGENTS) return res.status(400).json({ error: `В отделе «${target.name}» уже ${MAX_SUBAGENTS} субагента.` });
+  if (listSubagents(s.group_id).length <= 1) return res.status(400).json({ error: "В отделе должен остаться хотя бы один субагент." });
+  if (hasActiveTasks(s.group_id) || hasActiveTasks(target.id)) return res.status(409).json({ error: "Один из отделов сейчас работает — дождитесь окончания задачи." });
+  const position = (get<{ p: number | null }>("SELECT MAX(position) AS p FROM subagents WHERE group_id = ?", target.id)!.p ?? -1) + 1;
+  run("UPDATE subagents SET group_id = ?, position = ? WHERE id = ?", target.id, position, s.id);
+  emitGroup(s.group_id);
+  emitGroup(target.id);
+  res.json({ subagent: getSubagent(s.id) });
+});
+
 api.put("/subagents/:id", (req, res) => {
   const existing = getSubagent(req.params.id);
   if (!existing) return res.status(404).json({ error: "Субагент не найден" });
+  if (existing.source_file) return res.status(400).json({ error: FROM_FILE });
   const p = SubagentInput.safeParse(req.body);
   if (!p.success) return bad(res, p.error);
   const s = p.data;
@@ -319,6 +340,7 @@ api.put("/subagents/:id", (req, res) => {
 api.delete("/subagents/:id", (req, res) => {
   const s = getSubagent(req.params.id);
   if (!s) return res.status(404).json({ error: "Субагент не найден" });
+  if (s.source_file) return res.status(400).json({ error: FROM_FILE + " Чтобы убрать агента, удалите его файл." });
   if (listSubagents(s.group_id).length <= 1) return res.status(400).json({ error: "В отделе должен остаться хотя бы один субагент." });
   if (hasActiveTasks(s.group_id)) return res.status(409).json({ error: "Отдел сейчас работает — дождитесь окончания задачи." });
   run("DELETE FROM subagents WHERE id = ?", s.id);
