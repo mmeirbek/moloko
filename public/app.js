@@ -1,52 +1,57 @@
-// Виртуальный офис — клиент. Без сборки и фреймворков: открывается на любом телефоне.
-
-import { DESK_H, DESK_W, drawDesk, icon, portrait } from "/sprites.js";
+// Офис субагентов — клиент. Без сборки и фреймворков: открывается на любом телефоне.
+import { drawRoom, groupIcon, hash, icon, portrait, ROOM_H, ROOM_W, roomLayout } from "/sprites.js";
 
 const $ = (sel) => document.querySelector(sel);
 
 const state = {
-  agents: [],
+  groups: [],
   tasks: [],
   messages: [],
   questions: [],
   stats: {},
   models: [],
-  tab: localStorageGet("tab") || "office",
-  target: null, // кому адресована следующая команда
-  taskFilter: "active",
+  tab: storageGet("tab") || "office",
+  feedFilter: "all",
   openTaskId: null,
 };
 
 const STATUS_LABEL = {
   queued: "в очереди",
-  working: "работает",
+  working: "в работе",
   waiting: "ждёт ответа",
   done: "готово",
   failed: "ошибка",
   cancelled: "отменено",
 };
-const AGENT_STATUS = {
-  idle: "Свободен",
-  working: "Работает",
-  waiting: "Ждёт вашего ответа",
-  queued: "Есть задачи в очереди",
+const GROUP_STATUS = {
+  idle: "свободен",
+  working: "работает",
+  waiting: "ждёт вашего ответа",
+  queued: "задача в очереди",
+};
+
+// Примеры заданий для стартовых отделов — чтобы не думать, с чего начать.
+const EXAMPLES = {
+  intel: ["Найди 5 главных конкурентов моего проекта и сравни их", "Какие AI-инструменты для малого бизнеса набирают популярность в 2026?"],
+  studio: ["Напиши пост для Telegram о запуске моего пет-проекта", "Сделай контент-план на неделю для Instagram кофейни"],
+  lab: ["Сделай простой лендинг на HTML для моего проекта", "Напиши скрипт на Python, который переименует фото по дате"],
+  hq: ["Посчитай юнит-экономику подписки за 5$ в месяц", "Составь план поиска первых 10 клиентов"],
 };
 
 // ---------- Утилиты ----------
 
-function localStorageGet(key) {
+function storageGet(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
-function localStorageSet(key, value) {
+function storageSet(key, value) {
   try { localStorage.setItem(key, value); } catch { /* приватный режим — не страшно */ }
 }
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
-
 function parseTime(s) {
-  return new Date(String(s).replace(" ", "T") + "Z");
+  return new Date(/Z|T/.test(s) ? s : String(s).replace(" ", "T") + "Z");
 }
 function timeAgo(s) {
   const diff = (Date.now() - parseTime(s).getTime()) / 1000;
@@ -65,7 +70,7 @@ function money(n) {
 // Минимальный и безопасный markdown: сначала экранируем, потом размечаем.
 function md(src) {
   const blocks = [];
-  let text = esc(src).replace(/```[\w-]*\n?([\s\S]*?)```/g, (_, code) => {
+  const text = esc(src).replace(/```[\w-]*\n?([\s\S]*?)```/g, (_, code) => {
     blocks.push(`<pre><code>${code}</code></pre>`);
     return `\u0000${blocks.length - 1}\u0000`;
   });
@@ -89,23 +94,43 @@ function md(src) {
     if (list) { out.push(`</${list}>`); list = null; }
     const h = line.match(/^#{1,6}\s+(.*)$/);
     if (h) out.push(`<h4>${inline(h[1])}</h4>`);
+    else if (/^\|.*\|$/.test(line.trim())) out.push(`<p class="table-line">${inline(line)}</p>`);
     else if (line.trim()) out.push(`<p>${inline(line)}</p>`);
   }
   if (list) out.push(`</${list}>`);
   return out.join("").replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[Number(i)]);
 }
 
-function agentById(id) {
-  return state.agents.find((a) => a.id === id);
+const groupById = (id) => state.groups.find((g) => g.id === id);
+function subById(id) {
+  for (const g of state.groups) {
+    const s = g.subagents.find((x) => x.id === id);
+    if (s) return { ...s, color: g.color, group: g };
+  }
+  return null;
 }
-// Пиксельный портрет сотрудника (для босса и неизвестных — иконка офиса).
-function avatar(agent, cls = "ava") {
-  const src = agent ? portrait(agent) : icon("office");
-  return `<img class="${cls}" src="${src}" alt="" style="${agentStyle(agent)}" />`;
+const gstyle = (g) => `--g:${g?.color || "#3ab7ff"}`;
+const subPortrait = (s, cls = "ava") => `<img class="${cls}" src="${portrait({ id: s.id, color: s.color })}" alt="" />`;
+const groupImg = (g, cls = "gicon") => (g ? `<img class="${cls}" src="${groupIcon(g)}" alt="" />` : `<img class="${cls}" src="${icon("office")}" alt="" />`);
+
+// Уровень отдела растёт с каждой выполненной задачей: 1, 4, 9, 16… задач — следующий уровень.
+function level(done) {
+  const lvl = Math.floor(Math.sqrt(done)) + 1;
+  const from = (lvl - 1) ** 2, to = lvl ** 2;
+  return { lvl, progress: to === from ? 0 : (done - from) / (to - from) };
 }
 
-function agentStyle(agent) {
-  return `--agent:${agent?.color || "#7c8cff"}`;
+function streak() {
+  const days = new Set(state.stats.done_days ?? []);
+  let n = 0;
+  const d = new Date();
+  const key = (x) => x.toISOString().slice(0, 10);
+  if (!days.has(key(d))) d.setUTCDate(d.getUTCDate() - 1); // сегодня ещё не успели — серия не сгорела
+  while (days.has(key(d))) {
+    n++;
+    d.setUTCDate(d.getUTCDate() - 1);
+  }
+  return n;
 }
 
 async function api(path, options = {}) {
@@ -129,7 +154,7 @@ function toast(text) {
   el.textContent = text;
   el.classList.remove("hidden");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add("hidden"), 2600);
+  toastTimer = setTimeout(() => el.classList.add("hidden"), 2800);
 }
 
 // ---------- Вход ----------
@@ -166,14 +191,9 @@ async function start() {
 }
 
 async function refresh() {
-  const data = await api("/state");
-  Object.assign(state, data);
-  if (!state.target || !agentById(state.target)) state.target = defaultTarget();
+  Object.assign(state, await api("/state"));
+  for (const g of state.groups) syncScene(g, true);
   renderAll();
-}
-
-function defaultTarget() {
-  return (state.agents.find((a) => a.can_delegate) || state.agents[0])?.id ?? null;
 }
 
 function connect() {
@@ -181,59 +201,71 @@ function connect() {
   source = new EventSource("/api/stream");
   source.onopen = () => {
     $("#conn").classList.add("on");
-    // После обрыва связи могли пропустить события — подтягиваем всё заново.
     refresh().catch(() => {});
   };
   source.onerror = () => $("#conn").classList.remove("on");
   source.onmessage = (e) => handleEvent(JSON.parse(e.data));
 }
 
-function upsert(list, item, key = "id") {
-  const i = list.findIndex((x) => x[key] === item[key]);
+function upsert(list, item) {
+  const i = list.findIndex((x) => x.id === item.id);
   if (i >= 0) list[i] = item;
   else list.push(item);
 }
 
 function handleEvent(ev) {
   switch (ev.type) {
-    case "agent":
-      upsert(state.agents, ev.agent);
+    case "group":
+      upsert(state.groups, ev.group);
+      state.groups.sort((a, b) => a.position - b.position);
+      syncScene(ev.group, false);
+      if (state.tab === "office" && updateRoomCard(ev.group)) {
+        renderTopbar();
+        return;
+      }
       break;
-    case "agent_deleted":
-      state.agents = state.agents.filter((a) => a.id !== ev.id);
+    case "group_deleted":
+      state.groups = state.groups.filter((g) => g.id !== ev.id);
       break;
     case "task": {
       const prev = state.tasks.find((t) => t.id === ev.task.id);
       upsert(state.tasks, ev.task);
       state.tasks.sort((a, b) => b.id - a.id);
-      if (prev && prev.status !== ev.task.status && ev.task.parent_id === null && ["done", "failed"].includes(ev.task.status)) {
-        const agent = agentById(ev.task.agent_id);
-        notify(`${agent?.emoji ?? "🤖"} ${agent?.name ?? "Агент"}: ${ev.task.status === "done" ? "готово" : "ошибка"}`, ev.task.title);
+      if (prev && prev.status !== ev.task.status && ["done", "failed"].includes(ev.task.status)) {
+        const g = groupById(ev.task.group_id);
+        if (ev.task.status === "done") {
+          celebrate(ev.task.group_id);
+          notify(`«${g?.name ?? "Отдел"}» справился!`, ev.task.title);
+        } else notify(`«${g?.name ?? "Отдел"}»: ошибка`, ev.task.title);
       }
       break;
     }
     case "message":
-      if (ev.message.kind === "thinking") break;
       state.messages.push(ev.message);
-      if (state.messages.length > 300) state.messages.splice(0, state.messages.length - 300);
+      if (state.messages.length > 400) state.messages.splice(0, state.messages.length - 400);
+      if (state.tab === "office") return; // в офисе лента не видна
       break;
     case "question":
       state.questions = state.questions.filter((q) => q.id !== ev.question.id);
       if (ev.question.answer === null) {
         state.questions.push(ev.question);
-        const agent = agentById(ev.question.agent_id);
-        notify(`❓ ${agent?.name ?? "Агент"} спрашивает`, ev.question.question);
+        const s = subById(ev.question.subagent_id);
+        notify(`✋ ${s?.name ?? groupById(ev.question.group_id)?.name ?? "Отдел"} спрашивает`, ev.question.question);
       }
-      break;
+      renderQuestions();
+      return;
+    case "limits":
+      state.stats.rate_limit = ev.limits;
+      renderTopbar();
+      return;
     case "file":
       if (state.tab === "files") renderView();
       return;
   }
   scheduleRender();
-  if (state.openTaskId && (ev.type === "task" || ev.type === "message")) {
-    const tid = ev.task?.id ?? ev.message?.task_id;
-    const t = state.tasks.find((x) => x.id === tid);
-    if (tid === state.openTaskId || t?.parent_id === state.openTaskId) scheduleTaskSheetRefresh();
+  if (state.openTaskId && (ev.type === "task" || ev.type === "message" || ev.type === "group")) {
+    const tid = ev.task?.id ?? ev.message?.task_id ?? ev.group?.current_task?.id;
+    if (tid === state.openTaskId) scheduleTaskSheetRefresh();
   }
 }
 
@@ -257,11 +289,131 @@ $("#notify-btn").addEventListener("click", async () => {
 });
 
 async function notify(title, body) {
-  if (document.visibilityState === "visible") return toast(`${title} — ${body}`.slice(0, 120));
+  navigator.vibrate?.(30);
+  if (document.visibilityState === "visible") return toast(`${title} ${body}`.slice(0, 120));
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const reg = await navigator.serviceWorker?.getRegistration();
   if (reg) reg.showNotification(title, { body, icon: "/icon-192.png", tag: title });
   else new Notification(title, { body });
+}
+
+// ---------- Сцена: маленькие сотрудники ходят между диваном и столами ----------
+
+const scenes = new Map(); // groupId -> Map(subId -> член сцены)
+const SIT_Y = 50;
+const LOUNGE_Y = 28;
+
+function moodFor(g, s) {
+  const r = s.run;
+  if (r?.status === "working") return /ждёт ответа/.test(r.activity ?? "") ? "waiting" : "working";
+  return "idle";
+}
+
+function syncScene(g, initial) {
+  const layout = roomLayout(g.subagents.length);
+  const old = scenes.get(g.id) ?? new Map();
+  const next = new Map();
+  g.subagents.slice(0, 4).forEach((s, i) => {
+    const mood = moodFor(g, s);
+    const seat = layout.seats[i];
+    const lounge = layout.lounge[i];
+    const target = mood === "idle" ? lounge : seat;
+    let m = old.get(s.id);
+    if (!m) {
+      m = { id: s.id, x: target.x, y: target.y, deskIndex: i, doneUntil: 0 };
+      if (!initial && mood !== "idle") Object.assign(m, lounge); // новенький пришёл с дивана
+    }
+    if (m.mood && m.mood !== "idle" && mood === "idle" && s.run?.status === "done") m.doneUntil = Date.now() + 6000;
+    Object.assign(m, { mood, target, deskIndex: i, color: g.color });
+    next.set(s.id, m);
+  });
+  scenes.set(g.id, next);
+}
+
+function stepMember(m) {
+  const speed = 2;
+  const t = m.target;
+  let moved = false;
+  const goX = () => {
+    if (m.x === t.x) return false;
+    m.x += Math.sign(t.x - m.x) * Math.min(speed, Math.abs(t.x - m.x));
+    return true;
+  };
+  const goY = () => {
+    if (m.y === t.y) return false;
+    m.y += Math.sign(t.y - m.y) * Math.min(speed, Math.abs(t.y - m.y));
+    return true;
+  };
+  // Вниз к столу: сначала по ковру до своего места, потом садимся. Обратно — встаём и идём к дивану.
+  if (t.y > m.y) moved = m.y <= LOUNGE_Y ? goX() || goY() : goY() || goX();
+  else moved = goY() || goX();
+  m.walking = moved;
+  m.seated = !moved && m.y === SIT_Y;
+}
+
+function bubbleFor(m, tick) {
+  if (m.walking) return null;
+  if (m.mood === "waiting") return "question";
+  if (m.mood === "working" && m.seated) return "dots";
+  if (m.doneUntil > Date.now()) return "check";
+  if (m.mood === "idle" && (tick + (hash(m.id) % 40)) % 80 < 10) return "zzz";
+  return null;
+}
+
+function skyNow() {
+  const h = new Date().getHours();
+  if (h < 6 || h >= 21) return { night: true, top: "#0e1433", bottom: "#1a2150" };
+  if (h >= 18) return { evening: true, top: "#ff8a5c", bottom: "#7a3d8c" };
+  return { top: "#5ec8ff", bottom: "#b8e8ff" };
+}
+
+let tick = 0;
+const visibleRooms = new Set();
+const roomObserver = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    const id = e.target.dataset.room;
+    if (e.isIntersecting) visibleRooms.add(id);
+    else visibleRooms.delete(id);
+  }
+});
+
+function drawRooms(all = false) {
+  const sky = skyNow();
+  document.querySelectorAll("canvas[data-room]").forEach((c) => {
+    const id = c.dataset.room;
+    if (!all && !visibleRooms.has(id)) return;
+    const g = groupById(id);
+    const scene = scenes.get(id);
+    if (!g || !scene) return;
+    const members = [...scene.values()].map((m) => ({ ...m, bubble: bubbleFor(m, tick) }));
+    const runs = g.current_task ? g.subagents.filter((s) => s.run).map((s) => s.run) : [];
+    drawRoom(c, { color: g.color, members, runs, sky, frame: Math.floor(tick / 2) });
+  });
+}
+
+setInterval(() => {
+  if (document.hidden) return;
+  tick++;
+  for (const scene of scenes.values()) for (const m of scene.values()) stepMember(m);
+  if (state.tab === "office") drawRooms();
+}, 125);
+
+// Конфетти, когда отдел закончил задачу.
+function celebrate(groupId) {
+  const card = document.querySelector(`.room-card[data-group="${groupId}"]`);
+  if (!card) return;
+  const colors = ["#ffd23f", "#ff6b8b", "#5fd07e", "#3ab7ff", "#fff8e6"];
+  for (let i = 0; i < 26; i++) {
+    const p = document.createElement("i");
+    p.className = "confetti";
+    p.style.left = 50 + (Math.random() * 40 - 20) + "%";
+    p.style.background = colors[i % colors.length];
+    p.style.setProperty("--dx", Math.round(Math.random() * 240 - 120) + "px");
+    p.style.setProperty("--dy", Math.round(-60 - Math.random() * 120) + "px");
+    p.style.animationDelay = Math.random() * 0.15 + "s";
+    card.appendChild(p);
+    setTimeout(() => p.remove(), 1400);
+  }
 }
 
 // ---------- Отрисовка ----------
@@ -274,28 +426,43 @@ function renderAll() {
 
 function renderTopbar() {
   const s = state.stats;
-  const spend = $("#spend");
-  spend.textContent = `≈${money(s.spent_today_usd)} / ${money(s.daily_budget_usd)}`;
-  spend.title = "Расходы за последние сутки / суточный лимит";
-  spend.classList.toggle("hot", s.spent_today_usd > 0.8 * s.daily_budget_usd);
+  const chip = $("#limit-chip");
+  const rl = s.rate_limit;
+  chip.className = "limit-chip";
+  if (s.auth === "subscription") {
+    const pct = rl?.utilization != null ? Math.round(rl.utilization * (rl.utilization <= 1 ? 100 : 1)) : null;
+    const reset = rl?.resetsAt ? new Date(rl.resetsAt * (rl.resetsAt < 1e12 ? 1000 : 1)).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : null;
+    chip.innerHTML = `<img src="${icon("bolt")}" alt="" />${rl?.status === "rejected" ? "Лимит исчерпан" : pct != null ? `${pct}%` : "Подписка"}${reset ? ` · до ${reset}` : ""}`;
+    chip.title = "Лимит подписки Claude за 5 часов";
+    if (rl?.status === "rejected") chip.classList.add("bad");
+    else if (rl?.status === "allowed_warning" || (pct ?? 0) > 80) chip.classList.add("warn");
+  } else if (s.auth === "api") {
+    chip.innerHTML = `≈${money(s.spent_today_usd)} / ${money(s.daily_budget_usd)}`;
+    chip.title = "Расходы по API-ключу за сутки / лимит";
+    if (s.spent_today_usd > 0.8 * s.daily_budget_usd) chip.classList.add("warn");
+  } else {
+    chip.innerHTML = "⚠ не подключено";
+    chip.classList.add("bad");
+  }
   const granted = "Notification" in window && Notification.permission === "granted";
   $("#notify-btn").style.opacity = granted ? "1" : ".45";
   const active = state.tasks.filter((t) => ["queued", "working", "waiting"].includes(t.status)).length;
-  const badge = $("#tasks-badge");
+  const badge = $("#panel-badge");
   badge.textContent = active;
   badge.classList.toggle("hidden", active === 0);
 }
 
 function renderQuestions() {
   const el = $("#questions");
-  // Не перерисовываем, пока пользователь печатает ответ.
-  if (el.contains(document.activeElement)) return;
+  if (el.contains(document.activeElement)) return; // не мешаем печатать ответ
   el.innerHTML = state.questions
     .map((q) => {
-      const a = agentById(q.agent_id);
-      return `<div class="q-card">
-        <div class="q-card-head">${avatar(a)} ${esc(a?.name ?? q.agent_id)} спрашивает · задача #${q.task_id}</div>
-        <div class="md">${md(q.question)}</div>
+      const s = subById(q.subagent_id);
+      const g = groupById(q.group_id);
+      const who = s ? `${subPortrait(s)} <b>${esc(s.name)}</b>` : `${groupImg(g)} <b>${esc(g?.name ?? "Отдел")}</b>`;
+      return `<div class="q-card" style="${gstyle(g)}">
+        <div class="q-card-head">${who}<span>спрашивает · ${esc(g?.name ?? "")}</span></div>
+        <div class="md q-text">${md(q.question)}</div>
         <form data-question="${q.id}">
           <input name="answer" placeholder="Ваш ответ…" autocomplete="off" required />
           <button class="btn primary small">Ответить</button>
@@ -317,26 +484,35 @@ $("#questions").addEventListener("submit", async (e) => {
     form.answer.blur();
     state.questions = state.questions.filter((q) => String(q.id) !== form.dataset.question);
     renderQuestions();
-    toast("Ответ отправлен");
+    toast("Ответ отправлен — работа продолжается");
   } catch (err) {
     toast(err.message);
     form.querySelector("button").disabled = false;
   }
 });
 
+const VIEWS = { office: viewOffice, panel: viewPanel, feed: viewFeed, files: viewFiles, groups: viewGroups };
+
 function renderView() {
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
-  const withComposer = state.tab === "office" || state.tab === "chat";
-  $("#composer").classList.toggle("hidden", !withComposer);
-  $("#app").classList.toggle("with-composer", withComposer);
-  if (withComposer) renderChips();
-
+  $("#fab").classList.toggle("hidden", !(state.tab === "office" || state.tab === "feed"));
   const view = $("#view");
-  const stickToBottom = state.tab === "chat" && view.scrollHeight - view.scrollTop - view.clientHeight < 80;
-  const html = { office: viewOffice, chat: viewChat, tasks: viewTasks, files: viewFiles, team: viewTeam }[state.tab]();
+  // Не перерисовываем пульт, пока человек печатает задание.
+  if (state.tab === "panel" && view.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA") {
+    updatePanelStatuses();
+    return;
+  }
+  const stickToBottom = state.tab === "feed" && view.scrollHeight - view.scrollTop - view.clientHeight < 80;
+  const html = VIEWS[state.tab]();
   if (typeof html === "string") view.innerHTML = `<div class="view-inner">${html}</div>`;
-  if (state.tab === "office") drawDesks();
-  if (state.tab === "chat" && (stickToBottom || !view.dataset.scrolled)) {
+  view.classList.toggle("panel-view", state.tab === "panel");
+  if (state.tab === "office") {
+    roomObserver.disconnect();
+    visibleRooms.clear();
+    document.querySelectorAll("canvas[data-room]").forEach((c) => roomObserver.observe(c));
+    drawRooms(true);
+  }
+  if (state.tab === "feed" && (stickToBottom || !view.dataset.scrolled)) {
     view.scrollTop = view.scrollHeight;
     view.dataset.scrolled = "1";
   }
@@ -346,7 +522,7 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-tab]");
   if (!btn) return;
   state.tab = btn.dataset.tab;
-  localStorageSet("tab", state.tab);
+  storageSet("tab", state.tab);
   delete $("#view").dataset.scrolled;
   $("#view").scrollTop = 0;
   renderView();
@@ -354,230 +530,238 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
 
 // ----- Офис -----
 
+function hud() {
+  const done = state.groups.reduce((n, g) => n + g.done_total, 0);
+  const today = state.groups.reduce((n, g) => n + g.done_today, 0);
+  const busy = state.groups.filter((g) => g.status === "working" || g.status === "waiting").length;
+  const office = level(done);
+  return `<div class="hud">
+    <div class="hud-cell px"><img src="${icon("star")}" alt="" /><div><b>Офис ур.${office.lvl}</b><div class="bar"><i style="width:${Math.round(office.progress * 100)}%"></i></div></div></div>
+    <div class="hud-cell px"><img src="${icon("tasks")}" alt="" /><div><b>${today}</b><small>сегодня</small></div></div>
+    <div class="hud-cell px"><img src="${icon("fire")}" alt="" /><div><b>${streak()}</b><small>серия</small></div></div>
+    <div class="hud-cell px"><img src="${icon("team")}" alt="" /><div><b>${busy}/${state.groups.length}</b><small>в работе</small></div></div>
+  </div>`;
+}
+
 function viewOffice() {
-  if (!state.agents.length) {
-    return `<div class="empty px" style="padding:28px">В офисе пока пусто. Наймите сотрудников во вкладке «Команда».</div>`;
-  }
-  const busy = state.agents.filter((a) => a.status === "working" || a.status === "waiting").length;
-  const desks = state.agents
-    .map((a) => {
-      let bubble = "z z z… свободен";
-      if (a.status === "working") bubble = esc(a.current_task?.title);
-      if (a.status === "waiting") bubble = "Есть вопрос к вам!";
-      if (a.status === "queued") bubble = `В очереди: ${a.queued}`;
-      else if (a.queued) bubble += ` · ещё ${a.queued}`;
-      return `<div class="desk ${a.status}" style="${agentStyle(a)}" data-agent="${esc(a.id)}" title="${esc(AGENT_STATUS[a.status])}">
-        <div class="speech"><span>${bubble}</span></div>
-        <canvas width="${DESK_W}" height="${DESK_H}" data-desk="${esc(a.id)}"></canvas>
-        <div class="nameplate"><b><span class="status-led"></span>${esc(a.name)}</b><small>${esc(a.role)}</small></div>
+  // Без подключения офис бесполезен — говорим об этом первым делом.
+  const banner =
+    state.stats.auth === "none"
+      ? `<div class="banner px">⚠ Офис не подключён к Claude. <button class="btn small primary" data-help="connect">Как подключить</button></div>`
+      : "";
+  const rooms = state.groups.map(roomCard).join("");
+  const firstTime = state.tasks.length === 0;
+  return `${banner}${hud()}
+    ${firstTime ? `<div class="tip px"><b>С чего начать:</b> нажмите «Дать задание» у любого отдела. Координатор раздаст работу своим субагентам — смотрите, как они встают с дивана и садятся за столы.</div>` : ""}
+    <div class="building">${rooms}
+      <button class="room-new px" data-new-group><img src="${icon("plus")}" alt="" />Открыть новый отдел</button>
+    </div>`;
+}
+
+function roomCard(g) {
+  const lv = level(g.done_total);
+  const t = g.current_task;
+  const runs = g.subagents.filter((s) => s.run);
+  const doneRuns = runs.filter((s) => s.run.status === "done").length;
+  let status = `<span class="muted">${esc(g.motto || "Готовы к работе")}</span>`;
+  if (t) status = `<b>${t.status === "waiting" ? "✋ Ждёт вашего ответа" : "▶ В работе"}:</b> ${esc(t.title)}${runs.length ? ` <span class="muted">· ${doneRuns}/${runs.length}</span>` : ""}`;
+  else if (g.queued) status = `<b>⏳ В очереди:</b> ${g.queued}`;
+  const crew = g.subagents
+    .map((s) => {
+      const sub = { ...s, color: g.color };
+      const mood = moodFor(g, s);
+      const doing = mood === "waiting" ? "ждёт вашего ответа" : mood === "working" ? s.run.activity || s.run.description || "работает" : s.role;
+      return `<li class="crew-${mood}" data-sub="${esc(s.id)}">${subPortrait(sub, "ava-s")}<span class="crew-name">${esc(s.name)}</span><span class="crew-role">${esc(s.role)}</span><span class="crew-doing">${esc(doing)}</span></li>`;
+    })
+    .join("");
+  return `<section class="room-card px ${g.status}" data-group="${esc(g.id)}" style="${gstyle(g)}">
+    <header class="room-head" data-open-room="${esc(g.id)}">
+      ${groupImg(g)}
+      <div class="room-title"><b>${esc(g.name)}</b><small>${GROUP_STATUS[g.status]}</small></div>
+      <div class="lvl"><span>УР.${lv.lvl}</span><div class="bar"><i style="width:${Math.round(lv.progress * 100)}%"></i></div></div>
+    </header>
+    <div class="stage"><canvas width="${ROOM_W}" height="${ROOM_H}" data-room="${esc(g.id)}"></canvas></div>
+    <div class="room-status" ${t ? `data-task="${t.id}"` : ""}>${status}</div>
+    <ul class="crew">${crew}</ul>
+    <div class="room-actions">
+      <button class="btn small primary" data-assign="${esc(g.id)}">＋ Дать задание</button>
+      ${t ? `<button class="btn small" data-task="${t.id}">Ход работы</button><button class="btn small danger" data-cancel="${t.id}">Стоп</button>` : `<button class="btn small" data-open-room="${esc(g.id)}">Отдел</button>`}
+    </div>
+  </section>`;
+}
+
+// Точечно обновляем одну комнату, чтобы не перерисовывать всё здание.
+function updateRoomCard(g) {
+  const old = document.querySelector(`.room-card[data-group="${g.id}"]`);
+  if (!old) return false;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = roomCard(g);
+  const fresh = tmp.firstElementChild;
+  // Канвас оставляем тот же — анимация не дёргается.
+  fresh.querySelector(".stage").replaceWith(old.querySelector(".stage"));
+  old.querySelectorAll(".confetti").forEach((c) => fresh.appendChild(c));
+  old.replaceWith(fresh);
+  return true;
+}
+
+// Тап по комнате: попали в человечка — карточка субагента, иначе — карточка отдела.
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("canvas[data-room]");
+  if (!c) return;
+  const r = c.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width) * ROOM_W;
+  const y = ((e.clientY - r.top) / r.height) * ROOM_H;
+  const scene = scenes.get(c.dataset.room);
+  const hit = scene && [...scene.values()].find((m) => x >= m.x - 2 && x <= m.x + 12 && y >= m.y - 4 && y <= m.y + 16);
+  if (hit) openSubagentCard(hit.id);
+  else openRoomSheet(c.dataset.room);
+});
+
+// ----- Пульт: свои задания каждому отделу, запуск разом -----
+
+function draftKey(id) {
+  return `draft:${id}`;
+}
+
+function viewPanel() {
+  const rows = state.groups
+    .map((g) => {
+      const t = g.current_task;
+      const ex = (EXAMPLES[g.id] ?? []).map((x) => `<button class="chip" data-example-for="${esc(g.id)}" data-text="${esc(x)}">${esc(x.length > 34 ? x.slice(0, 33) + "…" : x)}</button>`).join("");
+      return `<div class="pult px" data-pult-group="${esc(g.id)}" style="${gstyle(g)}">
+        <div class="pult-head">${groupImg(g)}<b>${esc(g.name)}</b><span class="pill ${t ? t.status : g.status === "queued" ? "queued" : "idle"}" data-pult-status>${t ? STATUS_LABEL[t.status] : g.queued ? "очередь" : "свободен"}</span></div>
+        ${t ? `<div class="pult-current" data-task="${t.id}">${esc(t.title)} <button class="btn small danger" data-cancel="${t.id}">Стоп</button></div>` : ""}
+        <textarea rows="2" data-pult="${esc(g.id)}" placeholder="Задание для «${esc(g.name)}»…">${esc(storageGet(draftKey(g.id)) ?? "")}</textarea>
+        ${ex ? `<div class="chips">${ex}</div>` : ""}
+        <div class="pult-actions"><button class="btn small" data-send-one="${esc(g.id)}">Отправить</button></div>
       </div>`;
     })
     .join("");
-
-  const recent = state.messages
-    .filter((m) => m.kind !== "boss")
-    .slice(-5)
-    .reverse()
-    .map((m) => {
-      const a = agentById(m.agent_id);
-      const text = m.text.replace(/\s+/g, " ");
-      return `<div class="ticker-item" data-task="${m.task_id ?? ""}">${avatar(a, "")}<time>${clock(m.created_at)}</time><span><b>${esc(a?.name ?? "Офис")}:</b> ${esc(text.length > 110 ? text.slice(0, 110) + "…" : text)}</span></div>`;
-    })
-    .join("");
-
-  const onboarding = `<div class="onboarding px">
-      <h3>КАК ЭТО РАБОТАЕТ</h3>
-      <ol>
-        <li>Напишите задачу внизу. По умолчанию её получает менеджер.</li>
-        <li>Менеджер раздаст части коллегам. За работой видно прямо здесь, в офисе.</li>
-        <li>Если нужно уточнение, сотрудник поднимет руку, а сверху появится вопрос.</li>
-        <li>Результат придёт в «Чат», большие файлы лягут на «Диск».</li>
-      </ol>
-      <div class="examples">
-        <button class="btn small" data-example="Найди 5 идей для поста про мой пет-проект и напиши лучший пост">Идеи для поста</button>
-        <button class="btn small" data-example="Сравни 3 дешёвых хостинга для Node.js-сервера с диском и дай рекомендацию">Сравнить хостинги</button>
-      </div>
-    </div>`;
-
-  return `<div class="room px">
-      <div class="room-wall">
-        ${windowHtml()}
-        <div class="office-sign">ОФИС<small>${busy ? `в работе: ${busy}` : "все свободны"}</small></div>
-        <div class="wall-clock" id="wall-clock">${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</div>
-      </div>
-      <div class="floor"><div class="desks">${desks}</div></div>
-      <div class="legend">
-        <span class="working"><span class="status-led"></span>работает</span>
-        <span class="waiting"><span class="status-led"></span>ждёт вашего ответа</span>
-        <span class="queued"><span class="status-led"></span>есть очередь</span>
-        <span class="idle"><span class="status-led"></span>свободен</span>
-      </div>
-    </div>
-    ${recent ? `<div class="ticker px"><div class="ticker-title">ПОСЛЕДНИЕ СОБЫТИЯ</div>${recent}</div>` : onboarding}`;
+  return `<div class="section-title"><h2>ПУЛЬТ</h2></div>
+    <p class="hint">Дайте каждому отделу своё задание и запустите все разом — они работают параллельно (одновременно до ${state.stats.max_parallel ?? 3}).</p>
+    <div class="list">${rows}</div>
+    <div class="pult-launch"><button class="btn primary big" id="send-all">🚀 Запустить все задания</button></div>
+    ${recentTasks()}`;
 }
 
-// Окно показывает реальное время суток: днём солнце, ночью звёзды.
-function windowHtml() {
-  const h = new Date().getHours();
-  const night = h < 6 || h >= 21;
-  const evening = h >= 18 && h < 21;
-  const sky = night ? "#0e1433" : evening ? "linear-gradient(#ff8a5c, #7a3d8c)" : "linear-gradient(#5ec8ff, #b8e8ff)";
-  const extra = night
-    ? [[10, 8], [30, 20], [60, 10], [74, 30], [20, 38], [48, 42]].map(([x, y]) => `<i class="star" style="left:${x}px;top:${y}px"></i>`).join("")
-    : `<i class="sun" style="background:${evening ? "#ffd23f" : "#fff3a0"};top:${evening ? 34 : 10}px"></i>`;
-  return `<div class="window"><div class="sky" style="background:${sky}"></div>${extra}</div>`;
+function recentTasks() {
+  const list = state.tasks.slice(0, 15).map(taskRow).join("");
+  return list ? `<div class="section-title" style="margin-top:22px"><h2>НЕДАВНИЕ</h2></div><div class="list">${list}</div>` : "";
 }
 
-let deskFrame = 0;
-function drawDesks() {
-  document.querySelectorAll("canvas[data-desk]").forEach((c) => {
-    const a = agentById(c.dataset.desk);
-    if (a) drawDesk(c, a, deskFrame);
-  });
-}
-
-$("#view").addEventListener("click", (e) => {
-  const example = e.target.closest("[data-example]");
-  if (example) {
-    textarea.value = example.dataset.example;
-    textarea.dispatchEvent(new Event("input"));
-    textarea.focus();
-    return;
+function updatePanelStatuses() {
+  for (const g of state.groups) {
+    const el = document.querySelector(`[data-pult-group="${g.id}"] [data-pult-status]`);
+    if (!el) continue;
+    const t = g.current_task;
+    el.className = `pill ${t ? t.status : g.status === "queued" ? "queued" : "idle"}`;
+    el.textContent = t ? STATUS_LABEL[t.status] : g.queued ? "очередь" : "свободен";
   }
-  const desk = e.target.closest("[data-agent]");
-  if (desk && state.tab === "office") return openAgentSheet(desk.dataset.agent);
-  const taskEl = e.target.closest("[data-task]");
-  if (taskEl && taskEl.dataset.task) return openTaskSheet(Number(taskEl.dataset.task));
+}
+
+document.addEventListener("input", (e) => {
+  const ta = e.target.closest("textarea[data-pult]");
+  if (ta) storageSet(draftKey(ta.dataset.pult), ta.value);
 });
 
-// ----- Чат -----
-
-function viewChat() {
-  if (!state.messages.length) {
-    return `<div class="empty px"><img class="empty-icon" src="${icon("chat")}" alt="" /><br/>Здесь будет переписка с командой.<br/>Выберите внизу, кому писать, и отправьте задачу.</div>`;
+document.addEventListener("click", async (e) => {
+  const ex = e.target.closest("[data-example-for]");
+  if (ex) {
+    const ta = document.querySelector(`textarea[data-pult="${ex.dataset.exampleFor}"]`);
+    ta.value = ex.dataset.text;
+    storageSet(draftKey(ex.dataset.exampleFor), ta.value);
+    return;
   }
-  return `<div class="section-title"><h2>Лента офиса</h2><button class="btn small" id="clear-feed">Очистить</button></div>
-    <div class="feed">${state.messages.map(renderMessage).join("")}</div>`;
+  const one = e.target.closest("[data-send-one]");
+  if (one) {
+    const id = one.dataset.sendOne;
+    const ta = document.querySelector(`textarea[data-pult="${id}"]`);
+    if (!ta.value.trim()) return toast("Сначала напишите задание");
+    await send([{ group_id: id, text: ta.value.trim() }]);
+    return;
+  }
+  if (e.target.closest("#send-all")) {
+    const items = [...document.querySelectorAll("textarea[data-pult]")]
+      .filter((t) => t.value.trim())
+      .map((t) => ({ group_id: t.dataset.pult, text: t.value.trim() }));
+    if (!items.length) return toast("Напишите хотя бы одно задание");
+    await send(items);
+  }
+});
+
+async function send(items) {
+  try {
+    await api(items.length === 1 ? "/command" : "/commands", { method: "POST", body: items.length === 1 ? items[0] : { items } });
+    for (const i of items) storageSet(draftKey(i.group_id), "");
+    document.activeElement?.blur?.();
+    toast(items.length === 1 ? "Задание отправлено" : `Запущено заданий: ${items.length}`);
+    navigator.vibrate?.(20);
+    renderView();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+// ----- Лента -----
+
+function viewFeed() {
+  const chips = [`<button class="chip ${state.feedFilter === "all" ? "active" : ""}" data-feed="all">Все</button>`]
+    .concat(state.groups.map((g) => `<button class="chip ${state.feedFilter === g.id ? "active" : ""}" style="${gstyle(g)}" data-feed="${esc(g.id)}">${groupImg(g, "")}${esc(g.name)}</button>`))
+    .join("");
+  const msgs = state.messages.filter((m) => state.feedFilter === "all" || m.group_id === state.feedFilter);
+  const feed = msgs.length
+    ? msgs.map(renderMessage).join("")
+    : `<div class="empty px"><img class="empty-icon" src="${icon("chat")}" alt="" /><br/>Здесь появится всё, что происходит в офисе.</div>`;
+  return `<div class="feed-filters chips">${chips}</div>
+    <div class="feed">${feed}</div>
+    ${msgs.length ? `<div class="actions"><button class="btn small" id="clear-feed">Очистить ленту</button></div>` : ""}`;
 }
 
 function renderMessage(m) {
-  const a = agentById(m.agent_id);
+  const g = groupById(m.group_id);
+  const s = subById(m.subagent_id);
   const task = m.task_id ? ` data-task="${m.task_id}"` : "";
-  if (m.kind === "tool") return `<div class="msg-line"${task}>${esc(a?.name ?? "")}: ${esc(m.text)}</div>`;
+  if (m.kind === "tool") return `<div class="msg-line"${task}>${s ? `<b style="color:${g?.color}">${esc(s.name)}</b> ` : ""}${esc(m.text)}</div>`;
   if (m.kind === "system") return `<div class="msg-line system"${task}>${esc(m.text)}</div>`;
   if (m.kind === "boss") {
-    const to = a ? ` → ${esc(a.name)}` : "";
-    return `<div class="msg boss"${task}><div class="msg-body"><div class="msg-meta">Вы${to} · ${clock(m.created_at)}</div><div class="md">${md(m.text)}</div></div></div>`;
+    return `<div class="msg boss"${task}><div class="msg-body"><div class="msg-meta">Вы → ${esc(g?.name ?? "")} · ${clock(m.created_at)}</div><div class="md">${md(m.text)}</div></div></div>`;
   }
-  const label = m.kind === "question" ? " спрашивает" : m.kind === "answer" ? " · ваш ответ" : "";
-  const t = state.tasks.find((x) => x.id === m.task_id);
-  const sub = t?.parent_id ? ` → ${esc(agentById(t.created_by)?.name ?? "коллеге")}` : "";
-  return `<div class="msg ${m.kind}" style="${agentStyle(a)}"${task}>
-    ${avatar(a)}
-    <div class="msg-body"><div class="msg-meta"><b>${esc(a?.name ?? "Агент")}</b>${label}${sub} · ${clock(m.created_at)}</div><div class="md">${md(m.text)}</div></div>
+  const who = s ? `<b>${esc(s.name)}</b> · ${esc(s.role)}` : `<b>${esc(g?.name ?? "Отдел")}</b> · итог`;
+  const label = m.kind === "question" ? " · вопрос" : m.kind === "answer" ? " · ваш ответ" : "";
+  const ava = s ? subPortrait(s) : groupImg(g, "ava");
+  return `<div class="msg ${m.kind}" style="${gstyle(g)}"${task}>${ava}
+    <div class="msg-body"><div class="msg-meta">${who}${label} · ${clock(m.created_at)}</div><div class="md">${md(m.text)}</div></div>
   </div>`;
 }
 
 document.addEventListener("click", async (e) => {
-  if (e.target.id !== "clear-feed") return;
-  if (!confirm("Очистить ленту? Задачи и файлы останутся.")) return;
-  await api("/messages", { method: "DELETE" });
-  state.messages = [];
-  renderView();
-});
-
-// ----- Поле ввода -----
-
-function renderChips() {
-  $("#target-chips").innerHTML =
-    `<span class="chips-label">Кому:</span>` +
-    state.agents
-      .map((a) => `<button type="button" class="chip ${a.id === state.target ? "active" : ""}" style="${agentStyle(a)}" data-target="${esc(a.id)}">${avatar(a, "")}${esc(a.name)}</button>`)
-      .join("");
-  const t = agentById(state.target);
-  $("#composer-text").placeholder = t ? `Напишите задачу, её получит ${t.name}…` : "Напишите задачу…";
-}
-
-$("#target-chips").addEventListener("click", (e) => {
-  const chip = e.target.closest("[data-target]");
-  if (!chip) return;
-  state.target = chip.dataset.target;
-  renderChips();
-});
-
-const textarea = $("#composer-text");
-textarea.addEventListener("input", () => {
-  textarea.style.height = "auto";
-  textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
-});
-textarea.addEventListener("keydown", (e) => {
-  // На компьютере Enter отправляет, Shift+Enter — новая строка. На телефоне Enter всегда перенос.
-  if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer: fine)").matches) {
-    e.preventDefault();
-    $("#composer").requestSubmit();
-  }
-});
-
-$("#composer").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const text = textarea.value.trim();
-  if (!text) return;
-  const btn = $("#composer .send");
-  btn.disabled = true;
-  try {
-    await api("/command", { method: "POST", body: { text, agent_id: state.target } });
-    textarea.value = "";
-    textarea.style.height = "auto";
-    if (state.tab !== "chat") {
-      state.tab = "chat";
-      localStorageSet("tab", "chat");
-    }
+  const f = e.target.closest("[data-feed]");
+  if (f) {
+    state.feedFilter = f.dataset.feed;
     delete $("#view").dataset.scrolled;
+    return renderView();
+  }
+  if (e.target.id === "clear-feed") {
+    if (!confirm("Очистить ленту? Задачи и файлы останутся.")) return;
+    await api("/messages", { method: "DELETE" });
+    state.messages = [];
     renderView();
-  } catch (err) {
-    toast(err.message);
-  } finally {
-    btn.disabled = false;
   }
 });
 
 // ----- Задачи -----
 
-function viewTasks() {
-  const active = ["queued", "working", "waiting"];
-  const list = state.tasks.filter((t) => (state.taskFilter === "active" ? active.includes(t.status) : true));
-  const filters = [
-    ["active", "Активные"],
-    ["all", "Все"],
-  ]
-    .map(([k, l]) => `<button class="chip ${state.taskFilter === k ? "active" : ""}" data-filter="${k}">${l}</button>`)
-    .join("");
-  const rows = list.map((t) => taskRow(t)).join("");
-  return `<div class="section-title"><h2>Задачи</h2></div>
-    <div class="filters">${filters}</div>
-    <div class="list">${rows || `<div class="empty px"><img class="empty-icon" src="${icon("tasks")}" alt="" /><br/>${state.taskFilter === "active" ? "Активных задач нет" : "Задач пока нет"}</div>`}</div>`;
-}
-
-function taskRow(t, extraClass = "") {
-  const a = agentById(t.agent_id);
-  return `<div class="row px ${t.parent_id ? "sub" : ""} ${extraClass}" data-task="${t.id}">
-    ${avatar(a)}
-    <div class="row-main">
-      <div class="row-title">${esc(t.title)}</div>
-      <div class="row-meta">#${t.id} · ${esc(a?.name ?? t.agent_id)} · ${timeAgo(t.created_at)}${t.cost_usd ? ` · ≈${money(t.cost_usd)}` : ""}</div>
-    </div>
+function taskRow(t) {
+  const g = groupById(t.group_id);
+  return `<div class="row px" data-task="${t.id}" style="${gstyle(g)}">
+    ${groupImg(g)}
+    <div class="row-main"><div class="row-title">${esc(t.title)}</div>
+      <div class="row-meta">#${t.id} · ${esc(g?.name ?? "")} · ${timeAgo(t.created_at)}${state.stats.auth === "api" && t.cost_usd ? ` · ≈${money(t.cost_usd)}` : ""}</div></div>
     <span class="pill ${t.status}">${STATUS_LABEL[t.status]}</span>
   </div>`;
 }
 
-document.addEventListener("click", (e) => {
-  const f = e.target.closest("[data-filter]");
-  if (!f) return;
-  state.taskFilter = f.dataset.filter;
-  renderView();
-});
-
-// ----- Шторка: задача -----
+// ---------- Шторка ----------
 
 function openSheet(html) {
   $("#sheet-body").innerHTML = html;
@@ -592,6 +776,112 @@ function closeSheet() {
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("[data-close]")) closeSheet();
 });
+
+// Общие клики по кнопкам с data-атрибутами (в шторке и на экранах).
+document.addEventListener("click", async (e) => {
+  const el = (sel) => e.target.closest(sel);
+  if (el("canvas[data-room]")) return;
+  let b;
+  if ((b = el("[data-cancel]"))) {
+    e.stopPropagation();
+    await api(`/tasks/${b.dataset.cancel}/cancel`, { method: "POST" }).catch((err) => toast(err.message));
+    return toast("Останавливаю…");
+  }
+  if ((b = el("[data-assign]"))) return openComposer(b.dataset.assign);
+  if ((b = el("[data-open-room]"))) return openRoomSheet(b.dataset.openRoom);
+  if ((b = el("[data-sub]"))) return openSubagentCard(b.dataset.sub);
+  if ((b = el("[data-task]"))) return openTaskSheet(Number(b.dataset.task));
+  if ((b = el("[data-help]"))) return openHelp();
+  if ((b = el("[data-new-group]"))) return openGroupForm(null);
+  if ((b = el("[data-edit-group]"))) return openGroupForm(b.dataset.editGroup);
+  if ((b = el("[data-edit-sub]"))) return openSubagentForm(b.dataset.editSub, null);
+  if ((b = el("[data-add-sub]"))) return openSubagentForm(null, b.dataset.addSub);
+});
+
+$("#fab").addEventListener("click", () => openComposer(null));
+
+// ----- Новое задание -----
+
+function openComposer(groupId) {
+  const target = groupId ?? storageGet("lastGroup") ?? state.groups[0]?.id;
+  const cards = state.groups
+    .map(
+      (g) => `<label class="pick px" style="${gstyle(g)}">
+        <input type="radio" name="group" value="${esc(g.id)}" ${g.id === target ? "checked" : ""} />
+        ${groupImg(g)}<span><b>${esc(g.name)}</b><small>${g.status === "idle" ? "свободен" : "занят — задача встанет в очередь"}</small></span>
+      </label>`,
+    )
+    .join("");
+  openSheet(`<h3>Новое задание</h3>
+    <form class="form" id="composer-form">
+      <div class="picks">${cards}</div>
+      <textarea name="text" rows="4" placeholder="Что нужно сделать? Чем подробнее, тем лучше результат." required></textarea>
+      <div class="chips" id="composer-examples"></div>
+      <button class="btn primary big" type="submit">Отправить отделу</button>
+    </form>`);
+  const fillExamples = () => {
+    const id = $("#composer-form").group.value;
+    $("#composer-examples").innerHTML = (EXAMPLES[id] ?? []).map((x) => `<button type="button" class="chip" data-example="${esc(x)}">${esc(x.length > 40 ? x.slice(0, 39) + "…" : x)}</button>`).join("");
+  };
+  fillExamples();
+  $("#composer-form").addEventListener("change", fillExamples);
+  $("#composer-form").addEventListener("click", (e) => {
+    const ex = e.target.closest("[data-example]");
+    if (ex) $("#composer-form").text.value = ex.dataset.example;
+  });
+  $("#composer-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const group_id = f.group.value;
+    storageSet("lastGroup", group_id);
+    closeSheet();
+    await send([{ group_id, text: f.text.value.trim() }]);
+  });
+  setTimeout(() => $("#composer-form").text.focus(), 50);
+}
+
+// ----- Отдел -----
+
+function openRoomSheet(id) {
+  const g = groupById(id);
+  if (!g) return;
+  const lv = level(g.done_total);
+  const crew = g.subagents
+    .map((s) => {
+      const sub = { ...s, color: g.color };
+      const mood = moodFor(g, s);
+      return `<div class="member px crew-${mood}" data-sub="${esc(s.id)}">${subPortrait(sub, "ava-l")}
+        <div><b>${esc(s.name)}</b> <span class="muted">· ${esc(s.role)}</span>
+        <div class="member-desc">${esc(s.description)}</div>
+        <div class="member-doing">${mood === "idle" ? "💤 свободен" : mood === "waiting" ? "✋ ждёт вашего ответа" : "⌨ " + esc(s.run.activity || s.run.description)}</div></div></div>`;
+    })
+    .join("");
+  const tasks = state.tasks.filter((t) => t.group_id === id).slice(0, 6).map(taskRow).join("");
+  openSheet(`<div class="sheet-room" style="${gstyle(g)}">
+    <div class="agent-head">${groupImg(g, "gicon-l")}<div><h3>${esc(g.name)}</h3><div class="muted">${esc(g.motto)}</div><div class="muted">Уровень ${lv.lvl} · выполнено задач: ${g.done_total}</div></div></div>
+    <div class="actions"><button class="btn primary" data-assign="${esc(g.id)}">＋ Дать задание</button><button class="btn" data-edit-group="${esc(g.id)}">Настроить</button></div>
+    <div class="box-title" style="margin-top:16px">КОМАНДА · ${g.subagents.length} из 4</div>
+    <div class="list">${crew}</div>
+    ${tasks ? `<div class="box-title" style="margin-top:16px">ЗАДАЧИ ОТДЕЛА</div><div class="list">${tasks}</div>` : ""}
+  </div>`);
+}
+
+function openSubagentCard(id) {
+  const s = subById(id);
+  if (!s) return;
+  const g = s.group;
+  const mood = moodFor(g, s);
+  openSheet(`<div style="${gstyle(g)}">
+    <div class="agent-head">${subPortrait(s, "ava-xl")}<div><h3>${esc(s.name)}</h3><div class="muted">${esc(s.role)} · отдел «${esc(g.name)}»</div>
+      <div class="member-doing">${mood === "idle" ? "💤 Сейчас свободен" : mood === "waiting" ? "✋ Ждёт вашего ответа" : "⌨ " + esc(s.run.activity || s.run.description)}</div></div></div>
+    <div class="box px"><div class="box-title">КОГДА ЕГО ЗОВУТ</div>${esc(s.description)}</div>
+    <div class="box px"><div class="box-title">УМЕЕТ</div>📖 читать файлы${s.files ? " · 📝 писать файлы" : ""}${s.web ? " · 🌐 искать в интернете" : ""} · ✋ спрашивать вас</div>
+    ${s.run ? `<div class="box px"><div class="box-title">ТЕКУЩЕЕ ПОРУЧЕНИЕ</div>${esc(s.run.description)}</div>` : ""}
+    <div class="actions"><button class="btn" data-edit-sub="${esc(s.id)}">Настроить</button><button class="btn" data-open-room="${esc(g.id)}">Весь отдел</button></div>
+  </div>`);
+}
+
+// ----- Задача -----
 
 async function openTaskSheet(id) {
   state.openTaskId = id;
@@ -614,99 +904,57 @@ async function renderTaskSheet(initial) {
     return toast(err.message);
   }
   if (state.openTaskId !== id) return;
-  const { task, messages, subtasks } = data;
-  const a = agentById(task.agent_id);
+  const { task, messages, runs } = data;
+  const g = groupById(task.group_id);
   const active = ["queued", "working", "waiting"].includes(task.status);
-  const log = messages
-    .filter((m) => m.kind !== "boss" && !(m.kind === "agent" && m.text === task.result))
-    .map((m) => {
-      if (m.kind === "thinking") return `<details><summary>💭 мысли</summary><div class="thinking">${esc(m.text)}</div></details>`;
-      if (m.kind === "question") return `<div>❓ <b>Вопрос:</b> ${esc(m.text)}</div>`;
-      if (m.kind === "answer") return `<div>💬 <b>Ваш ответ:</b> ${esc(m.text)}</div>`;
-      return `<div>${esc(m.text)}</div>`;
+  const timeline = runs
+    .map((r) => {
+      const s = subById(r.subagent_id) ?? { id: r.subagent_id, name: r.subagent_id, role: "", color: g?.color };
+      return `<div class="run px">
+        ${subPortrait(s)}
+        <div class="run-main"><div><b>${esc(s.name)}</b> <span class="muted">${esc(s.role)}</span> <span class="pill ${r.status === "working" ? "working" : r.status}">${r.status === "working" ? "работает" : r.status === "done" ? "сделано" : "ошибка"}</span></div>
+          <div>${esc(r.description)}</div>
+          ${r.status === "working" && r.activity ? `<div class="muted">⌨ ${esc(r.activity)}</div>` : ""}
+          ${r.summary ? `<details><summary>Что сделал(а)</summary><div class="md">${md(r.summary)}</div></details>` : ""}
+        </div></div>`;
     })
     .join("");
-  const from = task.created_by === "boss" ? "вы" : agentById(task.created_by)?.name ?? task.created_by;
-  const html = `
+  const log = messages
+    .filter((m) => m.kind === "tool" || m.kind === "question" || m.kind === "answer" || m.kind === "system")
+    .map((m) => `<div>${clock(m.created_at)} ${m.kind === "question" ? "✋ " : m.kind === "answer" ? "💬 " : ""}${esc(m.text)}</div>`)
+    .join("");
+  const html = `<div style="${gstyle(g)}">
     <h3>${esc(task.title)}</h3>
-    <div class="kv">
-      <span>#${task.id}</span>
-      <span style="display:inline-flex;gap:6px;align-items:center">${avatar(a, "")} ${esc(a?.name ?? task.agent_id)}</span>
-      <span>от: ${esc(from)}</span>
-      <span class="pill ${task.status}">${STATUS_LABEL[task.status]}</span>
-      ${task.cost_usd ? `<span>≈${money(task.cost_usd)} · ${(task.input_tokens + task.output_tokens).toLocaleString("ru-RU")} ток.</span>` : ""}
-    </div>
-    ${task.parent_id ? `<button class="btn small" data-open-task="${task.parent_id}">← к задаче #${task.parent_id}</button>` : ""}
-    <div class="box"><div class="box-title">Задание</div><div class="md">${md(task.instructions)}</div></div>
-    ${subtasks.length ? `<div class="box"><div class="box-title">Поручения коллегам</div><div class="list">${subtasks.map((s) => taskRow(s)).join("")}</div></div>` : ""}
-    ${log ? `<div class="box"><div class="box-title">Ход работы</div><div class="log">${log}</div></div>` : ""}
-    ${task.result ? `<div class="box"><div class="box-title">Результат</div><div class="md">${md(task.result)}</div></div>` : ""}
+    <div class="kv"><span>#${task.id}</span><span class="kv-group">${groupImg(g, "")} ${esc(g?.name ?? "")}</span><span class="pill ${task.status}">${STATUS_LABEL[task.status]}</span>
+      ${task.turns ? `<span>шагов: ${task.turns}</span>` : ""}${state.stats.auth === "api" && task.cost_usd ? `<span>≈${money(task.cost_usd)}</span>` : ""}</div>
+    ${task.result ? `<div class="box px result"><div class="box-title">РЕЗУЛЬТАТ</div><div class="md">${md(task.result)}</div></div>` : ""}
+    ${timeline ? `<div class="box-title" style="margin-top:14px">КТО ЧТО ДЕЛАЛ</div><div class="list">${timeline}</div>` : active ? `<div class="box px">Координатор разбирает задачу и раздаёт её команде…</div>` : ""}
+    <details class="box px"><summary>Задание</summary><div class="md">${md(task.instructions)}</div></details>
+    ${log ? `<details class="box px"><summary>Подробный журнал</summary><div class="log">${log}</div></details>` : ""}
     <div class="actions">
-      ${active ? `<button class="btn danger" data-cancel="${task.id}">⏹ Остановить</button>` : ""}
-      ${!active ? `<button class="btn" data-retry="${task.id}">🔁 Повторить</button>` : ""}
-      ${task.result ? `<button class="btn" data-copy-result>📋 Копировать результат</button>` : ""}
-    </div>`;
+      ${active ? `<button class="btn danger" data-cancel="${task.id}">⏹ Остановить</button>` : `<button class="btn" data-retry>🔁 Повторить</button>`}
+      ${task.result ? `<button class="btn" data-copy-result>📋 Копировать</button>` : ""}
+    </div></div>`;
   const panel = $(".sheet-panel");
   const scroll = panel.scrollTop;
   openSheet(html);
   panel.scrollTop = initial ? 0 : scroll;
-  $("#sheet-body").dataset.result = task.result ?? "";
-  $("#sheet-body").dataset.instructions = task.instructions;
-  $("#sheet-body").dataset.agent = task.agent_id;
+  const body = $("#sheet-body");
+  body.dataset.result = task.result ?? "";
+  body.dataset.instructions = task.instructions;
+  body.dataset.group = task.group_id;
 }
 
 $("#sheet-body").addEventListener("click", async (e) => {
   const body = $("#sheet-body");
-  const cancel = e.target.closest("[data-cancel]");
-  if (cancel) {
-    await api(`/tasks/${cancel.dataset.cancel}/cancel`, { method: "POST" }).catch((err) => toast(err.message));
-    return toast("Останавливаю…");
-  }
   if (e.target.closest("[data-retry]")) {
-    await api("/command", { method: "POST", body: { text: body.dataset.instructions, agent_id: body.dataset.agent } }).catch((err) => toast(err.message));
     closeSheet();
-    return toast("Задача отправлена заново");
+    return send([{ group_id: body.dataset.group, text: body.dataset.instructions }]);
   }
   if (e.target.closest("[data-copy-result]")) {
     await navigator.clipboard?.writeText(body.dataset.result).catch(() => {});
     return toast("Скопировано");
   }
-  const open = e.target.closest("[data-open-task], [data-task]");
-  if (open) return openTaskSheet(Number(open.dataset.openTask || open.dataset.task));
-});
-
-// ----- Шторка: агент -----
-
-function openAgentSheet(id) {
-  const a = agentById(id);
-  if (!a) return;
-  const tasks = state.tasks.filter((t) => t.agent_id === id).slice(0, 8);
-  openSheet(`
-    <div class="agent-head" style="${agentStyle(a)}">
-      ${avatar(a, "")}
-      <div><h3>${esc(a.name)}</h3><div class="muted">${esc(a.role)}</div><div class="muted" style="font-size:13px">${AGENT_STATUS[a.status]}</div></div>
-    </div>
-    <div class="actions">
-      <button class="btn primary" data-assign="${esc(a.id)}">✉️ Поручить задачу</button>
-      <button class="btn" data-edit-agent="${esc(a.id)}">⚙️ Настроить</button>
-    </div>
-    <div class="box"><div class="box-title">Последние задачи</div>
-      <div class="list">${tasks.map((t) => taskRow(t)).join("") || `<div class="muted">Пока не было</div>`}</div>
-    </div>`);
-}
-
-document.addEventListener("click", (e) => {
-  const assign = e.target.closest("[data-assign]");
-  if (assign) {
-    state.target = assign.dataset.assign;
-    closeSheet();
-    state.tab = "chat";
-    renderView();
-    textarea.focus();
-    return;
-  }
-  const edit = e.target.closest("[data-edit-agent]");
-  if (edit) openAgentForm(edit.dataset.editAgent);
 });
 
 // ----- Диск -----
@@ -719,16 +967,14 @@ function viewFiles() {
       filesCache = files;
       if (state.tab !== "files") return;
       const rows = files
-        .map((f) => {
-          const a = agentById(f.updated_by);
-          const who = f.updated_by === "boss" ? "вы" : a?.name ?? f.updated_by;
-          return `<div class="row px" data-file="${esc(f.path)}"><img class="file-icon" src="${icon("files")}" alt="" />
+        .map(
+          (f) => `<div class="row px" data-file="${esc(f.path)}"><img class="file-icon" src="${icon("files")}" alt="" />
             <div class="row-main"><div class="row-title">${esc(f.path)}</div>
-            <div class="row-meta">${esc(who)} · ${timeAgo(f.updated_at)} · ${(f.size / 1024).toFixed(1)} КБ</div></div></div>`;
-        })
+            <div class="row-meta">${timeAgo(f.updated_at)} · ${(f.size / 1024).toFixed(1)} КБ</div></div></div>`,
+        )
         .join("");
-      $("#view").innerHTML = `<div class="view-inner"><div class="section-title"><h2>Диск офиса</h2><button class="btn small" id="new-file">+ Файл</button></div>
-        <p class="muted" style="margin-top:0">Здесь агенты хранят отчёты, тексты и код. Это же — общая память команды.</p>
+      $("#view").innerHTML = `<div class="view-inner"><div class="section-title"><h2>ДИСК ОФИСА</h2><button class="btn small" id="new-file">+ Файл</button></div>
+        <p class="hint">Сюда субагенты кладут отчёты, тексты и код. Это общая память всех отделов.</p>
         <div class="list">${rows || `<div class="empty px"><img class="empty-icon" src="${icon("files")}" alt="" /><br/>Файлов пока нет</div>`}</div></div>`;
     })
     .catch((err) => toast(err.message));
@@ -737,25 +983,30 @@ function viewFiles() {
 
 document.addEventListener("click", async (e) => {
   const row = e.target.closest("[data-file]");
-  if (row && state.tab === "files" && !e.target.closest(".sheet")) {
-    const { file } = await api(`/file?path=${encodeURIComponent(row.dataset.file)}`);
-    return openFileSheet(file);
+  if (row && !e.target.closest(".sheet")) {
+    try {
+      const { file } = await api(`/file?path=${encodeURIComponent(row.dataset.file)}`);
+      openFileSheet(file);
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
   }
   if (e.target.id === "new-file") {
     const path = prompt("Путь к файлу, например notes/идеи.md");
-    if (!path) return;
-    openFileSheet({ path, content: "", updated_by: "boss", updated_at: new Date().toISOString() }, true);
+    if (path) openFileSheet({ path, content: "" }, true);
   }
 });
 
 function openFileSheet(file, editing = false) {
+  const isMd = /\.md$/i.test(file.path);
   openSheet(`
-    <h3 style="word-break:break-all;display:flex;gap:8px;align-items:center"><img class="file-icon" src="${icon("files")}" alt="" />${esc(file.path)}</h3>
+    <h3 class="file-title"><img class="file-icon" src="${icon("files")}" alt="" />${esc(file.path)}</h3>
     ${editing
-      ? `<textarea id="file-editor" style="min-height:50vh;font-family:ui-monospace,monospace;font-size:13px">${esc(file.content)}</textarea>`
-      : `<div class="box"><div class="file-content">${esc(file.content)}</div></div>`}
+      ? `<textarea id="file-editor" class="editor">${esc(file.content)}</textarea>`
+      : `<div class="box px">${isMd ? `<div class="md">${md(file.content)}</div>` : `<div class="file-content">${esc(file.content)}</div>`}</div>`}
     <div class="actions">
-      ${editing ? `<button class="btn primary" data-save-file>💾 Сохранить</button>` : `<button class="btn" data-edit-file>✏️ Редактировать</button>`}
+      ${editing ? `<button class="btn primary" data-save-file>💾 Сохранить</button>` : `<button class="btn" data-edit-file>✏️ Править</button>`}
       <button class="btn" data-copy-file>📋 Копировать</button>
       <button class="btn" data-download-file>⬇️ Скачать</button>
       <button class="btn danger" data-delete-file>🗑 Удалить</button>
@@ -768,6 +1019,7 @@ function openFileSheet(file, editing = false) {
 $("#sheet-body").addEventListener("click", async (e) => {
   const body = $("#sheet-body");
   const path = body.dataset.path;
+  if (!path) return;
   if (e.target.closest("[data-edit-file]")) return openFileSheet({ path, content: body._content }, true);
   if (e.target.closest("[data-save-file]")) {
     const content = $("#file-editor").value;
@@ -796,36 +1048,39 @@ $("#sheet-body").addEventListener("click", async (e) => {
   }
 });
 
-// ----- Команда -----
+// ----- Отделы и подключение -----
 
-function viewTeam() {
-  const current = state.stats.default_model;
-  const options = state.models
-    .map((m) => `<option value="${esc(m.id)}" ${m.id === current ? "selected" : ""}>${esc(m.label)} · $${m.input}/$${m.output}</option>`)
-    .join("");
-  const custom = state.models.some((m) => m.id === current) ? "" : `<option selected value="${esc(current)}">${esc(current)}</option>`;
-  const rows = state.agents
-    .map(
-      (a) => `<div class="row px" data-edit-agent="${esc(a.id)}" style="${agentStyle(a)}">
-        ${avatar(a)}
-        <div class="row-main"><div class="row-title">${esc(a.name)}</div>
-        <div class="row-meta">${esc(a.role)} · ${esc(modelLabel(a.model || current))}${a.web ? " · интернет" : ""}${a.can_delegate ? " · раздаёт задачи" : ""}</div></div>
-        <span class="muted">›</span>
-      </div>`,
-    )
-    .join("");
-  return `<div class="section-title"><h2>КОМАНДА</h2><button class="btn small primary" data-new-agent>+ Нанять</button></div>
-    <div class="box px">
-      <div class="box-title">МОДЕЛЬ ДЛЯ ВСЕХ ПО УМОЛЧАНИЮ</div>
-      <select id="default-model">${custom}${options}</select>
-      <p class="price-note">Цена: $ за 1 млн токенов, вход/выход. Haiku примерно в 40 раз дешевле Opus и хорошо справляется с простыми задачами. У любого сотрудника можно выбрать свою модель.</p>
-    </div>
-    <div class="list">${rows}</div>
-    <div class="actions" style="margin-top:24px"><button class="btn" id="logout">Выйти</button></div>`;
+function connectionCard() {
+  const s = state.stats;
+  const rl = s.rate_limit;
+  const text = {
+    subscription: `<b class="ok">● Подписка Claude</b><div>Субагенты тратят лимиты вашей подписки (окно 5 часов и недельный лимит).${rl?.utilization != null ? ` Сейчас использовано ~${Math.round(rl.utilization * (rl.utilization <= 1 ? 100 : 1))}%.` : ""}</div>`,
+    api: `<b class="ok">● API-ключ</b><div>Оплата по токенам. За сутки ≈${money(s.spent_today_usd)} из лимита ${money(s.daily_budget_usd)}.</div>`,
+    none: `<b class="bad">● Не подключено</b><div>Агенты не смогут работать, пока на сервере не задан токен подписки или API-ключ.</div>`,
+  }[s.auth];
+  return `<div class="box px conn-card">${text}<div class="actions"><button class="btn small" data-help="connect">Как подключить</button></div></div>`;
 }
 
-function modelLabel(id) {
-  return state.models.find((m) => m.id === id)?.label.split(" — ")[0] ?? id;
+function modelOptions(current, withInherit) {
+  const opts = state.models.map((m) => `<option value="${esc(m.id)}" ${m.id === (current ?? "") ? "selected" : ""}>${esc(withInherit && m.id === "" ? "Как у всего офиса" : m.label)} — ${esc(m.note)}</option>`);
+  return opts.join("");
+}
+
+function viewGroups() {
+  const rows = state.groups
+    .map(
+      (g) => `<div class="row px" data-edit-group="${esc(g.id)}" style="${gstyle(g)}">${groupImg(g)}
+        <div class="row-main"><div class="row-title">${esc(g.name)}</div>
+        <div class="row-meta">${g.subagents.map((s) => esc(s.name)).join(", ")} · ур.${level(g.done_total).lvl}</div></div><span class="muted">›</span></div>`,
+    )
+    .join("");
+  return `<div class="section-title"><h2>ОТДЕЛЫ</h2><button class="btn small primary" data-new-group>+ Отдел</button></div>
+    ${connectionCard()}
+    <div class="box px"><div class="box-title">МОДЕЛЬ ДЛЯ ВСЕХ ПО УМОЛЧАНИЮ</div>
+      <select id="default-model">${modelOptions(state.stats.default_model, false)}</select>
+      <p class="hint" style="margin:8px 0 0">На подписке Pro лимиты тают быстрее всего на Opus. Sonnet или Haiku для простых отделов позволят работать дольше.</p></div>
+    <div class="list">${rows}</div>
+    <div class="actions" style="margin-top:24px"><button class="btn" id="logout">Выйти</button></div>`;
 }
 
 document.addEventListener("change", async (e) => {
@@ -833,110 +1088,140 @@ document.addEventListener("change", async (e) => {
   try {
     const { default_model } = await api("/settings", { method: "PUT", body: { default_model: e.target.value } });
     state.stats.default_model = default_model;
-    toast(`Теперь по умолчанию: ${modelLabel(default_model)}`);
-    renderView();
+    toast("Модель по умолчанию изменена");
   } catch (err) {
     toast(err.message);
   }
 });
 
 document.addEventListener("click", async (e) => {
-  if (e.target.closest("[data-new-agent]")) return openAgentForm(null);
-  if (e.target.id === "logout") {
-    await api("/logout", { method: "POST" });
-    source?.close();
-    showLogin();
-  }
+  if (e.target.id !== "logout") return;
+  await api("/logout", { method: "POST" });
+  source?.close();
+  showLogin();
 });
 
-function openAgentForm(id) {
-  const a = id ? agentById(id) : { name: "", role: "", emoji: "🤖", color: "#7c8cff", system_prompt: "", model: "", effort: "medium", web: 0, can_delegate: 0 };
-  if (!a) return;
-  const efforts = ["low", "medium", "high", "xhigh", "max"].map((e) => `<option ${a.effort === e ? "selected" : ""}>${e}</option>`).join("");
-  openSheet(`
-    <h3>${id ? "Настройки сотрудника" : "Новый сотрудник"}</h3>
-    <form class="form" id="agent-form" data-id="${esc(id ?? "")}">
+function openHelp() {
+  openSheet(`<h3>Как подключить офис к Claude</h3>
+    <div class="box px"><div class="box-title">ВАРИАНТ 1 · ПОДПИСКА PRO/MAX</div>
+      <ol class="steps">
+        <li>Один раз на любом компьютере установите Claude Code и выполните <code>claude setup-token</code>. Войдите своим аккаунтом, и вы получите токен на год.</li>
+        <li>На хостинге добавьте переменную <code>CLAUDE_CODE_OAUTH_TOKEN</code> с этим токеном и перезапустите сервер.</li>
+      </ol>
+      <p class="warn-text">⚠ Важно: Anthropic рассчитывает лимиты подписки на «обычное личное использование» Claude Code и Agent SDK. Использование токена в самописном приложении правила прямо не разрешают. Пользуйтесь только сами и никому не давайте доступ. Если хотите без рисков, выбирайте вариант 2.</p></div>
+    <div class="box px"><div class="box-title">ВАРИАНТ 2 · API-КЛЮЧ</div>
+      <ol class="steps">
+        <li>Создайте ключ на platform.claude.com. В подписке Max включены API-кредиты на $100–200 в месяц, их можно привязать в настройках оплаты claude.ai.</li>
+        <li>Добавьте переменную <code>ANTHROPIC_API_KEY</code> и перезапустите сервер.</li>
+      </ol></div>`);
+}
+
+// Форма отдела
+function openGroupForm(id) {
+  const g = id ? groupById(id) : { name: "", motto: "", color: "#9b5cff", lead_prompt: "", model: null, subagents: [] };
+  if (!g) return;
+  const subs = (g.subagents ?? [])
+    .map((s) => `<div class="row px" data-edit-sub="${esc(s.id)}">${subPortrait({ ...s, color: g.color })}<div class="row-main"><div class="row-title">${esc(s.name)} · ${esc(s.role)}</div><div class="row-meta">${esc(s.description)}</div></div><span class="muted">›</span></div>`)
+    .join("");
+  openSheet(`<h3>${id ? "Настройки отдела" : "Новый отдел"}</h3>
+    <form class="form" id="group-form" data-id="${esc(id ?? "")}">
       <div class="two">
-        <label>Имя<input name="name" value="${esc(a.name)}" required maxlength="40" /></label>
-        <label>Значок для уведомлений<input name="emoji" value="${esc(a.emoji)}" required maxlength="16" /></label>
+        <label>Название<input name="name" value="${esc(g.name)}" required maxlength="40" /></label>
+        <label>Цвет<input name="color" type="color" value="${esc(g.color)}" /></label>
       </div>
-      <label>Должность<input name="role" value="${esc(a.role)}" required maxlength="80" placeholder="Например: SMM-менеджер" /></label>
-      <label>Инструкции (характер, обязанности, стиль)
-        <textarea name="system_prompt" placeholder="Чем занимается, как работает, что важно…">${esc(a.system_prompt)}</textarea></label>
+      <label>Девиз<input name="motto" value="${esc(g.motto)}" maxlength="80" placeholder="Коротко, чем силён отдел" /></label>
+      <label>Чем занимается отдел (подсказка координатору)<textarea name="lead_prompt" rows="3" placeholder="Какие задачи сюда приходят и в каком порядке их делать">${esc(g.lead_prompt)}</textarea></label>
+      <label>Модель<select name="model">${modelOptions(g.model, true)}</select></label>
+      <div class="actions"><button class="btn primary" type="submit">Сохранить</button>
+        ${id ? `<button class="btn danger" type="button" data-delete-group="${esc(id)}">Закрыть отдел</button>` : ""}</div>
+    </form>
+    ${id ? `<div class="box-title" style="margin-top:18px">СУБАГЕНТЫ · ${g.subagents.length} из 4</div><div class="list">${subs}</div>
+      ${g.subagents.length < 4 ? `<div class="actions"><button class="btn" data-add-sub="${esc(id)}">+ Добавить субагента</button></div>` : `<p class="hint">В отделе максимум 4 субагента: так каждый остаётся узким специалистом.</p>`}` : ""}`);
+}
+
+// Форма субагента
+function openSubagentForm(id, groupId) {
+  const existing = id ? subById(id) : null;
+  const s = existing ?? { name: "", role: "", description: "", prompt: "", web: 0, files: 1, model: null };
+  const gid = existing?.group_id ?? groupId;
+  openSheet(`<h3>${id ? "Субагент" : "Новый субагент"}</h3>
+    <form class="form" id="sub-form" data-id="${esc(id ?? "")}" data-group="${esc(gid)}">
       <div class="two">
-        <label>Цвет<input name="color" type="color" value="${esc(a.color)}" /></label>
-        <label>Усилие мышления<select name="effort">${efforts}</select></label>
+        <label>Имя<input name="name" value="${esc(s.name)}" required maxlength="30" /></label>
+        <label>Роль<input name="role" value="${esc(s.role)}" required maxlength="50" placeholder="Например: Дизайнер" /></label>
       </div>
-      <label>Модель
-        <select name="model">
-          <option value="">Как у всех (${esc(modelLabel(state.stats.default_model))})</option>
-          ${state.models.map((m) => `<option value="${esc(m.id)}" ${a.model === m.id ? "selected" : ""}>${esc(m.label)} · $${m.input}/$${m.output}</option>`).join("")}
-          ${a.model && !state.models.some((m) => m.id === a.model) ? `<option selected value="${esc(a.model)}">${esc(a.model)}</option>` : ""}
-        </select></label>
-      <label class="check"><input type="checkbox" name="web" ${a.web ? "checked" : ""} /> 🌐 Может искать в интернете</label>
-      <label class="check"><input type="checkbox" name="can_delegate" ${a.can_delegate ? "checked" : ""} /> 👑 Может раздавать задачи коллегам</label>
-      <div class="actions">
-        <button class="btn primary" type="submit">Сохранить</button>
-        ${id ? `<button class="btn danger" type="button" data-delete-agent="${esc(id)}">Уволить</button>` : ""}
-      </div>
+      <label>Когда его звать (это читает координатор)<textarea name="description" rows="2" required maxlength="500" placeholder="Одна узкая задача, в которой он лучший">${esc(s.description)}</textarea></label>
+      <label>Инструкции: как он работает и что отдаёт<textarea name="prompt" rows="7" required>${esc(s.prompt)}</textarea></label>
+      <label class="check"><input type="checkbox" name="web" ${s.web ? "checked" : ""} /> 🌐 Ищет в интернете</label>
+      <label class="check"><input type="checkbox" name="files" ${s.files ? "checked" : ""} /> 📝 Пишет файлы на диск</label>
+      <label>Модель<select name="model">${modelOptions(s.model, true).replace("Как у всего офиса", "Как у отдела")}</select></label>
+      <div class="actions"><button class="btn primary" type="submit">Сохранить</button>
+        ${id ? `<button class="btn danger" type="button" data-delete-sub="${esc(id)}">Уволить</button>` : ""}</div>
     </form>`);
 }
 
 $("#sheet-body").addEventListener("submit", async (e) => {
-  const form = e.target.closest("#agent-form");
-  if (!form) return;
+  const form = e.target;
+  if (form.id !== "group-form" && form.id !== "sub-form") return;
   e.preventDefault();
   const f = new FormData(form);
-  const body = {
-    name: f.get("name"),
-    role: f.get("role"),
-    emoji: f.get("emoji"),
-    color: f.get("color"),
-    system_prompt: f.get("system_prompt"),
-    model: f.get("model") || null,
-    effort: f.get("effort"),
-    web: f.get("web") === "on",
-    can_delegate: f.get("can_delegate") === "on",
-  };
   try {
-    const id = form.dataset.id;
-    await api(id ? `/agents/${id}` : "/agents", { method: id ? "PUT" : "POST", body });
-    closeSheet();
-    toast(id ? "Сохранено" : "Новый сотрудник в офисе!");
-    await refresh();
+    if (form.id === "group-form") {
+      const body = { name: f.get("name"), motto: f.get("motto"), color: f.get("color"), lead_prompt: f.get("lead_prompt"), model: f.get("model") || null };
+      const id = form.dataset.id;
+      const { group } = await api(id ? `/groups/${id}` : "/groups", { method: id ? "PUT" : "POST", body });
+      await refresh();
+      if (id) {
+        closeSheet();
+        toast("Сохранено");
+      } else {
+        toast("Отдел открыт! Наймите в него первого субагента.");
+        openSubagentForm(null, group.id);
+      }
+    } else {
+      const body = {
+        name: f.get("name"), role: f.get("role"), description: f.get("description"), prompt: f.get("prompt"),
+        web: f.get("web") === "on", files: f.get("files") === "on", model: f.get("model") || null,
+      };
+      const id = form.dataset.id;
+      await api(id ? `/subagents/${id}` : `/groups/${form.dataset.group}/subagents`, { method: id ? "PUT" : "POST", body });
+      await refresh();
+      openGroupForm(form.dataset.group);
+      toast(id ? "Сохранено" : "Новый субагент в команде!");
+    }
   } catch (err) {
     toast(err.message);
   }
 });
 
 $("#sheet-body").addEventListener("click", async (e) => {
-  const del = e.target.closest("[data-delete-agent]");
-  if (!del) return;
-  const a = agentById(del.dataset.deleteAgent);
-  if (!confirm(`Уволить ${a?.name}? Его активные задачи будут отменены.`)) return;
-  await api(`/agents/${del.dataset.deleteAgent}`, { method: "DELETE" }).catch((err) => toast(err.message));
-  closeSheet();
-  await refresh();
+  const dg = e.target.closest("[data-delete-group]");
+  if (dg) {
+    if (!confirm("Закрыть отдел? Его активные задачи будут отменены.")) return;
+    await api(`/groups/${dg.dataset.deleteGroup}`, { method: "DELETE" }).catch((err) => toast(err.message));
+    closeSheet();
+    return refresh();
+  }
+  const ds = e.target.closest("[data-delete-sub]");
+  if (ds) {
+    const s = subById(ds.dataset.deleteSub);
+    if (!confirm(`Уволить ${s?.name}?`)) return;
+    try {
+      await api(`/subagents/${ds.dataset.deleteSub}`, { method: "DELETE" });
+      await refresh();
+      openGroupForm(s.group_id);
+    } catch (err) {
+      toast(err.message);
+    }
+  }
 });
 
 // ---------- PWA ----------
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
-
 document.querySelectorAll("img[data-icon]").forEach((img) => (img.src = icon(img.dataset.icon)));
-
-// Анимация офиса: 4 кадра в секунду, перерисовываем только столы на экране.
 setInterval(() => {
-  if (state.tab !== "office" || document.hidden) return;
-  deskFrame++;
-  drawDesks();
-  const clockEl = $("#wall-clock");
-  if (clockEl) clockEl.textContent = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-}, 250);
-
-// Раз в минуту обновляем «5 мин назад» и т.п.
-setInterval(() => {
-  if (state.tab === "tasks" && !document.activeElement?.closest("#view")) renderView();
+  if (state.tab === "panel" && !document.activeElement?.closest("#view")) renderView();
 }, 60_000);
 
 start();

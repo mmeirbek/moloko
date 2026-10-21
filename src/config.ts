@@ -14,6 +14,19 @@ if (isProd && !process.env.APP_PASSWORD) {
   process.exit(1);
 }
 
+// Чем платим за работу агентов:
+// - "subscription": токен подписки Claude (Pro/Max) из `claude setup-token` в CLAUDE_CODE_OAUTH_TOKEN;
+// - "api": ключ Claude API в ANTHROPIC_API_KEY (в т.ч. кредиты, включённые в Max/Team).
+// Если заданы оба, решает CLAUDE_AUTH (по умолчанию — подписка).
+function authMode(): "subscription" | "api" | "none" {
+  const hasToken = !!process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  const hasKey = !!process.env.ANTHROPIC_API_KEY;
+  if (process.env.CLAUDE_AUTH === "api" && hasKey) return "api";
+  if (hasToken) return "subscription";
+  if (hasKey) return "api";
+  return "none";
+}
+
 export const config = {
   port: int("PORT", 3000),
   isProd,
@@ -21,10 +34,10 @@ export const config = {
   password: process.env.APP_PASSWORD ?? "dev",
   // Если SESSION_SECRET не задан, сессии сбрасываются при каждом рестарте — это не страшно, просто снова войти.
   sessionSecret: process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString("hex"),
-  defaultModel: process.env.MODEL ?? "claude-opus-5-5",
-  maxTurns: int("MAX_TURNS", 40),
-  // Сколько всего задач могут одновременно ходить в API (защита от случайного «пожара» в счёте).
-  maxParallel: int("MAX_PARALLEL", 4),
-  // Предохранитель: если суммарные траты за сутки превысили лимит, новые задачи не стартуют.
+  auth: authMode(),
+  maxTurns: int("MAX_TURNS", 60),
+  // Сколько отделов могут работать одновременно. Каждый отдел — отдельный процесс Claude Code (~300 МБ памяти).
+  maxParallel: int("MAX_PARALLEL", 3),
+  // Предохранитель для режима API-ключа: после этой суммы за сутки новые задачи не стартуют.
   dailyBudgetUsd: Number(process.env.DAILY_BUDGET_USD ?? "10"),
 };

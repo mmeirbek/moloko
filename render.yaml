@@ -3,20 +3,20 @@ services:
   - type: web
     name: peter-office
     runtime: docker
-    plan: starter # постоянный диск есть только на платных планах
+    plan: standard # постоянный диск есть только на платных планах; 2 ГБ памяти хватит на 3 отдела одновременно
     healthCheckPath: /api/health
     disk:
       name: office-data
       mountPath: /data
       sizeGB: 1
     envVars:
+      - key: CLAUDE_CODE_OAUTH_TOKEN
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: APP_PASSWORD
         sync: false
       - key: SESSION_SECRET
         generateValue: true
-      - key: MODEL
-        value: claude-opus-5-5
       - key: DAILY_BUDGET_USD
         value: "10"

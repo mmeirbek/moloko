@@ -1,15 +1,15 @@
-import { DEFAULT_TEAM } from "./agents/defaults.js";
+import { DEFAULT_GROUPS } from "./agents/defaults.js";
 import { emit } from "./bus.js";
-import { config } from "./config.js";
 import {
   all,
   get,
   run,
-  type AgentRow,
-  type FileRow,
+  type GroupRow,
   type MessageKind,
   type MessageRow,
   type QuestionRow,
+  type RunRow,
+  type SubagentRow,
   type TaskRow,
   type TaskStatus,
 } from "./db.js";
@@ -24,94 +24,110 @@ export function setSetting(key: string, value: string) {
   run("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", key, value);
 }
 
-// Модель, выбранная в приложении, важнее переменной окружения MODEL.
+// Пустая строка — модель по умолчанию для подписки/ключа (так решает сам Claude Code).
 export function defaultModel(): string {
-  return getSetting("default_model") || config.defaultModel;
+  return getSetting("default_model") ?? "";
 }
 
-export function modelFor(agent: AgentRow): string {
-  return agent.model || defaultModel();
-}
+// ---------- Отделы и субагенты ----------
 
-// ---------- Агенты ----------
-
-export type AgentStatus = "idle" | "working" | "waiting" | "queued";
-
-export interface AgentView extends AgentRow {
-  status: AgentStatus;
-  current_task: Pick<TaskRow, "id" | "title" | "status"> | null;
-  queued: number;
-}
-
-export function seedTeam() {
-  const count = get<{ n: number }>("SELECT COUNT(*) AS n FROM agents")!.n;
-  if (count > 0) return;
-  DEFAULT_TEAM.forEach((a, i) => {
+export function seedOffice() {
+  if (get<{ n: number }>("SELECT COUNT(*) AS n FROM groups")!.n > 0) return;
+  DEFAULT_GROUPS.forEach((g, gi) => {
     run(
-      `INSERT INTO agents (id, name, role, emoji, color, system_prompt, effort, web, can_delegate, position)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      a.id, a.name, a.role, a.emoji, a.color, a.system_prompt, a.effort, a.web ? 1 : 0, a.can_delegate ? 1 : 0, i,
+      "INSERT INTO groups (id, name, motto, color, lead_prompt, position) VALUES (?, ?, ?, ?, ?, ?)",
+      g.id, g.name, g.motto, g.color, g.lead_prompt, gi,
     );
+    g.subagents.forEach((s, si) => {
+      run(
+        `INSERT INTO subagents (id, group_id, name, role, description, prompt, web, files, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        s.id, g.id, s.name, s.role, s.description, s.prompt, s.web ? 1 : 0, s.files ? 1 : 0, si,
+      );
+    });
   });
 }
 
-export function listAgentRows(): AgentRow[] {
-  return all<AgentRow>("SELECT * FROM agents ORDER BY position, created_at");
+export function listGroupRows(): GroupRow[] {
+  return all<GroupRow>("SELECT * FROM groups ORDER BY position, created_at");
 }
 
-export function getAgent(id: string): AgentRow | undefined {
-  return get<AgentRow>("SELECT * FROM agents WHERE id = ?", id);
+export function getGroup(id: string) {
+  return get<GroupRow>("SELECT * FROM groups WHERE id = ?", id);
 }
 
-export function agentView(agent: AgentRow): AgentView {
+export function listSubagents(groupId?: string): SubagentRow[] {
+  return groupId
+    ? all<SubagentRow>("SELECT * FROM subagents WHERE group_id = ? ORDER BY position, rowid", groupId)
+    : all<SubagentRow>("SELECT * FROM subagents ORDER BY group_id, position, rowid");
+}
+
+export function getSubagent(id: string) {
+  return get<SubagentRow>("SELECT * FROM subagents WHERE id = ?", id);
+}
+
+export type GroupStatus = "idle" | "working" | "waiting" | "queued";
+
+export interface GroupView extends GroupRow {
+  status: GroupStatus;
+  subagents: (SubagentRow & { run: Pick<RunRow, "id" | "status" | "description" | "activity"> | null })[];
+  current_task: Pick<TaskRow, "id" | "title" | "status" | "started_at"> | null;
+  queued: number;
+  done_total: number;
+  done_today: number;
+}
+
+export function groupView(group: GroupRow): GroupView {
   const current = get<TaskRow>(
-    "SELECT * FROM tasks WHERE agent_id = ? AND status IN ('working','waiting') ORDER BY id LIMIT 1",
-    agent.id,
+    "SELECT * FROM tasks WHERE group_id = ? AND status IN ('working','waiting') ORDER BY id LIMIT 1",
+    group.id,
   );
-  const queued = get<{ n: number }>(
-    "SELECT COUNT(*) AS n FROM tasks WHERE agent_id = ? AND status = 'queued'",
-    agent.id,
-  )!.n;
-  let status: AgentStatus = "idle";
+  const queued = get<{ n: number }>("SELECT COUNT(*) AS n FROM tasks WHERE group_id = ? AND status = 'queued'", group.id)!.n;
+  const done = get<{ total: number; today: number }>(
+    `SELECT COUNT(*) AS total, SUM(CASE WHEN finished_at >= date('now') THEN 1 ELSE 0 END) AS today
+     FROM tasks WHERE group_id = ? AND status = 'done'`,
+    group.id,
+  )!;
+  // Последний «выход» каждого субагента в текущей задаче — по нему рисуем, кто сейчас за столом.
+  const runs = current ? all<RunRow>("SELECT * FROM runs WHERE task_id = ? ORDER BY id", current.id) : [];
+  const subagents = listSubagents(group.id).map((s) => {
+    const r = [...runs].reverse().find((x) => x.subagent_id === s.id);
+    return { ...s, run: r ? { id: r.id, status: r.status, description: r.description, activity: r.activity } : null };
+  });
+  let status: GroupStatus = "idle";
   if (current) status = current.status === "waiting" ? "waiting" : "working";
-  else if (queued > 0) status = "queued";
+  else if (queued) status = "queued";
   return {
-    ...agent,
+    ...group,
     status,
-    current_task: current ? { id: current.id, title: current.title, status: current.status } : null,
+    subagents,
+    current_task: current ? { id: current.id, title: current.title, status: current.status, started_at: current.started_at } : null,
     queued,
+    done_total: done.total,
+    done_today: done.today ?? 0,
   };
 }
 
-export function listAgents(): AgentView[] {
-  return listAgentRows().map(agentView);
+export function listGroups(): GroupView[] {
+  return listGroupRows().map(groupView);
 }
 
-export function emitAgent(id: string) {
-  const agent = getAgent(id);
-  if (agent) emit({ type: "agent", agent: agentView(agent) });
+export function emitGroup(id: string) {
+  const g = getGroup(id);
+  if (g) emit({ type: "group", group: groupView(g) });
 }
 
 // ---------- Задачи ----------
 
-export function getTask(id: number): TaskRow | undefined {
+export function getTask(id: number) {
   return get<TaskRow>("SELECT * FROM tasks WHERE id = ?", id);
 }
 
-export function createTask(input: {
-  agentId: string;
-  title: string;
-  instructions: string;
-  parentId?: number | null;
-  createdBy: string;
-}): TaskRow {
-  const res = run(
-    "INSERT INTO tasks (agent_id, parent_id, title, instructions, created_by) VALUES (?, ?, ?, ?, ?)",
-    input.agentId, input.parentId ?? null, input.title, input.instructions, input.createdBy,
-  );
+export function createTask(groupId: string, title: string, instructions: string): TaskRow {
+  const res = run("INSERT INTO tasks (group_id, title, instructions) VALUES (?, ?, ?)", groupId, title, instructions);
   const task = getTask(Number(res.lastInsertRowid))!;
   emit({ type: "task", task });
-  emitAgent(task.agent_id);
+  emitGroup(groupId);
   return task;
 }
 
@@ -127,30 +143,55 @@ export function setTaskStatus(id: number, status: TaskStatus, result?: string) {
   );
   const task = getTask(id)!;
   emit({ type: "task", task });
-  emitAgent(task.agent_id);
+  emitGroup(task.group_id);
   return task;
 }
 
-export function addTaskUsage(id: number, inputTokens: number, outputTokens: number, costUsd: number) {
-  run(
-    "UPDATE tasks SET input_tokens = input_tokens + ?, output_tokens = output_tokens + ?, cost_usd = cost_usd + ? WHERE id = ?",
-    inputTokens, outputTokens, costUsd, id,
-  );
+export function setTaskUsage(id: number, costUsd: number, turns: number) {
+  run("UPDATE tasks SET cost_usd = ?, turns = ? WHERE id = ?", costUsd, turns, id);
   emit({ type: "task", task: getTask(id) });
 }
 
 export function spentTodayUsd(): number {
-  return get<{ s: number | null }>(
-    "SELECT SUM(cost_usd) AS s FROM tasks WHERE created_at >= datetime('now', '-1 day')",
-  )!.s ?? 0;
+  return get<{ s: number | null }>("SELECT SUM(cost_usd) AS s FROM tasks WHERE created_at >= datetime('now', '-1 day')")!.s ?? 0;
 }
 
-// ---------- Сообщения (лента офиса) ----------
+// ---------- Выходы субагентов ----------
 
-export function addMessage(input: { taskId?: number | null; agentId?: string | null; kind: MessageKind; text: string }) {
+export function getRunByToolUse(taskId: number, toolUseId: string) {
+  return get<RunRow>("SELECT * FROM runs WHERE task_id = ? AND tool_use_id = ?", taskId, toolUseId);
+}
+
+export function startRun(task: TaskRow, subagentId: string, toolUseId: string, description: string) {
+  const existing = getRunByToolUse(task.id, toolUseId);
+  if (existing) return existing;
+  run("INSERT INTO runs (task_id, subagent_id, tool_use_id, description) VALUES (?, ?, ?, ?)", task.id, subagentId, toolUseId, description);
+  const r = getRunByToolUse(task.id, toolUseId)!;
+  emitGroup(task.group_id);
+  return r;
+}
+
+export function updateRun(task: TaskRow, runId: number, patch: { status?: RunRow["status"]; activity?: string; summary?: string }) {
+  run(
+    `UPDATE runs SET status = COALESCE(?, status), activity = COALESCE(?, activity), summary = COALESCE(?, summary),
+       finished_at = CASE WHEN ? IN ('done','failed') THEN datetime('now') ELSE finished_at END
+     WHERE id = ?`,
+    patch.status ?? null, patch.activity ?? null, patch.summary ?? null, patch.status ?? null, runId,
+  );
+  emitGroup(task.group_id);
+}
+
+export function finishOpenRuns(task: TaskRow, status: "done" | "failed") {
+  run("UPDATE runs SET status = ?, finished_at = datetime('now') WHERE task_id = ? AND status = 'working'", status, task.id);
+  emitGroup(task.group_id);
+}
+
+// ---------- Лента ----------
+
+export function addMessage(input: { taskId?: number | null; groupId?: string | null; subagentId?: string | null; kind: MessageKind; text: string }) {
   const res = run(
-    "INSERT INTO messages (task_id, agent_id, kind, text) VALUES (?, ?, ?, ?)",
-    input.taskId ?? null, input.agentId ?? null, input.kind, input.text,
+    "INSERT INTO messages (task_id, group_id, subagent_id, kind, text) VALUES (?, ?, ?, ?, ?)",
+    input.taskId ?? null, input.groupId ?? null, input.subagentId ?? null, input.kind, input.text,
   );
   const message = get<MessageRow>("SELECT * FROM messages WHERE id = ?", Number(res.lastInsertRowid))!;
   emit({ type: "message", message });
@@ -163,8 +204,11 @@ export function getQuestion(id: number) {
   return get<QuestionRow>("SELECT * FROM questions WHERE id = ?", id);
 }
 
-export function createQuestion(taskId: number, agentId: string, question: string) {
-  const res = run("INSERT INTO questions (task_id, agent_id, question) VALUES (?, ?, ?)", taskId, agentId, question);
+export function createQuestion(task: TaskRow, subagentId: string | null, question: string) {
+  const res = run(
+    "INSERT INTO questions (task_id, group_id, subagent_id, question) VALUES (?, ?, ?, ?)",
+    task.id, task.group_id, subagentId, question,
+  );
   const q = getQuestion(Number(res.lastInsertRowid))!;
   emit({ type: "question", question: q });
   return q;
@@ -179,44 +223,4 @@ export function answerQuestion(id: number, answer: string) {
 
 export function pendingQuestions() {
   return all<QuestionRow>("SELECT * FROM questions WHERE answer IS NULL ORDER BY id");
-}
-
-// ---------- Общий диск офиса ----------
-
-export function normalizePath(p: string): string {
-  const clean = p
-    .replace(/\\/g, "/")
-    .split("/")
-    .filter((s) => s && s !== "." && s !== "..")
-    .join("/");
-  if (!clean) throw new Error("Пустой путь к файлу");
-  if (clean.length > 200) throw new Error("Слишком длинный путь");
-  return clean;
-}
-
-export function listFiles() {
-  return all<Omit<FileRow, "content"> & { size: number }>(
-    "SELECT path, updated_by, updated_at, length(content) AS size FROM files ORDER BY path",
-  );
-}
-
-export function readFile(p: string) {
-  return get<FileRow>("SELECT * FROM files WHERE path = ?", normalizePath(p));
-}
-
-export function writeFile(p: string, content: string, by: string) {
-  const path = normalizePath(p);
-  run(
-    `INSERT INTO files (path, content, updated_by) VALUES (?, ?, ?)
-     ON CONFLICT(path) DO UPDATE SET content = excluded.content, updated_by = excluded.updated_by, updated_at = datetime('now')`,
-    path, content, by,
-  );
-  emit({ type: "file", path });
-  return path;
-}
-
-export function deleteFile(p: string) {
-  const path = normalizePath(p);
-  run("DELETE FROM files WHERE path = ?", path);
-  emit({ type: "file", path, deleted: true });
 }

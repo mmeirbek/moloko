@@ -8,32 +8,33 @@ import { cancelTask, pump, recoverAfterRestart } from "./agents/runner.js";
 import { isAuthed, login, logout, requireAuth } from "./auth.js";
 import { bus, emit, type OfficeEvent } from "./bus.js";
 import { config } from "./config.js";
-import { all, get, run, type MessageRow, type QuestionRow, type TaskRow } from "./db.js";
+import { all, get, run, type MessageRow, type QuestionRow, type RunRow, type TaskRow } from "./db.js";
+import { deleteDrive, listDrive, readDrive, writeDrive } from "./drive.js";
 import {
   addMessage,
   answerQuestion,
   createTask,
   defaultModel,
-  deleteFile,
-  emitAgent,
-  getAgent,
+  emitGroup,
+  getGroup,
   getQuestion,
+  getSetting,
+  getSubagent,
   getTask,
-  listAgentRows,
-  listAgents,
-  listFiles,
+  listGroups,
+  listSubagents,
   pendingQuestions,
-  readFile,
-  seedTeam,
+  seedOffice,
   setSetting,
   spentTodayUsd,
-  writeFile,
 } from "./office.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(here, "..", "public");
 
-seedTeam();
+const MAX_SUBAGENTS = 4;
+
+seedOffice();
 
 const app = express();
 app.set("trust proxy", 1);
@@ -47,32 +48,36 @@ app.get("/api/me", (req, res) => res.json({ authed: isAuthed(req) }));
 const api = express.Router();
 api.use(requireAuth);
 
+function rateLimit() {
+  try {
+    return JSON.parse(getSetting("rate_limit") ?? "null");
+  } catch {
+    return null;
+  }
+}
+
 // ---------- Общее состояние офиса ----------
 
 api.get("/state", (_req, res) => {
+  const streak = all<{ d: string }>(
+    "SELECT DISTINCT date(finished_at) AS d FROM tasks WHERE status = 'done' AND finished_at IS NOT NULL ORDER BY d DESC LIMIT 60",
+  ).map((r) => r.d);
   res.json({
-    agents: listAgents(),
+    groups: listGroups(),
     tasks: all<TaskRow>("SELECT * FROM tasks ORDER BY id DESC LIMIT 100"),
-    messages: all<MessageRow>(
-      "SELECT * FROM (SELECT * FROM messages WHERE kind != 'thinking' ORDER BY id DESC LIMIT 150) ORDER BY id",
-    ),
+    messages: all<MessageRow>("SELECT * FROM (SELECT * FROM messages ORDER BY id DESC LIMIT 150) ORDER BY id"),
     questions: pendingQuestions(),
     stats: {
+      auth: config.auth,
       spent_today_usd: spentTodayUsd(),
       daily_budget_usd: config.dailyBudgetUsd,
-      total_usd: get<{ s: number | null }>("SELECT SUM(cost_usd) AS s FROM tasks")!.s ?? 0,
       default_model: defaultModel(),
+      max_parallel: config.maxParallel,
+      rate_limit: rateLimit(),
+      done_days: streak,
     },
     models: MODELS,
   });
-});
-
-api.put("/settings", (req, res) => {
-  const model = typeof req.body?.default_model === "string" ? req.body.default_model.trim() : "";
-  if (!/^claude-[a-z0-9-]+$/.test(model)) return res.status(400).json({ error: "Некорректная модель" });
-  setSetting("default_model", model);
-  for (const a of listAgentRows()) emitAgent(a.id);
-  res.json({ default_model: defaultModel() });
 });
 
 // Живые обновления: браузер держит одно SSE-соединение и получает все события офиса.
@@ -93,28 +98,42 @@ api.get("/stream", (req: Request, res: Response) => {
   });
 });
 
-// ---------- Команды и задачи ----------
+// ---------- Команды: одна задача или сразу пачка в разные отделы ----------
 
-const CommandInput = z.object({
-  text: z.string().trim().min(1).max(20_000),
-  agent_id: z.string().optional(),
-});
+const Command = z.object({ text: z.string().trim().min(1).max(20_000), group_id: z.string() });
 
-api.post("/command", (req, res) => {
-  const parsed = CommandInput.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Пустая команда" });
-  const { text, agent_id } = parsed.data;
-  const agents = listAgentRows();
-  const agent =
-    (agent_id && agents.find((a) => a.id === agent_id)) || agents.find((a) => a.can_delegate) || agents[0];
-  if (!agent) return res.status(400).json({ error: "В офисе нет ни одного сотрудника" });
-
+function dispatch(groupId: string, text: string): TaskRow {
+  const group = getGroup(groupId);
+  if (!group) throw new Error("Отдел не найден");
   const firstLine = text.split("\n")[0];
   const title = firstLine.length > 80 ? firstLine.slice(0, 77) + "…" : firstLine;
-  const task = createTask({ agentId: agent.id, title, instructions: text, createdBy: "boss" });
-  addMessage({ taskId: task.id, agentId: agent.id, kind: "boss", text });
-  pump();
-  res.json({ task });
+  const task = createTask(group.id, title, text);
+  addMessage({ taskId: task.id, groupId: group.id, kind: "boss", text });
+  return task;
+}
+
+api.post("/command", (req, res) => {
+  const parsed = Command.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Пустая команда" });
+  try {
+    const task = dispatch(parsed.data.group_id, parsed.data.text);
+    pump();
+    res.json({ task });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+api.post("/commands", (req, res) => {
+  const parsed = z.object({ items: z.array(Command).min(1).max(20) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Нет задач для отправки" });
+  try {
+    const tasks = parsed.data.items.map((i) => dispatch(i.group_id, i.text));
+    pump();
+    res.json({ tasks });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 api.get("/tasks/:id", (req, res) => {
@@ -124,7 +143,7 @@ api.get("/tasks/:id", (req, res) => {
   res.json({
     task,
     messages: all<MessageRow>("SELECT * FROM messages WHERE task_id = ? ORDER BY id", id),
-    subtasks: all<TaskRow>("SELECT * FROM tasks WHERE parent_id = ? ORDER BY id", id),
+    runs: all<RunRow>("SELECT * FROM runs WHERE task_id = ? ORDER BY id", id),
     questions: all<QuestionRow>("SELECT * FROM questions WHERE task_id = ? ORDER BY id", id),
   });
 });
@@ -140,23 +159,22 @@ api.post("/questions/:id/answer", (req, res) => {
   if (!q) return res.status(404).json({ error: "Вопрос не найден" });
   if (q.answer !== null) return res.status(409).json({ error: "На вопрос уже ответили" });
   if (!answer) return res.status(400).json({ error: "Пустой ответ" });
-  addMessage({ taskId: q.task_id, agentId: q.agent_id, kind: "answer", text: answer });
+  addMessage({ taskId: q.task_id, groupId: q.group_id, subagentId: q.subagent_id, kind: "answer", text: answer });
   res.json({ question: answerQuestion(q.id, answer) });
 });
 
 api.delete("/messages", (_req, res) => {
-  // Очищает только ленту; задачи и файлы остаются.
   run("DELETE FROM messages");
   res.json({ ok: true });
 });
 
 // ---------- Диск офиса ----------
 
-api.get("/files", (_req, res) => res.json({ files: listFiles() }));
+api.get("/files", (_req, res) => res.json({ files: listDrive() }));
 
 api.get("/file", (req, res) => {
   try {
-    const file = readFile(String(req.query.path ?? ""));
+    const file = readDrive(String(req.query.path ?? ""));
     if (!file) return res.status(404).json({ error: "Файл не найден" });
     res.json({ file });
   } catch (err) {
@@ -168,7 +186,7 @@ api.put("/file", (req, res) => {
   const body = z.object({ path: z.string(), content: z.string() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "Нужны path и content" });
   try {
-    res.json({ path: writeFile(body.data.path, body.data.content, "boss") });
+    res.json({ path: writeDrive(body.data.path, body.data.content) });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
@@ -176,67 +194,135 @@ api.put("/file", (req, res) => {
 
 api.delete("/file", (req, res) => {
   try {
-    deleteFile(String(req.query.path ?? ""));
+    deleteDrive(String(req.query.path ?? ""));
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
 });
 
-// ---------- Команда ----------
+// ---------- Настройки ----------
 
-const AgentInput = z.object({
+api.put("/settings", (req, res) => {
+  const model = typeof req.body?.default_model === "string" ? req.body.default_model.trim() : "";
+  if (model && !/^claude-[a-z0-9-]+$/.test(model)) return res.status(400).json({ error: "Некорректная модель" });
+  setSetting("default_model", model);
+  res.json({ default_model: defaultModel() });
+});
+
+// ---------- Отделы и субагенты ----------
+
+const ModelField = z
+  .string()
+  .trim()
+  .max(60)
+  .regex(/^(claude-[a-z0-9-]+)?$/, "Некорректная модель")
+  .nullable()
+  .optional();
+
+const GroupInput = z.object({
   name: z.string().trim().min(1).max(40),
-  role: z.string().trim().min(1).max(80),
-  emoji: z.string().trim().min(1).max(16),
+  motto: z.string().trim().max(80).default(""),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  system_prompt: z.string().max(20_000),
-  model: z.string().trim().max(60).nullable().optional(),
-  effort: z.enum(["low", "medium", "high", "xhigh", "max"]),
+  lead_prompt: z.string().max(4000).default(""),
+  model: ModelField,
+});
+
+const SubagentInput = z.object({
+  name: z.string().trim().min(1).max(30),
+  role: z.string().trim().min(1).max(50),
+  description: z.string().trim().min(1).max(500),
+  prompt: z.string().trim().min(1).max(20_000),
   web: z.boolean(),
-  can_delegate: z.boolean(),
+  files: z.boolean(),
+  model: ModelField,
 });
 
-api.post("/agents", (req, res) => {
-  const parsed = AgentInput.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Некорректные данные" });
-  const a = parsed.data;
-  const id = "a_" + crypto.randomBytes(3).toString("hex");
-  const position = (get<{ p: number | null }>("SELECT MAX(position) AS p FROM agents")!.p ?? 0) + 1;
+function bad(res: Response, err: z.ZodError) {
+  return res.status(400).json({ error: err.issues[0]?.message ?? "Некорректные данные" });
+}
+
+function hasActiveTasks(groupId: string) {
+  return !!get("SELECT 1 FROM tasks WHERE group_id = ? AND status IN ('working','waiting') LIMIT 1", groupId);
+}
+
+api.post("/groups", (req, res) => {
+  const p = GroupInput.safeParse(req.body);
+  if (!p.success) return bad(res, p.error);
+  const id = "g" + crypto.randomBytes(3).toString("hex");
+  const position = (get<{ p: number | null }>("SELECT MAX(position) AS p FROM groups")!.p ?? 0) + 1;
   run(
-    `INSERT INTO agents (id, name, role, emoji, color, system_prompt, model, effort, web, can_delegate, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, a.name, a.role, a.emoji, a.color, a.system_prompt, a.model || null, a.effort, a.web ? 1 : 0, a.can_delegate ? 1 : 0, position,
+    "INSERT INTO groups (id, name, motto, color, lead_prompt, model, position) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    id, p.data.name, p.data.motto, p.data.color, p.data.lead_prompt, p.data.model || null, position,
   );
-  emitAgent(id);
-  res.json({ agent: getAgent(id) });
+  emitGroup(id);
+  res.json({ group: getGroup(id) });
 });
 
-api.put("/agents/:id", (req, res) => {
-  const existing = getAgent(req.params.id);
-  if (!existing) return res.status(404).json({ error: "Сотрудник не найден" });
-  const parsed = AgentInput.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Некорректные данные" });
-  const a = parsed.data;
+api.put("/groups/:id", (req, res) => {
+  const g = getGroup(req.params.id);
+  if (!g) return res.status(404).json({ error: "Отдел не найден" });
+  const p = GroupInput.safeParse(req.body);
+  if (!p.success) return bad(res, p.error);
   run(
-    `UPDATE agents SET name = ?, role = ?, emoji = ?, color = ?, system_prompt = ?, model = ?, effort = ?, web = ?, can_delegate = ?
-     WHERE id = ?`,
-    a.name, a.role, a.emoji, a.color, a.system_prompt, a.model || null, a.effort, a.web ? 1 : 0, a.can_delegate ? 1 : 0, existing.id,
+    "UPDATE groups SET name = ?, motto = ?, color = ?, lead_prompt = ?, model = ? WHERE id = ?",
+    p.data.name, p.data.motto, p.data.color, p.data.lead_prompt, p.data.model || null, g.id,
   );
-  emitAgent(existing.id);
-  res.json({ agent: getAgent(existing.id) });
+  emitGroup(g.id);
+  res.json({ group: getGroup(g.id) });
 });
 
-api.delete("/agents/:id", (req, res) => {
-  const agent = getAgent(req.params.id);
-  if (!agent) return res.status(404).json({ error: "Сотрудник не найден" });
-  const active = all<TaskRow>(
-    "SELECT * FROM tasks WHERE agent_id = ? AND status IN ('queued','working','waiting')",
-    agent.id,
+api.delete("/groups/:id", (req, res) => {
+  const g = getGroup(req.params.id);
+  if (!g) return res.status(404).json({ error: "Отдел не найден" });
+  for (const t of all<TaskRow>("SELECT * FROM tasks WHERE group_id = ? AND status IN ('queued','working','waiting')", g.id)) cancelTask(t.id);
+  run("DELETE FROM groups WHERE id = ?", g.id);
+  emit({ type: "group_deleted", id: g.id });
+  res.json({ ok: true });
+});
+
+api.post("/groups/:id/subagents", (req, res) => {
+  const g = getGroup(req.params.id);
+  if (!g) return res.status(404).json({ error: "Отдел не найден" });
+  if (listSubagents(g.id).length >= MAX_SUBAGENTS) {
+    return res.status(400).json({ error: `В отделе максимум ${MAX_SUBAGENTS} субагента — так каждый остаётся узким специалистом.` });
+  }
+  if (hasActiveTasks(g.id)) return res.status(409).json({ error: "Отдел сейчас работает — дождитесь окончания задачи." });
+  const p = SubagentInput.safeParse(req.body);
+  if (!p.success) return bad(res, p.error);
+  const id = `${g.id}-${crypto.randomBytes(2).toString("hex")}`;
+  const position = (get<{ p: number | null }>("SELECT MAX(position) AS p FROM subagents WHERE group_id = ?", g.id)!.p ?? 0) + 1;
+  const s = p.data;
+  run(
+    `INSERT INTO subagents (id, group_id, name, role, description, prompt, web, files, model, position)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id, g.id, s.name, s.role, s.description, s.prompt, s.web ? 1 : 0, s.files ? 1 : 0, s.model || null, position,
   );
-  for (const t of active) cancelTask(t.id);
-  run("DELETE FROM agents WHERE id = ?", agent.id);
-  emit({ type: "agent_deleted", id: agent.id });
+  emitGroup(g.id);
+  res.json({ subagent: getSubagent(id) });
+});
+
+api.put("/subagents/:id", (req, res) => {
+  const existing = getSubagent(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Субагент не найден" });
+  const p = SubagentInput.safeParse(req.body);
+  if (!p.success) return bad(res, p.error);
+  const s = p.data;
+  run(
+    "UPDATE subagents SET name = ?, role = ?, description = ?, prompt = ?, web = ?, files = ?, model = ? WHERE id = ?",
+    s.name, s.role, s.description, s.prompt, s.web ? 1 : 0, s.files ? 1 : 0, s.model || null, existing.id,
+  );
+  emitGroup(existing.group_id);
+  res.json({ subagent: getSubagent(existing.id) });
+});
+
+api.delete("/subagents/:id", (req, res) => {
+  const s = getSubagent(req.params.id);
+  if (!s) return res.status(404).json({ error: "Субагент не найден" });
+  if (listSubagents(s.group_id).length <= 1) return res.status(400).json({ error: "В отделе должен остаться хотя бы один субагент." });
+  if (hasActiveTasks(s.group_id)) return res.status(409).json({ error: "Отдел сейчас работает — дождитесь окончания задачи." });
+  run("DELETE FROM subagents WHERE id = ?", s.id);
+  emitGroup(s.group_id);
   res.json({ ok: true });
 });
 
@@ -251,7 +337,7 @@ recoverAfterRestart();
 
 app.listen(config.port, () => {
   console.log(`🏢 Офис открыт на http://localhost:${config.port}`);
-  if (!process.env.ANTHROPIC_API_KEY) console.warn("⚠️  ANTHROPIC_API_KEY не задан — агенты не смогут работать.");
+  const how = { subscription: "подписка Claude (CLAUDE_CODE_OAUTH_TOKEN)", api: "API-ключ (ANTHROPIC_API_KEY)", none: "НЕ ПОДКЛЮЧЕНО" }[config.auth];
+  console.log(`🔌 Claude: ${how}`);
   if (!process.env.APP_PASSWORD) console.warn("⚠️  APP_PASSWORD не задан — используется пароль «dev».");
 });
-

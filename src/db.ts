@@ -5,60 +5,84 @@ import { config } from "./config.js";
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
-export const db = new DatabaseSync(path.join(config.dataDir, "office.db"));
+// v2: офис из отделов с субагентами. Старая база (office.db) просто остаётся рядом и не используется.
+export const db = new DatabaseSync(path.join(config.dataDir, "office-v2.db"));
 
 db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
-  CREATE TABLE IF NOT EXISTS agents (
-    id            TEXT PRIMARY KEY,
-    name          TEXT NOT NULL,
-    role          TEXT NOT NULL,
-    emoji         TEXT NOT NULL DEFAULT '🤖',
-    color         TEXT NOT NULL DEFAULT '#6c8cff',
-    system_prompt TEXT NOT NULL DEFAULT '',
-    model         TEXT,
-    effort        TEXT NOT NULL DEFAULT 'medium',
-    web           INTEGER NOT NULL DEFAULT 0,
-    can_delegate  INTEGER NOT NULL DEFAULT 0,
-    position      INTEGER NOT NULL DEFAULT 0,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  CREATE TABLE IF NOT EXISTS groups (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    motto       TEXT NOT NULL DEFAULT '',
+    color       TEXT NOT NULL DEFAULT '#3ab7ff',
+    lead_prompt TEXT NOT NULL DEFAULT '',
+    model       TEXT,
+    position    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS subagents (
+    id          TEXT PRIMARY KEY,
+    group_id    TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    role        TEXT NOT NULL,
+    description TEXT NOT NULL,
+    prompt      TEXT NOT NULL,
+    web         INTEGER NOT NULL DEFAULT 0,
+    files       INTEGER NOT NULL DEFAULT 1,
+    model       TEXT,
+    position    INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS tasks (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    agent_id      TEXT NOT NULL,
-    parent_id     INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
-    title         TEXT NOT NULL,
-    instructions  TEXT NOT NULL,
-    status        TEXT NOT NULL DEFAULT 'queued',
-    result        TEXT,
-    created_by    TEXT NOT NULL DEFAULT 'boss',
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    started_at    TEXT,
-    finished_at   TEXT,
-    input_tokens  INTEGER NOT NULL DEFAULT 0,
-    output_tokens INTEGER NOT NULL DEFAULT 0,
-    cost_usd      REAL NOT NULL DEFAULT 0
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id    TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    instructions TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'queued',
+    result      TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    started_at  TEXT,
+    finished_at TEXT,
+    cost_usd    REAL NOT NULL DEFAULT 0,
+    turns       INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS tasks_status ON tasks(status);
-  CREATE INDEX IF NOT EXISTS tasks_parent ON tasks(parent_id);
+  CREATE INDEX IF NOT EXISTS tasks_group ON tasks(group_id);
+
+  -- Один «выход» субагента на работу внутри задачи отдела.
+  CREATE TABLE IF NOT EXISTS runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    subagent_id TEXT NOT NULL,
+    tool_use_id TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'working',
+    activity    TEXT,
+    summary     TEXT,
+    started_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    finished_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS runs_task ON runs(task_id);
 
   CREATE TABLE IF NOT EXISTS messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id    INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
-    agent_id   TEXT,
-    kind       TEXT NOT NULL,
-    text       TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id     INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    group_id    TEXT,
+    subagent_id TEXT,
+    kind        TEXT NOT NULL,
+    text        TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS messages_task ON messages(task_id);
 
   CREATE TABLE IF NOT EXISTS questions (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    agent_id    TEXT NOT NULL,
+    group_id    TEXT NOT NULL,
+    subagent_id TEXT,
     question    TEXT NOT NULL,
     answer      TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -69,54 +93,67 @@ db.exec(`
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
-
-  CREATE TABLE IF NOT EXISTS files (
-    path       TEXT PRIMARY KEY,
-    content    TEXT NOT NULL,
-    updated_by TEXT NOT NULL,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
 `);
 
 export type TaskStatus = "queued" | "working" | "waiting" | "done" | "failed" | "cancelled";
-export type MessageKind = "boss" | "agent" | "thinking" | "tool" | "system" | "question" | "answer";
+export type MessageKind = "boss" | "lead" | "subagent" | "tool" | "system" | "question" | "answer";
 
-export interface AgentRow {
+export interface GroupRow {
   id: string;
   name: string;
-  role: string;
-  emoji: string;
+  motto: string;
   color: string;
-  system_prompt: string;
+  lead_prompt: string;
   model: string | null;
-  effort: "low" | "medium" | "high" | "xhigh" | "max";
-  web: number;
-  can_delegate: number;
   position: number;
   created_at: string;
 }
 
+export interface SubagentRow {
+  id: string;
+  group_id: string;
+  name: string;
+  role: string;
+  description: string;
+  prompt: string;
+  web: number;
+  files: number;
+  model: string | null;
+  position: number;
+}
+
 export interface TaskRow {
   id: number;
-  agent_id: string;
-  parent_id: number | null;
+  group_id: string;
   title: string;
   instructions: string;
   status: TaskStatus;
   result: string | null;
-  created_by: string;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
-  input_tokens: number;
-  output_tokens: number;
   cost_usd: number;
+  turns: number;
+}
+
+export interface RunRow {
+  id: number;
+  task_id: number;
+  subagent_id: string;
+  tool_use_id: string;
+  description: string;
+  status: "working" | "done" | "failed";
+  activity: string | null;
+  summary: string | null;
+  started_at: string;
+  finished_at: string | null;
 }
 
 export interface MessageRow {
   id: number;
   task_id: number | null;
-  agent_id: string | null;
+  group_id: string | null;
+  subagent_id: string | null;
   kind: MessageKind;
   text: string;
   created_at: string;
@@ -125,18 +162,12 @@ export interface MessageRow {
 export interface QuestionRow {
   id: number;
   task_id: number;
-  agent_id: string;
+  group_id: string;
+  subagent_id: string | null;
   question: string;
   answer: string | null;
   created_at: string;
   answered_at: string | null;
-}
-
-export interface FileRow {
-  path: string;
-  content: string;
-  updated_by: string;
-  updated_at: string;
 }
 
 // node:sqlite возвращает объекты с null-прототипом; приводим к нашим типам в одном месте.
