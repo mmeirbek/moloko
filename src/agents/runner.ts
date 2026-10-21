@@ -13,12 +13,13 @@ import {
   getTask,
   listAgentRows,
   listFiles,
+  modelFor,
   readFile,
   setTaskStatus,
   spentTodayUsd,
   writeFile,
 } from "../office.js";
-import { estimateCostUsd } from "./pricing.js";
+import { estimateCostUsd, isHaiku } from "./pricing.js";
 import { buildTools, inputs, isToolName } from "./tools.js";
 
 const client = new Anthropic();
@@ -210,8 +211,13 @@ function truncate(s: string, n: number) {
 
 async function agentLoop(task: TaskRow, agent: AgentRow, signal: AbortSignal): Promise<string> {
   const team = listAgentRows();
-  const model = agent.model || config.defaultModel;
-  const tools = buildTools(agent, task, team);
+  const model = modelFor(agent);
+  const tools = buildTools(agent, task, team, model);
+  // Если классификатор безопасности ложно сработает, API сам повторит запрос на запасной модели.
+  // У Haiku серверного запасного варианта нет, поэтому параметр ему не передаём.
+  const fallback = isHaiku(model)
+    ? {}
+    : { betas: ["server-side-fallback-2026-07-01"] as Anthropic.Beta.AnthropicBeta[], fallbacks: "default" as const };
   const system = systemPrompt(agent, team);
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: taskPrompt(task, agent) }];
   let jsonRetries = 0;
@@ -233,9 +239,7 @@ async function agentLoop(task: TaskRow, agent: AgentRow, signal: AbortSignal): P
               thinking: { type: "adaptive", display: "summarized" },
               output_config: { effort: agent.effort },
               cache_control: { type: "ephemeral" },
-              // Если классификатор безопасности ложно сработает, API сам повторит запрос на запасной модели.
-              betas: ["server-side-fallback-2026-07-01"],
-              fallbacks: "default",
+              ...fallback,
             },
             { signal },
           )

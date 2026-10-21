@@ -1,7 +1,7 @@
 // Минимальный service worker: делает сайт устанавливаемым на телефон как приложение
 // и открывает оболочку без сети. Данные (/api) никогда не кэшируются.
-const CACHE = "office-v1";
-const SHELL = ["/", "/style.css", "/app.js", "/manifest.webmanifest", "/icon.svg", "/icon-192.png"];
+const CACHE = "office-v2";
+const SHELL = ["/", "/style.css", "/app.js", "/sprites.js", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/fonts/Handjet-cyrillic.woff2", "/fonts/Handjet-latin.woff2"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

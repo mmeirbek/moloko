@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
+import { MODELS } from "./agents/pricing.js";
 import { cancelTask, pump, recoverAfterRestart } from "./agents/runner.js";
 import { isAuthed, login, logout, requireAuth } from "./auth.js";
 import { bus, emit, type OfficeEvent } from "./bus.js";
@@ -12,6 +13,7 @@ import {
   addMessage,
   answerQuestion,
   createTask,
+  defaultModel,
   deleteFile,
   emitAgent,
   getAgent,
@@ -23,6 +25,7 @@ import {
   pendingQuestions,
   readFile,
   seedTeam,
+  setSetting,
   spentTodayUsd,
   writeFile,
 } from "./office.js";
@@ -58,9 +61,18 @@ api.get("/state", (_req, res) => {
       spent_today_usd: spentTodayUsd(),
       daily_budget_usd: config.dailyBudgetUsd,
       total_usd: get<{ s: number | null }>("SELECT SUM(cost_usd) AS s FROM tasks")!.s ?? 0,
-      default_model: config.defaultModel,
+      default_model: defaultModel(),
     },
+    models: MODELS,
   });
+});
+
+api.put("/settings", (req, res) => {
+  const model = typeof req.body?.default_model === "string" ? req.body.default_model.trim() : "";
+  if (!/^claude-[a-z0-9-]+$/.test(model)) return res.status(400).json({ error: "Некорректная модель" });
+  setSetting("default_model", model);
+  for (const a of listAgentRows()) emitAgent(a.id);
+  res.json({ default_model: defaultModel() });
 });
 
 // Живые обновления: браузер держит одно SSE-соединение и получает все события офиса.

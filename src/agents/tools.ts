@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { AgentRow, TaskRow } from "../db.js";
+import { isHaiku } from "./pricing.js";
 
 // Схемы для проверки входа инструментов. С eager_input_streaming сервер не валидирует JSON сам,
 // поэтому всё, что пришло от модели, проверяем здесь перед выполнением.
@@ -22,7 +23,7 @@ export function isToolName(name: string): name is ToolName {
   return name in inputs;
 }
 
-export function buildTools(agent: AgentRow, task: TaskRow, team: AgentRow[]): Anthropic.Beta.BetaToolUnion[] {
+export function buildTools(agent: AgentRow, task: TaskRow, team: AgentRow[], model: string): Anthropic.Beta.BetaToolUnion[] {
   const tools: Anthropic.Beta.BetaToolUnion[] = [];
 
   const colleagues = team.filter((a) => a.id !== agent.id);
@@ -103,10 +104,18 @@ export function buildTools(agent: AgentRow, task: TaskRow, team: AgentRow[]): An
   );
 
   if (agent.web) {
-    tools.push(
-      { type: "web_search_20260209", name: "web_search", max_uses: 8 },
-      { type: "web_fetch_20260209", name: "web_fetch", max_uses: 8 },
-    );
+    // Версии с динамической фильтрацией есть только у Opus/Sonnet; Haiku получает базовые.
+    if (isHaiku(model)) {
+      tools.push(
+        { type: "web_search_20250305", name: "web_search", max_uses: 8 },
+        { type: "web_fetch_20250910", name: "web_fetch", max_uses: 8 },
+      );
+    } else {
+      tools.push(
+        { type: "web_search_20260209", name: "web_search", max_uses: 8 },
+        { type: "web_fetch_20260209", name: "web_fetch", max_uses: 8 },
+      );
+    }
   }
 
   return tools;

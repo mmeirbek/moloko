@@ -65,6 +65,11 @@ db.exec(`
     answered_at TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS files (
     path       TEXT PRIMARY KEY,
     content    TEXT NOT NULL,

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-  <meta name="theme-color" content="#0f1117" />
+  <meta name="theme-color" content="#1f1930" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Офис" />
@@ -11,13 +11,14 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="preload" href="/fonts/Handjet-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <!-- Вход -->
   <section id="login" class="login hidden">
-    <form id="login-form" class="login-card">
-      <div class="login-logo">🏢</div>
+    <form id="login-form" class="login-card px">
+      <img class="login-logo" data-icon="office" alt="" />
       <h1>Виртуальный офис</h1>
       <p class="muted">Введите пароль, чтобы войти к своей команде</p>
       <input id="login-password" type="password" placeholder="Пароль" autocomplete="current-password" required />
@@ -29,10 +30,10 @@
   <!-- Приложение -->
   <div id="app" class="app hidden">
     <header class="topbar">
-      <div class="brand"><span>🏢</span> Офис</div>
+      <div class="brand"><img data-icon="office" alt="" /> ОФИС</div>
       <div class="topbar-right">
         <span id="spend" class="spend" title="Расходы за сутки"></span>
-        <button id="notify-btn" class="icon-btn" title="Уведомления">🔔</button>
+        <button id="notify-btn" class="icon-btn" title="Уведомления"><img class="bell" data-icon="bell" alt="Уведомления" /></button>
         <span id="conn" class="conn" title="Соединение"></span>
       </div>
     </header>
@@ -45,16 +46,16 @@
       <div id="target-chips" class="chips"></div>
       <div class="composer-row">
         <textarea id="composer-text" rows="1" placeholder="Задача для команды…"></textarea>
-        <button type="submit" class="send" aria-label="Отправить">➤</button>
+        <button type="submit" class="send" aria-label="Отправить">&gt;</button>
       </div>
     </form>
 
     <nav class="tabbar">
-      <button data-tab="office" class="active"><span>🏢</span>Офис</button>
-      <button data-tab="chat"><span>💬</span>Чат</button>
-      <button data-tab="tasks"><span>📋</span>Задачи</button>
-      <button data-tab="files"><span>📁</span>Диск</button>
-      <button data-tab="team"><span>👥</span>Команда</button>
+      <button data-tab="office" class="active"><img data-icon="office" alt="" />Офис</button>
+      <button data-tab="chat"><img data-icon="chat" alt="" />Чат</button>
+      <button data-tab="tasks"><img data-icon="tasks" alt="" />Задачи<span id="tasks-badge" class="tab-badge hidden"></span></button>
+      <button data-tab="files"><img data-icon="files" alt="" />Диск</button>
+      <button data-tab="team"><img data-icon="team" alt="" />Команда</button>
     </nav>
   </div>
 

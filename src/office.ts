@@ -1,5 +1,6 @@
 import { DEFAULT_TEAM } from "./agents/defaults.js";
 import { emit } from "./bus.js";
+import { config } from "./config.js";
 import {
   all,
   get,
@@ -12,6 +13,25 @@ import {
   type TaskRow,
   type TaskStatus,
 } from "./db.js";
+
+// ---------- Настройки ----------
+
+export function getSetting(key: string): string | undefined {
+  return get<{ value: string }>("SELECT value FROM settings WHERE key = ?", key)?.value;
+}
+
+export function setSetting(key: string, value: string) {
+  run("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", key, value);
+}
+
+// Модель, выбранная в приложении, важнее переменной окружения MODEL.
+export function defaultModel(): string {
+  return getSetting("default_model") || config.defaultModel;
+}
+
+export function modelFor(agent: AgentRow): string {
+  return agent.model || defaultModel();
+}
 
 // ---------- Агенты ----------
 

@@ -1,5 +1,7 @@
 // Виртуальный офис — клиент. Без сборки и фреймворков: открывается на любом телефоне.
 
+import { DESK_H, DESK_W, drawDesk, icon, portrait } from "/sprites.js";
+
 const $ = (sel) => document.querySelector(sel);
 
 const state = {
@@ -8,6 +10,7 @@ const state = {
   messages: [],
   questions: [],
   stats: {},
+  models: [],
   tab: localStorageGet("tab") || "office",
   target: null, // кому адресована следующая команда
   taskFilter: "active",
@@ -95,6 +98,12 @@ function md(src) {
 function agentById(id) {
   return state.agents.find((a) => a.id === id);
 }
+// Пиксельный портрет сотрудника (для босса и неизвестных — иконка офиса).
+function avatar(agent, cls = "ava") {
+  const src = agent ? portrait(agent) : icon("office");
+  return `<img class="${cls}" src="${src}" alt="" style="${agentStyle(agent)}" />`;
+}
+
 function agentStyle(agent) {
   return `--agent:${agent?.color || "#7c8cff"}`;
 }
@@ -265,9 +274,16 @@ function renderAll() {
 
 function renderTopbar() {
   const s = state.stats;
-  $("#spend").textContent = `≈${money(s.spent_today_usd)} / ${money(s.daily_budget_usd)} за сутки`;
+  const spend = $("#spend");
+  spend.textContent = `≈${money(s.spent_today_usd)} / ${money(s.daily_budget_usd)}`;
+  spend.title = "Расходы за последние сутки / суточный лимит";
+  spend.classList.toggle("hot", s.spent_today_usd > 0.8 * s.daily_budget_usd);
   const granted = "Notification" in window && Notification.permission === "granted";
   $("#notify-btn").style.opacity = granted ? "1" : ".45";
+  const active = state.tasks.filter((t) => ["queued", "working", "waiting"].includes(t.status)).length;
+  const badge = $("#tasks-badge");
+  badge.textContent = active;
+  badge.classList.toggle("hidden", active === 0);
 }
 
 function renderQuestions() {
@@ -278,7 +294,7 @@ function renderQuestions() {
     .map((q) => {
       const a = agentById(q.agent_id);
       return `<div class="q-card">
-        <div class="q-card-head">${esc(a?.emoji ?? "🤖")} ${esc(a?.name ?? q.agent_id)} спрашивает (задача #${q.task_id})</div>
+        <div class="q-card-head">${avatar(a)} ${esc(a?.name ?? q.agent_id)} спрашивает · задача #${q.task_id}</div>
         <div class="md">${md(q.question)}</div>
         <form data-question="${q.id}">
           <input name="answer" placeholder="Ваш ответ…" autocomplete="off" required />
@@ -319,6 +335,7 @@ function renderView() {
   const stickToBottom = state.tab === "chat" && view.scrollHeight - view.scrollTop - view.clientHeight < 80;
   const html = { office: viewOffice, chat: viewChat, tasks: viewTasks, files: viewFiles, team: viewTeam }[state.tab]();
   if (typeof html === "string") view.innerHTML = `<div class="view-inner">${html}</div>`;
+  if (state.tab === "office") drawDesks();
   if (state.tab === "chat" && (stickToBottom || !view.dataset.scrolled)) {
     view.scrollTop = view.scrollHeight;
     view.dataset.scrolled = "1";
@@ -339,45 +356,94 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
 
 function viewOffice() {
   if (!state.agents.length) {
-    return `<div class="empty"><div class="empty-emoji">🪑</div>В офисе пока никого. Наймите команду во вкладке «Команда».</div>`;
+    return `<div class="empty px" style="padding:28px">В офисе пока пусто. Наймите сотрудников во вкладке «Команда».</div>`;
   }
   const busy = state.agents.filter((a) => a.status === "working" || a.status === "waiting").length;
   const desks = state.agents
     .map((a) => {
-      let bubble = "💤 Отдыхает";
-      if (a.status === "working") bubble = `${esc(a.current_task?.title)}<span class="typing"><i></i><i></i><i></i></span>`;
-      if (a.status === "waiting") bubble = `❓ Ждёт вашего ответа`;
-      if (a.status === "queued") bubble = `📥 В очереди: ${a.queued}`;
+      let bubble = "z z z… свободен";
+      if (a.status === "working") bubble = esc(a.current_task?.title);
+      if (a.status === "waiting") bubble = "Есть вопрос к вам!";
+      if (a.status === "queued") bubble = `В очереди: ${a.queued}`;
       else if (a.queued) bubble += ` · ещё ${a.queued}`;
-      return `<div class="desk ${a.status}" style="${agentStyle(a)}" data-agent="${esc(a.id)}">
-        <div class="bubble">${bubble}</div>
-        <div class="avatar">${esc(a.emoji)}<span class="status-dot"></span></div>
-        <div class="desk-name">${esc(a.name)}</div>
-        <div class="desk-role">${esc(a.role)}</div>
-        <div class="desk-table"></div>
+      return `<div class="desk ${a.status}" style="${agentStyle(a)}" data-agent="${esc(a.id)}" title="${esc(AGENT_STATUS[a.status])}">
+        <div class="speech"><span>${bubble}</span></div>
+        <canvas width="${DESK_W}" height="${DESK_H}" data-desk="${esc(a.id)}"></canvas>
+        <div class="nameplate"><b><span class="status-led"></span>${esc(a.name)}</b><small>${esc(a.role)}</small></div>
       </div>`;
     })
     .join("");
 
   const recent = state.messages
     .filter((m) => m.kind !== "boss")
-    .slice(-6)
+    .slice(-5)
     .reverse()
     .map((m) => {
       const a = agentById(m.agent_id);
       const text = m.text.replace(/\s+/g, " ");
-      return `<div class="ticker-item" data-task="${m.task_id ?? ""}"><time>${clock(m.created_at)}</time><span><b>${esc(a?.name ?? "Офис")}</b> ${esc(text.length > 110 ? text.slice(0, 110) + "…" : text)}</span></div>`;
+      return `<div class="ticker-item" data-task="${m.task_id ?? ""}">${avatar(a, "")}<time>${clock(m.created_at)}</time><span><b>${esc(a?.name ?? "Офис")}:</b> ${esc(text.length > 110 ? text.slice(0, 110) + "…" : text)}</span></div>`;
     })
     .join("");
 
-  return `<div class="floor">
-      <div class="floor-label"><span>Рабочий зал</span><span>${busy ? `в работе: ${busy}` : "все свободны"}</span></div>
-      <div class="desks">${desks}</div>
+  const onboarding = `<div class="onboarding px">
+      <h3>КАК ЭТО РАБОТАЕТ</h3>
+      <ol>
+        <li>Напишите задачу внизу. По умолчанию её получает менеджер.</li>
+        <li>Менеджер раздаст части коллегам. За работой видно прямо здесь, в офисе.</li>
+        <li>Если нужно уточнение, сотрудник поднимет руку, а сверху появится вопрос.</li>
+        <li>Результат придёт в «Чат», большие файлы лягут на «Диск».</li>
+      </ol>
+      <div class="examples">
+        <button class="btn small" data-example="Найди 5 идей для поста про мой пет-проект и напиши лучший пост">Идеи для поста</button>
+        <button class="btn small" data-example="Сравни 3 дешёвых хостинга для Node.js-сервера с диском и дай рекомендацию">Сравнить хостинги</button>
+      </div>
+    </div>`;
+
+  return `<div class="room px">
+      <div class="room-wall">
+        ${windowHtml()}
+        <div class="office-sign">ОФИС<small>${busy ? `в работе: ${busy}` : "все свободны"}</small></div>
+        <div class="wall-clock" id="wall-clock">${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</div>
+      </div>
+      <div class="floor"><div class="desks">${desks}</div></div>
+      <div class="legend">
+        <span class="working"><span class="status-led"></span>работает</span>
+        <span class="waiting"><span class="status-led"></span>ждёт вашего ответа</span>
+        <span class="queued"><span class="status-led"></span>есть очередь</span>
+        <span class="idle"><span class="status-led"></span>свободен</span>
+      </div>
     </div>
-    ${recent ? `<div class="ticker">${recent}</div>` : `<div class="empty">Напишите первую задачу внизу — например, «Проведите исследование рынка кофеен в Алматы и подготовьте пост для Instagram».</div>`}`;
+    ${recent ? `<div class="ticker px"><div class="ticker-title">ПОСЛЕДНИЕ СОБЫТИЯ</div>${recent}</div>` : onboarding}`;
+}
+
+// Окно показывает реальное время суток: днём солнце, ночью звёзды.
+function windowHtml() {
+  const h = new Date().getHours();
+  const night = h < 6 || h >= 21;
+  const evening = h >= 18 && h < 21;
+  const sky = night ? "#0e1433" : evening ? "linear-gradient(#ff8a5c, #7a3d8c)" : "linear-gradient(#5ec8ff, #b8e8ff)";
+  const extra = night
+    ? [[10, 8], [30, 20], [60, 10], [74, 30], [20, 38], [48, 42]].map(([x, y]) => `<i class="star" style="left:${x}px;top:${y}px"></i>`).join("")
+    : `<i class="sun" style="background:${evening ? "#ffd23f" : "#fff3a0"};top:${evening ? 34 : 10}px"></i>`;
+  return `<div class="window"><div class="sky" style="background:${sky}"></div>${extra}</div>`;
+}
+
+let deskFrame = 0;
+function drawDesks() {
+  document.querySelectorAll("canvas[data-desk]").forEach((c) => {
+    const a = agentById(c.dataset.desk);
+    if (a) drawDesk(c, a, deskFrame);
+  });
 }
 
 $("#view").addEventListener("click", (e) => {
+  const example = e.target.closest("[data-example]");
+  if (example) {
+    textarea.value = example.dataset.example;
+    textarea.dispatchEvent(new Event("input"));
+    textarea.focus();
+    return;
+  }
   const desk = e.target.closest("[data-agent]");
   if (desk && state.tab === "office") return openAgentSheet(desk.dataset.agent);
   const taskEl = e.target.closest("[data-task]");
@@ -388,7 +454,7 @@ $("#view").addEventListener("click", (e) => {
 
 function viewChat() {
   if (!state.messages.length) {
-    return `<div class="empty"><div class="empty-emoji">💬</div>Здесь будет переписка с командой.<br/>Выберите, кому писать, и отправьте задачу.</div>`;
+    return `<div class="empty px"><img class="empty-icon" src="${icon("chat")}" alt="" /><br/>Здесь будет переписка с командой.<br/>Выберите внизу, кому писать, и отправьте задачу.</div>`;
   }
   return `<div class="section-title"><h2>Лента офиса</h2><button class="btn small" id="clear-feed">Очистить</button></div>
     <div class="feed">${state.messages.map(renderMessage).join("")}</div>`;
@@ -407,7 +473,7 @@ function renderMessage(m) {
   const t = state.tasks.find((x) => x.id === m.task_id);
   const sub = t?.parent_id ? ` → ${esc(agentById(t.created_by)?.name ?? "коллеге")}` : "";
   return `<div class="msg ${m.kind}" style="${agentStyle(a)}"${task}>
-    <div class="mini-avatar">${esc(a?.emoji ?? "🤖")}</div>
+    ${avatar(a)}
     <div class="msg-body"><div class="msg-meta"><b>${esc(a?.name ?? "Агент")}</b>${label}${sub} · ${clock(m.created_at)}</div><div class="md">${md(m.text)}</div></div>
   </div>`;
 }
@@ -423,11 +489,13 @@ document.addEventListener("click", async (e) => {
 // ----- Поле ввода -----
 
 function renderChips() {
-  $("#target-chips").innerHTML = state.agents
-    .map((a) => `<button type="button" class="chip ${a.id === state.target ? "active" : ""}" style="${agentStyle(a)}" data-target="${esc(a.id)}">${esc(a.emoji)} ${esc(a.name)}</button>`)
-    .join("");
+  $("#target-chips").innerHTML =
+    `<span class="chips-label">Кому:</span>` +
+    state.agents
+      .map((a) => `<button type="button" class="chip ${a.id === state.target ? "active" : ""}" style="${agentStyle(a)}" data-target="${esc(a.id)}">${avatar(a, "")}${esc(a.name)}</button>`)
+      .join("");
   const t = agentById(state.target);
-  $("#composer-text").placeholder = t ? `Задача для: ${t.name}…` : "Задача для команды…";
+  $("#composer-text").placeholder = t ? `Напишите задачу, её получит ${t.name}…` : "Напишите задачу…";
 }
 
 $("#target-chips").addEventListener("click", (e) => {
@@ -487,13 +555,13 @@ function viewTasks() {
   const rows = list.map((t) => taskRow(t)).join("");
   return `<div class="section-title"><h2>Задачи</h2></div>
     <div class="filters">${filters}</div>
-    <div class="list">${rows || `<div class="empty"><div class="empty-emoji">✅</div>${state.taskFilter === "active" ? "Активных задач нет" : "Задач пока нет"}</div>`}</div>`;
+    <div class="list">${rows || `<div class="empty px"><img class="empty-icon" src="${icon("tasks")}" alt="" /><br/>${state.taskFilter === "active" ? "Активных задач нет" : "Задач пока нет"}</div>`}</div>`;
 }
 
 function taskRow(t, extraClass = "") {
   const a = agentById(t.agent_id);
-  return `<div class="row ${t.parent_id ? "sub" : ""} ${extraClass}" data-task="${t.id}">
-    <div class="mini-avatar" style="${agentStyle(a)};width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--agent)">${esc(a?.emoji ?? "🤖")}</div>
+  return `<div class="row px ${t.parent_id ? "sub" : ""} ${extraClass}" data-task="${t.id}">
+    ${avatar(a)}
     <div class="row-main">
       <div class="row-title">${esc(t.title)}</div>
       <div class="row-meta">#${t.id} · ${esc(a?.name ?? t.agent_id)} · ${timeAgo(t.created_at)}${t.cost_usd ? ` · ≈${money(t.cost_usd)}` : ""}</div>
@@ -563,7 +631,7 @@ async function renderTaskSheet(initial) {
     <h3>${esc(task.title)}</h3>
     <div class="kv">
       <span>#${task.id}</span>
-      <span>${esc(a?.emoji ?? "")} ${esc(a?.name ?? task.agent_id)}</span>
+      <span style="display:inline-flex;gap:6px;align-items:center">${avatar(a, "")} ${esc(a?.name ?? task.agent_id)}</span>
       <span>от: ${esc(from)}</span>
       <span class="pill ${task.status}">${STATUS_LABEL[task.status]}</span>
       ${task.cost_usd ? `<span>≈${money(task.cost_usd)} · ${(task.input_tokens + task.output_tokens).toLocaleString("ru-RU")} ток.</span>` : ""}
@@ -614,8 +682,8 @@ function openAgentSheet(id) {
   if (!a) return;
   const tasks = state.tasks.filter((t) => t.agent_id === id).slice(0, 8);
   openSheet(`
-    <div style="display:flex;gap:12px;align-items:center;${agentStyle(a)}">
-      <div class="avatar" style="margin:0">${esc(a.emoji)}</div>
+    <div class="agent-head" style="${agentStyle(a)}">
+      ${avatar(a, "")}
       <div><h3>${esc(a.name)}</h3><div class="muted">${esc(a.role)}</div><div class="muted" style="font-size:13px">${AGENT_STATUS[a.status]}</div></div>
     </div>
     <div class="actions">
@@ -654,14 +722,14 @@ function viewFiles() {
         .map((f) => {
           const a = agentById(f.updated_by);
           const who = f.updated_by === "boss" ? "вы" : a?.name ?? f.updated_by;
-          return `<div class="row" data-file="${esc(f.path)}"><span style="font-size:22px">📄</span>
+          return `<div class="row px" data-file="${esc(f.path)}"><img class="file-icon" src="${icon("files")}" alt="" />
             <div class="row-main"><div class="row-title">${esc(f.path)}</div>
             <div class="row-meta">${esc(who)} · ${timeAgo(f.updated_at)} · ${(f.size / 1024).toFixed(1)} КБ</div></div></div>`;
         })
         .join("");
       $("#view").innerHTML = `<div class="view-inner"><div class="section-title"><h2>Диск офиса</h2><button class="btn small" id="new-file">+ Файл</button></div>
         <p class="muted" style="margin-top:0">Здесь агенты хранят отчёты, тексты и код. Это же — общая память команды.</p>
-        <div class="list">${rows || `<div class="empty"><div class="empty-emoji">📂</div>Файлов пока нет</div>`}</div></div>`;
+        <div class="list">${rows || `<div class="empty px"><img class="empty-icon" src="${icon("files")}" alt="" /><br/>Файлов пока нет</div>`}</div></div>`;
     })
     .catch((err) => toast(err.message));
   return filesCache === null ? `<div class="empty">Загрузка…</div>` : undefined;
@@ -682,7 +750,7 @@ document.addEventListener("click", async (e) => {
 
 function openFileSheet(file, editing = false) {
   openSheet(`
-    <h3 style="word-break:break-all">📄 ${esc(file.path)}</h3>
+    <h3 style="word-break:break-all;display:flex;gap:8px;align-items:center"><img class="file-icon" src="${icon("files")}" alt="" />${esc(file.path)}</h3>
     ${editing
       ? `<textarea id="file-editor" style="min-height:50vh;font-family:ui-monospace,monospace;font-size:13px">${esc(file.content)}</textarea>`
       : `<div class="box"><div class="file-content">${esc(file.content)}</div></div>`}
@@ -731,20 +799,46 @@ $("#sheet-body").addEventListener("click", async (e) => {
 // ----- Команда -----
 
 function viewTeam() {
+  const current = state.stats.default_model;
+  const options = state.models
+    .map((m) => `<option value="${esc(m.id)}" ${m.id === current ? "selected" : ""}>${esc(m.label)} · $${m.input}/$${m.output}</option>`)
+    .join("");
+  const custom = state.models.some((m) => m.id === current) ? "" : `<option selected value="${esc(current)}">${esc(current)}</option>`;
   const rows = state.agents
     .map(
-      (a) => `<div class="row" data-edit-agent="${esc(a.id)}" style="${agentStyle(a)}">
-        <div class="mini-avatar" style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:22px;border:2px solid var(--agent)">${esc(a.emoji)}</div>
+      (a) => `<div class="row px" data-edit-agent="${esc(a.id)}" style="${agentStyle(a)}">
+        ${avatar(a)}
         <div class="row-main"><div class="row-title">${esc(a.name)}</div>
-        <div class="row-meta">${esc(a.role)} · ${esc(a.model || state.stats.default_model)} · усилие: ${esc(a.effort)}${a.web ? " · 🌐 интернет" : ""}${a.can_delegate ? " · 👑 раздаёт задачи" : ""}</div></div>
+        <div class="row-meta">${esc(a.role)} · ${esc(modelLabel(a.model || current))}${a.web ? " · интернет" : ""}${a.can_delegate ? " · раздаёт задачи" : ""}</div></div>
         <span class="muted">›</span>
       </div>`,
     )
     .join("");
-  return `<div class="section-title"><h2>Команда</h2><button class="btn small primary" data-new-agent>+ Нанять</button></div>
+  return `<div class="section-title"><h2>КОМАНДА</h2><button class="btn small primary" data-new-agent>+ Нанять</button></div>
+    <div class="box px">
+      <div class="box-title">МОДЕЛЬ ДЛЯ ВСЕХ ПО УМОЛЧАНИЮ</div>
+      <select id="default-model">${custom}${options}</select>
+      <p class="price-note">Цена: $ за 1 млн токенов, вход/выход. Haiku примерно в 40 раз дешевле Opus и хорошо справляется с простыми задачами. У любого сотрудника можно выбрать свою модель.</p>
+    </div>
     <div class="list">${rows}</div>
     <div class="actions" style="margin-top:24px"><button class="btn" id="logout">Выйти</button></div>`;
 }
+
+function modelLabel(id) {
+  return state.models.find((m) => m.id === id)?.label.split(" — ")[0] ?? id;
+}
+
+document.addEventListener("change", async (e) => {
+  if (e.target.id !== "default-model") return;
+  try {
+    const { default_model } = await api("/settings", { method: "PUT", body: { default_model: e.target.value } });
+    state.stats.default_model = default_model;
+    toast(`Теперь по умолчанию: ${modelLabel(default_model)}`);
+    renderView();
+  } catch (err) {
+    toast(err.message);
+  }
+});
 
 document.addEventListener("click", async (e) => {
   if (e.target.closest("[data-new-agent]")) return openAgentForm(null);
@@ -764,7 +858,7 @@ function openAgentForm(id) {
     <form class="form" id="agent-form" data-id="${esc(id ?? "")}">
       <div class="two">
         <label>Имя<input name="name" value="${esc(a.name)}" required maxlength="40" /></label>
-        <label>Эмодзи<input name="emoji" value="${esc(a.emoji)}" required maxlength="16" /></label>
+        <label>Значок для уведомлений<input name="emoji" value="${esc(a.emoji)}" required maxlength="16" /></label>
       </div>
       <label>Должность<input name="role" value="${esc(a.role)}" required maxlength="80" placeholder="Например: SMM-менеджер" /></label>
       <label>Инструкции (характер, обязанности, стиль)
@@ -773,7 +867,12 @@ function openAgentForm(id) {
         <label>Цвет<input name="color" type="color" value="${esc(a.color)}" /></label>
         <label>Усилие мышления<select name="effort">${efforts}</select></label>
       </div>
-      <label>Модель (пусто — по умолчанию: ${esc(state.stats.default_model)})<input name="model" value="${esc(a.model ?? "")}" placeholder="claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5" /></label>
+      <label>Модель
+        <select name="model">
+          <option value="">Как у всех (${esc(modelLabel(state.stats.default_model))})</option>
+          ${state.models.map((m) => `<option value="${esc(m.id)}" ${a.model === m.id ? "selected" : ""}>${esc(m.label)} · $${m.input}/$${m.output}</option>`).join("")}
+          ${a.model && !state.models.some((m) => m.id === a.model) ? `<option selected value="${esc(a.model)}">${esc(a.model)}</option>` : ""}
+        </select></label>
       <label class="check"><input type="checkbox" name="web" ${a.web ? "checked" : ""} /> 🌐 Может искать в интернете</label>
       <label class="check"><input type="checkbox" name="can_delegate" ${a.can_delegate ? "checked" : ""} /> 👑 Может раздавать задачи коллегам</label>
       <div class="actions">
@@ -823,6 +922,17 @@ $("#sheet-body").addEventListener("click", async (e) => {
 // ---------- PWA ----------
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+
+document.querySelectorAll("img[data-icon]").forEach((img) => (img.src = icon(img.dataset.icon)));
+
+// Анимация офиса: 4 кадра в секунду, перерисовываем только столы на экране.
+setInterval(() => {
+  if (state.tab !== "office" || document.hidden) return;
+  deskFrame++;
+  drawDesks();
+  const clockEl = $("#wall-clock");
+  if (clockEl) clockEl.textContent = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}, 250);
 
 // Раз в минуту обновляем «5 мин назад» и т.п.
 setInterval(() => {

@@ -1,13 +1,21 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
-// Цены за 1M токенов (USD). Нужны только для приблизительного счётчика расходов в интерфейсе.
-const PRICES: Record<string, { input: number; output: number; cacheRead: number }> = {
-  "claude-fable-5-1": { input: 10, output: 50, cacheRead: 0.25 },
-  "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2 },
-  "claude-opus-5": { input: 5, output: 25, cacheRead: 0.5 },
-  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2 },
-  "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheRead: 0.01 },
-};
+// Цены за 1M токенов (USD). Нужны для приблизительного счётчика расходов и для выбора модели в интерфейсе.
+export const MODELS = [
+  { id: "claude-haiku-5-5", label: "Haiku 5.5 — эконом", input: 0.1, output: 0.5, cacheRead: 0.01 },
+  { id: "claude-sonnet-5-5", label: "Sonnet 5.5 — баланс", input: 2, output: 10, cacheRead: 0.2 },
+  { id: "claude-opus-5-5", label: "Opus 5.5 — максимум качества", input: 4, output: 20, cacheRead: 0.2 },
+  { id: "claude-fable-5-1", label: "Fable 5.1 — самый мощный и дорогой", input: 10, output: 50, cacheRead: 0.25 },
+] as const;
+
+const PRICES: Record<string, { input: number; output: number; cacheRead: number }> = Object.fromEntries(
+  MODELS.map((m) => [m.id, m]),
+);
+
+// Haiku: без серверных запасных моделей и только базовые версии веб-поиска.
+export function isHaiku(model: string): boolean {
+  return model.startsWith("claude-haiku");
+}
 
 const WEB_SEARCH_PER_REQUEST = 10 / 1000;
 
