@@ -1,0 +1,14 @@
+# Development override: publish PostgreSQL and Redis on localhost so the API and
+# web app can run on the host with hot reload (see README → Development).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
+#
+# Never use this file on the server.
+services:
+  postgres:
+    ports: ["127.0.0.1:5432:5432"]
+    # An "internal" network has no route to the host, so add the default one.
+    networks: [internal, edge]
+  redis:
+    ports: ["127.0.0.1:6379:6379"]
+    networks: [internal, edge]
