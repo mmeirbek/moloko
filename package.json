@@ -1,0 +1,21 @@
+{
+  "name": "moloko",
+  "private": true,
+  "description": "moloko — personal AI office (monorepo root)",
+  "workspaces": [
+    "apps/web",
+    "packages/shared-types"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:web": "npm run dev -w @moloko/web",
+    "build": "npm run build -w @moloko/web",
+    "lint": "npm run lint -w @moloko/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "generate:types": "npm run generate -w @moloko/shared-types",
+    "check:types": "npm run check -w @moloko/shared-types"
+  }
+}

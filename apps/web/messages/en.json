@@ -1,0 +1,87 @@
+{
+  "common": {
+    "appName": "moloko",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "errorId": "Error ID: {id}"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "chat": "Chat",
+    "subagentOffice": "Subagent Office",
+    "subagentOfficeShort": "Subagents",
+    "agentOffice": "Agent Office",
+    "agentOfficeShort": "Agents",
+    "tasks": "Tasks",
+    "integrations": "Integrations",
+    "settings": "Settings"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Your personal AI office",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "logout": "Sign out",
+    "signedInAs": "Signed in as {name}"
+  },
+  "errors": {
+    "invalid_credentials": "Wrong username or password.",
+    "too_many_attempts": "Too many failed attempts. Wait a few minutes and try again.",
+    "network_error": "Can't reach the server. Check your connection (Tailscale) and try again.",
+    "csrf_failed": "Security check failed. Reload the page and try again.",
+    "validation_error": "Please fill in all fields.",
+    "not_authenticated": "Your session has ended. Please sign in again.",
+    "database_unavailable": "The server can't reach its database right now. Try again in a minute.",
+    "redis_unavailable": "A background service is temporarily unavailable. Try again in a minute.",
+    "server_error": "Something went wrong on the server.",
+    "generic": "Something went wrong."
+  },
+  "preferences": {
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "language": "Language",
+    "toggleTheme": "Switch theme"
+  },
+  "pages": {
+    "comingSoon": "This section arrives in Sprint {sprint}.",
+    "chat": {
+      "title": "Chat",
+      "description": "Conversations with AI models, with streaming and history."
+    },
+    "subagentOffice": {
+      "title": "Subagent Office",
+      "description": "Temporary subagents the Orchestrator spawns for a task."
+    },
+    "agentOffice": {
+      "title": "Agent Office",
+      "description": "Your persistent autonomous agents at their desks."
+    },
+    "tasks": {
+      "title": "Tasks",
+      "description": "Every task, its subtasks and its execution history."
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "AI providers, MCP servers, GitHub, browser and file system."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Account, appearance and system status."
+    }
+  },
+  "system": {
+    "title": "System status",
+    "api": "API",
+    "database": "Database",
+    "redis": "Redis",
+    "ok": "OK",
+    "error": "Unavailable",
+    "version": "Version {version}",
+    "account": "Account",
+    "sessionExpires": "Session valid until {date}"
+  }
+}

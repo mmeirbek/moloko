@@ -1,0 +1,22 @@
+{
+  "name": "@moloko/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types generated from the API's OpenAPI schema",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "generate": "openapi-typescript ./openapi.json --output ./src/api.gen.ts",
+    "check": "openapi-typescript ./openapi.json --output ./src/api.gen.ts --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}
