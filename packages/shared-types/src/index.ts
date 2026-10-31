@@ -54,3 +54,9 @@ export type SystemState = Schemas["SystemState"];
 export type StopAllResult = Schemas["StopAllResult"];
 
 export type * from "./events";
+
+// Sprint 4 — orchestrated runs
+export type RunCreate = Schemas["RunCreate"];
+export type RunTree = Schemas["RunTree"];
+export type AgentMessageOut = Schemas["AgentMessageOut"];
+export type HandoffRequest = Schemas["HandoffRequest"];

@@ -28,7 +28,7 @@ from sqlalchemy import select
 from app.core.errors import NotAuthenticated
 from app.core.security import csrf_binding, verify_csrf_token
 from app.events.bus import channel, envelope
-from app.events.snapshot import build_snapshot, current_seq
+from app.events.snapshot import build_snapshot, current_seq, missed_count
 from app.models.event import AgentEvent
 from app.services.auth import AuthService
 
@@ -109,13 +109,15 @@ async def events_socket(ws: WebSocket) -> None:
         async with ws.app.state.db.sessionmaker() as db:
             head = await current_seq(db, user_id)
             # The event log is never pruned in the MVP, so any last_seq ≤ head is replayable;
-            # only "too far behind" falls back to a snapshot. (If pruning is added, store a
-            # watermark and also send a snapshot when last_seq is below it.)
+            # only "too far behind" falls back to a snapshot. "Behind" = how many of THIS
+            # user's events were missed (seq is global and has gaps, so never subtract seqs).
+            # If pruning is added, also snapshot when last_seq is below the prune watermark.
             replayable = (
                 isinstance(last_seq, int)
                 and not isinstance(last_seq, bool)
                 and 0 <= last_seq <= head
-                and head - last_seq <= settings.realtime_max_replay
+                and await missed_count(db, user_id, last_seq, settings.realtime_max_replay + 1)
+                <= settings.realtime_max_replay
             )
             if not replayable:
                 snapshot = await build_snapshot(db, user_id)

@@ -24,11 +24,15 @@ async def current_seq(db: AsyncSession, user_id: uuid.UUID) -> int:
     return int(value or 0)
 
 
-async def oldest_seq(db: AsyncSession, user_id: uuid.UUID) -> int:
-    value = (
-        await db.execute(select(func.min(AgentEvent.seq)).where(AgentEvent.user_id == user_id))
-    ).scalar()
-    return int(value or 0)
+async def missed_count(db: AsyncSession, user_id: uuid.UUID, after: int, cap: int) -> int:
+    """How many of the user's events come after ``after`` (counting stops at ``cap``)."""
+    inner = (
+        select(AgentEvent.seq)
+        .where(AgentEvent.user_id == user_id, AgentEvent.seq > after)
+        .limit(cap)
+        .subquery()
+    )
+    return int((await db.execute(select(func.count()).select_from(inner))).scalar_one())
 
 
 async def build_snapshot(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:

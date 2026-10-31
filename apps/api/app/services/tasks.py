@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import (
     agent_is_busy,
+    agent_payload,
     lock_agent,
     lock_task,
     release_agent,
@@ -225,33 +226,9 @@ class TaskService:
         task = await lock_task(self.db, task_id)
         if task.user_id != user_id:
             raise NotFound("Task not found.")
-        if task.agent_id is None:
-            raise InvalidTransition("Assign an agent before starting the task.")
-        agent = await lock_agent(self.db, task.agent_id)
-        if agent.archived_at is not None:
-            raise AgentArchived()
-        if agent_is_busy(agent):
-            raise AgentBusy()
-        if AgentStatus(agent.status) in (AgentStatus.FAILED, AgentStatus.COMPLETED):
-            await set_agent_status(self.db, agent, AgentStatus.IDLE, reason="new_task")
-
-        run = AgentRun(
-            user_id=user_id,
-            agent_id=agent.id,
-            task_id=task.id,
-            status=TaskStatus.QUEUED.value,
-            parent_run_id=parent_run_id,
-            conversation_id=conversation_id,
-            state={},
-            usage={},
+        run = await prepare_start(
+            self.db, task, parent_run_id=parent_run_id, conversation_id=conversation_id
         )
-        self.db.add(run)
-        await self.db.flush()
-        task.run_id = run.id
-        agent.current_task_id = task.id
-        if agent.agent_type == AgentType.ORCHESTRATOR.value:
-            agent.run_id = run.id
-        await set_task_status(self.db, task, TaskStatus.QUEUED, reason="started", run=run)
         await self.audit.record(
             "agent.run_started",
             "success",
@@ -260,7 +237,7 @@ class TaskService:
             user_id=user_id,
             resource_type="task",
             resource_id=str(task.id),
-            details={"agent_id": str(agent.id), "run_id": str(run.id)},
+            details={"agent_id": str(task.agent_id), "run_id": str(run.id)},
         )
         await bus.commit(self.db)
         if enqueue and self.queue is not None:
@@ -299,6 +276,12 @@ class TaskService:
             agent = await lock_agent(self.db, task.agent_id)
             if agent.current_task_id == task.id:
                 await release_agent(self.db, agent, to=AgentStatus.IDLE, reason=reason)
+            if (
+                task.parent_task_id is None
+                and agent.agent_type == AgentType.ORCHESTRATOR.value
+                and run
+            ):
+                await archive_subagents(self.db, run.id)
 
     async def retry(self, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
         """failed/cancelled → a NEW task (attempt + 1); the old one keeps its history."""
@@ -336,6 +319,69 @@ class TaskService:
         if task.agent_id is not None:
             task, _ = await self.start(user_id, task.id)
         return task
+
+
+async def archive_subagents(db: AsyncSession, root_run_id: uuid.UUID) -> None:
+    """A finished run's subagents leave the office; their history stays."""
+    rows = await db.execute(
+        select(Agent).where(
+            Agent.run_id == root_run_id,
+            Agent.agent_type == AgentType.SUBAGENT.value,
+            Agent.archived_at.is_(None),
+        )
+    )
+    now = datetime.now(UTC)
+    for sub in rows.scalars():
+        sub.archived_at = now
+        await bus.emit(
+            db,
+            user_id=sub.user_id,
+            type="agent.updated",
+            agent_id=sub.id,
+            run_id=root_run_id,
+            payload={"changed": ["archived_at"], "agent": agent_payload(sub)},
+        )
+
+
+async def prepare_start(
+    db: AsyncSession,
+    task: Task,
+    *,
+    parent_run_id: uuid.UUID | None = None,
+    conversation_id: uuid.UUID | None = None,
+) -> AgentRun:
+    """Inside the caller's transaction (task row locked): reserve the agent, create the
+    run, move the task to ``queued``. The caller commits and then enqueues."""
+    if task.agent_id is None:
+        raise InvalidTransition("Assign an agent before starting the task.")
+    agent = await lock_agent(db, task.agent_id)
+    if agent.archived_at is not None:
+        raise AgentArchived()
+    if agent_is_busy(agent):
+        raise AgentBusy()
+    if agent.agent_type != AgentType.SUBAGENT.value and AgentStatus(agent.status) in (
+        AgentStatus.FAILED,
+        AgentStatus.COMPLETED,
+    ):
+        await set_agent_status(db, agent, AgentStatus.IDLE, reason="new_task")
+    run = AgentRun(
+        user_id=task.user_id,
+        agent_id=agent.id,
+        task_id=task.id,
+        status=TaskStatus.QUEUED.value,
+        parent_run_id=parent_run_id,
+        conversation_id=conversation_id,
+        state={},
+        usage={},
+    )
+    db.add(run)
+    await db.flush()
+    task.run_id = run.id
+    agent.current_task_id = task.id
+    if agent.agent_type == AgentType.ORCHESTRATOR.value:
+        agent.run_id = run.id  # the root run of everything this orchestrator delegates
+    await set_task_status(db, task, TaskStatus.QUEUED, reason="started", run=run)
+    return run
 
 
 async def count_tasks(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:

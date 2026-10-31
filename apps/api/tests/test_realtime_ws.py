@@ -166,3 +166,34 @@ def test_resume_with_nothing_missed_is_confirmed(ws_client: TestClient) -> None:
     with ws_client.websocket_connect(WS_URL) as ws:
         ws.send_json({"type": "hello", "last_seq": seq, "csrf": csrf(ws_client)})
         assert ws.receive_json() == {"type": "resumed", "seq": seq}
+
+
+def test_far_behind_is_measured_in_missed_events_not_seq_distance(owner: Any) -> None:
+    """Regression: seq is global (and has gaps) — a big seq jump with few missed events replays."""
+    from sqlalchemy import text
+
+    app = create_app(make_settings(realtime_max_replay=10))
+    with TestClient(app, base_url="https://testserver") as client:
+        client.get("/api/v1/auth/csrf")
+        client.post(
+            "/api/v1/auth/login",
+            json={"username": OWNER_USERNAME, "password": OWNER_PASSWORD},
+            headers={"X-CSRF-Token": client.cookies["moloko_csrf"]},
+        )
+        with client.websocket_connect(WS_URL) as ws:
+            ws.send_json({"type": "hello", "last_seq": None, "csrf": csrf(client)})
+            last_seq = ws.receive_json()["seq"]
+
+        async def burn_sequence() -> None:  # other users / rolled-back writes consume seq values
+            async with app.state.db.engine.begin() as conn:
+                seq = "pg_get_serial_sequence('agent_events', 'seq')"
+                await conn.execute(text(f"SELECT setval({seq}, nextval({seq}) + 5000)"))
+
+        assert client.portal is not None
+        client.portal.call(burn_sequence)
+        create_agent(client, "After the jump")
+        with client.websocket_connect(WS_URL) as ws:
+            ws.send_json({"type": "hello", "last_seq": last_seq, "csrf": csrf(client)})
+            first = ws.receive_json()
+    assert first["type"] == "event"
+    assert first["event"]["payload"]["agent"]["name"] == "After the jump"

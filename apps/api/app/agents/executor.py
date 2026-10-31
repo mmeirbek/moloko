@@ -42,11 +42,12 @@ class Executor:
         self.after_task = after_task
 
     def runtime_for(self, agent: Agent) -> AgentRuntime:
-        return (
-            self.runtimes.get(agent.agent_type)
-            or self.runtimes.get(agent.runtime)
-            or self.runtimes["native"]
-        )
+        native = self.runtimes["native"]
+        if agent.agent_type == "orchestrator" or agent.runtime == "orchestrator":
+            return self.runtimes.get("orchestrator", native)
+        if agent.agent_type == "subagent":
+            return self.runtimes.get("subagent", native)
+        return self.runtimes.get(agent.runtime, native)
 
     async def _claim(self, task_id: uuid.UUID) -> tuple[RunContext, AgentRuntime] | None:
         async with self.sessionmaker() as db:

@@ -12,7 +12,7 @@ import {
 } from "@assistant-ui/react";
 import type { MessageOut } from "@moloko/shared-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, RotateCcw, Square } from "lucide-react";
+import { ArrowUp, Network, RotateCcw, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createContext, useContext, useMemo, useState } from "react";
@@ -20,6 +20,7 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
+import { handOff } from "@/lib/api/runs";
 import { cn } from "@/lib/utils";
 
 import { MarkdownText } from "./markdown";
@@ -54,12 +55,27 @@ function useCurrentMessage(): MessageOut | undefined {
   return useContext(MessagesById).get(id);
 }
 
+const AnsweredRuns = createContext<Set<string>>(new Set());
+
 function UserMessage() {
+  const t = useTranslations("chat");
+  const message = useCurrentMessage();
+  const answered = useContext(AnsweredRuns);
+  const runId = message?.agent_run_id;
   return (
-    <MessagePrimitive.Root className="flex justify-end">
+    <MessagePrimitive.Root className="flex flex-col items-end gap-1">
       <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 whitespace-pre-wrap text-primary-foreground">
         <MessagePrimitive.Parts />
       </div>
+      {runId && (
+        <Link
+          href={`/office/subagents?run=${runId}`}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+        >
+          <Network className="size-3.5" />
+          {answered.has(runId) ? t("handedOff") : t("agentsWorking")}
+        </Link>
+      )}
     </MessagePrimitive.Root>
   );
 }
@@ -156,9 +172,35 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const chat = useQuery({ queryKey: chatKeys.detail(chatId), queryFn: ({ signal }) => getChat(chatId, signal) });
   const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
   const [modelOverride, setModelOverride] = useState<string | null | undefined>(undefined);
+  const [agentsMode, setAgentsMode] = useState(false);
+  const [handoffError, setHandoffError] = useState<unknown>(null);
   const selectedModel = modelOverride !== undefined ? modelOverride : (chat.data?.model_config_id ?? null);
 
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
+  const answeredRuns = useMemo(
+    () =>
+      new Set(
+        thread.messages.filter((m) => m.role === "assistant" && m.agent_run_id).map((m) => m.agent_run_id!),
+      ),
+    [thread.messages],
+  );
+  const lastUser = [...thread.messages].reverse().find((m) => m.role === "user");
+  // Spec 14.3: propose handing complex multi-step requests to the agents.
+  const looksComplex =
+    !!lastUser &&
+    !lastUser.agent_run_id &&
+    (lastUser.content.length > 400 || lastUser.content.split("\n").filter((l) => /^\s*(\d+[.)]|[-*•])\s/.test(l)).length >= 3);
+
+  async function sendToAgents(text: string) {
+    setHandoffError(null);
+    try {
+      await handOff(chatId, text);
+      await queryClient.invalidateQueries({ queryKey: chatKeys.messages(chatId) });
+      void queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    } catch (error) {
+      setHandoffError(error);
+    }
+  }
 
   async function chooseModel(id: string | null) {
     setModelOverride(id);
@@ -184,16 +226,23 @@ export function ChatThread({ chatId }: { chatId: string }) {
         .map((part) => (part.type === "text" ? part.text : ""))
         .join("")
         .trim();
-      if (text) await thread.send(text, selectedModel);
+      if (!text) return;
+      if (agentsMode) await sendToAgents(text);
+      else await thread.send(text, selectedModel);
     },
     onCancel: thread.cancel,
   });
 
   const noModels = models.data !== undefined && models.data.length === 0;
-  const sendError = thread.sendError ? toMessage(thread.sendError) : null;
+  const sendError = thread.sendError
+    ? toMessage(thread.sendError)
+    : handoffError
+      ? toMessage(handoffError)
+      : null;
 
   return (
     <MessagesById.Provider value={byId}>
+      <AnsweredRuns.Provider value={answeredRuns}>
       <RetryContext.Provider value={retry}>
         <AssistantRuntimeProvider runtime={runtime}>
           <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
@@ -231,12 +280,31 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   )}
                 >
                   <span>{sendError.message}</span>
-                  <button type="button" className="text-xs underline" onClick={thread.clearSendError}>
+                  <button
+                    type="button"
+                    className="text-xs underline"
+                    onClick={() => {
+                      thread.clearSendError();
+                      setHandoffError(null);
+                    }}
+                  >
                     {t("dismiss")}
                   </button>
                 </div>
               )}
+              {looksComplex && !agentsMode && lastUser && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-accent/50 px-3 py-2 text-sm">
+                  <span>{t("suggestAgents")}</span>
+                  <Button size="sm" variant="outline" onClick={() => void sendToAgents(lastUser.content)}>
+                    <Network /> {t("handOff")}
+                  </Button>
+                </div>
+              )}
               <Composer disabled={noModels} />
+              <label className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                <input type="checkbox" checked={agentsMode} onChange={(e) => setAgentsMode(e.target.checked)} />
+                <Network className="size-3.5" /> {t("agentsMode")}
+              </label>
               {(() => {
                 const current = models.data?.find((m) => m.id === selectedModel);
                 return current ? (
@@ -247,6 +315,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
           </ThreadPrimitive.Root>
         </AssistantRuntimeProvider>
       </RetryContext.Provider>
+      </AnsweredRuns.Provider>
     </MessagesById.Provider>
   );
 }

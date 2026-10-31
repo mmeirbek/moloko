@@ -1,13 +1,23 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { PageHeader } from "@/components/layout/page-header";
+import { SubagentOffice } from "@/features/runs/subagent-office";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("pages.subagentOffice");
   return { title: t("title") };
 }
 
-export default function Page() {
-  return <ComingSoon section="subagentOffice" sprint={4} />;
+export default async function SubagentOfficePage() {
+  const t = await getTranslations("pages.subagentOffice");
+  return (
+    <>
+      <PageHeader title={t("title")} description={t("description")} />
+      <Suspense>
+        <SubagentOffice />
+      </Suspense>
+    </>
+  );
 }

@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
-from app.api.v1 import agents, auth, chats, events, health, providers, system, tasks
+from app.api.v1 import agents, auth, chats, events, health, providers, runs, system, tasks
 
 public = APIRouter()
 public.include_router(health.router)
@@ -27,6 +27,7 @@ protected.include_router(agents.router)
 protected.include_router(tasks.router)
 protected.include_router(events.router)
 protected.include_router(system.router)
+protected.include_router(runs.router)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(public)

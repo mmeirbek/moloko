@@ -113,3 +113,14 @@ server → {"type":"event","event":{…}}                                       
 client ↔ {"type":"ping"} / {"type":"pong"}  (every 25 s)
 ```
 Close codes: `4401` not authenticated / session ended, `4403` bad CSRF in hello, `4400` bad hello. Envelope = spec 10.1; schemas in `packages/agent-contracts/schemas/`.
+
+## Endpoints — orchestrated runs (Sprint 4)
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/runs` | `{title, description}` → `{task, run}`: give a task to the Orchestrator (created on first use). `Idempotency-Key` |
+| GET | `/runs?active&limit` | Orchestrated runs, newest first |
+| GET | `/runs/{id}` | `{run (with plan), task, subagents, subtasks, messages}` |
+| POST | `/chats/{id}/handoff` | `{content}` → `{task, run}`: the question goes to the Orchestrator; the result is posted back into the chat |
+
+Plan format and limits: see `docs/decisions.md` (Sprint 4). Subtasks are tasks with `task_type = subtask | review` and `parent_task_id`; dependencies in `depends_on` (task ids); the subagent's plan key in `extra.key`.

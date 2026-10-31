@@ -85,3 +85,8 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - **`agent_events`** — append-only (trigger): `seq bigint identity unique, type, version, created_at, user_id, agent_id, task_id, run_id, payload jsonb`; indexes `(user_id, seq)`, `(run_id, seq)`, `(task_id, seq)`.
 - **`idempotency_keys`** — `(user_id, scope, key)` unique, `request_hash, response_status, response_body`.
 - **`system_settings`** — `(user_id, key)` unique, `value jsonb` (kill switch).
+
+## Tables (revision 0004 — Sprint 4)
+
+- **`agent_messages`** — `created_at, user_id, run_id (root run), sender_agent_id, receiver_agent_id, task_id?, message_type (task_result|error|context|note), content jsonb {summary, result, artifacts, notes}, status (delivered|refused), error?`.
+- Subagents are `agents` rows with `agent_type = subagent`, `parent_agent_id`, `run_id` = root run, `depth`, `runtime` (`orchestrator` if it may delegate further).

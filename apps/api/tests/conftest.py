@@ -84,9 +84,9 @@ async def clean_tables(migrated_database: None) -> AsyncIterator[None]:
         # TRUNCATE bypasses the row-level append-only trigger on audit_logs.
         await conn.execute(
             text(
-                "TRUNCATE agent_events, idempotency_keys, system_settings, tasks, agent_runs,"
-                " agents, messages, conversations, model_configs, model_providers,"
-                " sessions, users, audit_logs CASCADE"
+                "TRUNCATE agent_messages, agent_events, idempotency_keys, system_settings,"
+                " tasks, agent_runs, agents, messages, conversations, model_configs,"
+                " model_providers, sessions, users, audit_logs CASCADE"
             )
         )
     await engine.dispose()
@@ -196,10 +196,28 @@ def queue(app: FastAPI) -> RecordingQueue:
     return recording
 
 
-def executor_for(app: FastAPI, **kwargs: Any) -> Any:
-    from app.agents.executor import Executor
+def executor_for(app: FastAPI) -> Any:
+    """The executor exactly as the worker builds it (all runtimes + scheduler hook)."""
+    from app.workers.jobs import build_executor
 
-    return Executor(app.state.db.sessionmaker, app.state.gateway, app.state.settings, **kwargs)
+    return build_executor(app.state.db, app.state.gateway, app.state.settings, app.state.queue)
+
+
+async def drain(
+    app: FastAPI, queue: RecordingQueue, *, parallel: bool = False, limit: int = 200
+) -> int:
+    """Run enqueued jobs like the worker would, until nothing is left. Returns job count."""
+    executor = executor_for(app)
+    done = 0
+    while queue.enqueued and done < limit:
+        if parallel:
+            batch, queue.enqueued = list(queue.enqueued), []
+            await asyncio.gather(*(executor.execute(t) for t in batch))
+            done += len(batch)
+        else:
+            await executor.execute(queue.enqueued.pop(0))
+            done += 1
+    return done
 
 
 async def create_agent(client: httpx.AsyncClient, **body: Any) -> dict[str, Any]:

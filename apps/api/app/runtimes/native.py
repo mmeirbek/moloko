@@ -15,6 +15,7 @@ import asyncio
 import logging
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +48,19 @@ from app.runtimes.base import RunContext
 logger = logging.getLogger("moloko.runtime")
 
 ERROR_EXCERPT = 4000
+
+
+@dataclass
+class RunSetup:
+    agent: Agent
+    task: Task
+    run: AgentRun
+    target: ModelTarget
+    extra_system: str
+    steps: int
+    max_steps: int
+    remaining: float
+    elapsed: float
 
 
 class LimitExceeded(Exception):
@@ -146,44 +160,10 @@ class NativeRuntime:
         ]
 
     async def start(self, ctx: RunContext) -> None:
+        """Run the body and map every failure to an honest final state."""
         segment_started = time.monotonic()
         try:
-            async with ctx.sessionmaker() as db:
-                agent = await db.get(Agent, ctx.agent_id)
-                task = await db.get(Task, ctx.task_id)
-                run = await db.get(AgentRun, ctx.run_id)
-                assert agent is not None and task is not None and run is not None
-                target = await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
-                system = system_prompt(agent, await self.extra_system(ctx, db, agent, task))
-                transcript = load_messages(run.state.get("messages")) or [
-                    ChatMessage(role="user", content=task_prompt(task))
-                ]
-                steps = run.steps
-                elapsed = float(run.state.get("elapsed_seconds", 0.0))
-                max_steps = effective_limit(
-                    agent.limits.get("max_steps"), ctx.settings.max_steps_per_run
-                )
-                timeout = effective_limit(
-                    agent.limits.get("run_timeout_seconds"), ctx.settings.run_timeout_seconds
-                )
-                tools = self.tools(agent)
-
-            remaining = timeout - elapsed
-            if remaining <= 0:
-                raise TimeoutError
-            async with asyncio.timeout(remaining):
-                final = await self._loop(
-                    ctx,
-                    target,
-                    system,
-                    transcript,
-                    tools,
-                    steps,
-                    max_steps,
-                    elapsed,
-                    segment_started,
-                )
-            await self._complete(ctx, final)
+            await self.run(ctx, segment_started)
         except Interrupted as interrupted:
             logger.info(
                 "run_interrupted",
@@ -206,6 +186,54 @@ class NativeRuntime:
             await self._fail(
                 ctx, "internal_error", "The agent crashed. The error was logged.", error_id=error_id
             )
+
+    async def setup(self, ctx: RunContext) -> RunSetup:
+        async with ctx.sessionmaker() as db:
+            agent = await db.get(Agent, ctx.agent_id)
+            task = await db.get(Task, ctx.task_id)
+            run = await db.get(AgentRun, ctx.run_id)
+            assert agent is not None and task is not None and run is not None
+            target = await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
+            extra = await self.extra_system(ctx, db, agent, task)
+        timeout = effective_limit(
+            agent.limits.get("run_timeout_seconds"), ctx.settings.run_timeout_seconds
+        )
+        elapsed = float(run.state.get("elapsed_seconds", 0.0))
+        if timeout - elapsed <= 0:
+            raise TimeoutError
+        return RunSetup(
+            agent=agent,
+            task=task,
+            run=run,
+            target=target,
+            extra_system=extra,
+            steps=run.steps,
+            max_steps=effective_limit(
+                agent.limits.get("max_steps"), ctx.settings.max_steps_per_run
+            ),
+            remaining=timeout - elapsed,
+            elapsed=elapsed,
+        )
+
+    async def run(self, ctx: RunContext, segment_started: float) -> None:
+        setup = await self.setup(ctx)
+        system = system_prompt(setup.agent, setup.extra_system)
+        transcript = load_messages(setup.run.state.get("messages")) or [
+            ChatMessage(role="user", content=task_prompt(setup.task))
+        ]
+        async with asyncio.timeout(setup.remaining):
+            final = await self._loop(
+                ctx,
+                setup.target,
+                system,
+                transcript,
+                self.tools(setup.agent),
+                setup.steps,
+                setup.max_steps,
+                setup.elapsed,
+                segment_started,
+            )
+        await self._complete(ctx, final)
 
     async def _loop(
         self,

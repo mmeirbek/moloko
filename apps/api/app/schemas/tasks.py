@@ -108,3 +108,38 @@ class SystemState(BaseModel):
 
 class StopAllResult(BaseModel):
     cancelled_tasks: int
+
+
+class AgentMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    run_id: uuid.UUID
+    sender_agent_id: uuid.UUID
+    receiver_agent_id: uuid.UUID
+    task_id: uuid.UUID | None
+    message_type: str
+    content: dict[str, Any]
+    status: str
+
+
+class RunCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=50_000)
+
+
+class RunTree(BaseModel):
+    run: RunOut
+    task: TaskOut
+    subagents: list[Any]  # AgentOut
+    subtasks: list[TaskOut]
+    messages: list[AgentMessageOut]
+
+
+class HandoffRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    content: str = Field(min_length=1, max_length=32_000)

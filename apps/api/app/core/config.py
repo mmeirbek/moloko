@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     max_retries_per_step: int = Field(2, ge=0, le=10)
     max_parallel_tool_calls: int = Field(3, ge=1, le=20)
     approval_ttl_minutes: int = Field(60, ge=1)
+    max_subtasks_per_plan: int = Field(8, ge=1, le=50)
     agent_max_output_tokens: int = Field(4096, ge=1)
 
     # --- Worker (ARQ) ------------------------------------------------------------

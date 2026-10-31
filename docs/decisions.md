@@ -92,6 +92,27 @@ External repositories checked (REFERENCE only, read as untrusted data): **slopus
 | 2026-10-31 | The worker container waits for the backend's migrations (`app.cli wait-for-migrations`) instead of running them. Health: `arq --check`. | No concurrent migrations. |
 | 2026-10-31 | Subtasks use `tasks.parent_task_id` (spec 26.3). | One table, simple queries. |
 
+## Sprint 4 — Orchestrator & subagents
+
+External repository checked: **FoundationAgents/AOrchestra** (REFERENCE, Apache-2.0). Idea applied (re-implemented, nothing copied): each subagent is concretised by the orchestrator as ⟨Instructions, Context, Tools, Model⟩ — instructions = the plan's `instructions`; context = the root task plus results of `depends_on` passed as agent messages; tools = the plan's tools **∩** the orchestrator's own tools; model = the orchestrator's model. No heavy agent framework adopted (our state machines/event log stay the source of truth).
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-10-31 | **Plan = one JSON object** (`mode: direct\|delegate`, `subtasks[{key,title,specialization,instructions,depends_on,tools,delegate}]`, `review`), validated in code: unique slugs, known dependencies, no cycles, ≤ `MAX_SUBTASKS_PER_PLAN` (8). An invalid plan is retried with the error as feedback up to `MAX_RETRIES_PER_STEP`, then the run fails `invalid_plan`. | Spec 14.3; never trust model output structurally. |
+| 2026-10-31 | **Simple requests get a direct answer** (`mode: direct`) — the planning prompt tells the model subagents cost time and money. | Spec 14.3 step 2. |
+| 2026-10-31 | A plan can **never choose a model name**; subagents use the orchestrator's model. | Spec 13.1 (no hardcoded/hallucinated model names). Per-specialisation defaults can come in Sprint 6. |
+| 2026-10-31 | **Limits in code**: `MAX_ACTIVE_SUBAGENTS_PER_RUN` (5) is counted over the whole run tree and enforced by a scheduler that serialises on the root run's row lock; the limit is snapshotted into the root run at delegation. `MAX_SUBAGENT_DEPTH` (2) is enforced when a subagent is created (`DepthLimitExceeded`) and by refusing `delegate` in plans at the last level (recorded as a plan warning). Tests replay the ordered event log to prove the peak of active subagents equals the limit under parallel completions. | Spec 7.2, 14.5, Sprint 4 "Done when". |
+| 2026-10-31 | "Active" = subtask `queued` or `running`. An orchestrating subagent waiting for its own children does **not** hold a slot. | Otherwise five waiting orchestrators could deadlock the tree. |
+| 2026-10-31 | The orchestrator's task goes to `waiting` (`waiting_for_subtasks`) while subagents work; the scheduler re-queues it when all its subtasks are finished (aggregation phase). The worker slot is free while waiting, and waiting time doesn't count towards the orchestrator's run timeout. | No worker blocked on children; restart-safe. |
+| 2026-10-31 | Dependants of a failed/cancelled subtask are cancelled (`dependency_failed`). The synthesis reports failed parts as `error` inputs; if **no** subtask succeeded the run fails `subtasks_failed`. | Spec invariant 10: never present a partial failure as success. |
+| 2026-10-31 | **Reviewer step**: when the plan sets `review`, a Reviewer subagent checks the completed results before synthesis. | Spec 14.3 step 9. |
+| 2026-10-31 | **Agent↔agent messages** (`agent_messages`): delivered only when both agents belong to the same run tree (`agents.run_id` = root run); otherwise stored as `refused` (without the content) and audited. Inputs are injected into prompts fenced as `<input …>` data. | Spec 14.4, invariant 13. |
+| 2026-10-31 | Subagents are **archived** when their root run ends (completed, failed or cancelled); their tasks, messages and events stay. | They leave the office, history stays. |
+| 2026-10-31 | **Chat hand-off**: `POST /chats/{id}/handoff` saves the question in the chat with `agent_run_id`, starts an Orchestrator run, and the run posts its result (or failure) back into the conversation as an assistant message. The chat suggests hand-off for long / list-like requests and has an explicit "Agents" mode. | Spec 2.1, 14.3 (chat integration). |
+| 2026-10-31 | One **Orchestrator** agent per user is created on first use (`ensure_orchestrator`). | Zero setup for the owner; configurable in Sprint 6. |
+| 2026-10-31 | **Realtime fix**: the "too far behind → snapshot" rule now counts the user's *missed events*; subtracting `seq` values was wrong (global sequence with gaps) and was caught by the full test suite. | Correct resume. |
+| 2026-10-31 | ORM timestamps are set on the Python side (DB defaults stay). | A DB-side `onupdate` expires the attribute after a flush and reading it would need lazy I/O, which async SQLAlchemy forbids. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).

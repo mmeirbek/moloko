@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from sqlalchemy import DateTime, MetaData, func
@@ -31,6 +31,14 @@ class UUIDPrimaryKey:
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
 
 
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
 class Timestamps:
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    # Python-side values (plus DB defaults): the ORM always knows them, so reading a
+    # timestamp after a flush never needs lazy I/O (forbidden in async SQLAlchemy).
+    created_at: Mapped[datetime] = mapped_column(default=_utcnow, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        default=_utcnow, onupdate=_utcnow, server_default=func.now()
+    )

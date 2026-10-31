@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Sprint 3** (agent engine) done. See `shvluup-spec.md` §5 for the target
+Status: **Sprint 4** (orchestrator & subagents) done. See `shvluup-spec.md` §5 for the target
 architecture; this file describes what exists now and the conventions to follow.
 
 ## Runtime topology
@@ -100,3 +100,8 @@ worker: Executor.execute(task_id) ─ claim (row lock, queued→running) ─► 
 - `app/events/bus.py` — ordered event log + publish-after-commit; `app/events/ws.py` — WS gateway; `app/events/snapshot.py`.
 - `app/agents/control.py` — cooperative cancel/pause; `app/runtimes/` — runtime contract + native runtime; `app/workers/` — ARQ settings, jobs, restart recovery, sweeper.
 - Frontend: `lib/realtime/` — `RealtimeClient` (resume, heartbeat, backoff, watchdog), Zustand store (mirror of server state), provider (events → TanStack Query invalidation). Pages: Tasks (list/detail with live history), Agent Office (cards with live status; Pixel Office in Sprint 5), Settings → kill switch.
+
+## Orchestrator (Sprint 4)
+
+`app/orchestrator/`: `plan.py` (schema + validation), `prompts.py`, `subagents.py` (creation with limits), `scheduler.py` (start ready subtasks within the active limit, pass results along dependencies, wake orchestrators), `messaging.py` (agent↔agent), `runtime.py` (`OrchestratorRuntime`, `SubagentRuntime`), `service.py` (start runs, chat hand-off, run trees), `mock_script.py` (scripted offline replies for tests). The executor's `after_task` hook runs a scheduling pass after every job.
+Frontend: `features/runs/subagent-office.tsx` (runs, live subagents, messages, result); chat "Agents" mode and hand-off suggestion.

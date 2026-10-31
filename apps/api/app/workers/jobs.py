@@ -12,7 +12,11 @@ from app.core.db import Database
 from app.core.logging import configure_logging
 from app.core.redis import create_redis
 from app.events.bus import EventPublisher, set_publisher
+from app.orchestrator import mock_script  # noqa: F401 — registers offline mock replies
+from app.orchestrator.runtime import OrchestratorRuntime, SubagentRuntime
+from app.orchestrator.scheduler import after_task as scheduler_after_task
 from app.providers.gateway import ModelGateway
+from app.runtimes.native import NativeRuntime
 from app.tasks.queue import TaskEnqueuer, TaskQueue
 from app.workers.recovery import recover, sweep_queued
 
@@ -20,10 +24,20 @@ logger = logging.getLogger("moloko.worker")
 
 
 def build_executor(
-    db: Database, gateway: ModelGateway, settings: Settings, queue: TaskEnqueuer
+    db: Database, gateway: ModelGateway, settings: Settings, queue: TaskEnqueuer | None
 ) -> Executor:
-    """Executor with every runtime this server supports (extended by later sprints)."""
-    return Executor(db.sessionmaker, gateway, settings)
+    """Executor with every runtime this server supports."""
+    return Executor(
+        db.sessionmaker,
+        gateway,
+        settings,
+        runtimes={
+            "native": NativeRuntime(),
+            "subagent": SubagentRuntime(),
+            "orchestrator": OrchestratorRuntime(),
+        },
+        after_task=lambda task_id: scheduler_after_task(db.sessionmaker, task_id, queue),
+    )
 
 
 async def startup(ctx: dict[str, Any]) -> None:

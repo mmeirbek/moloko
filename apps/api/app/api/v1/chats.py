@@ -6,8 +6,10 @@ from typing import Any
 
 from fastapi import APIRouter, Query, Response, status
 
-from app.api.deps import ChatStreamsDep, CurrentAuth, DbSession, GatewayDep, SettingsDep
+from app.api.deps import ChatStreamsDep, CurrentAuth, DbSession, GatewayDep, QueueDep, SettingsDep
 from app.api.sse import queue_events, sse_event, sse_response
+from app.orchestrator.service import hand_off_chat
+from app.schemas.agents import StartedRun
 from app.schemas.chat import (
     CancelResult,
     ConversationCreate,
@@ -17,6 +19,7 @@ from app.schemas.chat import (
     MessageOut,
 )
 from app.schemas.common import Page
+from app.schemas.tasks import HandoffRequest, RunOut, TaskOut
 from app.services.chat import ChatService
 
 router = APIRouter(prefix="/chats", tags=["chats"])
@@ -189,3 +192,20 @@ async def cancel_message(
 ) -> CancelResult:
     await ChatService(db, settings, gateway).get_message(ctx.user.id, chat_id, message_id)
     return CancelResult(cancelled=await streams.cancel(message_id, ctx.user.id))
+
+
+@router.post(
+    "/{chat_id}/handoff", response_model=StartedRun, summary="Hand the message off to agents"
+)
+async def handoff(
+    chat_id: uuid.UUID,
+    body: HandoffRequest,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    queue: QueueDep,
+) -> StartedRun:
+    _, task, run = await hand_off_chat(
+        db, queue, ctx.user.id, chat_id, body.content, title_chars=settings.chat_title_max_chars
+    )
+    return StartedRun(task=TaskOut.model_validate(task), run=RunOut.model_validate(run))

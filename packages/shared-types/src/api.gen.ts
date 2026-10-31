@@ -214,6 +214,23 @@ export interface paths {
         patch: operations["update_chat_api_v1_chats__chat_id__patch"];
         trace?: never;
     };
+    "/api/v1/chats/{chat_id}/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hand the message off to agents */
+        post: operations["handoff_api_v1_chats__chat_id__handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats/{chat_id}/messages": {
         parameters: {
             query?: never;
@@ -455,6 +472,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Orchestrated runs (Subagent Office) */
+        get: operations["list_runs_api_v1_runs_get"];
+        put?: never;
+        /** Give a task to the Orchestrator */
+        post: operations["create_run_api_v1_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plan, subagents, subtasks and messages */
+        get: operations["get_run_tree_api_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/start": {
         parameters: {
             query?: never;
@@ -633,6 +685,44 @@ export interface components {
             max_steps?: number | null;
             /** Run Timeout Seconds */
             run_timeout_seconds?: number | null;
+        };
+        /** AgentMessageOut */
+        AgentMessageOut: {
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Message Type */
+            message_type: string;
+            /**
+             * Receiver Agent Id
+             * Format: uuid
+             */
+            receiver_agent_id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Sender Agent Id
+             * Format: uuid
+             */
+            sender_agent_id: string;
+            /** Status */
+            status: string;
+            /** Task Id */
+            task_id: string | null;
         };
         /** AgentOut */
         AgentOut: {
@@ -841,6 +931,11 @@ export interface components {
             type: string;
             /** Version */
             version: number;
+        };
+        /** HandoffRequest */
+        HandoffRequest: {
+            /** Content */
+            content: string;
         };
         /** HealthChecks */
         HealthChecks: {
@@ -1100,6 +1195,16 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** RunCreate */
+        RunCreate: {
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /** Title */
+            title: string;
+        };
         /** RunOut */
         RunOut: {
             /**
@@ -1152,6 +1257,17 @@ export interface components {
             usage: {
                 [key: string]: unknown;
             };
+        };
+        /** RunTree */
+        RunTree: {
+            /** Messages */
+            messages: components["schemas"]["AgentMessageOut"][];
+            run: components["schemas"]["RunOut"];
+            /** Subagents */
+            subagents: unknown[];
+            /** Subtasks */
+            subtasks: components["schemas"]["TaskOut"][];
+            task: components["schemas"]["TaskOut"];
         };
         /** SessionOut */
         SessionOut: {
@@ -1866,6 +1982,41 @@ export interface operations {
             };
         };
     };
+    handoff_api_v1_chats__chat_id__handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_messages_api_v1_chats__chat_id__messages_get: {
         parameters: {
             query?: {
@@ -2372,6 +2523,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProviderTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_runs_api_v1_runs_get: {
+        parameters: {
+            query?: {
+                active?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_run_api_v1_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_run_tree_api_v1_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunTree"];
                 };
             };
             /** @description Validation Error */

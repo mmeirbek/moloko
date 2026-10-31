@@ -133,7 +133,12 @@
       "provider_unknown": "The provider request failed.",
       "interrupted": "The answer was interrupted because the server restarted.",
       "internal_error": "Something went wrong while generating the answer."
-    }
+    },
+    "agentsMode": "Agents: send to the Orchestrator instead of the chat model",
+    "handOff": "Hand off to agents",
+    "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
+    "agentsWorking": "Agents are working on it…",
+    "handedOff": "Done by agents — open the run"
   },
   "settings": {
     "providers": {
@@ -254,5 +259,21 @@
       "orchestrator": "Orchestrator",
       "subagent": "Subagent"
     }
+  },
+  "runs": {
+    "newRun": "New task for the Orchestrator",
+    "newRunHint": "Describe a complex task. Simple questions get a direct answer.",
+    "start": "Start",
+    "untitled": "Task",
+    "runs": "Runs",
+    "empty": "No runs yet.",
+    "openTask": "Open task",
+    "directAnswer": "Answered directly — no subagents needed.",
+    "plan": "Plan: {summary}",
+    "subagents": "Subagents ({count})",
+    "waitsFor": "waits for {count} other part(s)",
+    "result": "Result",
+    "messages": "Messages between agents",
+    "orchestrator": "Orchestrator"
   }
 }
