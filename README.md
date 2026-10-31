@@ -1,0 +1,97 @@
+# moloko
+
+Личная ИИ-платформа, «ИИ-офис». Это одностраничное веб-приложение (PWA) для одного
+владельца, которое работает на домашнем сервере и доступно только через Tailscale.
+
+- **Чат** с ИИ-моделями: потоковые ответы и история.
+- **Движок агентов**: Оркестратор делит сложную задачу между временными субагентами. Есть и постоянные автономные агенты со своей памятью и инструментами.
+- **Пиксельный офис**: каждый персонаж — настоящий агент, и его анимация показывает реальное состояние на сервере.
+- **Работа с нескольких устройств**: задачу можно начать на ноутбуке и продолжить смотреть с телефона, потому что всё выполняется на сервере.
+
+Полное ТЗ: [`shvluup-spec.md`](shvluup-spec.md) (проект переименован в moloko).
+
+## Статус
+
+| Спринт | Содержание | Состояние |
+|---|---|---|
+| 1 | Инфраструктура: монорепозиторий, Docker Compose, FastAPI, Next.js, PostgreSQL + Alembic, Redis, вход владельца, health-checks, CI | ✅ готово |
+| 2 | Чат: Model Gateway, провайдеры по API-ключу, стриминг | следующий |
+| 3–8 | Движок агентов → Оркестратор → Пиксельный офис → Автономные агенты → Инструменты → Стабилизация | — |
+
+## Быстрый старт на сервере
+
+Подробная инструкция, включая Tailscale, ограничение доступа и бэкапы, — в
+[`docs/deployment.md`](docs/deployment.md).
+
+```bash
+git clone https://github.com/mmeirbek/moloko.git && cd moloko
+infrastructure/scripts/init-env.sh
+docker compose up -d --build
+docker compose exec backend python -m app.cli create-owner --username <имя>
+sudo tailscale serve --bg 8080
+```
+
+После этого откройте `https://moloko.<ваш-tailnet>.ts.net` на любом своём устройстве.
+
+## Разработка
+
+Нужны Docker, Node.js 22 и [uv](https://docs.astral.sh/uv/).
+
+```bash
+npm ci                                   # зависимости фронтенда (workspaces)
+infrastructure/scripts/init-env.sh       # .env с секретами (если ещё нет)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
+```
+
+Бэкенд: скопируйте `apps/api/.env.example` в `apps/api/.env` и подставьте `POSTGRES_PASSWORD` из `.env`.
+
+```bash
+cd apps/api
+uv sync
+uv run alembic upgrade head
+uv run python -m app.cli create-owner --username dev
+uv run uvicorn app.main:create_app --factory --reload --port 8000
+```
+
+Фронтенд запускайте в другом терминале, из корня репозитория:
+
+```bash
+API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev:web
+```
+
+Приложение откроется на http://localhost:3000, документация API — на http://localhost:8000/api/docs.
+
+### Проверки
+
+```bash
+infrastructure/scripts/check.sh      # всё, что запускает CI
+infrastructure/scripts/test-api.sh   # только бэкенд: поднимает временные PostgreSQL и Redis
+```
+
+После изменения схем API перегенерируйте типы для фронтенда:
+
+```bash
+cd apps/api && uv run python scripts/export_openapi.py && cd ../.. && npm run generate:types
+```
+
+## Структура
+
+```
+apps/api/            FastAPI: роутеры → сервисы → репозитории → модели; Alembic; тесты
+apps/web/            Next.js (App Router), Tailwind, shadcn/ui, TanStack Query, next-intl (ru/en)
+packages/shared-types/  TS-типы, сгенерированные из OpenAPI бэкенда
+infrastructure/      Dockerfile'ы, Caddy, скрипты
+docs/                архитектура, API, БД, безопасность, развёртывание, решения
+```
+
+## Документация
+
+- [Архитектура](docs/architecture.md) · [API](docs/api.md) · [База данных](docs/database.md) · [Безопасность](docs/security.md)
+- [Решения и реестр зависимостей](docs/decisions.md) · [Правила для внешних репозиториев](docs/external-repositories.md)
+- [Развёртывание](docs/deployment.md) · [Сторонние лицензии](THIRD_PARTY_NOTICES.md)
+
+## Логотип
+
+Логотип — пиксельная корова и надпись «moloko» на тёмно-синем фоне. Пока в интерфейсе
+стоит заглушка в той же палитре. Оригинал нужно положить в `apps/web/public/brand/logo.png`,
+после этого заглушка в `apps/web/components/brand/logo.tsx` заменяется на него.
