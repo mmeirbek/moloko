@@ -20,6 +20,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.errors import new_error_id
+from app.events import bus
 from app.models.chat import Conversation, Message
 from app.providers.base import ChatRequest, ChatResult, ProviderError
 from app.providers.gateway import ModelGateway, ModelTarget, estimate_cost
@@ -151,6 +152,16 @@ class ChatStreamManager:
                             {"message_id": str(state.message_id), "text": chunk.text},
                         ),
                     )
+                    # Other devices see the answer grow live (stream-only, not stored).
+                    await bus.publish_ephemeral(
+                        state.user_id,
+                        "chat.message_delta",
+                        {
+                            "conversation_id": str(state.conversation_id),
+                            "message_id": str(state.message_id),
+                            "text": chunk.text,
+                        },
+                    )
                 if chunk.result is not None:
                     result = chunk.result
             await self._finish(state, target, "completed", result=result)
@@ -222,11 +233,18 @@ class ChatStreamManager:
                     .where(Conversation.id == state.conversation_id)
                     .values(last_message_at=now)
                 )
-                await db.commit()
                 message = await db.get(Message, state.message_id)
                 payload = (
                     MessageOut.model_validate(message).model_dump(mode="json") if message else {}
                 )
+                # The final message is persisted as an event in the same transaction (spec 10.3).
+                await bus.emit(
+                    db,
+                    user_id=state.user_id,
+                    type="chat.message_completed",
+                    payload={"conversation_id": str(state.conversation_id), "message": payload},
+                )
+                await bus.commit(db)
         except Exception:
             logger.exception("chat_persist_failed", extra={"message_id": str(state.message_id)})
             return

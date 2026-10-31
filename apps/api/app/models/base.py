@@ -23,6 +23,7 @@ class Base(DeclarativeBase):
     type_annotation_map: ClassVar[dict[Any, Any]] = {
         datetime: DateTime(timezone=True),
         dict[str, Any]: JSONB,
+        list[str]: JSONB,
     }
 
 

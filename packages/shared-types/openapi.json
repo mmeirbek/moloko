@@ -1,6 +1,472 @@
 {
   "components": {
     "schemas": {
+      "AgentCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_type": {
+            "$ref": "#/components/schemas/AgentType",
+            "default": "autonomous"
+          },
+          "allowed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Allowed Tools",
+            "type": "array"
+          },
+          "autonomy_level": {
+            "$ref": "#/components/schemas/AutonomyLevel",
+            "default": "supervised"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/AgentLimits"
+          },
+          "memory_settings": {
+            "additionalProperties": true,
+            "title": "Memory Settings",
+            "type": "object"
+          },
+          "model_config_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Config Id"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "specialization": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialization"
+          },
+          "system_prompt": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "System Prompt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AgentCreate",
+        "type": "object"
+      },
+      "AgentLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "max_steps": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Steps"
+          },
+          "run_timeout_seconds": {
+            "anyOf": [
+              {
+                "maximum": 86400.0,
+                "minimum": 10.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Timeout Seconds"
+          }
+        },
+        "title": "AgentLimits",
+        "type": "object"
+      },
+      "AgentOut": {
+        "properties": {
+          "agent_type": {
+            "title": "Agent Type",
+            "type": "string"
+          },
+          "allowed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Tools",
+            "type": "array"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "autonomy_level": {
+            "title": "Autonomy Level",
+            "type": "string"
+          },
+          "config_version": {
+            "title": "Config Version",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Task Id"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "limits": {
+            "additionalProperties": true,
+            "title": "Limits",
+            "type": "object"
+          },
+          "memory_settings": {
+            "additionalProperties": true,
+            "title": "Memory Settings",
+            "type": "object"
+          },
+          "model_config_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Config Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Agent Id"
+          },
+          "paused_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused From"
+          },
+          "permissions": {
+            "additionalProperties": true,
+            "title": "Permissions",
+            "type": "object"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "runtime": {
+            "title": "Runtime",
+            "type": "string"
+          },
+          "specialization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialization"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "system_prompt": {
+            "title": "System Prompt",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "agent_type",
+          "specialization",
+          "model_config_id",
+          "system_prompt",
+          "autonomy_level",
+          "allowed_tools",
+          "permissions",
+          "status",
+          "paused_from",
+          "current_task_id",
+          "parent_agent_id",
+          "run_id",
+          "depth",
+          "limits",
+          "memory_settings",
+          "runtime",
+          "config_version",
+          "archived_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentOut",
+        "type": "object"
+      },
+      "AgentRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 50000,
+            "title": "Description",
+            "type": "string"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "AgentRunRequest",
+        "type": "object"
+      },
+      "AgentType": {
+        "enum": [
+          "orchestrator",
+          "subagent",
+          "autonomous"
+        ],
+        "title": "AgentType",
+        "type": "string"
+      },
+      "AgentUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Tools"
+          },
+          "autonomy_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AutonomyLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentLimits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "memory_settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Settings"
+          },
+          "model_config_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Config Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "specialization": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialization"
+          },
+          "system_prompt": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt"
+          }
+        },
+        "title": "AgentUpdate",
+        "type": "object"
+      },
+      "AutonomyLevel": {
+        "enum": [
+          "supervised",
+          "balanced",
+          "restricted"
+        ],
+        "title": "AutonomyLevel",
+        "type": "string"
+      },
       "CancelResult": {
         "properties": {
           "cancelled": {
@@ -185,6 +651,86 @@
           "error"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "type",
+          "version",
+          "timestamp",
+          "agent_id",
+          "task_id",
+          "run_id",
+          "payload"
+        ],
+        "title": "EventOut",
         "type": "object"
       },
       "HealthChecks": {
@@ -785,6 +1331,33 @@
         "title": "Page[MessageOut]",
         "type": "object"
       },
+      "Page_TaskOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "Page[TaskOut]",
+        "type": "object"
+      },
       "ProviderCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1015,6 +1588,179 @@
         "title": "ProviderUpdate",
         "type": "object"
       },
+      "RunOut": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Id"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          },
+          "task_id": {
+            "format": "uuid",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "usage": {
+            "additionalProperties": true,
+            "title": "Usage",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "agent_id",
+          "task_id",
+          "parent_run_id",
+          "status",
+          "phase",
+          "plan",
+          "steps",
+          "usage",
+          "result",
+          "error_code",
+          "error_message",
+          "error_id",
+          "conversation_id",
+          "started_at",
+          "finished_at",
+          "created_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
       "SessionOut": {
         "properties": {
           "created_at": {
@@ -1041,6 +1787,35 @@
         "title": "SessionOut",
         "type": "object"
       },
+      "StartedRun": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunOut"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskOut"
+          }
+        },
+        "required": [
+          "task",
+          "run"
+        ],
+        "title": "StartedRun",
+        "type": "object"
+      },
+      "StopAllResult": {
+        "properties": {
+          "cancelled_tasks": {
+            "title": "Cancelled Tasks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cancelled_tasks"
+        ],
+        "title": "StopAllResult",
+        "type": "object"
+      },
       "SyncModelsResult": {
         "properties": {
           "added": {
@@ -1057,6 +1832,412 @@
           "total"
         ],
         "title": "SyncModelsResult",
+        "type": "object"
+      },
+      "SystemState": {
+        "properties": {
+          "active_tasks": {
+            "title": "Active Tasks",
+            "type": "integer"
+          },
+          "engine_stopped": {
+            "title": "Engine Stopped",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "engine_stopped",
+          "active_tasks"
+        ],
+        "title": "SystemState",
+        "type": "object"
+      },
+      "TaskCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 50000,
+            "title": "Description",
+            "type": "string"
+          },
+          "priority": {
+            "default": 0,
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "start": {
+            "default": true,
+            "title": "Start",
+            "type": "boolean"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "TaskCreate",
+        "type": "object"
+      },
+      "TaskDetail": {
+        "properties": {
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskOut"
+            },
+            "title": "Subtasks",
+            "type": "array"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskOut"
+          }
+        },
+        "required": [
+          "task",
+          "subtasks"
+        ],
+        "title": "TaskDetail",
+        "type": "object"
+      },
+      "TaskOut": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Id"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "extra": {
+            "additionalProperties": true,
+            "title": "Extra",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "parent_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Task Id"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "integer"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "retry_of_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Reason"
+          },
+          "task_type": {
+            "title": "Task Type",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "task_type",
+          "status",
+          "priority",
+          "deadline",
+          "agent_id",
+          "run_id",
+          "parent_task_id",
+          "attempt",
+          "retry_of_id",
+          "depends_on",
+          "progress",
+          "result",
+          "status_reason",
+          "error_code",
+          "error_message",
+          "error_id",
+          "created_by",
+          "extra",
+          "created_at",
+          "updated_at",
+          "started_at",
+          "completed_at"
+        ],
+        "title": "TaskOut",
+        "type": "object"
+      },
+      "TaskUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "TaskUpdate",
         "type": "object"
       },
       "UserOut": {
@@ -1098,6 +2279,451 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/agents": {
+      "get": {
+        "operationId": "list_agents_api_v1_agents_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AgentType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentOut"
+                  },
+                  "title": "Response List Agents Api V1 Agents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Agents",
+        "tags": [
+          "agents"
+        ]
+      },
+      "post": {
+        "operationId": "create_agent_api_v1_agents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}": {
+      "delete": {
+        "operationId": "delete_agent_api_v1_agents__agent_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive the agent (history is kept)",
+        "tags": [
+          "agents"
+        ]
+      },
+      "get": {
+        "operationId": "get_agent_api_v1_agents__agent_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Agent",
+        "tags": [
+          "agents"
+        ]
+      },
+      "patch": {
+        "operationId": "update_agent_api_v1_agents__agent_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/pause": {
+      "post": {
+        "operationId": "pause_agent_api_v1_agents__agent_id__pause_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pause Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/resume": {
+      "post": {
+        "operationId": "resume_agent_api_v1_agents__agent_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/run": {
+      "post": {
+        "operationId": "run_agent_api_v1_agents__agent_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Give the agent a task and start it",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/stop": {
+      "post": {
+        "operationId": "stop_agent_api_v1_agents__agent_id__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/auth/csrf": {
       "get": {
         "operationId": "issue_csrf_api_v1_auth_csrf_get",
@@ -1649,6 +3275,160 @@
         ]
       }
     },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "list_events_api_v1_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after_seq",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "After Seq",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "task_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response List Events Api V1 Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Event log (resume with after_seq)",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}": {
+      "get": {
+        "operationId": "get_event_api_v1_events__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "health_api_v1_health_get",
@@ -2065,6 +3845,520 @@
         "summary": "Check credentials",
         "tags": [
           "models"
+        ]
+      }
+    },
+    "/api/v1/system/start": {
+      "post": {
+        "operationId": "start_engine_api_v1_system_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Allow agents to run again after stop-all",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/state": {
+      "get": {
+        "operationId": "system_state_api_v1_system_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "System State",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/stop-all": {
+      "post": {
+        "operationId": "stop_all_api_v1_system_stop_all_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopAllResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Kill switch: stop every active run",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "operationId": "list_tasks_api_v1_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "active",
+                "completed",
+                "failed",
+                "cancelled"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_task_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Task Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_subtasks",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Subtasks",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_TaskOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Tasks",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "post": {
+        "operationId": "create_task_api_v1_tasks_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "operationId": "get_task_api_v1_tasks__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Task",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "patch": {
+        "operationId": "update_task_api_v1_tasks__task_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/cancel": {
+      "post": {
+        "operationId": "cancel_task_api_v1_tasks__task_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/events": {
+      "get": {
+        "operationId": "task_events_api_v1_tasks__task_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 2000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response Task Events Api V1 Tasks  Task Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execution history",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/retry": {
+      "post": {
+        "operationId": "retry_task_api_v1_tasks__task_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry as a new attempt",
+        "tags": [
+          "tasks"
         ]
       }
     }

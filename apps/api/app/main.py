@@ -21,8 +21,11 @@ from app.core.logging import configure_logging
 from app.core.middleware import CSRFMiddleware, RequestContextMiddleware
 from app.core.openapi import install_openapi
 from app.core.redis import create_redis
+from app.events.bus import EventPublisher, set_publisher
+from app.events.ws import router as ws_router
 from app.providers.gateway import ModelGateway
 from app.services.chat_stream import ChatStreamManager, fail_orphaned_generations
+from app.tasks.queue import TaskQueue
 
 logger = logging.getLogger("moloko.app")
 
@@ -46,7 +49,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.db = Database(settings)
         app.state.redis = create_redis(settings.redis_url)
+        app.state.redis_pubsub = create_redis(settings.redis_url, socket_timeout=None)
         app.state.gateway = ModelGateway(settings)
+        app.state.queue = TaskQueue(settings.redis_url)
+        set_publisher(EventPublisher(app.state.redis))
         app.state.chat_streams = ChatStreamManager(app.state.db.sessionmaker, app.state.gateway)
         await _recover(app)
         logger.info("startup", extra={"environment": settings.environment})
@@ -54,6 +60,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         finally:
             await app.state.chat_streams.shutdown()
+            await app.state.queue.close()
+            await app.state.redis_pubsub.aclose()
             await app.state.redis.aclose()
             await app.state.db.dispose()
             logger.info("shutdown")
@@ -72,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(api_router)
+    app.include_router(ws_router)
     install_openapi(app)
 
     # Starlette runs the last-added middleware first.

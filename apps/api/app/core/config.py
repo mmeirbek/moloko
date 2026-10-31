@@ -68,6 +68,28 @@ class Settings(BaseSettings):
     chat_max_output_tokens: int = Field(4096, ge=1)
     chat_title_max_chars: int = Field(60, ge=10, le=200)
 
+    # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
+    max_active_subagents_per_run: int = Field(5, ge=1, le=50)
+    max_subagent_depth: int = Field(2, ge=1, le=5)
+    max_steps_per_run: int = Field(50, ge=1, le=1000)
+    run_timeout_seconds: int = Field(1800, ge=10)
+    max_retries_per_step: int = Field(2, ge=0, le=10)
+    max_parallel_tool_calls: int = Field(3, ge=1, le=20)
+    approval_ttl_minutes: int = Field(60, ge=1)
+    agent_max_output_tokens: int = Field(4096, ge=1)
+
+    # --- Worker (ARQ) ------------------------------------------------------------
+    worker_max_jobs: int = Field(10, ge=1, le=100)
+    # Queued tasks older than this are re-enqueued by the sweeper (duplicates are harmless).
+    worker_requeue_after_seconds: int = Field(30, ge=5)
+    # How often a running agent re-checks the DB for cancel/pause requests.
+    worker_control_poll_seconds: float = Field(1.0, gt=0)
+
+    # --- Realtime ------------------------------------------------------------------
+    # Clients missing more events than this get a fresh snapshot instead of a replay.
+    realtime_max_replay: int = Field(500, ge=10)
+    realtime_heartbeat_seconds: float = Field(25.0, gt=0)
+
     # --- Storage (used from later sprints) ------------------------------------
     workspace_root: str = "/data/workspaces"
     file_storage_root: str = "/data/files"

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moloko.local/schemas/ws-frames.json",
+  "title": "Realtime WebSocket frames (/ws/v1/events)",
+  "oneOf": [
+    {
+      "title": "hello (client → server)",
+      "type": "object",
+      "required": ["type", "last_seq", "csrf"],
+      "properties": {
+        "type": { "const": "hello" },
+        "last_seq": { "type": ["integer", "null"] },
+        "csrf": { "type": "string", "description": "The moloko_csrf cookie value (blocks cross-site WebSocket hijacking)." }
+      }
+    },
+    {
+      "title": "snapshot (server → client)",
+      "type": "object",
+      "required": ["type", "seq", "agents", "tasks", "runs", "approvals"],
+      "properties": {
+        "type": { "const": "snapshot" },
+        "seq": { "type": "integer" },
+        "agents": { "type": "array" },
+        "tasks": { "type": "array" },
+        "runs": { "type": "array" },
+        "approvals": { "type": "array" }
+      }
+    },
+    {
+      "title": "event (server → client)",
+      "type": "object",
+      "required": ["type", "event"],
+      "properties": { "type": { "const": "event" }, "event": { "$ref": "event-envelope.schema.json" } }
+    },
+    {
+      "title": "resumed (server → client): replay after last_seq finished; live events follow",
+      "type": "object",
+      "required": ["type", "seq"],
+      "properties": { "type": { "const": "resumed" }, "seq": { "type": "integer" } }
+    },
+    { "title": "ping / pong", "type": "object", "properties": { "type": { "enum": ["ping", "pong"] } } }
+  ]
+}

@@ -4,6 +4,111 @@
  */
 
 export interface paths {
+    "/api/v1/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Agents */
+        get: operations["list_agents_api_v1_agents_get"];
+        put?: never;
+        /** Create Agent */
+        post: operations["create_agent_api_v1_agents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent */
+        get: operations["get_agent_api_v1_agents__agent_id__get"];
+        put?: never;
+        post?: never;
+        /** Archive the agent (history is kept) */
+        delete: operations["delete_agent_api_v1_agents__agent_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Agent */
+        patch: operations["update_agent_api_v1_agents__agent_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause Agent */
+        post: operations["pause_agent_api_v1_agents__agent_id__pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Agent */
+        post: operations["resume_agent_api_v1_agents__agent_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Give the agent a task and start it */
+        post: operations["run_agent_api_v1_agents__agent_id__run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop Agent */
+        post: operations["stop_agent_api_v1_agents__agent_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/csrf": {
         parameters: {
             query?: never;
@@ -153,6 +258,40 @@ export interface paths {
         };
         /** Re-attach to an answer that is still being generated */
         get: operations["attach_stream_api_v1_chats__chat_id__messages__message_id__stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Event log (resume with after_seq) */
+        get: operations["list_events_api_v1_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Event */
+        get: operations["get_event_api_v1_events__event_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -316,10 +455,292 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Allow agents to run again after stop-all */
+        post: operations["start_engine_api_v1_system_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System State */
+        get: operations["system_state_api_v1_system_state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/stop-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Kill switch: stop every active run */
+        post: operations["stop_all_api_v1_system_stop_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tasks */
+        get: operations["list_tasks_api_v1_tasks_get"];
+        put?: never;
+        /** Create Task */
+        post: operations["create_task_api_v1_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Task */
+        get: operations["get_task_api_v1_tasks__task_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Task */
+        patch: operations["update_task_api_v1_tasks__task_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Task */
+        post: operations["cancel_task_api_v1_tasks__task_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Execution history */
+        get: operations["task_events_api_v1_tasks__task_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry as a new attempt */
+        post: operations["retry_task_api_v1_tasks__task_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AgentCreate */
+        AgentCreate: {
+            /** @default autonomous */
+            agent_type?: components["schemas"]["AgentType"];
+            /** Allowed Tools */
+            allowed_tools?: string[];
+            /** @default supervised */
+            autonomy_level?: components["schemas"]["AutonomyLevel"];
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            limits?: components["schemas"]["AgentLimits"];
+            /** Memory Settings */
+            memory_settings?: {
+                [key: string]: unknown;
+            };
+            /** Model Config Id */
+            model_config_id?: string | null;
+            /** Name */
+            name: string;
+            /** Specialization */
+            specialization?: string | null;
+            /**
+             * System Prompt
+             * @default
+             */
+            system_prompt?: string;
+        };
+        /** AgentLimits */
+        AgentLimits: {
+            /** Max Steps */
+            max_steps?: number | null;
+            /** Run Timeout Seconds */
+            run_timeout_seconds?: number | null;
+        };
+        /** AgentOut */
+        AgentOut: {
+            /** Agent Type */
+            agent_type: string;
+            /** Allowed Tools */
+            allowed_tools: string[];
+            /** Archived At */
+            archived_at: string | null;
+            /** Autonomy Level */
+            autonomy_level: string;
+            /** Config Version */
+            config_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Current Task Id */
+            current_task_id: string | null;
+            /** Depth */
+            depth: number;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Limits */
+            limits: {
+                [key: string]: unknown;
+            };
+            /** Memory Settings */
+            memory_settings: {
+                [key: string]: unknown;
+            };
+            /** Model Config Id */
+            model_config_id: string | null;
+            /** Name */
+            name: string;
+            /** Parent Agent Id */
+            parent_agent_id: string | null;
+            /** Paused From */
+            paused_from: string | null;
+            /** Permissions */
+            permissions: {
+                [key: string]: unknown;
+            };
+            /** Run Id */
+            run_id: string | null;
+            /** Runtime */
+            runtime: string;
+            /** Specialization */
+            specialization: string | null;
+            /** Status */
+            status: string;
+            /** System Prompt */
+            system_prompt: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AgentRunRequest */
+        AgentRunRequest: {
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /** Task Id */
+            task_id?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /**
+         * AgentType
+         * @enum {string}
+         */
+        AgentType: "orchestrator" | "subagent" | "autonomous";
+        /** AgentUpdate */
+        AgentUpdate: {
+            /** Allowed Tools */
+            allowed_tools?: string[] | null;
+            autonomy_level?: components["schemas"]["AutonomyLevel"] | null;
+            /** Description */
+            description?: string | null;
+            limits?: components["schemas"]["AgentLimits"] | null;
+            /** Memory Settings */
+            memory_settings?: {
+                [key: string]: unknown;
+            } | null;
+            /** Model Config Id */
+            model_config_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Specialization */
+            specialization?: string | null;
+            /** System Prompt */
+            system_prompt?: string | null;
+        };
+        /**
+         * AutonomyLevel
+         * @enum {string}
+         */
+        AutonomyLevel: "supervised" | "balanced" | "restricted";
         /** CancelResult */
         CancelResult: {
             /** Cancelled */
@@ -391,6 +812,35 @@ export interface components {
          */
         ErrorResponse: {
             error: components["schemas"]["ErrorBody"];
+        };
+        /** EventOut */
+        EventOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Run Id */
+            run_id: string | null;
+            /** Seq */
+            seq: number;
+            /** Task Id */
+            task_id: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /** Type */
+            type: string;
+            /** Version */
+            version: number;
         };
         /** HealthChecks */
         HealthChecks: {
@@ -569,6 +1019,13 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** Page[TaskOut] */
+        Page_TaskOut_: {
+            /** Items */
+            items: components["schemas"]["TaskOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** ProviderCreate */
         ProviderCreate: {
             /** Api Key */
@@ -643,6 +1100,59 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** RunOut */
+        RunOut: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /** Conversation Id */
+            conversation_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Id */
+            error_id: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Parent Run Id */
+            parent_run_id: string | null;
+            /** Phase */
+            phase: string | null;
+            /** Plan */
+            plan: {
+                [key: string]: unknown;
+            } | null;
+            /** Result */
+            result: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /** Steps */
+            steps: number;
+            /**
+             * Task Id
+             * Format: uuid
+             */
+            task_id: string;
+            /** Usage */
+            usage: {
+                [key: string]: unknown;
+            };
+        };
         /** SessionOut */
         SessionOut: {
             /**
@@ -661,12 +1171,137 @@ export interface components {
              */
             id: string;
         };
+        /** StartedRun */
+        StartedRun: {
+            run: components["schemas"]["RunOut"];
+            task: components["schemas"]["TaskOut"];
+        };
+        /** StopAllResult */
+        StopAllResult: {
+            /** Cancelled Tasks */
+            cancelled_tasks: number;
+        };
         /** SyncModelsResult */
         SyncModelsResult: {
             /** Added */
             added: number;
             /** Total */
             total: number;
+        };
+        /** SystemState */
+        SystemState: {
+            /** Active Tasks */
+            active_tasks: number;
+            /** Engine Stopped */
+            engine_stopped: boolean;
+        };
+        /** TaskCreate */
+        TaskCreate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Deadline */
+            deadline?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /**
+             * Priority
+             * @default 0
+             */
+            priority?: number;
+            /**
+             * Start
+             * @default true
+             */
+            start?: boolean;
+            /** Title */
+            title: string;
+        };
+        /** TaskDetail */
+        TaskDetail: {
+            run?: components["schemas"]["RunOut"] | null;
+            /** Subtasks */
+            subtasks: components["schemas"]["TaskOut"][];
+            task: components["schemas"]["TaskOut"];
+        };
+        /** TaskOut */
+        TaskOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Attempt */
+            attempt: number;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Deadline */
+            deadline: string | null;
+            /** Depends On */
+            depends_on: string[];
+            /** Description */
+            description: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Id */
+            error_id: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Extra */
+            extra: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Parent Task Id */
+            parent_task_id: string | null;
+            /** Priority */
+            priority: number;
+            /** Progress */
+            progress: number;
+            /** Result */
+            result: string | null;
+            /** Retry Of Id */
+            retry_of_id: string | null;
+            /** Run Id */
+            run_id: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /** Status Reason */
+            status_reason: string | null;
+            /** Task Type */
+            task_type: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** TaskUpdate */
+        TaskUpdate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Deadline */
+            deadline?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Priority */
+            priority?: number | null;
+            /** Title */
+            title?: string | null;
         };
         /** UserOut */
         UserOut: {
@@ -689,6 +1324,297 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_agents_api_v1_agents_get: {
+        parameters: {
+            query?: {
+                agent_type?: components["schemas"]["AgentType"] | null;
+                run_id?: string | null;
+                include_archived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_agent_api_v1_agents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_agent_api_v1_agents__agent_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_agent_api_v1_agents__agent_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_agent_api_v1_agents__agent_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    pause_agent_api_v1_agents__agent_id__pause_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resume_agent_api_v1_agents__agent_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    run_agent_api_v1_agents__agent_id__run_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    stop_agent_api_v1_agents__agent_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     issue_csrf_api_v1_auth_csrf_get: {
         parameters: {
             query?: never;
@@ -1075,6 +2001,72 @@ export interface operations {
             };
         };
     };
+    list_events_api_v1_events_get: {
+        parameters: {
+            query?: {
+                after_seq?: number;
+                limit?: number;
+                run_id?: string | null;
+                task_id?: string | null;
+                agent_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_event_api_v1_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     health_api_v1_health_get: {
         parameters: {
             query?: never;
@@ -1380,6 +2372,301 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProviderTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_engine_api_v1_system_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemState"];
+                };
+            };
+        };
+    };
+    system_state_api_v1_system_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemState"];
+                };
+            };
+        };
+    };
+    stop_all_api_v1_system_stop_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopAllResult"];
+                };
+            };
+        };
+    };
+    list_tasks_api_v1_tasks_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "active" | "completed" | "failed" | "cancelled";
+                q?: string | null;
+                agent_id?: string | null;
+                parent_task_id?: string | null;
+                include_subtasks?: boolean;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TaskOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_task_api_v1_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_task_api_v1_tasks__task_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_task_api_v1_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancel_task_api_v1_tasks__task_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    task_events_api_v1_tasks__task_id__events_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    retry_task_api_v1_tasks__task_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
                 };
             };
             /** @description Validation Error */

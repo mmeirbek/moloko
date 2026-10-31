@@ -11,6 +11,7 @@ from app.core.db import Database
 from app.providers.gateway import ModelGateway
 from app.services.auth import AuthContext, AuthService, ClientInfo
 from app.services.chat_stream import ChatStreamManager
+from app.tasks.queue import TaskQueue
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -58,7 +59,13 @@ def get_chat_streams(request: Request) -> ChatStreamManager:
     return streams
 
 
+def get_queue(request: Request) -> TaskQueue:
+    queue: TaskQueue = request.app.state.queue
+    return queue
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+QueueDep = Annotated[TaskQueue, Depends(get_queue)]
 GatewayDep = Annotated[ModelGateway, Depends(get_gateway)]
 ChatStreamsDep = Annotated[ChatStreamManager, Depends(get_chat_streams)]
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]

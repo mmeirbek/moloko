@@ -46,6 +46,7 @@ def make_settings(**overrides: Any) -> Settings:
         "app_encryption_key": "test-encryption-key-" + "e" * 32,
         "enable_mock_provider": True,
         "provider_retry_base_delay_seconds": 0.0,
+        "worker_control_poll_seconds": 0.05,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -83,7 +84,8 @@ async def clean_tables(migrated_database: None) -> AsyncIterator[None]:
         # TRUNCATE bypasses the row-level append-only trigger on audit_logs.
         await conn.execute(
             text(
-                "TRUNCATE messages, conversations, model_configs, model_providers,"
+                "TRUNCATE agent_events, idempotency_keys, system_settings, tasks, agent_runs,"
+                " agents, messages, conversations, model_configs, model_providers,"
                 " sessions, users, audit_logs CASCADE"
             )
         )
@@ -171,3 +173,48 @@ async def add_mock_model(client: httpx.AsyncClient, name: str = "Mock") -> dict[
     assert resp.status_code == 200, resp.text
     models = (await client.get("/api/v1/models")).json()
     return next(m for m in models if m["is_default"])
+
+
+class RecordingQueue:
+    """Stands in for the ARQ queue: records which tasks were enqueued."""
+
+    def __init__(self) -> None:
+        self.enqueued: list[Any] = []
+
+    async def enqueue_task(self, task_id: Any) -> bool:
+        self.enqueued.append(task_id)
+        return True
+
+    async def close(self) -> None:
+        return None
+
+
+@pytest.fixture
+def queue(app: FastAPI) -> RecordingQueue:
+    recording = RecordingQueue()
+    app.state.queue = recording
+    return recording
+
+
+def executor_for(app: FastAPI, **kwargs: Any) -> Any:
+    from app.agents.executor import Executor
+
+    return Executor(app.state.db.sessionmaker, app.state.gateway, app.state.settings, **kwargs)
+
+
+async def create_agent(client: httpx.AsyncClient, **body: Any) -> dict[str, Any]:
+    payload = {"name": "Helper", "system_prompt": "Be helpful."}
+    payload.update(body)
+    resp = await client.post("/api/v1/agents", json=payload, headers=await csrf_headers(client))
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+async def run_agent(
+    client: httpx.AsyncClient, agent_id: str, title: str, description: str = "", **headers: str
+) -> httpx.Response:
+    return await client.post(
+        f"/api/v1/agents/{agent_id}/run",
+        json={"title": title, "description": description},
+        headers={**(await csrf_headers(client)), **headers},
+    )

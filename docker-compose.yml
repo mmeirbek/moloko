@@ -15,6 +15,33 @@ x-logging: &logging
     max-size: "10m"
     max-file: "5"
 
+x-backend-env: &backend-env
+  ENVIRONMENT: production
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-moloko}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-moloko}
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
+  SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  # Optional fallback API keys (official keys only). Usually set per provider in Settings.
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-120}
+  PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-2}
+  ENABLE_MOCK_PROVIDER: ${ENABLE_MOCK_PROVIDER:-false}
+  # Agent execution limits (spec 7.2)
+  MAX_ACTIVE_SUBAGENTS_PER_RUN: ${MAX_ACTIVE_SUBAGENTS_PER_RUN:-5}
+  MAX_SUBAGENT_DEPTH: ${MAX_SUBAGENT_DEPTH:-2}
+  MAX_STEPS_PER_RUN: ${MAX_STEPS_PER_RUN:-50}
+  RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-1800}
+  MAX_RETRIES_PER_STEP: ${MAX_RETRIES_PER_STEP:-2}
+  MAX_PARALLEL_TOOL_CALLS: ${MAX_PARALLEL_TOOL_CALLS:-3}
+  APPROVAL_TTL_MINUTES: ${APPROVAL_TTL_MINUTES:-60}
+  # The backend is reachable only from Caddy on the Docker network.
+  FORWARDED_ALLOW_IPS: "*"
+
 x-hardening: &hardening
   security_opt:
     - no-new-privileges:true
@@ -71,23 +98,8 @@ services:
       redis:
         condition: service_healthy
     environment:
-      ENVIRONMENT: production
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-moloko}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-moloko}
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
-      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
-      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
-      # Optional fallback API keys (official keys only). Usually set per provider in Settings.
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-120}
-      PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-2}
-      ENABLE_MOCK_PROVIDER: ${ENABLE_MOCK_PROVIDER:-false}
-      # The backend is reachable only from Caddy on the Docker network.
-      FORWARDED_ALLOW_IPS: "*"
+      <<: *backend-env
+      RUN_MIGRATIONS: "true"
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
     networks: [internal, edge]
     healthcheck:
@@ -100,6 +112,35 @@ services:
       timeout: 6s
       retries: 5
       start_period: 30s
+    stop_grace_period: 30s
+    logging: *logging
+
+  worker:
+    image: moloko-backend:local  # same image as the backend
+    command: ["arq", "app.workers.main.WorkerSettings"]
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *backend-env
+      RUN_MIGRATIONS: "false"
+    # Needs PostgreSQL/Redis (internal) and AI providers (edge). No published ports.
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD", "arq", "--check", "app.workers.main.WorkerSettings"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    # Running agents checkpoint and re-queue themselves on SIGTERM.
     stop_grace_period: 30s
     logging: *logging
 
@@ -144,8 +185,6 @@ services:
       timeout: 5s
       retries: 5
     logging: *logging
-
-  # worker (ARQ) arrives in Sprint 3 together with the agent engine.
 
 networks:
   internal:

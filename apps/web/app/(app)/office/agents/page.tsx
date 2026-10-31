@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { PageHeader } from "@/components/layout/page-header";
+import { AgentsPanel } from "@/features/agents/agents-panel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("pages.agentOffice");
   return { title: t("title") };
 }
 
-export default function Page() {
-  return <ComingSoon section="agentOffice" sprint={6} />;
+export default async function AgentOfficePage() {
+  const t = await getTranslations("pages.agentOffice");
+  return (
+    <>
+      <PageHeader title={t("title")} description={t("description")} />
+      <AgentsPanel types={["autonomous", "orchestrator"]} />
+    </>
+  );
 }

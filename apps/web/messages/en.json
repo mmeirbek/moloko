@@ -43,7 +43,12 @@
     "encryption_unavailable": "The server has no APP_ENCRYPTION_KEY, so API keys cannot be saved.",
     "provider_kind_unavailable": "This provider type is not available on this server.",
     "conflict": "This already exists.",
-    "not_found": "Not found."
+    "not_found": "Not found.",
+    "agent_busy": "This agent is already working on a task.",
+    "engine_stopped": "All agents are stopped. Start them again in Settings.",
+    "invalid_transition": "This action is not possible right now.",
+    "agent_archived": "This agent was deleted.",
+    "idempotency_key_reused": "This request was already sent with different content."
   },
   "preferences": {
     "theme": "Theme",
@@ -89,7 +94,14 @@
     "error": "Unavailable",
     "version": "Version {version}",
     "account": "Account",
-    "sessionExpires": "Session valid until {date}"
+    "sessionExpires": "Session valid until {date}",
+    "engine": "Agents",
+    "engineRunning": "Running normally · {count} active tasks",
+    "engineStopped": "Stopped by the kill switch. New runs are blocked.",
+    "stopAll": "Stop all agents",
+    "startEngine": "Allow agents to run again",
+    "confirmStopAll": "Cancel every running task and block new ones?",
+    "stoppedCount": "{count} tasks stopped."
   },
   "chat": {
     "newChat": "New chat",
@@ -156,6 +168,91 @@
       "provider": "Provider",
       "modelId": "Model id",
       "add": "Add model"
+    }
+  },
+  "realtime": {
+    "online": "Live",
+    "connecting": "Connecting…",
+    "offline": "Offline — reconnecting"
+  },
+  "status": {
+    "idle": "Idle",
+    "planning": "Planning",
+    "working": "Working",
+    "waiting": "Waiting",
+    "reviewing": "Reviewing",
+    "paused": "Paused",
+    "completed": "Completed",
+    "failed": "Failed",
+    "created": "Created",
+    "queued": "Queued",
+    "running": "Running",
+    "waiting_approval": "Needs approval",
+    "cancelled": "Cancelled"
+  },
+  "tasks": {
+    "new": "New task",
+    "title": "Title",
+    "description": "Description",
+    "agent": "Agent",
+    "noAgent": "No agent",
+    "noAgentsYet": "No agents yet.",
+    "createAgent": "Create one",
+    "create": "Create",
+    "createAndStart": "Create and start",
+    "cancelForm": "Cancel",
+    "filter": "Filter",
+    "search": "Search tasks",
+    "empty": "No tasks here.",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "allTasks": "All tasks",
+    "attempt": "attempt {n}",
+    "steps": "{n} steps",
+    "tokens": "{n} tokens",
+    "cancel": "Cancel task",
+    "retry": "Retry",
+    "result": "Result",
+    "latestStep": "Step {step} (live)",
+    "subtasks": "Subtasks",
+    "history": "History",
+    "unknownOutcome": "The server restarted while an operation with side effects was running. Its outcome is unknown, so it was not repeated automatically. Check the result, then resume or cancel the task.",
+    "ev": {
+      "agentStatus": "Agent: {status}",
+      "created": "Task created",
+      "taskStatus": "Task: {status}",
+      "completed": "Task completed",
+      "failed": "Task failed",
+      "cancelled": "Task cancelled",
+      "started": "Agent started",
+      "step": "Step {step} done"
+    }
+  },
+  "agents": {
+    "new": "New agent",
+    "name": "Name",
+    "model": "Model",
+    "defaultModel": "Default model",
+    "systemPrompt": "Instructions",
+    "systemPromptHint": "What is this agent for? How should it work?",
+    "create": "Create agent",
+    "cancelForm": "Cancel",
+    "currentTask": "Task",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "giveTask": "Give it a task…",
+    "start": "Start",
+    "empty": "No agents yet. Create one and give it a task.",
+    "types": {
+      "autonomous": "Autonomous agent",
+      "orchestrator": "Orchestrator",
+      "subagent": "Subagent"
     }
   }
 }

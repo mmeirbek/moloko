@@ -82,3 +82,34 @@ curl -b jar $B/api/v1/auth/me
 
 Assistant message `status`: `streaming` → `completed` \| `failed` (with `error_code`, `error_message`, `error_id`) \| `cancelled`.
 Error codes: `provider_auth_failed`, `provider_rate_limited`, `provider_timeout`, `provider_unavailable`, `provider_bad_request`, `provider_model_not_found`, `provider_unknown`, `interrupted` (server restarted mid-answer), `internal_error`.
+
+## Endpoints — agents, tasks, events, system (Sprint 3)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/agents?agent_type&run_id&include_archived` | Agent profiles |
+| POST | `/agents` | `{name, description?, agent_type?, specialization?, model_config_id?, system_prompt?, autonomy_level?, allowed_tools?, limits?{max_steps, run_timeout_seconds}, memory_settings?}` (subagents are created by the Orchestrator only) |
+| GET / PATCH / DELETE | `/agents/{id}` | Read, edit (bumps `config_version`), archive (refused while busy) |
+| POST | `/agents/{id}/run` | `{title, description}` or `{task_id}` → `{task, run}`; `Idempotency-Key` supported; `409 agent_busy` / `engine_stopped` |
+| POST | `/agents/{id}/pause` · `/resume` · `/stop` | Run control (pause keeps the checkpoint; resume re-queues; stop cancels the current task) |
+| GET | `/tasks?status=all\|active\|completed\|failed\|cancelled&q&agent_id&parent_task_id&include_subtasks&limit&cursor` | Task list (top-level by default) |
+| POST | `/tasks` | `{title, description?, agent_id?, priority?, deadline?, start?}`; `Idempotency-Key` |
+| GET | `/tasks/{id}` | `{task, subtasks, run}` |
+| PATCH | `/tasks/{id}` | Edit while active; `agent_id` only before start |
+| POST | `/tasks/{id}/cancel` | Cancels the task and its subtasks |
+| POST | `/tasks/{id}/retry` | New task with `attempt + 1`, `retry_of_id`; the old one keeps its history |
+| GET | `/tasks/{id}/events` | Execution history (ordered by `seq`) |
+| GET | `/events?after_seq&run_id&task_id&agent_id&limit` · `/events/{id}` | Event log |
+| GET | `/system/state` | `{engine_stopped, active_tasks}` |
+| POST | `/system/stop-all` · `/system/start` | Kill switch |
+
+### Realtime: `WS /ws/v1/events`
+
+```
+client → {"type":"hello","last_seq":<int|null>,"csrf":"<moloko_csrf cookie>"}
+server → {"type":"snapshot","seq":N,"agents":[…],"tasks":[…],"runs":[…],"approvals":[]}   (no/invalid/too-old last_seq)
+      or {"type":"event","event":{…envelope}} …  {"type":"resumed","seq":N}                  (replay of what was missed)
+server → {"type":"event","event":{…}}                                                         (live)
+client ↔ {"type":"ping"} / {"type":"pong"}  (every 25 s)
+```
+Close codes: `4401` not authenticated / session ended, `4403` bad CSRF in hello, `4400` bad hello. Envelope = spec 10.1; schemas in `packages/agent-contracts/schemas/`.

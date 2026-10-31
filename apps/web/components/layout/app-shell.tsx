@@ -14,6 +14,8 @@ import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
 import { ThemeToggle } from "@/features/preferences/theme-toggle";
 import { authKeys, getMe, logout } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
+import { ConnectionDot, RealtimeProvider } from "@/lib/realtime/provider";
+import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
 import { NAV_ITEMS } from "./nav-items";
@@ -71,6 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const displayName = user.display_name || user.username;
 
   return (
+    <RealtimeProvider>
     <div className="flex min-h-dvh">
       {/* Desktop / tablet sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
@@ -98,9 +101,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="flex flex-col gap-3 border-t p-3">
-          <p className="truncate text-xs text-muted-foreground" title={user.username}>
-            {t("auth.signedInAs", { name: displayName })}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate text-xs text-muted-foreground" title={user.username}>
+              {t("auth.signedInAs", { name: displayName })}
+            </p>
+            <ConnectionStatus />
+          </div>
           <div className="flex items-center justify-between gap-2">
             <LocaleSwitcher />
             <div className="flex items-center">
@@ -127,6 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo className="[&_svg]:size-7 [&>span:last-child]:text-lg" />
           </Link>
           <div className="flex items-center gap-1">
+            <ConnectionStatus />
             <LocaleSwitcher />
             <ThemeToggle />
             <Button
@@ -168,5 +175,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
     </div>
+    </RealtimeProvider>
+  );
+}
+
+function ConnectionStatus() {
+  const t = useTranslations("realtime");
+  const status = useRealtimeStore((s) => s.status);
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" role="status" title={t(status)}>
+      <ConnectionDot />
+      <span className="sr-only md:not-sr-only">{t(status)}</span>
+    </span>
   );
 }

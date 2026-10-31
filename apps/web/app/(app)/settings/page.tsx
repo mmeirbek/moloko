@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ProvidersSection } from "@/features/settings/providers-section";
+import { KillSwitchCard } from "@/features/system/kill-switch";
 import { AccountCard, SystemStatus } from "@/features/system/system-status";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,6 +20,7 @@ export default async function SettingsPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <SystemStatus />
           <AccountCard />
+          <KillSwitchCard />
         </div>
         <ProvidersSection />
       </div>

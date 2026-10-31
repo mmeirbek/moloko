@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { PageHeader } from "@/components/layout/page-header";
+import { TasksView } from "@/features/tasks/tasks-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("pages.tasks");
   return { title: t("title") };
 }
 
-export default function Page() {
-  return <ComingSoon section="tasks" sprint={3} />;
+export default async function TasksPage() {
+  const t = await getTranslations("pages.tasks");
+  return (
+    <>
+      <PageHeader title={t("title")} description={t("description")} />
+      <TasksView />
+    </>
+  );
 }

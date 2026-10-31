@@ -76,6 +76,36 @@ async def _wait_for_db(args: argparse.Namespace) -> None:
         await engine.dispose()
 
 
+async def _wait_for_migrations(args: argparse.Namespace) -> None:
+    """Block until the database schema is at the latest Alembic revision (used by the worker)."""
+    from pathlib import Path
+
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import text
+
+    ini = str(Path(__file__).parent.parent / "alembic.ini")
+    head = ScriptDirectory.from_config(Config(ini)).get_current_head()
+    engine = create_async_engine(get_settings().database_url)
+    deadline = time.monotonic() + args.timeout
+    try:
+        while True:
+            try:
+                async with engine.connect() as conn:
+                    query = text("SELECT version_num FROM alembic_version")
+                    current = (await conn.execute(query)).scalar()
+                if current == head:
+                    print(f"Schema is at {head}.")
+                    return
+            except Exception:  # noqa: BLE001, S110 — not ready yet; retry
+                pass
+            if time.monotonic() >= deadline:
+                raise SystemExit(f"Schema is not at {head} yet.")
+            await asyncio.sleep(1)
+    finally:
+        await engine.dispose()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -94,6 +124,10 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("wait-for-db", help="Block until PostgreSQL accepts connections")
     p.add_argument("--timeout", type=float, default=60)
     p.set_defaults(func=_wait_for_db)
+
+    p = sub.add_parser("wait-for-migrations", help="Block until the schema is at the latest head")
+    p.add_argument("--timeout", type=float, default=120)
+    p.set_defaults(func=_wait_for_migrations)
 
     args = parser.parse_args(argv)
     try:

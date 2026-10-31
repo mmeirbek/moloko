@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Sprint 2** (chat) done. See `shvluup-spec.md` §5 for the target
+Status: **Sprint 3** (agent engine) done. See `shvluup-spec.md` §5 for the target
 architecture; this file describes what exists now and the conventions to follow.
 
 ## Runtime topology
@@ -23,7 +23,7 @@ Phone / laptops ──(tailnet, HTTPS)──► Tailscale Serve on the server
 - `internal` Docker network (`internal: true`): PostgreSQL, Redis, backend. No route to the outside.
 - `edge` network: Caddy, frontend, backend (backend needs egress for AI providers from Sprint 2).
 - One origin: the browser never talks cross-origin, so cookies are first-party and CORS stays off.
-- The ARQ **worker** joins in Sprint 3 (same image as the backend, different command).
+- The ARQ **worker** (same image, `arq app.workers.main.WorkerSettings`) executes agent runs; it is on `internal` + `edge`.
 
 ## Backend (`apps/api`)
 
@@ -86,3 +86,17 @@ ChatStreamManager ◄──────────┘  stream() → ChatChunk(t
 
 - `app/providers/` is the only place that imports a provider SDK (invariant 7). The shared types (`ChatRequest`, `ChatMessage`, `ToolCall`, `ToolSpec`, `ChatResult`) already carry tool calls for the agent runtime.
 - Frontend: `features/chat/` — `useChatThread` mirrors server state (TanStack Query cache + SSE), `ChatThread` renders it with assistant-ui primitives via `useExternalStoreRuntime`; `lib/api/sse.ts` parses the stream.
+
+## Agent engine (Sprint 3)
+
+```
+POST /agents/{id}/run ─► TaskService.start: task created→queued, run row, agent reserved ─► COMMIT ─► ARQ enqueue(task_id)
+                                                                                                │
+worker: Executor.execute(task_id) ─ claim (row lock, queued→running) ─► runtime.start(ctx) ◄────┘
+        NativeRuntime: [control.check → model step (guarded) → checkpoint + agent.message] × n → reviewing → completed
+```
+
+- `app/agents/state.py` — state machines; `app/agents/engine.py` — the only code that changes statuses (each change = event in the same transaction).
+- `app/events/bus.py` — ordered event log + publish-after-commit; `app/events/ws.py` — WS gateway; `app/events/snapshot.py`.
+- `app/agents/control.py` — cooperative cancel/pause; `app/runtimes/` — runtime contract + native runtime; `app/workers/` — ARQ settings, jobs, restart recovery, sweeper.
+- Frontend: `lib/realtime/` — `RealtimeClient` (resume, heartbeat, backoff, watchdog), Zustand store (mirror of server state), provider (events → TanStack Query invalidation). Pages: Tasks (list/detail with live history), Agent Office (cards with live status; Pixel Office in Sprint 5), Settings → kill switch.

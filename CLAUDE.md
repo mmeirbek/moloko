@@ -6,12 +6,13 @@ Read first, in this order:
 3. `docs/decisions.md` — every choice made so far + the dependency register. Add to it whenever you decide something the spec leaves open.
 
 ## Status
-- Sprints 1 (infrastructure) and 2 (chat) **done**. Next: Sprint 3 (agent engine). Do not start a later sprint early.
+- Sprints 1–3 (infrastructure, chat, agent engine) **done**. Next: Sprint 4 (orchestrator). Do not start a later sprint early.
 
 ## Hard rules (from the spec — never break)
 - Backend is the single source of truth; PostgreSQL holds all durable state; Redis never holds the only copy.
 - Every new API router goes into `protected` in `apps/api/app/api/v1/router.py`. Public routes must be added to `PUBLIC_ROUTES` deliberately. Never use `include_in_schema=False`.
 - State-changing requests need CSRF (global middleware) — don't bypass it.
+- Change agent/task status only via `app/agents/engine.py` (validates the state machine and emits the event); commit with `app.events.bus.commit`.
 - Official API keys only for AI providers (spec 13.5). Ask the owner before anything else.
 - Never log secrets, passwords, tokens, cookies, or request bodies. `audit_logs` is append-only (DB trigger).
 - No hardcoded model names, hosts, keys or limits — add settings to `apps/api/app/core/config.py` and `.env.example`.

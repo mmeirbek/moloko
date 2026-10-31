@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moloko.local/schemas/event-envelope.json",
+  "title": "EventEnvelope",
+  "description": "One entry of the append-only event log (spec 10.1). `seq` is null for stream-only events (chat.message_delta).",
+  "type": "object",
+  "required": ["id", "seq", "type", "version", "timestamp", "agent_id", "task_id", "run_id", "payload"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "seq": { "type": ["integer", "null"], "minimum": 1 },
+    "type": {
+      "type": "string",
+      "enum": [
+        "agent.created", "agent.updated", "agent.status_changed", "agent.message",
+        "agent.task_started", "agent.task_completed", "agent.task_failed",
+        "task.created", "task.updated", "task.completed", "task.failed", "task.cancelled",
+        "approval.required", "approval.resolved",
+        "chat.message_delta", "chat.message_completed"
+      ]
+    },
+    "version": { "const": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "agent_id": { "type": ["string", "null"], "format": "uuid" },
+    "task_id": { "type": ["string", "null"], "format": "uuid" },
+    "run_id": { "type": ["string", "null"], "format": "uuid" },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}

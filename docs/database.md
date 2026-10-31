@@ -76,3 +76,12 @@ In Docker, the backend entrypoint applies pending migrations on start.
 ### `messages`
 `id, conversation_id → conversations (cascade), user_id, role (user|assistant), content, status (streaming|completed|failed|cancelled), model_config_id?, provider_kind?, model?, input_tokens?, output_tokens?, cost_usd?, error_code?, error_message?, error_id?, agent_run_id? (Sprint 4), completed_at?, created_at, updated_at` — index `(conversation_id, created_at)`.
 An assistant reply is created as `streaming` in the same transaction as the question (1 µs later, so ordering is stable).
+
+## Tables (revision 0003 — Sprint 3)
+
+- **`agents`** — profile (spec 8.3): `name, description, agent_type (orchestrator|subagent|autonomous), specialization, model_config_id, system_prompt, autonomy_level, allowed_tools jsonb[], permissions jsonb, status (AgentStatus), paused_from, current_task_id, parent_agent_id, run_id (subagents), depth, limits jsonb, memory_settings jsonb, runtime, config_version, archived_at`.
+- **`agent_runs`** — one execution: `agent_id, task_id, parent_run_id, status (TaskStatus values), phase, plan jsonb, state jsonb (checkpoint: transcript, elapsed, in_flight), steps, usage jsonb, result, error_*, conversation_id, started_at, finished_at`.
+- **`tasks`** — `title, description, task_type, status, priority (-1/0/1), deadline, agent_id, run_id, parent_task_id (subtasks), attempt, retry_of_id, depends_on jsonb, progress, result, status_reason, error_*, created_by, extra jsonb, started_at, completed_at`.
+- **`agent_events`** — append-only (trigger): `seq bigint identity unique, type, version, created_at, user_id, agent_id, task_id, run_id, payload jsonb`; indexes `(user_id, seq)`, `(run_id, seq)`, `(task_id, seq)`.
+- **`idempotency_keys`** — `(user_id, scope, key)` unique, `request_hash, response_status, response_body`.
+- **`system_settings`** — `(user_id, key)` unique, `value jsonb` (kill switch).

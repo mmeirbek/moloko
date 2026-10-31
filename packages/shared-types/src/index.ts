@@ -36,3 +36,21 @@ export type SyncModelsResult = Schemas["SyncModelsResult"];
 export type ModelOut = Schemas["ModelOut"];
 export type ModelCreate = Schemas["ModelCreate"];
 export type ModelUpdate = Schemas["ModelUpdate"];
+
+// Sprint 3 — agents, tasks, runs, events
+export type AgentOut = Schemas["AgentOut"];
+export type AgentCreate = Schemas["AgentCreate"];
+export type AgentUpdate = Schemas["AgentUpdate"];
+export type AgentRunRequest = Schemas["AgentRunRequest"];
+export type StartedRun = Schemas["StartedRun"];
+export type RunOut = Schemas["RunOut"];
+export type TaskOut = Schemas["TaskOut"];
+export type TaskCreate = Schemas["TaskCreate"];
+export type TaskUpdate = Schemas["TaskUpdate"];
+export type TaskDetail = Schemas["TaskDetail"];
+export type TaskPage = Schemas["Page_TaskOut_"];
+export type EventOut = Schemas["EventOut"];
+export type SystemState = Schemas["SystemState"];
+export type StopAllResult = Schemas["StopAllResult"];
+
+export type * from "./events";

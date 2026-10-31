@@ -34,7 +34,7 @@ git clone https://github.com/mmeirbek/moloko.git
 cd moloko
 infrastructure/scripts/init-env.sh      # создаёт .env со случайными секретами (права 600)
 docker compose up -d --build            # первая сборка займёт несколько минут
-docker compose ps                       # все сервисы должны стать "healthy"
+docker compose ps                       # все сервисы (включая worker) должны стать "healthy"
 ```
 
 `init-env.sh` не перезаписывает существующий `.env`. Сохраните копию `.env` в надёжном
@@ -101,7 +101,7 @@ curl -s http://127.0.0.1:8080/api/v1/health
 | Задача | Команда |
 |---|---|
 | Состояние сервисов | `docker compose ps` |
-| Логи бэкенда | `docker compose logs -f backend` |
+| Логи бэкенда / воркера агентов | `docker compose logs -f backend worker` |
 | Обновление до новой версии | `git pull && docker compose up -d --build` (миграции БД применяются автоматически) |
 | Перезапуск | `docker compose restart` |
 | Остановка | `docker compose down` (данные сохраняются в томах Docker) |

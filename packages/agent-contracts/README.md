@@ -1,5 +1,10 @@
 # @moloko/agent-contracts
 
-Reserved for JSON Schemas of agent↔agent messages and realtime event envelopes
-(spec sections 10 and 14.4). Populated in Sprint 3 (event system) and Sprint 4
-(agent messaging). Empty on purpose until then.
+JSON Schemas for the realtime contracts shared by the API and clients:
+
+- `schemas/event-envelope.schema.json` — one event of the append-only log (spec 10.1)
+- `schemas/ws-frames.schema.json` — frames on `/ws/v1/events` (spec 11)
+
+The TypeScript mirror lives in `packages/shared-types/src/events.ts`; backend tests
+validate real events against these schemas. Agent↔agent messages (spec 14.4) are
+added in Sprint 4.
