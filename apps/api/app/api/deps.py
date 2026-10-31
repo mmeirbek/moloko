@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.db import Database
+from app.providers.gateway import ModelGateway
 from app.services.auth import AuthContext, AuthService, ClientInfo
+from app.services.chat_stream import ChatStreamManager
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -46,7 +48,19 @@ async def require_auth(
     return ctx
 
 
+def get_gateway(request: Request) -> ModelGateway:
+    gateway: ModelGateway = request.app.state.gateway
+    return gateway
+
+
+def get_chat_streams(request: Request) -> ChatStreamManager:
+    streams: ChatStreamManager = request.app.state.chat_streams
+    return streams
+
+
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+GatewayDep = Annotated[ModelGateway, Depends(get_gateway)]
+ChatStreamsDep = Annotated[ChatStreamManager, Depends(get_chat_streams)]
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 CurrentAuth = Annotated[AuthContext, Depends(require_auth)]
 Client = Annotated[ClientInfo, Depends(get_client_info)]

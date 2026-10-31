@@ -61,3 +61,18 @@ uv run alembic revision --autogenerate -m "add conversations"   # then review th
 uv run alembic upgrade head
 ```
 In Docker, the backend entrypoint applies pending migrations on start.
+
+## Tables (revision 0002 — Sprint 2)
+
+### `model_providers`
+`id, user_id → users, kind (openai|anthropic|mock), name (unique per user), base_url?, api_key_encrypted? (Fernet "v1:…"), api_key_hint? ("…abcd"), enabled, created_at, updated_at`
+
+### `model_configs`
+`id, user_id, provider_id → model_providers (cascade), model (provider's id; unique per provider), display_name?, enabled, is_default, input_price_per_mtok?, output_price_per_mtok? (numeric, USD), params jsonb {temperature?, max_tokens?}, created_at, updated_at`
+
+### `conversations`
+`id, user_id, title, model_config_id? → model_configs (set null), last_message_at, created_at, updated_at` — index `(user_id, last_message_at)`.
+
+### `messages`
+`id, conversation_id → conversations (cascade), user_id, role (user|assistant), content, status (streaming|completed|failed|cancelled), model_config_id?, provider_kind?, model?, input_tokens?, output_tokens?, cost_usd?, error_code?, error_message?, error_id?, agent_run_id? (Sprint 4), completed_at?, created_at, updated_at` — index `(conversation_id, created_at)`.
+An assistant reply is created as `streaming` in the same transaction as the question (1 µs later, so ordering is stable).

@@ -21,8 +21,21 @@ from app.core.logging import configure_logging
 from app.core.middleware import CSRFMiddleware, RequestContextMiddleware
 from app.core.openapi import install_openapi
 from app.core.redis import create_redis
+from app.providers.gateway import ModelGateway
+from app.services.chat_stream import ChatStreamManager, fail_orphaned_generations
 
 logger = logging.getLogger("moloko.app")
+
+
+async def _recover(app: FastAPI) -> None:
+    """Startup recovery (spec 9.1): nothing can be generating yet, so leftovers were interrupted."""
+    try:
+        async with app.state.db.sessionmaker() as db:
+            failed = await fail_orphaned_generations(db)
+        if failed:
+            logger.warning("interrupted_generations_marked_failed", extra={"count": failed})
+    except Exception:  # noqa: BLE001 — the DB may still be starting; health shows it
+        logger.warning("startup_recovery_skipped")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -33,10 +46,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.db = Database(settings)
         app.state.redis = create_redis(settings.redis_url)
+        app.state.gateway = ModelGateway(settings)
+        app.state.chat_streams = ChatStreamManager(app.state.db.sessionmaker, app.state.gateway)
+        await _recover(app)
         logger.info("startup", extra={"environment": settings.environment})
         try:
             yield
         finally:
+            await app.state.chat_streams.shutdown()
             await app.state.redis.aclose()
             await app.state.db.dispose()
             logger.info("shutdown")

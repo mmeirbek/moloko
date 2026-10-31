@@ -11,8 +11,8 @@
     }
   },
   "scripts": {
-    "generate": "openapi-typescript ./openapi.json --output ./src/api.gen.ts",
-    "check": "openapi-typescript ./openapi.json --output ./src/api.gen.ts --check",
+    "generate": "openapi-typescript ./openapi.json --output ./src/api.gen.ts --default-non-nullable=false",
+    "check": "openapi-typescript ./openapi.json --output ./src/api.gen.ts --default-non-nullable=false --check",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

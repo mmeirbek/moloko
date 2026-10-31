@@ -11,6 +11,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Return the parsed body even for non-2xx statuses listed here (e.g. 503 health). */
   acceptStatuses?: number[];
+  /** Return the raw Response (for streaming bodies such as SSE) instead of parsed JSON. */
+  raw?: boolean;
 }
 
 export interface ClientDeps {
@@ -53,7 +55,9 @@ export function createApiClient(deps: ClientDeps) {
 
   async function send<T>(path: string, opts: RequestOptions, withCsrf: boolean): Promise<T> {
     const method = opts.method ?? "GET";
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const headers: Record<string, string> = {
+      Accept: opts.raw ? "text/event-stream" : "application/json",
+    };
     if (opts.body !== undefined) headers["Content-Type"] = "application/json";
     if (withCsrf) {
       headers[CSRF_HEADER] = deps.readCookie(CSRF_COOKIE) ?? (await fetchCsrf());
@@ -73,6 +77,7 @@ export function createApiClient(deps: ClientDeps) {
       throw ApiError.network(cause);
     }
 
+    if (opts.raw && response.ok) return response as T;
     if (response.status === 204) return undefined as T;
     let body: unknown = null;
     try {
@@ -97,7 +102,12 @@ export function createApiClient(deps: ClientDeps) {
     }
   }
 
-  return { request };
+  /** Like request(), but resolves to the streaming Response once headers arrive. */
+  function stream(path: string, opts: Omit<RequestOptions, "raw"> = {}): Promise<Response> {
+    return request<Response>(path, { ...opts, raw: true });
+  }
+
+  return { request, stream };
 }
 
 export const api = createApiClient({

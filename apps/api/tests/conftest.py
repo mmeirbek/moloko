@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
 
 import httpx
@@ -43,6 +43,9 @@ def make_settings(**overrides: Any) -> Settings:
         "environment": "test",
         "log_level": "WARNING",
         "cookie_secure": True,
+        "app_encryption_key": "test-encryption-key-" + "e" * 32,
+        "enable_mock_provider": True,
+        "provider_retry_base_delay_seconds": 0.0,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -78,7 +81,12 @@ async def clean_tables(migrated_database: None) -> AsyncIterator[None]:
     engine = create_async_engine(TEST_DATABASE_URL)
     async with engine.begin() as conn:
         # TRUNCATE bypasses the row-level append-only trigger on audit_logs.
-        await conn.execute(text("TRUNCATE sessions, users, audit_logs CASCADE"))
+        await conn.execute(
+            text(
+                "TRUNCATE messages, conversations, model_configs, model_providers,"
+                " sessions, users, audit_logs CASCADE"
+            )
+        )
     await engine.dispose()
 
 
@@ -140,3 +148,26 @@ async def login(
         json={"username": username, "password": password},
         headers=await csrf_headers(client),
     )
+
+
+@asynccontextmanager
+async def logged_in_client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+    async with make_client(app) as client:
+        resp = await login(client)
+        assert resp.status_code == 200, resp.text
+        yield client
+
+
+async def add_mock_model(client: httpx.AsyncClient, name: str = "Mock") -> dict[str, Any]:
+    """Create a mock provider via the API, import its models, return the default model."""
+    resp = await client.post(
+        "/api/v1/providers", json={"kind": "mock", "name": name}, headers=await csrf_headers(client)
+    )
+    assert resp.status_code == 201, resp.text
+    provider_id = resp.json()["id"]
+    resp = await client.post(
+        f"/api/v1/providers/{provider_id}/sync-models", headers=await csrf_headers(client)
+    )
+    assert resp.status_code == 200, resp.text
+    models = (await client.get("/api/v1/models")).json()
+    return next(m for m in models if m["is_default"])

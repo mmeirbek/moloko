@@ -53,6 +53,21 @@ class Settings(BaseSettings):
     # Comma-separated. Empty = same-origin only (the default behind the reverse proxy).
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    # --- AI providers (official API keys only — spec 13.5) ---------------------
+    # Optional fallbacks: a provider configured in the UI without its own key uses these.
+    openai_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = None
+    provider_timeout_seconds: float = Field(120.0, gt=0)
+    provider_max_retries: int = Field(2, ge=0, le=10)
+    provider_retry_base_delay_seconds: float = Field(1.0, ge=0)
+    # Deterministic offline provider for tests and demos. Never enable in production.
+    enable_mock_provider: bool = False
+
+    # --- Chat -----------------------------------------------------------------
+    chat_context_max_messages: int = Field(40, ge=1, le=500)
+    chat_max_output_tokens: int = Field(4096, ge=1)
+    chat_title_max_chars: int = Field(60, ge=10, le=200)
+
     # --- Storage (used from later sprints) ------------------------------------
     workspace_root: str = "/data/workspaces"
     file_storage_root: str = "/data/files"

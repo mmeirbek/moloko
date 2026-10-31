@@ -18,3 +18,21 @@ export type MeResponse = Schemas["MeResponse"];
 export type LoginRequest = Schemas["LoginRequest"];
 export type CsrfResponse = Schemas["CsrfResponse"];
 export type HealthResponse = Schemas["HealthResponse"];
+
+// Sprint 2 — chat, providers, models
+export type ConversationOut = Schemas["ConversationOut"];
+export type ConversationCreate = Schemas["ConversationCreate"];
+export type ConversationUpdate = Schemas["ConversationUpdate"];
+export type MessageOut = Schemas["MessageOut"];
+export type MessageCreate = Schemas["MessageCreate"];
+export type CancelResult = Schemas["CancelResult"];
+export type ConversationPage = Schemas["Page_ConversationOut_"];
+export type MessagePage = Schemas["Page_MessageOut_"];
+export type ProviderOut = Schemas["ProviderOut"];
+export type ProviderCreate = Schemas["ProviderCreate"];
+export type ProviderUpdate = Schemas["ProviderUpdate"];
+export type ProviderTestResult = Schemas["ProviderTestResult"];
+export type SyncModelsResult = Schemas["SyncModelsResult"];
+export type ModelOut = Schemas["ModelOut"];
+export type ModelCreate = Schemas["ModelCreate"];
+export type ModelUpdate = Schemas["ModelUpdate"];

@@ -43,6 +43,30 @@ plus every deviation from it. Newest last within each sprint. Format: date — d
 | 2026-10-31 | Dev-only npm tooling (ESLint plugins, openapi-typescript) pulls a `minimatch` version with a moderate ReDoS advisory. `npm audit --omit=dev` is clean. | Not shipped, not exposed to input. Upgrade when the ESLint 9 ecosystem moves. |
 | 2026-10-31 | ESLint **9** (not 10) and TypeScript **5.9** (not 7). | `eslint-plugin-react`/`-import` support ESLint ≤9; `openapi-typescript` and `typescript-eslint` require TypeScript <6.1. |
 
+## Sprint 2 — Chat system
+
+External repositories checked at sprint start (per `docs/external-repositories.md`):
+**assistant-ui** (USE, conditional) — LICENSE verified MIT (github.com/assistant-ui/assistant-ui, "Copyright (c) 2026 AgentbaseAI Inc."), releases every few days (0.15.32 on 2026-10-28), no Vercel AI SDK dependency; its `useExternalStoreRuntime` drives it from our own state → **adopted** as the chat UI layer. **LibreChat / Open WebUI** (AVOID) — not used. **litellm** — not added (official SDKs only).
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-10-31 | **SSE for chat token streaming** (spec 26.2). `POST /chats/{id}/messages` answers with `text/event-stream`; `GET …/messages/{mid}/stream` re-attaches. | Plain HTTP, works through Caddy and Tailscale Serve, trivial to resume. WebSockets arrive in Sprint 3 for events. |
+| 2026-10-31 | **Generations run as background asyncio tasks owned by the API process**, not by the request. Closing the browser doesn't stop or lose an answer; any device can re-attach. On startup, leftover `streaming` messages become `failed: interrupted`; on shutdown running ones are marked the same. | Spec invariants 3, 9, 10. Verified in Docker: a client disconnecting mid-stream still gets a completed, saved answer. |
+| 2026-10-31 | The API must run as **one uvicorn process** (the stream registry and cancel are in-process). | Single-user server; revisit with Redis-backed cancellation if we ever scale out. |
+| 2026-10-31 | **One running answer per conversation**, enforced with a row lock (`SELECT … FOR UPDATE`) → `409 generation_in_progress`. | Keeps history linear and context well-defined. |
+| 2026-10-31 | OpenAI via the **Chat Completions API**, Anthropic via the **Messages API**, both through the official SDKs (openai 3.x, anthropic 2.x) with **SDK retries disabled**; the gateway retries retryable errors (rate limit, timeout, unavailable) with exponential backoff **only before the first streamed token**. | One retry policy for all providers; a half-streamed answer is never silently restarted. |
+| 2026-10-31 | **Official base URLs are always passed explicitly.** | Verified: with `base_url=None` the SDKs read `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` (and Anthropic also profile files) from the environment, which could redirect API keys. A test sets those vars to an attacker URL and checks the official host is used. |
+| 2026-10-31 | Provider error messages are **redacted** (anything key-like) before logging; adapters normalise errors to `auth_failed / rate_limited / timeout / unavailable / bad_request / model_not_found / unknown`, surfaced as `provider_<kind>`. | Spec 13.1, 20 (secrets never logged). |
+| 2026-10-31 | **Provider secrets encrypted with Fernet** (from `cryptography`), key = SHA-256 of `APP_ENCRYPTION_KEY` with a domain prefix, ciphertext versioned `v1:`. The UI only ever sees `…last4`. Without `APP_ENCRYPTION_KEY`, storing a key is refused (`503 encryption_unavailable`). Env `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` act as fallback for providers saved without a key. | Spec 7.1, 20. |
+| 2026-10-31 | `base_url` (optional, for the provider's own alternative endpoints) must be `https://`. | No plaintext key transport. |
+| 2026-10-31 | **Models come from the provider's model list** ("Import models") or are typed in; all imported models start enabled, the first becomes default. Prices are **owner-entered** per model (USD per million tokens) → `cost_usd` per message when both prices and usage are known. | Spec 13.1: never hardcode model names or prices. |
+| 2026-10-31 | **Mock provider** (`ENABLE_MOCK_PROVIDER=true`, off by default) for tests, CI and demos. Directives in the message (`[[mock:slow]]`, `[[mock:error:<kind>]]`) steer it. | Spec 23: tests must not spend money or need network. |
+| 2026-10-31 | Context = the last `CHAT_CONTEXT_MAX_MESSAGES` completed messages; failed/cancelled answers are excluded. Title = first message, trimmed (no extra LLM call). | Predictable cost. |
+| 2026-10-31 | Markdown via react-markdown + remark-gfm + rehype-highlight; **raw HTML in model output is not rendered**; links open with `rel="noopener noreferrer nofollow"`. Code colours are our own CSS (no highlight.js theme dependency). | Model output is untrusted (invariant 13). |
+| 2026-10-31 | **Chat file attachments deferred to Sprint 7**, together with file storage and workspaces. | Sprint 2's task list doesn't include them and they need the file storage/permission design first. |
+| 2026-10-31 | `openapi-typescript --default-non-nullable=false`. | Otherwise request fields that have server defaults become mandatory in TS. |
+| 2026-10-31 | Caddy compresses only listed document types; `text/event-stream` is never compressed. | Verified: tokens arrive every 250 ms through Caddy, not in one buffered burst. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).
@@ -66,6 +90,10 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | ruff | 0.17.3 | MIT | Lint + format (dev) | 1 | 2026-10-31 |
 | mypy | 2.4.1 | MIT | Type checking (dev) | 1 | 2026-10-31 |
 | uv | 0.11.32 | MIT OR Apache-2.0 | Python package manager (build tool) | 1 | 2026-10-31 |
+| openai | 3.42.0 | Apache-2.0 | Official OpenAI SDK (provider adapter) | 2 | 2026-10-31 |
+| anthropic | 2.3.0 | Apache-2.0 (per PyPI metadata) | Official Anthropic SDK (provider adapter) | 2 | 2026-10-31 |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause | Fernet encryption of stored secrets | 2 | 2026-10-31 |
+| httpx2 (via the SDKs) | 2.16.0 | BSD-3-Clause | HTTP client used by both SDKs | 2 | 2026-10-31 |
 | **Frontend (npm)** | | | | | |
 | next | 16.4.3 | MIT | App framework | 1 | 2026-10-31 |
 | react / react-dom | 19.3.1 | MIT | UI | 1 | 2026-10-31 |
@@ -83,6 +111,11 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | vitest | 5.0.5 | MIT | Unit tests (dev) | 1 | 2026-10-31 |
 | openapi-typescript | 7.13.0 | MIT | TS types from OpenAPI (dev) | 1 | 2026-10-31 |
 | shadcn/ui (copied component patterns) | — | MIT | Button/Input/Card source patterns | 1 | 2026-10-31 |
+| **Frontend (npm) — Sprint 2** | | | | | |
+| @assistant-ui/react | 0.15.32 | MIT | Chat UI primitives on our own runtime | 2 | 2026-10-31 |
+| react-markdown | 10.1.0 | MIT | Markdown rendering of answers | 2 | 2026-10-31 |
+| remark-gfm | 4.0.1 | MIT | Tables, lists, strikethrough | 2 | 2026-10-31 |
+| rehype-highlight | 7.0.2 | MIT | Code highlighting (highlight.js, BSD-3-Clause) | 2 | 2026-10-31 |
 | **Container images** | | | | | |
 | postgres | 17.11-alpine | PostgreSQL License | Database | 1 | 2026-10-31 |
 | redis | 8.10.3-alpine | RSALv2 / SSPLv1 / AGPLv3 (we rely on AGPLv3) | Cache/queue/pub-sub | 1 | 2026-10-31 |

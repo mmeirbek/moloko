@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ProvidersSection } from "@/features/settings/providers-section";
 import { AccountCard, SystemStatus } from "@/features/system/system-status";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,9 +15,12 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <div className="grid max-w-3xl gap-4 md:grid-cols-2">
-        <SystemStatus />
-        <AccountCard />
+      <div className="grid max-w-4xl gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <SystemStatus />
+          <AccountCard />
+        </div>
+        <ProvidersSection />
       </div>
     </>
   );

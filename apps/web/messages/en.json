@@ -36,7 +36,14 @@
     "database_unavailable": "The server can't reach its database right now. Try again in a minute.",
     "redis_unavailable": "A background service is temporarily unavailable. Try again in a minute.",
     "server_error": "Something went wrong on the server.",
-    "generic": "Something went wrong."
+    "generic": "Something went wrong.",
+    "no_model_configured": "No AI model is set up. Add a provider in Settings.",
+    "model_unavailable": "The selected model is disabled or its provider is off.",
+    "generation_in_progress": "Wait for the current answer to finish (or stop it) first.",
+    "encryption_unavailable": "The server has no APP_ENCRYPTION_KEY, so API keys cannot be saved.",
+    "provider_kind_unavailable": "This provider type is not available on this server.",
+    "conflict": "This already exists.",
+    "not_found": "Not found."
   },
   "preferences": {
     "theme": "Theme",
@@ -83,5 +90,72 @@
     "version": "Version {version}",
     "account": "Account",
     "sessionExpires": "Session valid until {date}"
+  },
+  "chat": {
+    "newChat": "New chat",
+    "history": "Chat history",
+    "noChats": "No chats yet.",
+    "pick": "Pick a chat or start a new one.",
+    "allChats": "All chats",
+    "deleteChat": "Delete “{title}”",
+    "confirmDelete": "Delete this chat and all its messages?",
+    "placeholder": "Message moloko…",
+    "send": "Send",
+    "stop": "Stop",
+    "thinking": "Thinking",
+    "stopped": "Stopped.",
+    "tokens": "{count} tokens",
+    "model": "Model",
+    "defaultModel": "Default model",
+    "empty": "Ask anything. Answers stream in and are saved — you can close this tab.",
+    "noModels": "No AI model is set up yet.",
+    "openSettings": "Add a provider in Settings",
+    "dismiss": "Dismiss",
+    "errors": {
+      "provider_auth_failed": "The provider rejected the API key. Check it in Settings.",
+      "provider_rate_limited": "The provider is rate-limiting requests. Try again in a moment.",
+      "provider_timeout": "The provider did not answer in time.",
+      "provider_unavailable": "The provider is unavailable right now. Try again later.",
+      "provider_bad_request": "The provider rejected the request.",
+      "provider_model_not_found": "The provider does not know this model.",
+      "provider_unknown": "The provider request failed.",
+      "interrupted": "The answer was interrupted because the server restarted.",
+      "internal_error": "Something went wrong while generating the answer."
+    }
+  },
+  "settings": {
+    "providers": {
+      "title": "AI providers",
+      "description": "Official API keys only. Keys are encrypted on the server and never shown again.",
+      "kind": "Provider",
+      "name": "Name",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Paste the API key",
+      "noKeyNeeded": "No key needed",
+      "add": "Add",
+      "none": "No providers yet.",
+      "keyPolicy": "Use an API key from the provider's developer console. Subscription logins (ChatGPT, Claude.ai) are not supported.",
+      "keyStored": "Key saved ({hint})",
+      "keyEnv": "Uses the key from the server environment",
+      "keyMissing": "No API key",
+      "test": "Test",
+      "sync": "Import models",
+      "replaceKey": "Change key",
+      "saveKey": "Save key",
+      "clearKey": "Remove key",
+      "enabled": "Enabled",
+      "testOk": "Works — {count} models available.",
+      "synced": "{added} new models imported."
+    },
+    "models": {
+      "title": "Models",
+      "description": "Choose which models appear in the chat picker and which one is the default.",
+      "enabled": "In picker",
+      "default": "Default",
+      "none": "No models yet — import them from a provider.",
+      "provider": "Provider",
+      "modelId": "Model id",
+      "add": "Add model"
+    }
   }
 }

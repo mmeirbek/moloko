@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
-from app.api.v1 import auth, health
+from app.api.v1 import auth, chats, health, providers
 
 public = APIRouter()
 public.include_router(health.router)
@@ -21,6 +21,8 @@ public.include_router(auth.public_router)
 
 protected = APIRouter(dependencies=[Depends(require_auth)])
 protected.include_router(auth.protected_router)
+protected.include_router(providers.router)
+protected.include_router(chats.router)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(public)

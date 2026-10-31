@@ -32,7 +32,7 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 500 | `internal_error` | Unexpected bug (details only in server log) |
 | 503 | `database_unavailable` / `redis_unavailable` | A dependency is down; see `Retry-After` |
 
-## Endpoints (Sprint 1)
+## Endpoints — auth & health (Sprint 1)
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -53,3 +53,32 @@ curl -c jar -b jar -H 'Content-Type: application/json' -H "X-CSRF-Token: $CSRF" 
      -d '{"username":"me","password":"…"}' $B/api/v1/auth/login
 curl -b jar $B/api/v1/auth/me
 ```
+
+## Endpoints — models & providers (Sprint 2)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/providers/kinds` | Provider types available on this server (`mock` only with `ENABLE_MOCK_PROVIDER`) |
+| GET | `/providers` | Configured providers. Keys are never returned: `api_key_source` = `stored` (`api_key_hint` "…abcd") / `environment` / `none` |
+| POST | `/providers` | `{kind, name, api_key?, base_url?, enabled?}` — key encrypted at rest; audited |
+| PATCH | `/providers/{id}` | `{name?, api_key?, clear_api_key?, base_url?, enabled?}`; audited |
+| POST | `/providers/{id}/test` | Lists models with the stored credentials → `{ok, models_found, error_code, error_message}` |
+| POST | `/providers/{id}/sync-models` | Imports the provider's model list → `{added, total}` |
+| GET | `/models` | Enabled models (chat picker). `?include_disabled=true` for settings |
+| POST | `/models` | `{provider_id, model, display_name?}` — add a model by id |
+| PATCH | `/models/{id}` | `{display_name?, enabled?, is_default?, input_price_per_mtok?, output_price_per_mtok?, params?{temperature,max_tokens}}` |
+
+## Endpoints — chat (Sprint 2)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/chats?limit&cursor` | Conversations, most recent first; `{items, next_cursor}` |
+| POST | `/chats` | `{title?, model_config_id?}` |
+| GET / PATCH / DELETE | `/chats/{id}` | Read, rename / change model, delete (cascades messages; audited) |
+| GET | `/chats/{id}/messages?limit&cursor` | Newest page first, items oldest→newest; `next_cursor` = older |
+| POST | `/chats/{id}/messages` | `{content, model_config_id?}` → **SSE**: `message.created` `{user_message, assistant_message}`, `message.delta` `{message_id, text}`…, then `message.completed` or `message.failed` `{message}`. Heartbeat comments every 15 s. `409 generation_in_progress` if an answer is running; `409 no_model_configured` / `model_unavailable` |
+| GET | `/chats/{id}/messages/{mid}/stream` | **SSE** re-attach: `message.snapshot` `{text}` then deltas, or the saved final event if already finished |
+| POST | `/chats/{id}/messages/{mid}/cancel` | Stop a running answer → `{cancelled}`; the partial text is kept with status `cancelled` |
+
+Assistant message `status`: `streaming` → `completed` \| `failed` (with `error_code`, `error_message`, `error_id`) \| `cancelled`.
+Error codes: `provider_auth_failed`, `provider_rate_limited`, `provider_timeout`, `provider_unavailable`, `provider_bad_request`, `provider_model_not_found`, `provider_unknown`, `interrupted` (server restarted mid-answer), `internal_error`.

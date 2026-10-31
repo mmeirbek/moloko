@@ -80,6 +80,12 @@ services:
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      # Optional fallback API keys (official keys only). Usually set per provider in Settings.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-120}
+      PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-2}
+      ENABLE_MOCK_PROVIDER: ${ENABLE_MOCK_PROVIDER:-false}
       # The backend is reachable only from Caddy on the Docker network.
       FORWARDED_ALLOW_IPS: "*"
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.

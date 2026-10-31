@@ -6,7 +6,7 @@ Read first, in this order:
 3. `docs/decisions.md` — every choice made so far + the dependency register. Add to it whenever you decide something the spec leaves open.
 
 ## Status
-- Sprint 1 (infrastructure foundation): **done**. Next: Sprint 2 (chat). Do not start a later sprint early.
+- Sprints 1 (infrastructure) and 2 (chat) **done**. Next: Sprint 3 (agent engine). Do not start a later sprint early.
 
 ## Hard rules (from the spec — never break)
 - Backend is the single source of truth; PostgreSQL holds all durable state; Redis never holds the only copy.

@@ -30,12 +30,13 @@ This file tracks what is implemented and what is still open.
 
 **HTTP headers** (Caddy): `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, `Cross-Origin-Opener-Policy`, restrictive `Permissions-Policy`; `Server` header removed. API responses are `no-store`. `robots.txt` disallows everything.
 
+**AI providers (Sprint 2)**: official API keys only; keys encrypted at rest (Fernet), never returned to the browser (only `…last4`), never logged (provider errors are redacted); official base URLs pinned so environment variables can't redirect keys; `base_url` overrides must be HTTPS; model output rendered without raw HTML.
+
 ## Open items
 
 | Item | Planned |
 |---|---|
 | Content-Security-Policy with nonces | Sprint 8 security review |
-| Encrypting provider API keys at rest (`APP_ENCRYPTION_KEY`) | Sprint 2 |
 | Permission system, approvals, sandbox isolation | Sprint 7 |
 | UI for viewing the audit log | Sprint 7/8 |
 | Expired-session cleanup job | Sprint 3 (worker) |

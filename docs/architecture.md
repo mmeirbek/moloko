@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Sprint 1** (infrastructure foundation). See `shvluup-spec.md` §5 for the target
+Status: **Sprint 2** (chat) done. See `shvluup-spec.md` §5 for the target
 architecture; this file describes what exists now and the conventions to follow.
 
 ## Runtime topology
@@ -71,3 +71,18 @@ the UI only reflects it — there is no server-side redirect in Next.js (see dec
 
 `packages/shared-types`: `openapi.json` (exported from FastAPI) → `src/api.gen.ts`
 (openapi-typescript). Both committed; CI fails if either is stale.
+
+## Model Gateway & chat (Sprint 2)
+
+```
+ChatService.send ──► ModelGateway.resolve (model → provider, decrypt key)
+       │                     │
+       │                     ▼
+       │          provider adapter (openai_provider / anthropic_provider / mock_provider)
+       ▼                     │  official SDK, base URL pinned, SDK retries off
+ChatStreamManager ◄──────────┘  stream() → ChatChunk(text…) … ChatChunk(result)
+  background task per answer: fan-out to SSE subscribers, persist final message
+```
+
+- `app/providers/` is the only place that imports a provider SDK (invariant 7). The shared types (`ChatRequest`, `ChatMessage`, `ToolCall`, `ToolSpec`, `ChatResult`) already carry tool calls for the agent runtime.
+- Frontend: `features/chat/` — `useChatThread` mirrors server state (TanStack Query cache + SSE), `ChatThread` renders it with assistant-ui primitives via `useExternalStoreRuntime`; `lib/api/sse.ts` parses the stream.
