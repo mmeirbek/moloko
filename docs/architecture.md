@@ -21,6 +21,7 @@ Phone / laptops ──(tailnet, HTTPS)──► Tailscale Serve on the server
 
 - Only Caddy publishes a port, bound to loopback. TLS is Tailscale's.
 - `internal` Docker network (`internal: true`): PostgreSQL, Valkey (Redis-compatible; `REDIS_URL`), backend. No route to the outside.
+- `browser` Docker network (`internal: true`, name `BROWSER_NETWORK`): the `egress` proxy and the short-lived browser containers the sandbox runner starts. The proxy (also on `edge`) is the browser's only way out: public addresses, ports 80/443.
 - `edge` network: Caddy, frontend, backend (backend needs egress for AI providers from Sprint 2).
 - One origin: the browser never talks cross-origin, so cookies are first-party and CORS stays off.
 - The ARQ **worker** (same image, `arq app.workers.main.WorkerSettings`) executes agent runs; it is on `internal` + `edge`.
@@ -139,4 +140,12 @@ Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (t
 - `apps/web/proxy.ts` — CSP nonce per request; `app/manifest.ts`, `public/sw.js`, `public/offline.html`, `public/icons/` — PWA; `features/notifications/` + `lib/notifications/rules.ts` — which events notify.
 - `backup` service: `infrastructure/backup/{loop,backup,restore-check}.sh`; `app/services/storage.py` reads its status (`/system/storage`) for Settings → Backups.
 - `e2e/` — Playwright suite; `infrastructure/scripts/e2e.sh` — throwaway stack (`-p moloko-e2e`, own port and volumes) + owner + tests.
+
+## Owner requests after the MVP (2026-11-01)
+
+- **Search** (`app/search/`): `index.py` keeps `search_chunks` in step with memories, workspace files and chat files (worker cron); `query.py` searches by meaning (pgvector) or by words. Agents use the `knowledge_search` tool within their own scope.
+- **Costs** (`app/services/usage.py`): every model call writes a `usage_records` row; the monthly budget emits `budget.warning` and can stop new model calls.
+- **Voice & search provider** (`app/services/ai_services.py`): speech-to-text and embeddings through the owner's OpenAI-type provider.
+- **Browser** (`app/sandbox/runner.py` `/v1/browse`, `app/sandbox/egress.py`, `app/tools/builtin/browser.py`) and **export** (`app/services/export.py`).
+- **Mascot** (`apps/web/features/mascot/`): one art file (`cow-art.json`) for the UI, the office (`engine/cow.ts`) and the icons.
 
