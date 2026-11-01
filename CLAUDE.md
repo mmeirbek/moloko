@@ -6,7 +6,7 @@ Read first, in this order:
 3. `docs/decisions.md` — every choice made so far + the dependency register. Add to it whenever you decide something the spec leaves open.
 
 ## Status
-- Sprints 1–7 (infrastructure, chat, agent engine, orchestrator, pixel office, autonomous agents, tools) **done**. Next: Sprint 8 (stabilization & mobile). Do not start a later sprint early.
+- All 8 MVP sprints **done** (see `docs/acceptance.md`). Owner decisions still open are listed at the end of `docs/decisions.md` sprint sections (⚠). Do not add features outside the spec's MVP scope (25.2) without the owner.
 - Pixel Office: the Phaser scene only renders what the store says (`features/office/engine/`); status → animation lives in `behavior.ts` only. All art is original, drawn in code — list any new asset in `apps/web/assets/MANIFEST.md`.
 - Tools run only through `app/tools/runner.py` (`authorize()` before every call, approvals bound to the args hash, `tool_calls` row = source of truth). New tools: subclass `BaseTool`, declare category + scope check, register in `app/tools/registry.py`. Only the `sandbox` service may touch the Docker socket.
 - Memory goes into prompts only through `app/memory/context.py` (fenced as data, size-limited). Never put memory or tool/web text into the instruction part of a prompt.
@@ -26,6 +26,7 @@ Read first, in this order:
 - After changing API schemas: `cd apps/api && uv run python scripts/export_openapi.py && cd ../.. && npm run generate:types`
 - New migration: `cd apps/api && uv run alembic revision --autogenerate -m "..."` (review it; `tests/test_migrations_and_audit.py` checks models == migrations)
 - Frontend: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`
+- Browser E2E against a throwaway stack: `infrastructure/scripts/e2e.sh` (NO_BUILD=1, KEEP=1 options)
 
 ## Layout
 - `apps/api` — FastAPI: `api/` (routers, no logic) → `services/` → `repositories/` → `models/`. `core/` = config, db, security, errors, middleware.

@@ -6,6 +6,7 @@ import type {
   EventOut,
   StartedRun,
   StopAllResult,
+  StorageStatus,
   SystemLimits,
   SystemState,
   TaskCreate,
@@ -30,6 +31,7 @@ export const taskKeys = {
 };
 export const systemStateKey = ["system", "state"] as const;
 export const systemLimitsKey = ["system", "limits"] as const;
+export const storageKey = ["system", "storage"] as const;
 
 export const listAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents", { signal });
 export const getAgent = (id: string, signal?: AbortSignal) => api.request<AgentOut>(`/agents/${id}`, { signal });
@@ -62,6 +64,7 @@ export const cancelTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/can
 export const retryTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/retry`, { method: "POST" });
 
 export const systemLimits = (signal?: AbortSignal) => api.request<SystemLimits>("/system/limits", { signal });
+export const systemStorage = (signal?: AbortSignal) => api.request<StorageStatus>("/system/storage", { signal });
 export const systemState = (signal?: AbortSignal) => api.request<SystemState>("/system/state", { signal });
 export const stopAll = () => api.request<StopAllResult>("/system/stop-all", { method: "POST" });
 export const startEngine = () => api.request<SystemState>("/system/start", { method: "POST" });

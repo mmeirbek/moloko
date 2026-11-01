@@ -44,17 +44,35 @@ This file tracks what is implemented and what is still open.
 - MCP tools start disabled; MCP and every other tool output is fenced as untrusted data.
 - Residual risk: the runner's Docker socket is root-equivalent on the host — keep the runner minimal (it is), and never mount the socket anywhere else.
 
+## Security review (Sprint 8)
+
+| Area (spec 20) | Status | Evidence |
+|---|---|---|
+| Auth: argon2id, HttpOnly/Secure/SameSite cookies, expiry, CSRF, all routes protected | ✅ | `tests/test_auth.py`, `tests/test_route_protection.py`, CSRF middleware tests |
+| Secrets only on the backend, encrypted at rest, never logged or returned | ✅ | provider/GitHub/MCP tests assert the token never appears in responses or the audit log |
+| Agent isolation: sandbox without network/root/caps, read-only, limits, no Docker socket | ✅ | `tests/test_sandbox_runner.py` against a real Docker daemon |
+| Prompt injection: external content fenced as data; permissions checked independently of model output; sensitive ops need approval; agents cannot raise their own privileges | ✅ | `tests/test_tool_policy.py`, `tests/test_tools_engine.py`, memory/attachment fence tests |
+| Audit log of runs, config changes, tool use, approvals, denials, file changes, integrations; owner can view it | ✅ | Settings → Audit log; `tests/test_tools_integrations.py::test_audit_log_api_pages_and_filters` |
+| Network: PostgreSQL/Redis internal only, app on 127.0.0.1 behind Tailscale Serve, no Funnel | ✅ (owner verifies on the server) | compose networks; `docs/deployment.md` checks |
+| Browser: CSP with nonces, no inline/eval scripts, framing denied, HSTS, nosniff, Referrer-Policy, COOP/CORP | ✅ | `e2e/tests/pwa.spec.ts` (also fails on any CSP violation in every E2E test) |
+| Service worker never caches API/WS | ✅ | `apps/web/public/sw.js`, `pwa.spec.ts` (`no-store` API) |
+| Backups: integrity checks, restore drill, owner-only files, off-disk warning | ✅ | `backup.sh`, `restore-check.sh`, `tests/test_storage.py`; manual end-to-end restore |
+| Dependencies | ✅ | npm prod: 0 known vulnerabilities; Python runtime: 0 (`pip-audit`); dev-only ESLint findings accepted |
+
+Residual risks (accepted, documented): the sandbox runner holds the Docker socket (root-equivalent; kept minimal); the home laptop is a single machine (power/disk loss → restore from off-disk backups); notifications with the app closed are not available (no Web Push).
+
 ## Open items
 
 | Item | Planned |
 |---|---|
-| Content-Security-Policy with nonces | Sprint 8 security review |
+| Content-Security-Policy with nonces | ✅ Sprint 8 |
 | Permission system, approvals, sandbox isolation | ✅ Sprint 7 |
 | UI for viewing the audit log | ✅ Sprint 7 (Settings → Audit log) |
 | Expired-session cleanup job | Sprint 3 (worker) |
 | Redis password | Not needed for sandbox containers (they have no network); revisit if anything new joins the internal network |
 | Sandbox network egress (e.g. for `pip install`) | Later, only through an allow-listing proxy |
-| Automated backups off the primary disk | Sprint 8 |
+| Automated backups off the primary disk | ✅ Sprint 8 (BACKUP_DIR must be set to another disk by the owner) |
+| Web Push for notifications with the app closed | Owner decision (third-party push services) |
 
 ## Reporting
 

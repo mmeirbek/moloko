@@ -134,3 +134,9 @@ terminal_run ─► RunnerSandbox (worker) ─HTTP+token─► sandbox runner �
 `app/tools/`: `base.py` (tool contract, categories, `args_hash`), `policy.py` (`authorize`), `registry.py` (catalog), `runner.py` (`ToolRunner`: records, approvals, execution, fencing), `mcp.py`, `builtin/` (files, terminal, web, github, memory). `app/sandbox/`: `base.py` (`Sandbox` interface), `client.py` (worker side), `runner.py` + `docker_api.py` (runner service). `app/workspaces/paths.py` (safe paths), `app/services/{approvals,tools,integrations,mcp,workspaces}.py`.
 Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (tools, sandbox, GitHub, MCP, workspaces), `features/tasks/tool-calls.tsx` (actions + workspace files on the task page), `features/agents/agent-tools-field.tsx`, `features/settings/audit-log.tsx`. The realtime store keeps approvals from the snapshot and `approval.*` events.
 
+## Stabilization (Sprint 8)
+
+- `apps/web/proxy.ts` — CSP nonce per request; `app/manifest.ts`, `public/sw.js`, `public/offline.html`, `public/icons/` — PWA; `features/notifications/` + `lib/notifications/rules.ts` — which events notify.
+- `backup` service: `infrastructure/backup/{loop,backup,restore-check}.sh`; `app/services/storage.py` reads its status (`/system/storage`) for Settings → Backups.
+- `e2e/` — Playwright suite; `infrastructure/scripts/e2e.sh` — throwaway stack (`-p moloko-e2e`, own port and volumes) + owner + tests.
+

@@ -10,6 +10,20 @@ plus every deviation from it. Newest last within each sprint. Format: date — d
 | 2026-10-31 | The product is named **moloko** (lowercase), not "shvluup". Applies to UI, code, packages, Docker, docs. The spec file keeps its name `shvluup-spec.md` so existing references still work; a note at its top records the rename. |
 | 2026-10-31 | Brand mark = the owner's pixel-art logo (cow in a meadow + "moloko" wordmark, navy background). The owner uploads the original PNG to `apps/web/public/brand/`; until then `components/brand/logo.tsx` draws a placeholder in the same palette. |
 
+## Open questions for the owner (⚠)
+
+Nothing below blocks the MVP; each is a choice the rules say only the owner makes.
+
+1. **Official GitHub MCP server** (`github/github-mcp-server`, MIT, active): connect it through the MCP Manager? Until then GitHub works through moloko's own REST tools.
+2. **Web Push** for notifications with the app fully closed: it goes through Apple/Google/Mozilla push services (payload encrypted). Enable?
+3. **Phaser 4**: `phaserjs/template-nextjs` moved to Phaser 4; the spec says Phaser 3, so moloko uses 3.90.0. Upgrade later?
+4. **Orchestrator → existing autonomous agents** (spec 14.1): today the Orchestrator creates subagents only. Build the hand-over to persistent agents?
+5. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
+6. **Subscription-based model access** (spec 26.1): still API keys only, as required.
+7. **Redis 8 license**: RSALv2/SSPLv1/AGPLv3 (we rely on AGPLv3, unmodified, internal only). Prefer Valkey (BSD)?
+8. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
+9. **Default branch** of the GitHub repository (`claude/vigilant-cray-26u902`) still holds the old project; this work is on `claude/pensive-bell-7okz27`. Merge/rename when you are ready.
+
 ## Sprint 1 — Infrastructure foundation
 
 | Date | Decision | Reason |
@@ -185,6 +199,24 @@ External repositories checked (only at this sprint, as instructed):
 | 2026-11-01 | Chat attachments (deferred from Sprint 2) are moved to Sprint 8. | Sprint 7 scope; they need upload limits and text extraction. |
 | 2026-11-01 | Pixel Office: the lounge has 23 spots (3 rows on the rug) and the waiting bench 13, so idle characters no longer stack on one tile and stay clickable. | Found by the office browser test once there were more than 7 idle agents. |
 
+## Sprint 8 — Stabilization & mobile
+
+No external repository is assigned to this sprint. New dependency: `@playwright/test` (dev, E2E).
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-11-01 | **CSP with a per-request nonce** (`apps/web/proxy.ts`, Next 16 proxy): `script-src 'self' 'nonce-…' 'strict-dynamic'` (no `unsafe-inline`, no `unsafe-eval` in production), `style-src 'self' 'nonce-…'`, `connect-src 'self'` + same-host `ws/wss`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri`/`form-action 'self'`. The proxy only sets headers (no redirects). Every page is rendered dynamically for the nonce. `upgrade-insecure-requests` is NOT set (it would break plain-HTTP access on the server itself). Caddy adds HSTS and CORP. | Spec 20; open item from Sprint 1. |
+| 2026-11-01 | **PWA**: manifest, icons generated from the pixel mark (`apps/web/scripts/make-icons.mjs`, no image library), service worker that caches only the app shell (hashed static files, icons, offline page) — **API and WebSocket traffic is never cached**. | Invariant 1: a stale copy of state must never look current. |
+| 2026-11-01 | **Notifications**: in-app toasts plus system notifications (service worker) while moloko is open, even in the background: approval needed, top-level task done or failed; per-device settings; replayed events older than 15 min are not announced. ⚠ **Web Push** (notifications with the app fully closed) is NOT built: it sends (encrypted) payloads through Apple/Google/Mozilla push services and needs VAPID keys — the owner should decide. | Privacy; spec 1.1 (no new external service without the owner). |
+| 2026-11-01 | **Backups**: a `backup` service (postgres image) — daily `pg_dump -Fc` + workspace archive, SHA-256 files, `pg_restore --list` / `gzip -t` checks, rotation (7 daily, 4 weekly), owner-only file permissions; **weekly restore drill** into a scratch database with row-count checks. `backup-now.sh [--check]`, `restore.sh` (asks for `RESTORE`). Settings → Backups warns: no/failed/old backup, failed drill, **backups on the same disk as the data**, low disk. A real restore was tested end to end (marker row created after the backup disappeared; app healthy). | Spec 21.3. |
+| 2026-11-01 | Backup files contain everything (chats, encrypted keys, password hashes) → `umask 077`; only `status.json` / `last-drill.json` are world-readable so the app can show status without reading dumps. `.env` is not in the backup: keep a copy of it separately (deployment docs). | Least privilege. |
+| 2026-11-01 | **Chat attachments**: UTF-8 text files only (≤ `CHAT_ATTACHMENT_MAX_BYTES`, 200 KB; ≤ 5 per message), stored in PostgreSQL (`attachments.text`) so the database stays the single source of truth and is in the backup; given to the model fenced as `<attachment … trust="untrusted">`. Images/PDF later. | Spec 19 (attach files); deferred from Sprint 2/7. |
+| 2026-11-01 | Bug fix: a chat message sent right after an answer finished could be lost — assistant-ui queued it while `onNew` was pending, or treated it as an "edit" after a refetch (our store has no edit handler). `onNew` now returns at once and `onEdit` sends a new message. Found by the new E2E suite. | Correctness. |
+| 2026-11-01 | Approval texts for built-in tools are localized in the UI (server text stays the fallback and is what is audited). | Russian UI. |
+| 2026-11-01 | **E2E suite in the repo** (`e2e/`, Playwright 1.63.0): chat (incl. attachments, second device), agents, office, orchestrator, tools + real sandbox, PWA/CSP headers, phone layout (no horizontal overflow on any section), **recovery** (restart backend + worker mid-task and while an approval waits), **performance** targets. `infrastructure/scripts/e2e.sh` runs it against a throwaway compose project (own ports and volumes); GitHub Actions workflow `E2E` (manual). | Spec 23, Sprint 8 tasks. |
+| 2026-11-01 | `WORKSPACES_VOLUME` (default `moloko_workspaces`) makes the workspace volume name configurable so a second stack (E2E) never shares a real one. | Isolation of test runs. |
+| 2026-11-01 | Dependency audit: npm production dependencies — 0 known vulnerabilities; 18 *moderate* findings only in dev tooling (ESLint's `minimatch`), not shipped. Python runtime (55 packages, `pip-audit`) — no known vulnerabilities. | Security review. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).
@@ -246,6 +278,9 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | httpx2 | 2.16.0 (now a direct dependency) | BSD-3-Clause | GitHub, web fetch, sandbox runner, Docker API clients | 7 | 2026-11-01 |
 | jsonschema | 4.26.0 (moved from dev to runtime) | MIT | Validating tool arguments | 7 | 2026-11-01 |
 | sse-starlette / python-multipart / pyjwt / opentelemetry-api (via mcp) | 3.6.0 / 0.0.33 / 2.15.1 / 1.45.2 | BSD-3-Clause / Apache-2.0 / MIT / Apache-2.0 | MCP SDK dependencies | 7 | 2026-11-01 |
+| **Sprint 8** | | | | | |
+| @playwright/test (dev) | 1.63.0 | Apache-2.0 | E2E browser tests | 8 | 2026-11-01 |
+| python-multipart | 0.0.33 (now a direct dependency) | Apache-2.0 | File uploads (chat attachments) | 8 | 2026-11-01 |
 | **Optional, not bundled** | | | | | |
 | SearXNG (separate service, if the owner runs it) | — | AGPL-3.0 (service, not linked) | web_search back-end | 7 | 2026-11-01 |
 | **Container images** | | | | | |

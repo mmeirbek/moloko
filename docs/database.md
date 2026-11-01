@@ -107,3 +107,7 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - **`approvals`** — `agent_id, task_id, run_id, tool_call_id → tool_calls, tool_name, category, args (preview), args_hash, summary, resources jsonb, consequences, reason, status (pending|approved|rejected|expired|cancelled), expires_at, resolved_at, used_at`.
 - `agents.workspace_id` → `workspaces` (project workspace, SET NULL).
 
+## Tables (revision 0007 — Sprint 8)
+
+- **`attachments`** — `user_id, conversation_id → conversations (cascade), message_id? → messages (cascade; NULL until sent), filename, content_type, size, sha256, text, created_at, updated_at`. Text files only; the content lives in PostgreSQL (and therefore in backups).
+

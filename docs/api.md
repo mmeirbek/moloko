@@ -32,6 +32,7 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 422 | `invalid_memory` / `memory_too_long` | Memory scope rules broken / entry longer than `MEMORY_ENTRY_MAX_CHARS` |
 | 409 | `approval_not_pending` | The approval was already answered or expired |
 | 422 | `unknown_tool` / `invalid_path` / `category_fixed` | Unknown tool name; workspace path outside the workspace; category of a built-in tool |
+| 422 | `invalid_attachment` / `attachment_too_large` | Not a UTF-8 text file / larger than `CHAT_ATTACHMENT_MAX_BYTES` |
 | 429 | `too_many_attempts` | Login locked out; see `Retry-After` |
 | 500 | `internal_error` | Unexpected bug (details only in server log) |
 | 503 | `database_unavailable` / `redis_unavailable` | A dependency is down; see `Retry-After` |
@@ -163,4 +164,12 @@ Plan format and limits: see `docs/decisions.md` (Sprint 4). Subtasks are tasks w
 | POST / PATCH | `/agents` · `/agents/{id}` | now also `allowed_tools` (validated), `tool_overrides {name: approve\|deny}`, `workspace_id` |
 
 Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.message` with `kind: "tool_call"` for each finished call.
+
+## Endpoints — Sprint 8
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/chats/{id}/attachments` | multipart `file` (UTF-8 text) → `{id, filename, content_type, size, created_at}` |
+| POST | `/chats/{id}/messages` | now also `attachment_ids[]` (≤ 5, uploaded to this chat, not yet sent); messages carry `attachments[]` |
+| GET | `/system/storage` | `{backups: {configured, last, age_hours, drill, files[], same_disk_as_data}, disks[], warnings[]}` |
 

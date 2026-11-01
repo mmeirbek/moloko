@@ -22,5 +22,9 @@ test("PWA and security headers", async ({ page, request }) => {
   // API responses are never cached (state lives on the server).
   expect((await request.get("/api/v1/health")).headers()["cache-control"]).toContain("no-store");
   expect((await request.get("/offline.html")).ok()).toBe(true);
+
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Резервные копии" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Уведомления" })).toBeVisible();
   expect(errors).toEqual([]);
 });

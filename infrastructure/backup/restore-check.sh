@@ -12,6 +12,7 @@ result() {
   printf '{"ok": %s, "at": "%s", "dump": "%s", "detail": "%s"}\n' "$1" "$(date -u +%FT%TZ)" "$(basename "${DUMP:-none}")" "$2" \
     > "$ROOT/last-drill.json.tmp"
   mv "$ROOT/last-drill.json.tmp" "$ROOT/last-drill.json"
+  chmod 644 "$ROOT/last-drill.json"
 }
 
 [ -n "$DUMP" ] || { result false "no backup to test"; exit 1; }

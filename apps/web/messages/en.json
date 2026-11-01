@@ -702,5 +702,28 @@
       "unsupported": "This browser does not support notifications.",
       "closedNote": "Notifications arrive while moloko is open (even in the background). Notifications with the app fully closed need Web Push — not enabled yet."
     }
+  },
+  "backups": {
+    "title": "Backups",
+    "description": "A daily copy of the database and agents' files, a weekly restore check.",
+    "last": "Last backup",
+    "drill": "Restore check",
+    "copies": "Database copies",
+    "disk": "Free: {path}",
+    "free": "{free} ({percent}%)",
+    "ok": "ok",
+    "failed": "failed",
+    "drillOk": "restore works",
+    "noDrill": "not run yet (on Sundays)",
+    "howto": "Back up now: infrastructure/scripts/backup-now.sh --check. Restoring: docs/deployment.md, section on backups.",
+    "warnings": {
+      "not_configured": "No backup folder is mounted (BACKUP_DIR).",
+      "no_backup_yet": "No backup yet — the first one runs soon.",
+      "last_backup_failed": "The last backup failed. See docker compose logs backup.",
+      "backup_too_old": "The last backup is older than a day and a half.",
+      "restore_drill_failed": "The restore check failed — backups may be unusable.",
+      "same_disk": "Backups are on the same disk as the data. That is no protection: mount another disk (BACKUP_DIR).",
+      "low_disk": "Low free disk space."
+    }
   }
 }

@@ -46,5 +46,6 @@ export E2E_USERNAME=owner E2E_PASSWORD="e2e owner password 123"
 printf '%s\n' "$E2E_PASSWORD" | compose exec -T backend python -m app.cli create-owner \
   --username "$E2E_USERNAME" --display-name Owner --password-stdin
 
+export E2E_COMPOSE="docker compose -p $PROJECT --env-file $ENV_FILE"  # recovery tests restart services
 cd e2e
 E2E_BASE_URL="http://127.0.0.1:$PORT" npx playwright test "$@"

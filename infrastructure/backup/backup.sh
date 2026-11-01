@@ -7,15 +7,18 @@
 #   /backups/status.json                                   last run, read by the app
 set -eu
 
+umask 077  # dumps hold everything (chats, encrypted keys, password hashes): owner-only
 ROOT=/backups
 KEEP_DAILY="${BACKUP_KEEP_DAILY:-7}"
 KEEP_WEEKLY="${BACKUP_KEEP_WEEKLY:-4}"
 TS="$(date -u +%Y%m%d-%H%M%S)"
 mkdir -p "$ROOT/daily" "$ROOT/weekly"
+chmod 755 "$ROOT" "$ROOT/daily" "$ROOT/weekly"  # the app may list them (status card), not read dumps
 
 fail() {
   printf '{"ok": false, "at": "%s", "error": "%s"}\n' "$(date -u +%FT%TZ)" "$1" > "$ROOT/status.json.tmp"
   mv "$ROOT/status.json.tmp" "$ROOT/status.json"
+  chmod 644 "$ROOT/status.json"
   echo "backup failed: $1" >&2
   exit 1
 }
@@ -55,4 +58,5 @@ printf '{"ok": true, "at": "%s", "database": "%s", "database_bytes": %s, "files"
   "$(date -u +%FT%TZ)" "$(basename "$DUMP")" "$DUMP_SIZE" "$( [ -f "$FILES" ] && basename "$FILES")" "$FILES_SIZE" \
   > "$ROOT/status.json.tmp"
 mv "$ROOT/status.json.tmp" "$ROOT/status.json"
+chmod 644 "$ROOT/status.json"
 echo "backup ok: $DUMP ($DUMP_SIZE bytes)"

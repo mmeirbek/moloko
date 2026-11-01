@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { BackupsSection } from "@/features/settings/backups-section";
 import { MemorySection } from "@/features/settings/memory-section";
 import { NotificationsSection } from "@/features/settings/notifications-section";
 import { ProvidersSection } from "@/features/settings/providers-section";
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
         <ProvidersSection />
         <MemorySection />
         <NotificationsSection />
+        <BackupsSection />
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href="/settings/audit">{t("auditLink")}</Link>
