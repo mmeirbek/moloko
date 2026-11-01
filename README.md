@@ -42,7 +42,7 @@
 [`docs/deployment.md`](docs/deployment.md).
 
 ```bash
-git clone https://github.com/mmeirbek/moloko.git && cd moloko
+git clone -b main https://github.com/mmeirbek/moloko.git && cd moloko
 infrastructure/scripts/init-env.sh
 docker compose up -d --build
 docker compose exec backend python -m app.cli create-owner --username <имя>
@@ -110,6 +110,8 @@ docs/                архитектура, API, БД, безопасность
 
 ## Логотип
 
-Логотип — пиксельная корова и надпись «moloko» на тёмно-синем фоне. Пока в интерфейсе
-стоит заглушка в той же палитре. Оригинал нужно положить в `apps/web/public/brand/logo.png`,
-после этого заглушка в `apps/web/components/brand/logo.tsx` заменяется на него.
+Логотип — пиксельная корова на лугу и надпись «moloko». Он перерисован пиксель-артом 32×32
+в `apps/web/features/mascot/cow-art.json` (ключ `logo`); из того же рисунка собираются
+favicon и иконки PWA (`apps/web/scripts/make-icons.mjs`). Если захотите оригинальный PNG,
+положите его в `apps/web/public/brand/` и замените `LogoMark` в
+`apps/web/components/brand/logo.tsx` на `<img>`.
