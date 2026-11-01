@@ -8,12 +8,14 @@ import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
 
-// Pixelify Sans — SIL Open Font License 1.1 (app/fonts/PixelifySans-OFL.txt), self-hosted.
-const pixelify = localFont({
-  src: "./fonts/PixelifySans-wght.ttf",
-  variable: "--font-pixelify",
-  weight: "400 700",
+// Tiny5 — SIL Open Font License 1.1 (app/fonts/Tiny5-OFL.txt), self-hosted,
+// subset to Latin + Russian (pyftsubset). One weight: headings never get a fake bold.
+const headingFont = localFont({
+  src: "./fonts/Tiny5-subset.woff2",
+  variable: "--font-heading",
+  weight: "400",
   display: "swap",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -40,7 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const locale = await getLocale();
   const nonce = (await headers()).get("x-nonce") ?? undefined; // set by proxy.ts (CSP)
   return (
-    <html lang={locale} className={pixelify.variable} suppressHydrationWarning>
+    <html lang={locale} className={headingFont.variable} suppressHydrationWarning>
       <body className="min-h-dvh">
         <NextIntlClientProvider>
           <Providers nonce={nonce}>{children}</Providers>
