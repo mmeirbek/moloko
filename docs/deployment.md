@@ -1,7 +1,8 @@
 # Развёртывание на домашнем сервере
 
-Инструкция для Ubuntu Server (Huawei MateBook D16). Приложение доступно **только** внутри
-вашей сети Tailscale по HTTPS. В локальную сеть и в интернет ничего не открывается.
+Инструкция для Ubuntu Server и **Manjaro / Arch Linux** (шаг 1 отличается, дальше всё одинаково).
+Приложение доступно **только** внутри вашей сети Tailscale по HTTPS. В локальную сеть и в интернет
+ничего не открывается.
 
 ```
 телефон / ноутбуки ──(Tailscale, HTTPS)──► tailscale serve ──► 127.0.0.1:8080 (Caddy) ──► приложение
@@ -26,6 +27,32 @@
    ```bash
    sudo systemctl restart systemd-logind
    ```
+
+### 1a. Manjaro / Arch Linux вместо шагов 1–2 выше
+
+```bash
+sudo pacman -Syu --needed docker docker-compose docker-buildx git openssh tailscale
+sudo systemctl enable --now docker tailscaled sshd
+sudo usermod -aG docker "$USER"         # docker без sudo (после повторного входа)
+sudo tailscale up                       # если сервер ещё не в tailnet
+sudo tailscale set --operator="$USER"   # tailscale serve без sudo
+```
+
+`pacman -Syu` обновляет всю систему — на Manjaro пакеты ставят только так. У группы `docker`
+на Arch нет постоянного номера: `init-env.sh` берёт его у `/var/run/docker.sock`, поэтому запускайте
+его **после** установки Docker. Брандмауэр настраивать не нужно: Caddy слушает только `127.0.0.1`.
+
+**Ноутбук как сервер** (не засыпать с закрытой крышкой и от бездействия — KDE/GNOME усыпляют по таймеру):
+
+```bash
+sudo mkdir -p /etc/systemd/logind.conf.d
+printf '[Login]\nHandleLidSwitch=ignore\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' \
+  | sudo tee /etc/systemd/logind.conf.d/moloko-server.conf
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+sudo reboot
+```
+
+Вернуть сон: `sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target`.
 
 ## 2. Установка moloko
 
