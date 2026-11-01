@@ -40,3 +40,28 @@ class AuditLogRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def page(
+        self,
+        *,
+        user_id: object,
+        action_prefix: str | None,
+        outcome: str | None,
+        before: tuple[datetime, object] | None,
+        limit: int,
+    ) -> list[AuditLog]:
+        """Newest first. Anonymous entries (failed logins) belong to the owner's view too."""
+        from sqlalchemy import or_, tuple_
+
+        query = select(AuditLog).where(or_(AuditLog.user_id == user_id, AuditLog.user_id.is_(None)))
+        if action_prefix:
+            escaped = action_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            query = query.where(AuditLog.action.like(escaped + "%"))
+        if outcome:
+            query = query.where(AuditLog.outcome == outcome)
+        if before is not None:
+            query = query.where(tuple_(AuditLog.created_at, AuditLog.id) < tuple_(*before))
+        rows = await self.db.execute(
+            query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(limit)
+        )
+        return list(rows.scalars())

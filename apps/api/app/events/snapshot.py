@@ -13,6 +13,7 @@ from app.agents.state import ACTIVE_TASK
 from app.models.agent import Agent, AgentRun
 from app.models.event import AgentEvent
 from app.models.task import Task
+from app.services.approvals import payloads, pending_for_user
 
 RECENT_FINISHED = 50
 
@@ -71,5 +72,5 @@ async def build_snapshot(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]
         "agents": [agent_payload(a) for a in agents],
         "tasks": [task_payload(t) for t in [*active, *recent]],
         "runs": [run_payload(r) for r in runs],
-        "approvals": [],  # Sprint 7
+        "approvals": await payloads(db, await pending_for_user(db, user_id)),
     }

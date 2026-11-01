@@ -34,6 +34,7 @@ from app.models.event import AgentEvent
 from app.models.task import Task
 from app.schemas.common import decode_cursor, encode_cursor
 from app.schemas.tasks import TaskCreate, TaskFilter, TaskUpdate
+from app.services.approvals import cancel_pending_for_task
 from app.services.audit import AuditService
 from app.services.system import ensure_engine_running
 from app.tasks.queue import TaskEnqueuer
@@ -272,6 +273,7 @@ class TaskService:
                 await self._cancel_tree(await lock_task(self.db, child.id), "parent_cancelled")
         run = await self.run_of(task)
         await set_task_status(self.db, task, TaskStatus.CANCELLED, reason=reason, run=run)
+        await cancel_pending_for_task(self.db, task.id)
         if task.agent_id:
             agent = await lock_agent(self.db, task.agent_id)
             if agent.current_task_id == task.id:

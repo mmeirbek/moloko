@@ -11,6 +11,9 @@ dependencies = [
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
     "fastapi>=0.162.0",
+    "httpx2>=2.16.0",
+    "jsonschema>=4.26.0",
+    "mcp>=2.3.0",
     "openai>=3.42.0",
     "pydantic>=2.14.2",
     "pydantic-settings>=2.16.2",
@@ -22,7 +25,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
-    "jsonschema>=4.26.0",
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1",

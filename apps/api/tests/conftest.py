@@ -87,7 +87,8 @@ async def clean_tables(migrated_database: None) -> AsyncIterator[None]:
         # TRUNCATE bypasses the row-level append-only trigger on audit_logs.
         await conn.execute(
             text(
-                "TRUNCATE memory_revisions, memories, agent_messages, agent_events,"
+                "TRUNCATE approvals, tool_calls, workspace_files, workspaces, tools, mcp_servers,"
+                " integrations, memory_revisions, memories, agent_messages, agent_events,"
                 " idempotency_keys, system_settings, tasks, agent_runs, agents, messages,"
                 " conversations, model_configs, model_providers, sessions, users, audit_logs"
                 " CASCADE"

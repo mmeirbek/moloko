@@ -60,7 +60,7 @@ async def create_subagent(
         # ⟨T⟩: never a tool its orchestrator lacks (no privilege escalation).
         allowed_tools=[t for t in dict.fromkeys(spec.tools) if t in parent.allowed_tools],
         autonomy_level=parent.autonomy_level,
-        permissions={},
+        permissions=dict(parent.permissions or {}),  # per-tool overrides are inherited
         status=AgentStatus.IDLE.value,
         parent_agent_id=parent.id,
         run_id=root_run,

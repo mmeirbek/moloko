@@ -8,7 +8,14 @@ PROTOCOL_SYNTHESIS = "[protocol: moloko-synthesis/v1]"
 PROTOCOL_REVIEW = "[protocol: moloko-review/v1]"
 
 
-def planning_system(*, max_subtasks: int, max_active: int, can_delegate: bool) -> str:
+def planning_system(
+    *, max_subtasks: int, max_active: int, can_delegate: bool, tools: tuple[str, ...] = ()
+) -> str:
+    tools_line = (
+        '- "tools" may only name these (give each subagent only what it needs): ' + ", ".join(tools)
+        if tools
+        else '- "tools" must be [] (no tools are available).'
+    )
     delegate_line = (
         '- "delegate": true lets a subagent plan and split its own work further (use rarely).'
         if can_delegate
@@ -32,6 +39,7 @@ Rules:
 - at most {max_subtasks} subtasks; at most {max_active} run at the same time;
 - "key" is a short slug; "depends_on" lists keys whose results this subtask needs;
 - "instructions" must be self-contained: the subagent sees only them, the task and its inputs;
+{tools_line}
 {delegate_line}
 - set "review": true when a reviewer should check the combined result."""
 

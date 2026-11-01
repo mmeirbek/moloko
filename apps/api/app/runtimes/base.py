@@ -18,6 +18,7 @@ from app.providers.gateway import ModelGateway
 
 if TYPE_CHECKING:
     from app.agents.control import RunControl
+    from app.sandbox.base import Sandbox
 
 
 @dataclass
@@ -31,6 +32,7 @@ class RunContext:
     gateway: ModelGateway
     settings: Settings
     control: RunControl
+    sandbox: Sandbox | None = None  # code execution (spec 16); None = not configured
 
 
 class AgentRuntime(Protocol):

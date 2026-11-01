@@ -59,3 +59,9 @@ class SecretBox:
 def secret_hint(secret: str) -> str:
     """What the UI may show about a stored secret: its last 4 characters."""
     return f"…{secret[-4:]}" if len(secret) >= 8 else "…"
+
+
+def secret_box(settings: object) -> SecretBox:
+    """The box for secrets stored by integrations (same key as provider keys)."""
+    key = getattr(settings, "app_encryption_key", None)
+    return SecretBox(key.get_secret_value() if key else None)

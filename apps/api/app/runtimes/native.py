@@ -45,6 +45,8 @@ from app.providers.base import (
 )
 from app.providers.gateway import ModelTarget, estimate_cost
 from app.runtimes.base import RunContext
+from app.tools.registry import specs_for
+from app.tools.runner import AwaitingApproval, ToolRunner
 
 logger = logging.getLogger("moloko.runtime")
 
@@ -59,6 +61,8 @@ class RunSetup:
     target: ModelTarget
     extra_system: str
     memory: str  # saved memory, fenced as data ("" when none / disabled)
+    tools: tuple[ToolSpec, ...]  # what the model may call (each call is authorized again)
+    runner: ToolRunner
     steps: int
     max_steps: int
     remaining: float
@@ -126,6 +130,13 @@ def system_prompt(agent: Agent, extra: str = "", memory: str = "") -> str:
     return "\n\n".join(p for p in parts if p)
 
 
+def pending_tool_calls(transcript: list[ChatMessage]) -> tuple[ToolCall, ...]:
+    """Tool calls of the last assistant message that have no results yet."""
+    if transcript and transcript[-1].role == "assistant" and transcript[-1].tool_calls:
+        return transcript[-1].tool_calls
+    return ()
+
+
 def effective_limit(agent_value: Any, global_value: int) -> int:
     """Per-agent limits may only be stricter than the global ones."""
     try:
@@ -140,27 +151,11 @@ class NativeRuntime:
     async def cancel(self, run_id: uuid.UUID) -> None:  # cooperative: see RunControl
         return None
 
-    # Subclasses (orchestrator, tools) extend these hooks.
-    def tools(self, agent: Agent) -> tuple[ToolSpec, ...]:
-        return ()
-
+    # Subclasses (orchestrator, subagent) extend this hook.
     async def extra_system(
         self, ctx: RunContext, db: AsyncSession, agent: Agent, task: Task
     ) -> str:
         return ""
-
-    async def handle_tool_calls(
-        self, ctx: RunContext, calls: tuple[ToolCall, ...]
-    ) -> list[ChatMessage]:
-        return [
-            ChatMessage(
-                role="tool",
-                tool_call_id=c.id,
-                content=f"Tool '{c.name}' is not available.",
-                is_error=True,
-            )
-            for c in calls
-        ]
 
     async def start(self, ctx: RunContext) -> None:
         """Run the body and map every failure to an honest final state."""
@@ -171,6 +166,11 @@ class NativeRuntime:
             logger.info(
                 "run_interrupted",
                 extra={"run_id": str(ctx.run_id), "signal": interrupted.signal.value},
+            )
+        except AwaitingApproval as waiting:  # the task is waiting_approval; the owner decides
+            logger.info(
+                "run_awaits_approval",
+                extra={"run_id": str(ctx.run_id), "approval_id": str(waiting.approval_id)},
             )
         except asyncio.CancelledError:
             await asyncio.shield(self._requeue_on_shutdown(ctx))
@@ -199,6 +199,8 @@ class NativeRuntime:
             target = await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
             extra = await self.extra_system(ctx, db, agent, task)
             memory = (await build_memory_context(db, agent, ctx.settings)).text
+        runner = ToolRunner(ctx, agent)
+        tools = specs_for(agent, await runner.entries())
         timeout = effective_limit(
             agent.limits.get("run_timeout_seconds"), ctx.settings.run_timeout_seconds
         )
@@ -212,6 +214,8 @@ class NativeRuntime:
             target=target,
             extra_system=extra,
             memory=memory,
+            tools=tools,
+            runner=runner,
             steps=run.steps,
             max_steps=effective_limit(
                 agent.limits.get("max_steps"), ctx.settings.max_steps_per_run
@@ -232,7 +236,8 @@ class NativeRuntime:
                 setup.target,
                 system,
                 transcript,
-                self.tools(setup.agent),
+                setup.tools,
+                setup.runner,
                 setup.steps,
                 setup.max_steps,
                 setup.elapsed,
@@ -247,6 +252,7 @@ class NativeRuntime:
         system: str,
         transcript: list[ChatMessage],
         tools: tuple[ToolSpec, ...],
+        runner: ToolRunner,
         steps: int,
         max_steps: int,
         elapsed: float,
@@ -254,6 +260,14 @@ class NativeRuntime:
     ) -> str:
         while True:
             await ctx.control.check()
+            pending = pending_tool_calls(transcript)
+            if pending:
+                await self._ensure_working(ctx)
+                transcript.extend(await runner.process(pending, steps))
+                await self._save_transcript(
+                    ctx, transcript, elapsed + time.monotonic() - segment_started
+                )
+                continue
             if steps >= max_steps:
                 raise LimitExceeded(
                     "max_steps_exceeded", f"The agent used all {max_steps} steps without finishing."
@@ -271,13 +285,25 @@ class NativeRuntime:
             transcript.append(
                 ChatMessage(role="assistant", content=result.text, tool_calls=result.tool_calls)
             )
-            if result.tool_calls:
-                transcript.extend(await self.handle_tool_calls(ctx, result.tool_calls))
+            # Checkpoint the request for tools first; the calls run on the next turn of the
+            # loop, so a restart in between resumes them (each call runs at most once).
             await self._checkpoint(
                 ctx, target, transcript, steps, result, elapsed + time.monotonic() - segment_started
             )
             if not result.tool_calls:
                 return result.text
+
+    async def _save_transcript(
+        self, ctx: RunContext, transcript: list[ChatMessage], elapsed: float
+    ) -> None:
+        async with ctx.sessionmaker() as db:
+            run = await lock_run(db, ctx.run_id)
+            run.state = {
+                **run.state,
+                "messages": dump_messages(transcript),
+                "elapsed_seconds": elapsed,
+            }
+            await bus.commit(db)
 
     async def _ensure_working(self, ctx: RunContext) -> None:
         async with ctx.sessionmaker() as db:

@@ -40,6 +40,10 @@ class Agent(UUIDPrimaryKey, Timestamps, Base):
     limits: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
     memory_settings: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
     runtime: Mapped[str] = mapped_column(String(32), server_default="native")
+    # A project workspace shared by this agent's tasks; NULL = a new workspace per task.
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL")
+    )
     config_version: Mapped[int] = mapped_column(Integer, server_default="1")
     archived_at: Mapped[datetime | None]
 

@@ -39,6 +39,12 @@ x-backend-env: &backend-env
   MAX_RETRIES_PER_STEP: ${MAX_RETRIES_PER_STEP:-2}
   MAX_PARALLEL_TOOL_CALLS: ${MAX_PARALLEL_TOOL_CALLS:-3}
   APPROVAL_TTL_MINUTES: ${APPROVAL_TTL_MINUTES:-60}
+  # Tools (spec 15/16). The worker reaches the sandbox runner on the internal network.
+  SANDBOX_URL: http://sandbox:8090
+  SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-}
+  SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-60}
+  SEARXNG_URL: ${SEARXNG_URL:-}
+  WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-14}
   MEMORY_CONTEXT_MAX_CHARS: ${MEMORY_CONTEXT_MAX_CHARS:-8000}
   MEMORY_ENTRY_MAX_CHARS: ${MEMORY_ENTRY_MAX_CHARS:-4000}
   # The backend is reachable only from Caddy on the Docker network.
@@ -102,6 +108,8 @@ services:
     environment:
       <<: *backend-env
       RUN_MIGRATIONS: "true"
+    volumes:
+      - workspaces:/data/workspaces  # read by the owner's workspace browser
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
     networks: [internal, edge]
     healthcheck:
@@ -134,6 +142,8 @@ services:
     environment:
       <<: *backend-env
       RUN_MIGRATIONS: "false"
+    volumes:
+      - workspaces:/data/workspaces  # file tools work here
     # Needs PostgreSQL/Redis (internal) and AI providers (edge). No published ports.
     networks: [internal, edge]
     healthcheck:
@@ -144,6 +154,44 @@ services:
       start_period: 40s
     # Running agents checkpoint and re-queue themselves on SIGTERM.
     stop_grace_period: 30s
+    logging: *logging
+
+  # The ONLY service with the Docker socket. It runs each agent command in a fresh,
+  # locked-down container (no network, non-root, read-only root, limits) with just that
+  # task's workspace mounted (docs/security.md). It has no database or app secrets.
+  sandbox:
+    image: moloko-backend:local  # same image, different program
+    entrypoint: []
+    command: ["uvicorn", "app.sandbox.runner:app", "--factory", "--host", "0.0.0.0",
+              "--port", "8090", "--no-server-header"]
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    group_add: ["${DOCKER_GID:-999}"]  # the host's docker group (init-env.sh detects it)
+    environment:
+      SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-}
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-python:3.12.16-slim}
+      SANDBOX_CPUS: ${SANDBOX_CPUS:-1}
+      SANDBOX_MEMORY_MB: ${SANDBOX_MEMORY_MB:-512}
+      SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-128}
+      SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-60}
+      SANDBOX_WORKSPACES_VOLUME: moloko_workspaces
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [internal]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/v1/health', timeout=4)"
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 15s
     logging: *logging
 
   frontend:
@@ -194,6 +242,8 @@ networks:
   edge: {}
 
 volumes:
+  workspaces:
+    name: moloko_workspaces  # fixed name: the sandbox runner mounts subpaths of it
   postgres-data:
   redis-data:
   caddy-data:

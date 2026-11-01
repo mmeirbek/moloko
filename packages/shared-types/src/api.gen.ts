@@ -126,6 +126,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Approvals */
+        get: operations["list_approvals_api_v1_approvals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{approval_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Approval */
+        get: operations["get_approval_api_v1_approvals__approval_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{approval_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve this ONE operation */
+        post: operations["approve_api_v1_approvals__approval_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{approval_id}/cancel-task": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject and cancel the task */
+        post: operations["cancel_task_api_v1_approvals__approval_id__cancel_task_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{approval_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject */
+        post: operations["reject_api_v1_approvals__approval_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The audit journal (newest first) */
+        get: operations["audit_log_api_v1_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/csrf": {
         parameters: {
             query?: never;
@@ -362,6 +464,111 @@ export interface paths {
         get: operations["live_api_v1_health_live_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Github */
+        get: operations["get_github_api_v1_integrations_github_get"];
+        /** Set token / allowed repositories */
+        put: operations["put_github_api_v1_integrations_github_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/github/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Github */
+        post: operations["test_github_api_v1_integrations_github_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Integrations Status */
+        get: operations["integrations_status_api_v1_integrations_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mcp */
+        get: operations["list_mcp_api_v1_mcp_servers_get"];
+        put?: never;
+        /** Add a server (its tools start disabled) */
+        post: operations["add_mcp_api_v1_mcp_servers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp-servers/{server_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Mcp */
+        delete: operations["delete_mcp_api_v1_mcp_servers__server_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Mcp */
+        patch: operations["update_mcp_api_v1_mcp_servers__server_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/mcp-servers/{server_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconnect and list tools */
+        post: operations["refresh_mcp_api_v1_mcp_servers__server_id__refresh_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -733,6 +940,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/tool-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Commands run, files changed, errors and results of a task */
+        get: operations["task_tool_calls_api_v1_tasks__task_id__tool_calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task Workspace */
+        get: operations["task_workspace_api_v1_tasks__task_id__workspace_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tools */
+        get: operations["list_tools_api_v1_tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Tool */
+        patch: operations["update_tool_api_v1_tools__name__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Workspaces */
+        get: operations["list_workspaces_api_v1_workspaces_get"];
+        put?: never;
+        /** Create a project workspace */
+        post: operations["create_workspace_api_v1_workspaces_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace File */
+        get: operations["workspace_file_api_v1_workspaces__workspace_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace Files */
+        get: operations["workspace_files_api_v1_workspaces__workspace_id__files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -763,6 +1090,12 @@ export interface components {
              * @default
              */
             system_prompt?: string;
+            /** Tool Overrides */
+            tool_overrides?: {
+                [key: string]: "approve" | "deny";
+            };
+            /** Workspace Id */
+            workspace_id?: string | null;
         };
         /** AgentLimits */
         AgentLimits: {
@@ -872,6 +1205,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Workspace Id */
+            workspace_id: string | null;
         };
         /** AgentRunRequest */
         AgentRunRequest: {
@@ -907,6 +1242,100 @@ export interface components {
             specialization?: string | null;
             /** System Prompt */
             system_prompt?: string | null;
+            /** Tool Overrides */
+            tool_overrides?: {
+                [key: string]: "approve" | "deny";
+            } | null;
+            /** Workspace Id */
+            workspace_id?: string | null;
+        };
+        /** ApprovalOut */
+        ApprovalOut: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string | null;
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Category */
+            category: string;
+            /** Consequences */
+            consequences: string;
+            /** Created At */
+            created_at: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Resources */
+            resources: string[];
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Task Id
+             * Format: uuid
+             */
+            task_id: string;
+            /** Tool Name */
+            tool_name: string;
+        };
+        /** AuditOut */
+        AuditOut: {
+            /** Action */
+            action: string;
+            /** Actor Id */
+            actor_id: string | null;
+            /** Actor Type */
+            actor_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Details */
+            details: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Outcome */
+            outcome: string;
+            /** Resource Id */
+            resource_id: string | null;
+            /** Resource Type */
+            resource_type: string | null;
+        };
+        /** AuditPage */
+        AuditPage: {
+            /** Items */
+            items: components["schemas"]["AuditOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * AutonomyLevel
@@ -1014,6 +1443,39 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** GitHubIntegrationOut */
+        GitHubIntegrationOut: {
+            /** Allowed Repos */
+            allowed_repos: string[];
+            /** Connected */
+            connected: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Last Checked At */
+            last_checked_at: string | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Login */
+            login: string | null;
+            /** Status */
+            status: string;
+            /** Token Hint */
+            token_hint: string | null;
+        };
+        /** GitHubIntegrationUpdate */
+        GitHubIntegrationUpdate: {
+            /** Allowed Repos */
+            allowed_repos?: string[] | null;
+            /**
+             * Clear Token
+             * @default false
+             */
+            clear_token?: boolean;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Token */
+            token?: string | null;
+        };
         /** HandoffRequest */
         HandoffRequest: {
             /** Content */
@@ -1043,6 +1505,13 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** IntegrationsStatus */
+        IntegrationsStatus: {
+            github: components["schemas"]["GitHubIntegrationOut"];
+            sandbox: components["schemas"]["SandboxStatus"];
+            /** Web Search */
+            web_search: boolean;
+        };
         /** LivenessResponse */
         LivenessResponse: {
             /**
@@ -1057,6 +1526,61 @@ export interface components {
             password: string;
             /** Username */
             username: string;
+        };
+        /** McpServerCreate */
+        McpServerCreate: {
+            /** Name */
+            name: string;
+            /** Token */
+            token?: string | null;
+            /** Url */
+            url: string;
+        };
+        /** McpServerOut */
+        McpServerOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Has Token */
+            has_token: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Checked At */
+            last_checked_at: string | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Name */
+            name: string;
+            /** Server Info */
+            server_info: {
+                [key: string]: unknown;
+            };
+            /** Slug */
+            slug: string;
+            /** Status */
+            status: string;
+            /** Tools */
+            tools: components["schemas"]["ToolOut"][];
+            /** Url */
+            url: string;
+        };
+        /** McpServerUpdate */
+        McpServerUpdate: {
+            /**
+             * Clear Token
+             * @default false
+             */
+            clear_token?: boolean;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Token */
+            token?: string | null;
+            /** Url */
+            url?: string | null;
         };
         /** MeResponse */
         MeResponse: {
@@ -1485,6 +2009,23 @@ export interface components {
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
         };
+        /** SandboxStatus */
+        SandboxStatus: {
+            /** Allowed Commands */
+            allowed_commands: string[];
+            /** Configured */
+            configured: boolean;
+            /** Image */
+            image: string | null;
+            /** Limits */
+            limits: {
+                [key: string]: unknown;
+            };
+            /** Network */
+            network: string;
+            /** Ok */
+            ok: boolean;
+        };
         /** SessionOut */
         SessionOut: {
             /**
@@ -1650,6 +2191,98 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** ToolCallOut */
+        ToolCallOut: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /** Approval Id */
+            approval_id: string | null;
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Category */
+            category: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decision */
+            decision: string | null;
+            /** Decision Reason */
+            decision_reason: string | null;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Error */
+            is_error: boolean;
+            /** Result */
+            result: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /** Step */
+            step: number;
+            /**
+             * Task Id
+             * Format: uuid
+             */
+            task_id: string;
+            /** Tool Name */
+            tool_name: string;
+        };
+        /**
+         * ToolCategory
+         * @enum {string}
+         */
+        ToolCategory: "read" | "write" | "sensitive";
+        /** ToolOut */
+        ToolOut: {
+            /** Available */
+            available: boolean;
+            /** Category */
+            category: string;
+            /** Description */
+            description: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Group */
+            group: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Server Id */
+            server_id?: string | null;
+            /** Server Name */
+            server_name?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "builtin" | "mcp";
+            /** Title */
+            title: string;
+        };
+        /** ToolUpdate */
+        ToolUpdate: {
+            category?: components["schemas"]["ToolCategory"] | null;
+            /** Enabled */
+            enabled?: boolean | null;
+        };
         /** UserOut */
         UserOut: {
             /** Display Name */
@@ -1661,6 +2294,60 @@ export interface components {
             id: string;
             /** Username */
             username: string;
+        };
+        /** WorkspaceCreate */
+        WorkspaceCreate: {
+            /** Name */
+            name: string;
+        };
+        /** WorkspaceEntry */
+        WorkspaceEntry: {
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
+            /** Path */
+            path: string;
+            /** Size */
+            size: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "file" | "dir" | "link";
+        };
+        /** WorkspaceFileContent */
+        WorkspaceFileContent: {
+            /** Content */
+            content: string;
+            /** Path */
+            path: string;
+            /** Size */
+            size: number;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** WorkspaceOut */
+        WorkspaceOut: {
+            /** Cleaned At */
+            cleaned_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Task Id */
+            task_id: string | null;
         };
     };
     responses: never;
@@ -1980,6 +2667,198 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_approvals_api_v1_approvals_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                task_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_approval_api_v1_approvals__approval_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approve_api_v1_approvals__approval_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancel_task_api_v1_approvals__approval_id__cancel_task_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_api_v1_approvals__approval_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    audit_log_api_v1_audit_get: {
+        parameters: {
+            query?: {
+                /** @description action prefix, e.g. tool. or approval. */
+                action?: string | null;
+                outcome?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
                 };
             };
             /** @description Validation Error */
@@ -2527,6 +3406,247 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LivenessResponse"];
+                };
+            };
+        };
+    };
+    get_github_api_v1_integrations_github_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubIntegrationOut"];
+                };
+            };
+        };
+    };
+    put_github_api_v1_integrations_github_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubIntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubIntegrationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    test_github_api_v1_integrations_github_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubIntegrationOut"];
+                };
+            };
+        };
+    };
+    integrations_status_api_v1_integrations_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationsStatus"];
+                };
+            };
+        };
+    };
+    list_mcp_api_v1_mcp_servers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpServerOut"][];
+                };
+            };
+        };
+    };
+    add_mcp_api_v1_mcp_servers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpServerCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpServerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_mcp_api_v1_mcp_servers__server_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_mcp_api_v1_mcp_servers__server_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpServerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpServerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    refresh_mcp_api_v1_mcp_servers__server_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpServerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -3396,6 +4516,254 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    task_tool_calls_api_v1_tasks__task_id__tool_calls_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCallOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    task_workspace_api_v1_tasks__task_id__workspace_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_tools_api_v1_tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"][];
+                };
+            };
+        };
+    };
+    update_tool_api_v1_tools__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_workspaces_api_v1_workspaces_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_workspace_api_v1_workspaces_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    workspace_file_api_v1_workspaces__workspace_id__file_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceFileContent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    workspace_files_api_v1_workspaces__workspace_id__files_get: {
+        parameters: {
+            query?: {
+                path?: string;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceEntry"][];
                 };
             };
             /** @description Validation Error */

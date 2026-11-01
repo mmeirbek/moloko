@@ -18,6 +18,7 @@ from app.models.agent import Agent
 from app.providers.gateway import ModelGateway
 from app.runtimes.base import AgentRuntime, RunContext
 from app.runtimes.native import NativeRuntime
+from app.sandbox.base import Sandbox
 
 logger = logging.getLogger("moloko.executor")
 
@@ -34,10 +35,12 @@ class Executor:
         *,
         runtimes: dict[str, AgentRuntime] | None = None,
         after_task: AfterTaskHook | None = None,
+        sandbox: Sandbox | None = None,
     ) -> None:
         self.sessionmaker = sessionmaker
         self.gateway = gateway
         self.settings = settings
+        self.sandbox = sandbox
         self.runtimes: dict[str, AgentRuntime] = runtimes or {"native": NativeRuntime()}
         self.after_task = after_task
 
@@ -101,6 +104,7 @@ class Executor:
                 control=RunControl(
                     self.sessionmaker, task.id, agent.id, self.settings.worker_control_poll_seconds
                 ),
+                sandbox=self.sandbox,
             )
             return ctx, self.runtime_for(agent)
 

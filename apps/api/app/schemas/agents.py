@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,10 +32,14 @@ class AgentOut(BaseModel):
     limits: dict[str, Any]
     memory_settings: dict[str, Any]
     runtime: str
+    workspace_id: uuid.UUID | None
     config_version: int
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+ToolOverride = Literal["approve", "deny"]
 
 
 class AgentLimits(BaseModel):
@@ -73,6 +77,9 @@ class AgentCreate(BaseModel):
     allowed_tools: list[str] = Field(default_factory=list, max_length=100)
     limits: AgentLimits = Field(default_factory=AgentLimits)
     memory_settings: MemorySettings = Field(default_factory=MemorySettings)
+    # Per-tool overrides; they can only be stricter than the autonomy level (spec 14.2).
+    tool_overrides: dict[str, ToolOverride] = Field(default_factory=dict, max_length=100)
+    workspace_id: uuid.UUID | None = None  # a project workspace; None = one per task
 
 
 class AgentUpdate(BaseModel):
@@ -87,6 +94,8 @@ class AgentUpdate(BaseModel):
     allowed_tools: list[str] | None = Field(default=None, max_length=100)
     limits: AgentLimits | None = None
     memory_settings: MemorySettings | None = None
+    tool_overrides: dict[str, ToolOverride] | None = Field(default=None, max_length=100)
+    workspace_id: uuid.UUID | None = None
 
 
 class AgentRunRequest(BaseModel):

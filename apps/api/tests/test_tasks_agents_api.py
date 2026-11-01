@@ -25,11 +25,11 @@ async def test_agent_crud_and_archive(app: FastAPI, owner: User, queue: Recordin
             name="Researcher",
             model_config_id=model["id"],
             autonomy_level="balanced",
-            allowed_tools=["file_read", "file_read"],
+            allowed_tools=["fs_read", "fs_read"],
             limits={"max_steps": 10},
         )
         assert agent["agent_type"] == "autonomous" and agent["status"] == "idle"
-        assert agent["allowed_tools"] == ["file_read"]  # de-duplicated
+        assert agent["allowed_tools"] == ["fs_read"]  # de-duplicated
         assert agent["limits"] == {"max_steps": 10}
 
         resp = await client.patch(

@@ -114,11 +114,28 @@ class AgentService:
                     details={"field": name, "max": cap},
                 )
 
+    async def _check_tools(self, user_id: uuid.UUID, names: list[str]) -> None:
+        if self.settings is not None and names:
+            from app.services.tools import ToolsService
+
+            await ToolsService(self.db, self.settings).validate_names(user_id, names)
+
+    async def _check_workspace(self, user_id: uuid.UUID, workspace_id: uuid.UUID | None) -> None:
+        if workspace_id is None:
+            return
+        from app.models.tooling import Workspace
+
+        ws = await self.db.get(Workspace, workspace_id)
+        if ws is None or ws.user_id != user_id or ws.kind != "project":
+            raise NotFound("Project workspace not found.")
+
     async def create(self, user_id: uuid.UUID, data: AgentCreate) -> Agent:
         if data.agent_type == AgentType.SUBAGENT:
             raise InvalidTransition("Subagents are created by the Orchestrator, not by hand.")
         self._check_limits(data.limits, data.memory_settings)
         await self._check_model(user_id, data.model_config_id)
+        await self._check_tools(user_id, [*data.allowed_tools, *data.tool_overrides])
+        await self._check_workspace(user_id, data.workspace_id)
         agent = Agent(
             user_id=user_id,
             name=data.name,
@@ -129,7 +146,8 @@ class AgentService:
             system_prompt=data.system_prompt,
             autonomy_level=data.autonomy_level.value,
             allowed_tools=list(dict.fromkeys(data.allowed_tools)),
-            permissions={},
+            permissions={"tools": dict(data.tool_overrides)} if data.tool_overrides else {},
+            workspace_id=data.workspace_id,
             status=AgentStatus.IDLE.value,
             limits=data.limits.model_dump(exclude_none=True),
             memory_settings=data.memory_settings.model_dump(exclude_defaults=True),
@@ -185,9 +203,20 @@ class AgentService:
             changed.append("autonomy_level")
         if data.allowed_tools is not None:
             tools = list(dict.fromkeys(data.allowed_tools))
+            await self._check_tools(user_id, tools)
             if tools != agent.allowed_tools:
                 agent.allowed_tools = tools
                 changed.append("allowed_tools")
+        if data.tool_overrides is not None:
+            await self._check_tools(user_id, list(data.tool_overrides))
+            permissions = {**(agent.permissions or {}), "tools": dict(data.tool_overrides)}
+            if permissions != agent.permissions:
+                agent.permissions = permissions
+                changed.append("tool_overrides")
+        if "workspace_id" in fields and data.workspace_id != agent.workspace_id:
+            await self._check_workspace(user_id, data.workspace_id)
+            agent.workspace_id = data.workspace_id
+            changed.append("workspace_id")
         if data.limits is not None:
             limits = data.limits.model_dump(exclude_none=True)
             if limits != agent.limits:

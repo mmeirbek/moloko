@@ -67,6 +67,30 @@
             "maxLength": 20000,
             "title": "System Prompt",
             "type": "string"
+          },
+          "tool_overrides": {
+            "additionalProperties": {
+              "enum": [
+                "approve",
+                "deny"
+              ],
+              "type": "string"
+            },
+            "maxProperties": 100,
+            "title": "Tool Overrides",
+            "type": "object"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
           }
         },
         "required": [
@@ -331,6 +355,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
           }
         },
         "required": [
@@ -353,6 +389,7 @@
           "limits",
           "memory_settings",
           "runtime",
+          "workspace_id",
           "config_version",
           "archived_at",
           "created_at",
@@ -516,9 +553,266 @@
               }
             ],
             "title": "System Prompt"
+          },
+          "tool_overrides": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "enum": [
+                    "approve",
+                    "deny"
+                  ],
+                  "type": "string"
+                },
+                "maxProperties": 100,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Overrides"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
           }
         },
         "title": "AgentUpdate",
+        "type": "object"
+      },
+      "ApprovalOut": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "consequences": {
+            "title": "Consequences",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "task_id": {
+            "format": "uuid",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "agent_id",
+          "agent_name",
+          "task_id",
+          "run_id",
+          "tool_name",
+          "category",
+          "args",
+          "summary",
+          "resources",
+          "consequences",
+          "reason",
+          "status",
+          "expires_at",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "ApprovalOut",
+        "type": "object"
+      },
+      "AuditOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_type": {
+            "title": "Actor Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "actor_type",
+          "actor_id",
+          "action",
+          "outcome",
+          "resource_type",
+          "resource_id",
+          "details"
+        ],
+        "title": "AuditOut",
+        "type": "object"
+      },
+      "AuditPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "AuditPage",
         "type": "object"
       },
       "AutonomyLevel": {
@@ -796,6 +1090,139 @@
         "title": "EventOut",
         "type": "object"
       },
+      "GitHubIntegrationOut": {
+        "properties": {
+          "allowed_repos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Repos",
+            "type": "array"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "token_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Hint"
+          }
+        },
+        "required": [
+          "connected",
+          "enabled",
+          "token_hint",
+          "login",
+          "allowed_repos",
+          "status",
+          "last_error",
+          "last_checked_at"
+        ],
+        "title": "GitHubIntegrationOut",
+        "type": "object"
+      },
+      "GitHubIntegrationUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_repos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Repos"
+          },
+          "clear_token": {
+            "default": false,
+            "title": "Clear Token",
+            "type": "boolean"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 300,
+                "minLength": 20,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "title": "GitHubIntegrationUpdate",
+        "type": "object"
+      },
       "HandoffRequest": {
         "additionalProperties": false,
         "properties": {
@@ -864,6 +1291,27 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "IntegrationsStatus": {
+        "properties": {
+          "github": {
+            "$ref": "#/components/schemas/GitHubIntegrationOut"
+          },
+          "sandbox": {
+            "$ref": "#/components/schemas/SandboxStatus"
+          },
+          "web_search": {
+            "title": "Web Search",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sandbox",
+          "web_search",
+          "github"
+        ],
+        "title": "IntegrationsStatus",
+        "type": "object"
+      },
       "LivenessResponse": {
         "properties": {
           "status": {
@@ -899,6 +1347,191 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "McpServerCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 2000,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "url": {
+            "maxLength": 500,
+            "minLength": 8,
+            "pattern": "^https?://",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "McpServerCreate",
+        "type": "object"
+      },
+      "McpServerOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "has_token": {
+            "title": "Has Token",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "server_info": {
+            "additionalProperties": true,
+            "title": "Server Info",
+            "type": "object"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolOut"
+            },
+            "title": "Tools",
+            "type": "array"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "url",
+          "has_token",
+          "enabled",
+          "status",
+          "last_error",
+          "last_checked_at",
+          "server_info",
+          "tools"
+        ],
+        "title": "McpServerOut",
+        "type": "object"
+      },
+      "McpServerUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "clear_token": {
+            "default": false,
+            "title": "Clear Token",
+            "type": "boolean"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 2000,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 8,
+                "pattern": "^https?://",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "title": "McpServerUpdate",
         "type": "object"
       },
       "MeResponse": {
@@ -2265,6 +2898,55 @@
         "title": "RunTree",
         "type": "object"
       },
+      "SandboxStatus": {
+        "properties": {
+          "allowed_commands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Commands",
+            "type": "array"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "limits": {
+            "additionalProperties": true,
+            "title": "Limits",
+            "type": "object"
+          },
+          "network": {
+            "title": "Network",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "ok",
+          "image",
+          "limits",
+          "network",
+          "allowed_commands"
+        ],
+        "title": "SandboxStatus",
+        "type": "object"
+      },
       "SessionOut": {
         "properties": {
           "created_at": {
@@ -2782,6 +3464,281 @@
         "title": "TaskUpdate",
         "type": "object"
       },
+      "ToolCallOut": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "decision_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Reason"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_error": {
+            "title": "Is Error",
+            "type": "boolean"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "task_id": {
+            "format": "uuid",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "agent_id",
+          "step",
+          "tool_name",
+          "category",
+          "args",
+          "decision",
+          "decision_reason",
+          "approval_id",
+          "status",
+          "result",
+          "is_error",
+          "duration_ms",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "ToolCallOut",
+        "type": "object"
+      },
+      "ToolCategory": {
+        "enum": [
+          "read",
+          "write",
+          "sensitive"
+        ],
+        "title": "ToolCategory",
+        "type": "string"
+      },
+      "ToolOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "server_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Id"
+          },
+          "server_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Name"
+          },
+          "source": {
+            "enum": [
+              "builtin",
+              "mcp"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "description",
+          "group",
+          "category",
+          "source",
+          "enabled",
+          "available",
+          "input_schema"
+        ],
+        "title": "ToolOut",
+        "type": "object"
+      },
+      "ToolUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "title": "ToolUpdate",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "display_name": {
@@ -2811,6 +3768,140 @@
           "display_name"
         ],
         "title": "UserOut",
+        "type": "object"
+      },
+      "WorkspaceCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WorkspaceCreate",
+        "type": "object"
+      },
+      "WorkspaceEntry": {
+        "properties": {
+          "modified_at": {
+            "format": "date-time",
+            "title": "Modified At",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "file",
+              "dir",
+              "link"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "type",
+          "size",
+          "modified_at"
+        ],
+        "title": "WorkspaceEntry",
+        "type": "object"
+      },
+      "WorkspaceFileContent": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "content",
+          "truncated"
+        ],
+        "title": "WorkspaceFileContent",
+        "type": "object"
+      },
+      "WorkspaceOut": {
+        "properties": {
+          "cleaned_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaned At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "task_id",
+          "created_at",
+          "cleaned_at"
+        ],
+        "title": "WorkspaceOut",
         "type": "object"
       }
     }
@@ -3306,6 +4397,359 @@
         "summary": "Stop Agent",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/api/v1/approvals": {
+      "get": {
+        "operationId": "list_approvals_api_v1_approvals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(pending|approved|rejected|expired|cancelled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "task_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApprovalOut"
+                  },
+                  "title": "Response List Approvals Api V1 Approvals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Approvals",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}": {
+      "get": {
+        "operationId": "get_approval_api_v1_approvals__approval_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}/approve": {
+      "post": {
+        "operationId": "approve_api_v1_approvals__approval_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve this ONE operation",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}/cancel-task": {
+      "post": {
+        "operationId": "cancel_task_api_v1_approvals__approval_id__cancel_task_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject and cancel the task",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}/reject": {
+      "post": {
+        "operationId": "reject_api_v1_approvals__approval_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "audit_log_api_v1_audit_get",
+        "parameters": [
+          {
+            "description": "action prefix, e.g. tool. or approval.",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "action prefix, e.g. tool. or approval.",
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(success|failure|denied)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "The audit journal (newest first)",
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -4128,6 +5572,302 @@
         "summary": "Liveness: the process is up",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/integrations/github": {
+      "get": {
+        "operationId": "get_github_api_v1_integrations_github_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubIntegrationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Github",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "put": {
+        "operationId": "put_github_api_v1_integrations_github_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubIntegrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubIntegrationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set token / allowed repositories",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/github/test": {
+      "post": {
+        "operationId": "test_github_api_v1_integrations_github_test_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubIntegrationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Test Github",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/status": {
+      "get": {
+        "operationId": "integrations_status_api_v1_integrations_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationsStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Integrations Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers": {
+      "get": {
+        "operationId": "list_mcp_api_v1_mcp_servers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/McpServerOut"
+                  },
+                  "title": "Response List Mcp Api V1 Mcp Servers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Mcp",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "post": {
+        "operationId": "add_mcp_api_v1_mcp_servers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add a server (its tools start disabled)",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers/{server_id}": {
+      "delete": {
+        "operationId": "delete_mcp_api_v1_mcp_servers__server_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "server_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Server Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Mcp",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "patch": {
+        "operationId": "update_mcp_api_v1_mcp_servers__server_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "server_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Server Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Mcp",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers/{server_id}/refresh": {
+      "post": {
+        "operationId": "refresh_mcp_api_v1_mcp_servers__server_id__refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "server_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Server Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconnect and list tools",
+        "tags": [
+          "integrations"
         ]
       }
     },
@@ -5537,6 +7277,397 @@
         "summary": "Retry as a new attempt",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/tool-calls": {
+      "get": {
+        "operationId": "task_tool_calls_api_v1_tasks__task_id__tool_calls_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolCallOut"
+                  },
+                  "title": "Response Task Tool Calls Api V1 Tasks  Task Id  Tool Calls Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commands run, files changed, errors and results of a task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/workspace": {
+      "get": {
+        "operationId": "task_workspace_api_v1_tasks__task_id__workspace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Task Workspace Api V1 Tasks  Task Id  Workspace Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Task Workspace",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tools": {
+      "get": {
+        "operationId": "list_tools_api_v1_tools_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolOut"
+                  },
+                  "title": "Response List Tools Api V1 Tools Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tools",
+        "tags": [
+          "tools"
+        ]
+      }
+    },
+    "/api/v1/tools/{name}": {
+      "patch": {
+        "operationId": "update_tool_api_v1_tools__name__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Tool",
+        "tags": [
+          "tools"
+        ]
+      }
+    },
+    "/api/v1/workspaces": {
+      "get": {
+        "operationId": "list_workspaces_api_v1_workspaces_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(task|project)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceOut"
+                  },
+                  "title": "Response List Workspaces Api V1 Workspaces Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Workspaces",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "post": {
+        "operationId": "create_workspace_api_v1_workspaces_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create a project workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/file": {
+      "get": {
+        "operationId": "workspace_file_api_v1_workspaces__workspace_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "maxLength": 512,
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceFileContent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workspace File",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/files": {
+      "get": {
+        "operationId": "workspace_files_api_v1_workspaces__workspace_id__files_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": ".",
+              "maxLength": 512,
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceEntry"
+                  },
+                  "title": "Response Workspace Files Api V1 Workspaces  Workspace Id  Files Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Workspace Files",
+        "tags": [
+          "workspaces"
         ]
       }
     }

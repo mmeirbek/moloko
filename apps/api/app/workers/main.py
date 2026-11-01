@@ -11,7 +11,7 @@ from arq import cron, func
 
 from app.core.config import get_settings
 from app.tasks.queue import RUN_TASK_JOB, redis_settings
-from app.workers.jobs import run_task, shutdown, startup, sweep
+from app.workers.jobs import housekeeping, run_task, shutdown, startup, sweep
 
 settings = get_settings()
 
@@ -26,7 +26,8 @@ class WorkerSettings:
         func(run_task, name=RUN_TASK_JOB, timeout=settings.run_timeout_seconds + 120, max_tries=1)
     ]
     cron_jobs: ClassVar[list[Any]] = [
-        cron(sweep, second={0, 30}, run_at_startup=False, unique=True)
+        cron(sweep, second={0, 30}, run_at_startup=False, unique=True),
+        cron(housekeeping, minute={17}, second={0}, run_at_startup=False, unique=True),
     ]
     on_startup = _startup
     on_shutdown = shutdown

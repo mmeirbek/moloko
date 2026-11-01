@@ -11,6 +11,15 @@ from app.models.provider import ModelConfig, Provider
 from app.models.session import Session
 from app.models.system import IdempotencyKey, SystemSetting
 from app.models.task import Task
+from app.models.tooling import (
+    Approval,
+    Integration,
+    McpServer,
+    Tool,
+    ToolCall,
+    Workspace,
+    WorkspaceFile,
+)
 from app.models.user import User
 
 __all__ = [
@@ -18,10 +27,13 @@ __all__ = [
     "AgentEvent",
     "AgentMessage",
     "AgentRun",
+    "Approval",
     "AuditLog",
     "Base",
     "Conversation",
     "IdempotencyKey",
+    "Integration",
+    "McpServer",
     "Memory",
     "MemoryRevision",
     "Message",
@@ -30,5 +42,9 @@ __all__ = [
     "Session",
     "SystemSetting",
     "Task",
+    "Tool",
+    "ToolCall",
     "User",
+    "Workspace",
+    "WorkspaceFile",
 ]

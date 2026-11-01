@@ -96,9 +96,78 @@ class Settings(BaseSettings):
     realtime_max_replay: int = Field(500, ge=10)
     realtime_heartbeat_seconds: float = Field(25.0, gt=0)
 
-    # --- Storage (used from later sprints) ------------------------------------
+    # --- Storage ---------------------------------------------------------------
     workspace_root: str = "/data/workspaces"
     file_storage_root: str = "/data/files"
+    workspace_max_file_bytes: int = Field(1_000_000, ge=1000)  # one file read/written by a tool
+    workspace_max_files: int = Field(5000, ge=10)  # files scanned per workspace
+    # Task workspaces of finished tasks are deleted this many days later (0 = never).
+    workspace_task_ttl_days: int = Field(14, ge=0)
+
+    # --- Tools (spec 15) ----------------------------------------------------------
+    tool_timeout_seconds: float = Field(60.0, gt=0, le=3600)
+    tool_output_max_chars: int = Field(20_000, ge=500, le=500_000)
+
+    # --- Sandbox (spec 16). The worker talks to the sandbox runner; only the runner
+    # talks to Docker. Unset SANDBOX_URL = the terminal tool is unavailable.
+    sandbox_url: str | None = None
+    sandbox_runner_token: SecretStr | None = None
+    sandbox_image: str = "python:3.12.16-slim"
+    sandbox_cpus: float = Field(1.0, gt=0, le=16)
+    sandbox_memory_mb: int = Field(512, ge=64, le=65_536)
+    sandbox_pids_limit: int = Field(128, ge=16, le=4096)
+    sandbox_timeout_seconds: int = Field(60, ge=1, le=3600)
+    sandbox_allowed_commands: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "python",
+            "python3",
+            "pip",
+            "pytest",
+            "ls",
+            "cat",
+            "head",
+            "tail",
+            "wc",
+            "grep",
+            "find",
+            "sort",
+            "uniq",
+            "diff",
+            "echo",
+            "mkdir",
+            "touch",
+            "cp",
+            "mv",
+            "sed",
+            "awk",
+            "tar",
+            "gzip",
+            "gunzip",
+            "unzip",
+            "git",
+            "make",
+            "node",
+            "npm",
+            "npx",
+        ]
+    )
+    # Runner side: how sandbox containers get the workspace (a named volume in compose,
+    # or a host directory for development).
+    sandbox_workspaces_volume: str | None = "moloko_workspaces"
+    sandbox_workspaces_host_path: str | None = None
+    docker_socket: str = "/var/run/docker.sock"
+
+    # --- Web (spec 15.6 Browser) ---------------------------------------------------------
+    web_fetch_timeout_seconds: float = Field(20.0, gt=0, le=120)
+    web_fetch_max_bytes: int = Field(2_000_000, ge=10_000, le=50_000_000)
+    web_fetch_allowed_ports: Annotated[list[int], NoDecode] = Field(
+        default_factory=lambda: [80, 443]
+    )
+    searxng_url: str | None = None  # optional self-hosted search; unset = no web_search
+
+    # --- Integrations ----------------------------------------------------------------
+    integration_timeout_seconds: float = Field(20.0, gt=0, le=120)
+    mcp_timeout_seconds: float = Field(30.0, gt=0, le=600)
 
     @field_validator("secret_key")
     @classmethod
@@ -109,7 +178,14 @@ class Settings(BaseSettings):
             )
         return value
 
-    @field_validator("cors_allowed_origins", mode="before")
+    @field_validator("sandbox_url", "sandbox_runner_token", "searxng_url", mode="before")
+    @classmethod
+    def _empty_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator(
+        "cors_allowed_origins", "sandbox_allowed_commands", "web_fetch_allowed_ports", mode="before"
+    )
     @classmethod
     def _split_origins(cls, value: object) -> object:
         if isinstance(value, str):

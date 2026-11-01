@@ -120,6 +120,7 @@ class OrchestratorRuntime(NativeRuntime):
             max_subtasks=settings.max_subtasks_per_plan,
             max_active=settings.max_active_subagents_per_run,
             can_delegate=can_delegate_further,
+            tools=tuple(t.name for t in setup.tools),
         )
         if setup.memory:
             system += "\n\n" + setup.memory

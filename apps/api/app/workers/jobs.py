@@ -17,14 +17,29 @@ from app.orchestrator.runtime import OrchestratorRuntime, SubagentRuntime
 from app.orchestrator.scheduler import after_task as scheduler_after_task
 from app.providers.gateway import ModelGateway
 from app.runtimes.native import NativeRuntime
+from app.sandbox.base import Sandbox
+from app.sandbox.client import RunnerSandbox
+from app.services.approvals import expire_due
+from app.services.workspaces import clean_task_workspaces
 from app.tasks.queue import TaskEnqueuer, TaskQueue
 from app.workers.recovery import recover, sweep_queued
 
 logger = logging.getLogger("moloko.worker")
 
 
+def make_sandbox(settings: Settings) -> Sandbox | None:
+    """The code-execution backend (spec 16), or None when it is not configured."""
+    if not settings.sandbox_url or settings.sandbox_runner_token is None:
+        return None
+    return RunnerSandbox(settings)
+
+
 def build_executor(
-    db: Database, gateway: ModelGateway, settings: Settings, queue: TaskEnqueuer | None
+    db: Database,
+    gateway: ModelGateway,
+    settings: Settings,
+    queue: TaskEnqueuer | None,
+    sandbox: Sandbox | None = None,
 ) -> Executor:
     """Executor with every runtime this server supports."""
     return Executor(
@@ -37,6 +52,7 @@ def build_executor(
             "orchestrator": OrchestratorRuntime(),
         },
         after_task=lambda task_id: scheduler_after_task(db.sessionmaker, task_id, queue),
+        sandbox=sandbox if sandbox is not None else make_sandbox(settings),
     )
 
 
@@ -78,3 +94,15 @@ async def sweep(ctx: dict[str, Any]) -> None:
     )
     if count:
         logger.info("requeued_stale_tasks", extra={"count": count})
+    expired = await expire_due(ctx["db"].sessionmaker, ctx["queue"])
+    if expired:
+        logger.info("approvals_expired", extra={"count": expired})
+
+
+async def housekeeping(ctx: dict[str, Any]) -> None:
+    """Hourly: delete files of old finished task workspaces (spec 16)."""
+    async with ctx["db"].sessionmaker() as db:
+        cleaned = await clean_task_workspaces(db, ctx["settings"])
+        await db.commit()
+    if cleaned:
+        logger.info("workspaces_cleaned", extra={"count": cleaned})
