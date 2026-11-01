@@ -22,6 +22,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/from-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a persistent agent from a template (it waits for a task) */
+        post: operations["create_from_template_api_v1_agents_from_template_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ready-made agents */
+        get: operations["list_templates_api_v1_agents_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}": {
         parameters: {
             query?: never;
@@ -1184,6 +1218,18 @@ export interface components {
             /** Workspace Id */
             workspace_id?: string | null;
         };
+        /** AgentFromTemplate */
+        AgentFromTemplate: {
+            /**
+             * Locale
+             * @default ru
+             */
+            locale?: string;
+            /** Name */
+            name?: string | null;
+            /** Template */
+            template: string;
+        };
         /** AgentLimits */
         AgentLimits: {
             /** Max Steps */
@@ -1306,6 +1352,19 @@ export interface components {
             task_id?: string | null;
             /** Title */
             title?: string | null;
+        };
+        /** AgentTemplateOut */
+        AgentTemplateOut: {
+            /** Allowed Tools */
+            allowed_tools: string[];
+            /** Description */
+            description: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Specialization */
+            specialization: string;
         };
         /**
          * AgentType
@@ -2655,6 +2714,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_from_template_api_v1_agents_from_template_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentFromTemplate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_agents_templates_get: {
+        parameters: {
+            query?: {
+                locale?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateOut"][];
                 };
             };
             /** @description Validation Error */

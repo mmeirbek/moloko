@@ -2,7 +2,7 @@
 
 import type { AgentOut, EventOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Pause, Play, Settings2, Square, X } from "lucide-react";
+import { ExternalLink, Pause, Play, Send, Settings2, Square, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
@@ -12,7 +12,7 @@ import { StatusBadge } from "@/features/agents/status-badge";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { modelLabel } from "@/features/chat/model-picker";
-import { agentAction, agentKeys, taskKeys } from "@/lib/api/agents";
+import { agentAction, agentKeys, runAgent, taskKeys } from "@/lib/api/agents";
 import { listPickerModels, modelKeys } from "@/lib/api/chat";
 import { api } from "@/lib/api/client";
 import { useRealtimeStore } from "@/lib/realtime/store";
@@ -60,8 +60,21 @@ export function AgentInspector({
       void queryClient.invalidateQueries({ queryKey: taskKeys.all });
     },
   });
+  const [taskText, setTaskText] = useState("");
+  const give = useMutation({
+    mutationFn: () =>
+      runAgent(agent.id, { title: taskText.split("\n")[0]!.slice(0, 200).trim() || agent.name, description: taskText }),
+    onSuccess: () => {
+      setTaskText("");
+      void queryClient.invalidateQueries({ queryKey: agentKeys.all });
+      void queryClient.invalidateQueries({ queryKey: taskKeys.all });
+    },
+  });
   const model = models.data?.find((m) => m.id === agent.model_config_id);
   const isSub = agent.agent_type === "subagent";
+  // Persistent agents sit and wait until the owner gives them work.
+  const canTakeTask =
+    agent.agent_type === "autonomous" && !agent.current_task_id && ["idle", "completed", "failed"].includes(agent.status);
 
   return (
     <aside
@@ -107,6 +120,37 @@ export function AgentInspector({
       </dl>
 
       {task?.result && <p className="line-clamp-4 rounded-md bg-muted p-2 text-xs">{task.result}</p>}
+
+      {canTakeTask && (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (taskText.trim()) give.mutate();
+          }}
+          data-testid="give-task"
+        >
+          <label htmlFor={`give-${agent.id}`} className="text-xs text-muted-foreground">
+            {t("giveTaskHint")}
+          </label>
+          <textarea
+            id={`give-${agent.id}`}
+            rows={2}
+            value={taskText}
+            onChange={(e) => setTaskText(e.target.value)}
+            placeholder={t("giveTaskPlaceholder")}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-sm"
+          />
+          {give.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {toMessage(give.error).message}
+            </p>
+          )}
+          <Button type="submit" size="sm" className="self-start" disabled={!taskText.trim() || give.isPending}>
+            <Send /> {t("giveTask")}
+          </Button>
+        </form>
+      )}
 
       <div className="flex flex-wrap gap-1">
         {ACTIVE.has(agent.status) && (

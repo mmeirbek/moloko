@@ -98,6 +98,22 @@ class AgentUpdate(BaseModel):
     workspace_id: uuid.UUID | None = None
 
 
+class AgentTemplateOut(BaseModel):
+    key: str
+    name: str
+    description: str
+    specialization: str
+    allowed_tools: list[str]
+
+
+class AgentFromTemplate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    template: str = Field(min_length=1, max_length=32)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    locale: str = Field(default="ru", max_length=8)
+
+
 class AgentRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

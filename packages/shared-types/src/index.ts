@@ -39,6 +39,8 @@ export type ModelUpdate = Schemas["ModelUpdate"];
 
 // Sprint 3 — agents, tasks, runs, events
 export type AgentOut = Schemas["AgentOut"];
+export type AgentTemplateOut = Schemas["AgentTemplateOut"];
+export type AgentFromTemplate = Schemas["AgentFromTemplate"];
 export type AgentCreate = Schemas["AgentCreate"];
 export type AgentUpdate = Schemas["AgentUpdate"];
 export type AgentRunRequest = Schemas["AgentRunRequest"];

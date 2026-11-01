@@ -1,6 +1,8 @@
 import type {
   AgentCreate,
+  AgentFromTemplate,
   AgentOut,
+  AgentTemplateOut,
   AgentRunRequest,
   AgentUpdate,
   EventOut,
@@ -22,6 +24,7 @@ export const agentKeys = {
   all: ["agents"] as const,
   detail: (id: string) => ["agents", id] as const,
   tasks: (id: string) => ["tasks", "agent", id] as const,
+  templates: (locale: string) => ["agents", "templates", locale] as const,
 };
 export const taskKeys = {
   all: ["tasks"] as const,
@@ -36,6 +39,10 @@ export const storageKey = ["system", "storage"] as const;
 export const listAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents", { signal });
 export const getAgent = (id: string, signal?: AbortSignal) => api.request<AgentOut>(`/agents/${id}`, { signal });
 export const createAgent = (body: AgentCreate) => api.request<AgentOut>("/agents", { method: "POST", body });
+export const listAgentTemplates = (locale: string, signal?: AbortSignal) =>
+  api.request<AgentTemplateOut[]>(`/agents/templates?locale=${encodeURIComponent(locale)}`, { signal });
+export const createAgentFromTemplate = (body: AgentFromTemplate) =>
+  api.request<AgentOut>("/agents/from-template", { method: "POST", body });
 export const updateAgent = (id: string, body: AgentUpdate) =>
   api.request<AgentOut>(`/agents/${id}`, { method: "PATCH", body });
 export const deleteAgent = (id: string) => api.request<void>(`/agents/${id}`, { method: "DELETE" });

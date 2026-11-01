@@ -1,12 +1,13 @@
 "use client";
 
 import type { AgentOut } from "@moloko/shared-types";
-import { Maximize, Minus, Plus } from "lucide-react";
+import { Maximize, Minus, Plus, UserPlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { AgentTemplates } from "@/features/agents/agent-templates";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { playMoo } from "@/features/mascot/moo";
 import { useSeason } from "@/features/mascot/pixel-cow";
@@ -44,6 +45,7 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   const [failed, setFailed] = useState(false);
   const [mode, setMode] = useState<OfficeMode>(initialMode);
   const [selected, setSelected] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const agentsById = useRealtimeStore((s) => s.agents);
   const realtime = useRealtimeClient();
   const locale = useLocale();
@@ -135,6 +137,11 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
           ))}
         </div>
         <div className="flex items-center gap-1">
+          {mode === "agents" && (
+            <Button variant="outline" onClick={() => setAdding((v) => !v)} aria-expanded={adding} data-testid="add-agent">
+              <UserPlus /> <span className="hidden sm:inline">{t("addAgent")}</span>
+            </Button>
+          )}
           <Button size="icon" variant="outline" aria-label={t("zoomOut")} onClick={() => bus.emit("camera", "out")}>
             <Minus />
           </Button>
@@ -146,6 +153,16 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
           </Button>
         </div>
       </div>
+
+      {adding && mode === "agents" && (
+        <AgentTemplates
+          onClose={() => setAdding(false)}
+          onCreated={(id) => {
+            setAdding(false);
+            setSelected(id);
+          }}
+        />
+      )}
 
       <div className="relative">
         <div

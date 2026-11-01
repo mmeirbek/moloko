@@ -21,6 +21,7 @@ from app.agents.state import (
     ACTIVE_AGENT,
     AgentStatus,
     AgentType,
+    AutonomyLevel,
     InvalidTransition,
     TaskStatus,
     agent_transition_allowed,
@@ -34,6 +35,7 @@ from app.models.task import Task
 from app.providers.gateway import ModelUnavailable
 from app.schemas.agents import (
     AgentCreate,
+    AgentFromTemplate,
     AgentLimits,
     AgentRunRequest,
     AgentUpdate,
@@ -128,6 +130,38 @@ class AgentService:
         ws = await self.db.get(Workspace, workspace_id)
         if ws is None or ws.user_id != user_id or ws.kind != "project":
             raise NotFound("Project workspace not found.")
+
+    async def create_from_template(self, user_id: uuid.UUID, data: AgentFromTemplate) -> Agent:
+        """One click in the office: a persistent agent from a ready-made template. It stays
+        idle until it is given a task."""
+        from app.agents.templates import BY_KEY, localized
+
+        template = BY_KEY.get(data.template)
+        if template is None:
+            raise NotFound("Unknown agent template.")
+        base = (data.name or localized(template.names, data.locale)).strip()
+        taken = set(
+            (
+                await self.db.execute(
+                    select(Agent.name).where(Agent.user_id == user_id, Agent.archived_at.is_(None))
+                )
+            ).scalars()
+        )
+        name, n = base, 2
+        while name in taken:
+            name, n = f"{base} {n}", n + 1
+        return await self.create(
+            user_id,
+            AgentCreate(
+                name=name[:100],
+                description=localized(template.descriptions, data.locale),
+                agent_type=AgentType.AUTONOMOUS,
+                specialization=template.specialization,
+                system_prompt=template.system_prompt,
+                autonomy_level=AutonomyLevel.SUPERVISED,
+                allowed_tools=list(template.allowed_tools),
+            ),
+        )
 
     async def create(self, user_id: uuid.UUID, data: AgentCreate) -> Agent:
         if data.agent_type == AgentType.SUBAGENT:

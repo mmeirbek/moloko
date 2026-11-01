@@ -99,6 +99,41 @@
         "title": "AgentCreate",
         "type": "object"
       },
+      "AgentFromTemplate": {
+        "additionalProperties": false,
+        "properties": {
+          "locale": {
+            "default": "ru",
+            "maxLength": 8,
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "template": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template"
+        ],
+        "title": "AgentFromTemplate",
+        "type": "object"
+      },
       "AgentLimits": {
         "additionalProperties": false,
         "properties": {
@@ -434,6 +469,42 @@
           }
         },
         "title": "AgentRunRequest",
+        "type": "object"
+      },
+      "AgentTemplateOut": {
+        "properties": {
+          "allowed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Tools",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "specialization": {
+            "title": "Specialization",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "specialization",
+          "allowed_tools"
+        ],
+        "title": "AgentTemplateOut",
         "type": "object"
       },
       "AgentType": {
@@ -4414,6 +4485,95 @@
           }
         },
         "summary": "Create Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/from-template": {
+      "post": {
+        "operationId": "create_from_template_api_v1_agents_from_template_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFromTemplate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add a persistent agent from a template (it waits for a task)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/templates": {
+      "get": {
+        "operationId": "list_templates_api_v1_agents_templates_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "maxLength": 8,
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentTemplateOut"
+                  },
+                  "title": "Response List Templates Api V1 Agents Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ready-made agents",
         "tags": [
           "agents"
         ]

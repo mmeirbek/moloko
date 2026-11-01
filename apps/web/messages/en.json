@@ -363,6 +363,12 @@
       "subagentReadOnly": "A subagent is temporary: the Orchestrator creates and configures it for one subtask.",
       "subagentNoMemory": "Subagents have no memory of their own: the Orchestrator passes them their context.",
       "archived": "This agent was deleted. Its task history is kept."
+    },
+    "templates": {
+      "title": "New agent from a template",
+      "hint": "The agent walks into the office and rests until you give it a task.",
+      "add": "Add",
+      "close": "Close"
     }
   },
   "runs": {
@@ -416,8 +422,12 @@
       "confirmStop": "Stop {name} and cancel its task?",
       "viewTask": "View task",
       "logs": "Logs",
-      "settings": "Settings"
-    }
+      "settings": "Settings",
+      "giveTask": "Give a task",
+      "giveTaskHint": "The agent is waiting for work. Describe a task and it starts.",
+      "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best"
+    },
+    "addAgent": "Add agent"
   },
   "memory": {
     "sharedTitle": "Memory",

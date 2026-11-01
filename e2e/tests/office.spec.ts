@@ -39,3 +39,25 @@ test("pixel office: real agents, status after reload, inspector, pause freezes, 
   await waitForOffice(page, (s) => s.filter((a) => a.status !== "idle").length === 0, 90_000);
   expect(errors).toEqual([]);
 });
+
+test("agent from a template rests in the office until it gets a task", async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await page.goto("/office/agents");
+  await page.getByTestId("add-agent").click();
+  await page.getByTestId("template-translator").click();
+  const inspector = page.getByRole("complementary", { name: /Агент Переводчик/ });
+  await expect(inspector).toBeVisible();
+  const agents = (await (await request.get("/api/v1/agents")).json()) as { id: string; name: string; created_at: string }[];
+  const agent = agents.filter((a) => a.name.startsWith("Переводчик")).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]!;
+  // no task: it just sits in the lounge, at a desk with its own pet waiting for it
+  await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.pose === "rest");
+  const tasks = (await (await request.get(`/api/v1/tasks?agent_id=${agent.id}&status=all`)).json()) as { items: unknown[] };
+  expect(tasks.items).toEqual([]);
+
+  const form = inspector.getByTestId("give-task");
+  await form.getByRole("textbox").fill("Переведи: доброе утро [[mock:sleep:4]]");
+  await form.getByRole("button", { name: "Дать задачу" }).click();
+  await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.pose === "type", 20_000);
+  await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.status === "idle", 40_000);
+  expect(errors).toEqual([]);
+});

@@ -177,3 +177,9 @@ Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.me
 | GET | `/runs/{id}` | now also `team[]`: the owner's own agents that took parts of the plan |
 | GET | `/system/storage` | `{backups: {configured, last, age_hours, drill, files[], same_disk_as_data}, disks[], warnings[]}` |
 
+## Endpoints — owner requests (2026-11-01)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/agents/templates?locale` | Ready-made agents: `{key, name, description, specialization, allowed_tools}` |
+| POST | `/agents/from-template` | `{template, name?, locale}` → a new idle persistent agent (404 for an unknown template) |

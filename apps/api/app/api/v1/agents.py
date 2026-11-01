@@ -5,8 +5,17 @@ import uuid
 from fastapi import APIRouter, Header, Query, Response, status
 
 from app.agents.state import AgentType
+from app.agents.templates import TEMPLATES, localized
 from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
-from app.schemas.agents import AgentCreate, AgentOut, AgentRunRequest, AgentUpdate, StartedRun
+from app.schemas.agents import (
+    AgentCreate,
+    AgentFromTemplate,
+    AgentOut,
+    AgentRunRequest,
+    AgentTemplateOut,
+    AgentUpdate,
+    StartedRun,
+)
 from app.schemas.memories import MemoryContextOut
 from app.schemas.tasks import RunOut, TaskOut
 from app.services.agents import AgentService
@@ -29,6 +38,35 @@ async def list_agents(
         ctx.user.id, agent_type=agent_type, include_archived=include_archived, run_id=run_id
     )
     return [AgentOut.model_validate(a) for a in rows]
+
+
+@router.get("/templates", response_model=list[AgentTemplateOut], summary="Ready-made agents")
+async def list_templates(
+    ctx: CurrentAuth, locale: str = Query("ru", max_length=8)
+) -> list[AgentTemplateOut]:
+    return [
+        AgentTemplateOut(
+            key=t.key,
+            name=localized(t.names, locale),
+            description=localized(t.descriptions, locale),
+            specialization=t.specialization,
+            allowed_tools=list(t.allowed_tools),
+        )
+        for t in TEMPLATES
+    ]
+
+
+@router.post(
+    "/from-template",
+    response_model=AgentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a persistent agent from a template (it waits for a task)",
+)
+async def create_from_template(
+    body: AgentFromTemplate, ctx: CurrentAuth, db: DbSession, queue: QueueDep, settings: SettingsDep
+) -> AgentOut:
+    agent = await AgentService(db, queue, settings).create_from_template(ctx.user.id, body)
+    return AgentOut.model_validate(agent)
 
 
 @router.post("", response_model=AgentOut, status_code=status.HTTP_201_CREATED)
