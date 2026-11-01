@@ -25,6 +25,7 @@ HTTP_PORT=$PORT
 COOKIE_SECURE=false
 ENABLE_MOCK_PROVIDER=true
 WORKSPACES_VOLUME=moloko_e2e_workspaces
+BROWSER_NETWORK=moloko_e2e_browser
 BACKUP_DIR=$WORK/backups
 ENV
 mkdir -p "$WORK/backups"

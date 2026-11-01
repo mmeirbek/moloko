@@ -17,6 +17,7 @@ import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/features/mascot/empty-state";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
+import { ExportMenu } from "@/features/tasks/export-menu";
 import { MicButton } from "@/features/voice/mic-button";
 
 function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
@@ -157,8 +158,11 @@ function RunView({ runId }: { runId: string }) {
         </section>
       )}
       {task.result && (
-        <section className="rounded-lg border bg-card p-4">
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">{t("result")}</h3>
+        <section className="print-area rounded-lg border bg-card p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-muted-foreground">{t("result")}</h3>
+            <ExportMenu taskId={task.id} title={task.title} />
+          </div>
           <MarkdownBody text={task.result} />
         </section>
       )}

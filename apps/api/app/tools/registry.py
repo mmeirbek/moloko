@@ -14,6 +14,7 @@ from app.models.agent import Agent
 from app.models.tooling import McpServer, Tool
 from app.providers.base import ToolSpec
 from app.tools.base import BaseTool
+from app.tools.builtin.browser import BROWSER_TOOLS
 from app.tools.builtin.files import FILE_TOOLS
 from app.tools.builtin.github import GITHUB_TOOLS
 from app.tools.builtin.memory import MEMORY_TOOLS
@@ -25,7 +26,15 @@ from app.tools.policy import CatalogEntry
 
 BUILTIN: dict[str, BaseTool] = {
     t.name: t
-    for t in (*FILE_TOOLS, *TERMINAL_TOOLS, *WEB_TOOLS, *GITHUB_TOOLS, *MEMORY_TOOLS, *SEARCH_TOOLS)
+    for t in (
+        *FILE_TOOLS,
+        *TERMINAL_TOOLS,
+        *WEB_TOOLS,
+        *BROWSER_TOOLS,
+        *GITHUB_TOOLS,
+        *MEMORY_TOOLS,
+        *SEARCH_TOOLS,
+    )
 }
 
 

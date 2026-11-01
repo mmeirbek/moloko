@@ -21,6 +21,8 @@ export function opParams(approval: Pick<ApprovalOut, "tool_name" | "args">): Rec
       return { repo: s("repo"), head: s("head"), base: s("base"), title: s("title") };
     case "memory_save":
       return { title: s("title") };
+    case "browser_screenshot":
+      return { url: s("url") };
     default:
       return null;
   }

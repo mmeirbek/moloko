@@ -40,6 +40,8 @@ const KNOWN = new Set([
   "budget_exceeded",
   "ai_service_unavailable",
   "audio_too_large",
+  "pdf_unavailable",
+  "nothing_to_export",
   "server_error",
 ] as const);
 type KnownCode = typeof KNOWN extends Set<infer T> ? T : never;

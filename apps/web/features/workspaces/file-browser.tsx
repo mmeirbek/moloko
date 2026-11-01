@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { toolingKeys, workspaceFile, workspaceFiles } from "@/lib/api/tooling";
+import { toolingKeys, workspaceFile, workspaceFiles, workspaceRawUrl } from "@/lib/api/tooling";
 
 export function parentOf(path: string): string {
   const parts = path.split("/").filter(Boolean);
@@ -67,9 +67,24 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
               {t("close")}
             </Button>
           </div>
-          <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
-            {file.data.content}
-          </pre>
+          {/\.(png|jpe?g)$/i.test(file.data.path) ? (
+            <a href={workspaceRawUrl(workspaceId, file.data.path)} target="_blank" rel="noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
+              <img
+                src={workspaceRawUrl(workspaceId, file.data.path)}
+                alt={file.data.path}
+                className="max-h-96 rounded-md border object-contain"
+              />
+            </a>
+          ) : /\.pdf$/i.test(file.data.path) ? (
+            <a className="text-sm underline" href={workspaceRawUrl(workspaceId, file.data.path)} download>
+              {t("downloadPdf")}
+            </a>
+          ) : (
+            <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
+              {file.data.content}
+            </pre>
+          )}
           {file.data.truncated && <p className="text-xs text-muted-foreground">{t("truncated")}</p>}
         </div>
       )}

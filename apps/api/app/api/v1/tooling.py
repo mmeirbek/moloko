@@ -288,6 +288,42 @@ async def workspace_file(
         raise InvalidPath(str(exc)) from None
 
 
+@workspaces_router.get(
+    "/{workspace_id}/raw",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}, "application/pdf": {}}}},
+    summary="A screenshot or PDF from the workspace",
+)
+async def workspace_raw(
+    workspace_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    path: str = Query(..., max_length=512),
+) -> Response:
+    from urllib.parse import quote
+
+    service = WorkspaceService(db, settings)
+    ws = await service.get(ctx.user.id, workspace_id)
+    try:
+        name, data, media = service.raw(ws, path)
+    except ScopeError as exc:
+        raise InvalidPath(str(exc)) from None
+    inline = media.startswith("image/")
+    return Response(
+        content=data,
+        media_type=media,
+        headers={
+            "Content-Disposition": (
+                f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(name)}"
+            ),
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
+
+
 @task_tools_router.get("/{task_id}/workspace", response_model=WorkspaceOut | None)
 async def task_workspace(
     task_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep

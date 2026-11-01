@@ -16,6 +16,7 @@ import type {
 } from "@moloko/shared-types";
 
 import { api } from "./client";
+import { API_BASE } from "./config";
 
 export const toolingKeys = {
   tools: ["tools"] as const,
@@ -79,3 +80,8 @@ export function auditLog(action: string, outcome: string, cursor: string | null,
   if (cursor) params.set("cursor", cursor);
   return api.request<AuditPage>(`/audit?${params}`, { signal });
 }
+
+/** A screenshot or PDF in a workspace, served by the API (same origin). */
+export const workspaceRawUrl = (workspaceId: string, path: string) =>
+  `${API_BASE}/workspaces/${workspaceId}/raw?path=${encodeURIComponent(path)}`;
+

@@ -73,6 +73,8 @@ Residual risks (accepted, documented): the sandbox runner holds the Docker socke
 | Sandbox network egress (e.g. for `pip install`) | Later, only through an allow-listing proxy |
 | Automated backups off the primary disk | ✅ Sprint 8 (BACKUP_DIR must be set to another disk by the owner) |
 | Web Push for notifications with the app closed | ✅ after Sprint 8 (owner approved; encrypted, allow-listed push hosts) |
+| Agents' browser | Sensitive tool (approval); own container on an internal network; the egress proxy allows only public addresses on 80/443; no host secrets; screenshot in the workspace, page text fenced as untrusted |
+| PDF export | Raw HTML in results escaped; printed with no network |
 | Search by meaning | Texts of memories and files are sent to the owner's OpenAI-type provider for embeddings (toggle in Settings → Voice & search); agents search only their own scope, never chat files |
 | Microphone (voice input) | ✅ `Permissions-Policy: microphone=(self)`; audio goes only to the owner's OpenAI-type provider |
 | Uploaded pictures/PDFs | ✅ type from the bytes, size/page limits, PDF parsed in a thread with a timeout, served with `nosniff` + sandbox CSP |

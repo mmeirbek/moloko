@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import ClassVar
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -329,3 +330,34 @@ class WorkspaceService:
         else:
             text, truncated = data.decode("utf-8", "replace"), size > VIEW_LIMIT
         return {"path": relative(root, path), "size": size, "content": text, "truncated": truncated}
+
+    RAW_TYPES: ClassVar[dict[str, str]] = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".pdf": "application/pdf",
+    }
+    RAW_LIMIT = 30_000_000
+
+    def raw(self, ws: Workspace, rel: str) -> tuple[str, bytes, str]:
+        """(name, bytes, media type) of a screenshot or PDF — other files are only shown as
+        text. The type comes from the name *and* the bytes (a .png must start like a PNG)."""
+        from app.tools.base import ScopeError
+        from app.workspaces.paths import resolve
+
+        root = workspace_dir(self.settings, ws.id)
+        path = resolve(root, rel, must_exist=True)
+        media = self.RAW_TYPES.get(path.suffix.lower())
+        if media is None or not path.is_file():
+            raise ScopeError("only pictures and PDFs can be downloaded")
+        if path.stat().st_size > self.RAW_LIMIT:
+            raise ScopeError("file too large")
+        data = path.read_bytes()
+        magic = {
+            "image/png": b"\x89PNG",
+            "image/jpeg": b"\xff\xd8\xff",
+            "application/pdf": b"%PDF-",
+        }
+        if not data.startswith(magic[media]):
+            raise ScopeError("the file content does not match its type")
+        return path.name, data, media

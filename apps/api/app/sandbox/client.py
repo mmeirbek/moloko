@@ -57,6 +57,28 @@ class RunnerSandbox:
             duration_ms=int(data.get("duration_ms", 0)),
         )
 
+    async def browse(self, workspace_id: uuid.UUID, request: dict[str, object]) -> SandboxResult:
+        """Headless browser in the sandbox: a screenshot of a public page, or HTML → PDF."""
+        try:
+            async with self._client(120) as client:
+                resp = await client.post(
+                    "/v1/browse", json={"workspace_id": str(workspace_id), **request}
+                )
+        except httpx2.HTTPError as exc:
+            raise SandboxUnavailable("The sandbox service cannot be reached.") from exc
+        if resp.status_code != 200:
+            raise SandboxUnavailable(f"The browser could not run (HTTP {resp.status_code}).")
+        data = resp.json()
+        return SandboxResult(
+            exit_code=data.get("exit_code"),
+            stdout=data.get("stdout", ""),
+            stderr=data.get("stderr", ""),
+            timed_out=bool(data.get("timed_out")),
+            oom_killed=bool(data.get("oom_killed")),
+            truncated=bool(data.get("truncated")),
+            duration_ms=int(data.get("duration_ms", 0)),
+        )
+
     async def health(self) -> dict[str, object]:
         try:
             async with self._client(5) as client:

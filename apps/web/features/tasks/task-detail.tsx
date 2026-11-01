@@ -11,6 +11,7 @@ import { TaskToolActivity } from "@/features/tasks/tool-calls";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
+import { ExportMenu } from "@/features/tasks/export-menu";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { cancelTask, getTask, retryTask, taskEvents, taskKeys } from "@/lib/api/agents";
@@ -138,8 +139,11 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </section>
       )}
       {task.result && (
-        <section className="rounded-lg border bg-card p-4">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">{t("result")}</h2>
+        <section className="print-area rounded-lg border bg-card p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-muted-foreground">{t("result")}</h2>
+            <ExportMenu taskId={task.id} title={task.title} />
+          </div>
           <MarkdownBody text={task.result} />
         </section>
       )}

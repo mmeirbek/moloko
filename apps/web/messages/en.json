@@ -64,7 +64,9 @@
     "invalid_subscription": "This push subscription cannot be saved.",
     "budget_exceeded": "The monthly budget is used up. Raise it in Settings → Costs.",
     "ai_service_unavailable": "Voice and smart search need an OpenAI provider (Settings → AI providers).",
-    "audio_too_large": "The recording is too long."
+    "audio_too_large": "The recording is too long.",
+    "pdf_unavailable": "PDF is not available on the server: build the sandbox browser. Printing opens instead — choose “Save as PDF”.",
+    "nothing_to_export": "This task has no result yet."
   },
   "preferences": {
     "theme": "Theme",
@@ -534,6 +536,10 @@
       "memory_save": {
         "summary": "Remember: {title}",
         "consequences": "The note is added to the agent's memory and used in its future tasks."
+      },
+      "browser_screenshot": {
+        "summary": "Open in the sandbox browser: {url}",
+        "consequences": "The site is loaded from the internet (it may run its scripts) in an isolated browser; a screenshot is saved in the workspace."
       }
     },
     "reasons": {
@@ -596,7 +602,9 @@
       "github_create_branch": "Create a branch",
       "github_write_file": "Commit a file",
       "github_create_pull_request": "Open a pull request",
-      "memory_save": "Remember"
+      "memory_save": "Remember",
+      "browser_screenshot": "Open a website in the browser",
+      "knowledge_search": "Search memory and files"
     }
   },
   "integrations": {
@@ -674,7 +682,8 @@
       "project": "project"
     },
     "cleaned": "files removed",
-    "none": "No workspaces yet."
+    "none": "No workspaces yet.",
+    "downloadPdf": "Download PDF"
   },
   "audit": {
     "title": "Audit log",
@@ -876,5 +885,10 @@
     "index": "In the index: {sources} sources, {chunks} chunks, {vectors} by meaning.",
     "save": "Save",
     "saved": "Saved"
+  },
+  "export": {
+    "link": "Link",
+    "copied": "Copied",
+    "copyFailed": "Could not copy the link."
   }
 }

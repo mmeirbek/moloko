@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Header, Query, status
+from fastapi import APIRouter, Header, Query, Response, status
 
-from app.api.deps import CurrentAuth, DbSession, QueueDep
+from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
 from app.models.event import AgentEvent
 from app.schemas.common import Page
 from app.schemas.tasks import (
@@ -145,3 +145,56 @@ async def task_events(
     return [
         event_out(e) for e in await TaskService(db, queue).events(ctx.user.id, task_id, limit=limit)
     ]
+
+
+@router.get(
+    "/{task_id}/export.md",
+    response_class=Response,
+    responses={200: {"content": {"text/markdown": {}}}},
+    summary="The task and its result as a Markdown file",
+)
+async def export_markdown(
+    task_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, queue: QueueDep
+) -> Response:
+    from urllib.parse import quote
+
+    from app.services.export import safe_name, task_markdown
+
+    task = await TaskService(db, queue).get(ctx.user.id, task_id)
+    return Response(
+        content=task_markdown(task).encode(),
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename*=UTF-8''{quote(safe_name(task.title))}.md"
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.post(
+    "/{task_id}/export.pdf",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}},
+    summary="Print the task's result to PDF (sandbox browser, no network)",
+)
+async def export_pdf(
+    task_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, queue: QueueDep, settings: SettingsDep
+) -> Response:
+    from urllib.parse import quote
+
+    from app.services.export import task_pdf
+    from app.workers import jobs
+
+    task = await TaskService(db, queue).get(ctx.user.id, task_id)
+    name, data = await task_pdf(db, settings, jobs.make_sandbox(settings), task)
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
+    )

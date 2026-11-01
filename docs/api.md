@@ -193,4 +193,9 @@ Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_sto
 | POST | `/ai/transcribe` | multipart `audio` (+ `language`) → `{text}`; `409 ai_service_unavailable` without an OpenAI-type provider, `413 audio_too_large` |
 | GET | `/search?q&types=memory,file,attachment&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?}]}` |
 | GET | `/search/status` | `{chunks, with_vectors, sources}` |
+| GET | `/tasks/{id}/export.md` | The task and its result as Markdown (download) |
+| POST | `/tasks/{id}/export.pdf` | PDF of the result (`409 pdf_unavailable` without the sandbox browser, `409 nothing_to_export`) |
+| GET | `/workspaces/{id}/raw?path` | A screenshot (inline) or PDF (download) from a workspace |
+
+Sandbox runner (internal, token): `POST /v1/browse` `{workspace_id, mode: page\|pdf, url?, source?, screenshot?, dom?, pdf?, width, height}`.
 
