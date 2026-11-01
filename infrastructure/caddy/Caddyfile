@@ -1,0 +1,61 @@
+# Reverse proxy: one origin for the browser.
+#   /api/*, /ws/*  -> backend (FastAPI)
+#   everything else -> frontend (Next.js)
+# TLS is terminated by Tailscale Serve in front of this (see docs/deployment.md),
+# so Caddy only speaks plain HTTP on the private Docker network / loopback.
+{
+	admin off
+	auto_https off
+	servers {
+		# Requests arrive from Tailscale Serve via Docker's port mapping (a private IP).
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	# Compress documents and assets only. Never text/event-stream: chat tokens must
+	# reach the browser immediately, not sit in a compression buffer.
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type text/html*
+			header Content-Type text/css*
+			header Content-Type text/plain*
+			header Content-Type application/javascript*
+			header Content-Type text/javascript*
+			header Content-Type application/json*
+			header Content-Type image/svg+xml*
+			header Content-Type application/manifest+json*
+		}
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Resource-Policy "same-origin"
+		# Browsers only honour this over HTTPS (Tailscale Serve); harmless on plain HTTP.
+		Strict-Transport-Security "max-age=31536000"
+		# Content-Security-Policy is set per request (with a nonce) by apps/web/proxy.ts.
+	}
+
+	handle /caddy-health {
+		respond "ok" 200
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /ws/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

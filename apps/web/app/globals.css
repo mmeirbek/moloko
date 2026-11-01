@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Brand palette, taken from the moloko logo: night-navy background, milk-cream
+ * wordmark, sky blue and grass green from the pixel scene.
+ * Tokens follow shadcn/ui naming so components stay drop-in compatible.
+ */
+:root {
+  --background: #fbf8ef; /* milk */
+  --foreground: #10142b; /* navy ink */
+  --card: #ffffff;
+  --card-foreground: #10142b;
+  --muted: #f1ecdf;
+  --muted-foreground: #5b6078;
+  --primary: #10142b;
+  --primary-foreground: #f6efdc;
+  --accent: #dcecf9;
+  --accent-foreground: #10142b;
+  --sky: #3f9ddf;
+  --grass: #4f9e3a;
+  --destructive: #c8372f;
+  --destructive-foreground: #ffffff;
+  --border: #e2dccb;
+  --input: #d6cfbb;
+  --ring: #3f9ddf;
+  --radius: 0.375rem;
+}
+
+.dark {
+  --background: #0c1024; /* logo night */
+  --foreground: #f6efdc; /* logo cream */
+  --card: #131a38;
+  --card-foreground: #f6efdc;
+  --muted: #1a2247;
+  --muted-foreground: #a7aecb;
+  --primary: #f6efdc;
+  --primary-foreground: #0c1024;
+  --accent: #1f2a57;
+  --accent-foreground: #f6efdc;
+  --sky: #5fb3ec;
+  --grass: #6cc04a;
+  --destructive: #e5534b;
+  --destructive-foreground: #ffffff;
+  --border: #262f57;
+  --input: #2d3766;
+  --ring: #5fb3ec;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-sky: var(--sky);
+  --color-grass: var(--grass);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Pixel art must never be smoothed. */
+  .pixelated {
+    image-rendering: pixelated;
+  }
+}
+
+/* Chat Markdown (model output). */
+.markdown > * + * {
+  margin-top: 0.75em;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-weight: 600;
+  line-height: 1.3;
+}
+.markdown h1 {
+  font-size: 1.25em;
+}
+.markdown h2 {
+  font-size: 1.15em;
+}
+.markdown ul {
+  list-style: disc;
+  padding-left: 1.5em;
+}
+.markdown ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+.markdown a {
+  color: var(--color-sky);
+  text-decoration: underline;
+}
+.markdown blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 0.75em;
+  color: var(--color-muted-foreground);
+}
+.markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--color-border);
+  padding: 0.25em 0.6em;
+}
+.markdown :not(pre) > code {
+  background: var(--color-muted);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.markdown pre {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: #0c1024;
+  color: #e8e3d3;
+  padding: 0.9em 1em;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+/* highlight.js token colours (our own palette). */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+  color: #5fb3ec;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag {
+  color: #8fd16f;
+}
+.hljs-number,
+.hljs-literal {
+  color: #f0b45b;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #7d849f;
+  font-style: italic;
+}
+.hljs-title,
+.hljs-function,
+.hljs-section {
+  color: #f6efdc;
+  font-weight: 600;
+}
+.hljs-variable,
+.hljs-params {
+  color: #e9a5c4;
+}

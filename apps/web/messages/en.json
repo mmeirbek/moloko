@@ -1,0 +1,729 @@
+{
+  "common": {
+    "appName": "moloko",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "errorId": "Error ID: {id}"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "chat": "Chat",
+    "subagentOffice": "Subagent Office",
+    "subagentOfficeShort": "Subagents",
+    "agentOffice": "Agent Office",
+    "agentOfficeShort": "Agents",
+    "tasks": "Tasks",
+    "integrations": "Integrations",
+    "settings": "Settings"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Your personal AI office",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "logout": "Sign out",
+    "signedInAs": "Signed in as {name}"
+  },
+  "errors": {
+    "invalid_credentials": "Wrong username or password.",
+    "too_many_attempts": "Too many failed attempts. Wait a few minutes and try again.",
+    "network_error": "Can't reach the server. Check your connection (Tailscale) and try again.",
+    "csrf_failed": "Security check failed. Reload the page and try again.",
+    "validation_error": "Please fill in all fields.",
+    "not_authenticated": "Your session has ended. Please sign in again.",
+    "database_unavailable": "The server can't reach its database right now. Try again in a minute.",
+    "redis_unavailable": "A background service is temporarily unavailable. Try again in a minute.",
+    "server_error": "Something went wrong on the server.",
+    "generic": "Something went wrong.",
+    "no_model_configured": "No AI model is set up. Add a provider in Settings.",
+    "model_unavailable": "The selected model is disabled or its provider is off.",
+    "generation_in_progress": "Wait for the current answer to finish (or stop it) first.",
+    "encryption_unavailable": "The server has no APP_ENCRYPTION_KEY, so API keys cannot be saved.",
+    "provider_kind_unavailable": "This provider type is not available on this server.",
+    "conflict": "This already exists.",
+    "not_found": "Not found.",
+    "agent_busy": "This agent is already working on a task.",
+    "engine_stopped": "All agents are stopped. Start them again in Settings.",
+    "invalid_transition": "This action is not possible right now.",
+    "agent_archived": "This agent was deleted.",
+    "idempotency_key_reused": "This request was already sent with different content.",
+    "invalid_memory": "This memory entry is not valid. Check its type, agent and project.",
+    "memory_too_long": "This memory entry is too long.",
+    "limit_too_high": "An agent's limit can only be stricter than the global limit.",
+    "approval_not_pending": "This request was already answered or has expired.",
+    "unknown_tool": "There is no such tool.",
+    "invalid_path": "This path is not allowed.",
+    "category_fixed": "Built-in tools have a fixed category.",
+    "invalid_attachment": "This file cannot be attached: a UTF-8 text file is needed.",
+    "attachment_too_large": "The file is too large (up to 200 KB)."
+  },
+  "preferences": {
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "language": "Language",
+    "toggleTheme": "Switch theme"
+  },
+  "pages": {
+    "comingSoon": "This section arrives in Sprint {sprint}.",
+    "chat": {
+      "title": "Chat",
+      "description": "Conversations with AI models, with streaming and history."
+    },
+    "subagentOffice": {
+      "title": "Subagent Office",
+      "description": "Temporary subagents the Orchestrator spawns for a task."
+    },
+    "agentOffice": {
+      "title": "Agent Office",
+      "description": "Your persistent autonomous agents at their desks."
+    },
+    "tasks": {
+      "title": "Tasks",
+      "description": "Every task, its subtasks and its execution history."
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "AI providers, MCP servers, GitHub, browser and file system."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Account, appearance and system status.",
+      "auditLink": "Audit log",
+      "integrationsLink": "Tools and integrations"
+    }
+  },
+  "system": {
+    "title": "System status",
+    "api": "API",
+    "database": "Database",
+    "redis": "Redis",
+    "ok": "OK",
+    "error": "Unavailable",
+    "version": "Version {version}",
+    "account": "Account",
+    "sessionExpires": "Session valid until {date}",
+    "engine": "Agents",
+    "engineRunning": "Running normally · {count} active tasks",
+    "engineStopped": "Stopped by the kill switch. New runs are blocked.",
+    "stopAll": "Stop all agents",
+    "startEngine": "Allow agents to run again",
+    "confirmStopAll": "Cancel every running task and block new ones?",
+    "stoppedCount": "{count} tasks stopped."
+  },
+  "chat": {
+    "newChat": "New chat",
+    "history": "Chat history",
+    "noChats": "No chats yet.",
+    "pick": "Pick a chat or start a new one.",
+    "allChats": "All chats",
+    "deleteChat": "Delete “{title}”",
+    "confirmDelete": "Delete this chat and all its messages?",
+    "placeholder": "Message moloko…",
+    "send": "Send",
+    "stop": "Stop",
+    "thinking": "Thinking",
+    "stopped": "Stopped.",
+    "tokens": "{count} tokens",
+    "model": "Model",
+    "defaultModel": "Default model",
+    "empty": "Ask anything. Answers stream in and are saved — you can close this tab.",
+    "noModels": "No AI model is set up yet.",
+    "openSettings": "Add a provider in Settings",
+    "dismiss": "Dismiss",
+    "errors": {
+      "provider_auth_failed": "The provider rejected the API key. Check it in Settings.",
+      "provider_rate_limited": "The provider is rate-limiting requests. Try again in a moment.",
+      "provider_timeout": "The provider did not answer in time.",
+      "provider_unavailable": "The provider is unavailable right now. Try again later.",
+      "provider_bad_request": "The provider rejected the request.",
+      "provider_model_not_found": "The provider does not know this model.",
+      "provider_unknown": "The provider request failed.",
+      "interrupted": "The answer was interrupted because the server restarted.",
+      "internal_error": "Something went wrong while generating the answer."
+    },
+    "agentsMode": "Agents: send to the Orchestrator instead of the chat model",
+    "handOff": "Hand off to agents",
+    "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
+    "agentsWorking": "Agents are working on it…",
+    "handedOff": "Done by agents — open the run",
+    "attach": "Attach a text file",
+    "attachments": "Attached files",
+    "removeAttachment": "Remove \"{name}\""
+  },
+  "settings": {
+    "providers": {
+      "title": "AI providers",
+      "description": "Official API keys only. Keys are encrypted on the server and never shown again.",
+      "kind": "Provider",
+      "name": "Name",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Paste the API key",
+      "noKeyNeeded": "No key needed",
+      "add": "Add",
+      "none": "No providers yet.",
+      "keyPolicy": "Use an API key from the provider's developer console. Subscription logins (ChatGPT, Claude.ai) are not supported.",
+      "keyStored": "Key saved ({hint})",
+      "keyEnv": "Uses the key from the server environment",
+      "keyMissing": "No API key",
+      "test": "Test",
+      "sync": "Import models",
+      "replaceKey": "Change key",
+      "saveKey": "Save key",
+      "clearKey": "Remove key",
+      "enabled": "Enabled",
+      "testOk": "Works — {count} models available.",
+      "synced": "{added} new models imported."
+    },
+    "models": {
+      "title": "Models",
+      "description": "Choose which models appear in the chat picker and which one is the default.",
+      "enabled": "In picker",
+      "default": "Default",
+      "none": "No models yet — import them from a provider.",
+      "provider": "Provider",
+      "modelId": "Model id",
+      "add": "Add model"
+    }
+  },
+  "realtime": {
+    "online": "Live",
+    "connecting": "Connecting…",
+    "offline": "Offline — reconnecting"
+  },
+  "status": {
+    "idle": "Idle",
+    "planning": "Planning",
+    "working": "Working",
+    "waiting": "Waiting",
+    "reviewing": "Reviewing",
+    "paused": "Paused",
+    "completed": "Completed",
+    "failed": "Failed",
+    "created": "Created",
+    "queued": "Queued",
+    "running": "Running",
+    "waiting_approval": "Needs approval",
+    "cancelled": "Cancelled"
+  },
+  "tasks": {
+    "new": "New task",
+    "title": "Title",
+    "description": "Description",
+    "agent": "Agent",
+    "noAgent": "No agent",
+    "noAgentsYet": "No agents yet.",
+    "createAgent": "Create one",
+    "create": "Create",
+    "createAndStart": "Create and start",
+    "cancelForm": "Cancel",
+    "filter": "Filter",
+    "search": "Search tasks",
+    "empty": "No tasks here.",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "allTasks": "All tasks",
+    "attempt": "attempt {n}",
+    "steps": "{n} steps",
+    "tokens": "{n} tokens",
+    "cancel": "Cancel task",
+    "retry": "Retry",
+    "result": "Result",
+    "latestStep": "Step {step} (live)",
+    "subtasks": "Subtasks",
+    "history": "History",
+    "unknownOutcome": "The server restarted while an operation with side effects was running. Its outcome is unknown, so it was not repeated automatically. Check the result, then resume or cancel the task.",
+    "ev": {
+      "agentStatus": "Agent: {status}",
+      "created": "Task created",
+      "taskStatus": "Task: {status}",
+      "completed": "Task completed",
+      "failed": "Task failed",
+      "cancelled": "Task cancelled",
+      "started": "Agent started",
+      "step": "Step {step} done",
+      "tool": "Tool {tool}: {status, select, succeeded {done} failed {failed} denied {denied} rejected {rejected} expired {approval expired} unknown {outcome unknown} other {{status}}}",
+      "plan": "The Orchestrator made a plan",
+      "agentMessage": "Message between agents",
+      "agentDone": "The agent finished the task",
+      "agentFailed": "The agent failed",
+      "approvalRequired": "Approval needed: {tool}",
+      "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}"
+    }
+  },
+  "agents": {
+    "new": "New agent",
+    "name": "Name",
+    "model": "Model",
+    "defaultModel": "Default model",
+    "systemPrompt": "Instructions",
+    "systemPromptHint": "What is this agent for? How should it work?",
+    "create": "Create agent",
+    "cancelForm": "Cancel",
+    "currentTask": "Task",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "giveTask": "Give it a task…",
+    "start": "Start",
+    "empty": "No agents yet. Create one and give it a task.",
+    "types": {
+      "autonomous": "Autonomous agent",
+      "orchestrator": "Orchestrator",
+      "subagent": "Subagent"
+    },
+    "configure": "Configure",
+    "form": {
+      "newDescription": "A persistent agent: its own model, instructions, autonomy level and memory.",
+      "profile": "Profile",
+      "description": "Description",
+      "descriptionHint": "In a few words: what this agent does. Shown in the office and the list.",
+      "specialization": "Specialization",
+      "specializationHint": "For example: development, research, finance.",
+      "modelHint": "If empty, the agent uses the default model from Settings.",
+      "modelUnavailable": "Model unavailable (disabled)",
+      "systemPromptHint": "Added to the agent's system prompt in every task.",
+      "autonomy": "Autonomy",
+      "autonomyLevels": {
+        "supervised": {
+          "title": "Supervised",
+          "body": "Any change (write) and important action needs your approval."
+        },
+        "balanced": {
+          "title": "Balanced",
+          "body": "Ordinary permitted actions run on their own; sensitive ones need approval."
+        },
+        "restricted": {
+          "title": "Restricted",
+          "body": "Only explicitly allowed tools within strict bounds; everything else is denied."
+        }
+      },
+      "autonomyNote": "A level can never give an agent more than the security policy allows. It applies when the agent uses tools.",
+      "limits": "Limits",
+      "maxSteps": "Maximum steps",
+      "timeoutMinutes": "Time per task, minutes",
+      "globalLimit": {
+        "steps": "Empty — the global limit ({value}).",
+        "minutes": "Empty — the global limit ({value} min).",
+        "chars": "Empty — the global limit ({value})."
+      },
+      "memory": "Memory",
+      "memoryEnabled": "Use memory in tasks",
+      "includeShared": "Know the shared facts about you (Settings → Memory)",
+      "projects": "Projects",
+      "projectsHint": "Comma-separated: the agent sees the shared notes of these projects.",
+      "maxContextChars": "Memory in the prompt, characters",
+      "memoryNote": "Memory is given to the model as data, not as instructions.",
+      "orchestratorNote": "The Orchestrator also uses this model for its subagents.",
+      "save": "Save",
+      "saved": "Saved",
+      "errors": {
+        "required": "Required.",
+        "number": "Enter a whole number.",
+        "tooHigh": "At most {limit} (the global limit).",
+        "tooLow": "At least {limit}."
+      },
+      "tools": "Tools",
+      "toolsHint": "The agent can use only the checked tools. The server checks every action against the autonomy level; here you can only make rules stricter.",
+      "overrideFor": "Rule for \"{name}\"",
+      "override": {
+        "default": "by autonomy level",
+        "approve": "always ask",
+        "deny": "block"
+      },
+      "workspace": "Workspace",
+      "workspacePerTask": "A new folder for every task"
+    },
+    "detail": {
+      "back": "All agents",
+      "loading": "Loading…",
+      "notFound": "This agent does not exist or was deleted.",
+      "sections": "Agent sections",
+      "tabs": {
+        "profile": "Settings",
+        "memory": "Memory",
+        "tasks": "Task history"
+      },
+      "tasks": "The agent's tasks",
+      "noTasks": "This agent has had no tasks yet.",
+      "delete": "Delete",
+      "deleteBusy": "Stop the agent first.",
+      "deleteConfirm": "Delete the agent \"{name}\"? It leaves the office and the lists. Its task history and memory are kept.",
+      "subagentReadOnly": "A subagent is temporary: the Orchestrator creates and configures it for one subtask.",
+      "subagentNoMemory": "Subagents have no memory of their own: the Orchestrator passes them their context.",
+      "archived": "This agent was deleted. Its task history is kept."
+    }
+  },
+  "runs": {
+    "newRun": "New task for the Orchestrator",
+    "newRunHint": "Describe a complex task. Simple questions get a direct answer.",
+    "start": "Start",
+    "untitled": "Task",
+    "runs": "Runs",
+    "empty": "No runs yet.",
+    "openTask": "Open task",
+    "directAnswer": "Answered directly — no subagents needed.",
+    "plan": "Plan: {summary}",
+    "subagents": "Subagents ({count})",
+    "waitsFor": "waits for {count} other part(s)",
+    "result": "Result",
+    "messages": "Messages between agents",
+    "orchestrator": "Orchestrator"
+  },
+  "office": {
+    "mode": "Office view",
+    "modes": {
+      "subagents": "Subagents",
+      "agents": "Agents"
+    },
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to screen",
+    "canvasLabel": "Pixel office with {count} agents",
+    "list": "Agents in the office",
+    "failed": "The office could not start (WebGL/Canvas unavailable). The list below shows the same state.",
+    "emptyAgents": "No agents at their desks yet.",
+    "emptySubagents": "No subagents right now — start a run below.",
+    "inspector": {
+      "label": "Agent {name}",
+      "close": "Close",
+      "task": "Task",
+      "model": "Model",
+      "defaultModel": "Default model",
+      "autonomy": "Autonomy",
+      "autonomyLevels": {
+        "supervised": "Supervised",
+        "balanced": "Balanced",
+        "restricted": "Restricted"
+      },
+      "tools": "Tools",
+      "noTools": "none",
+      "pause": "Pause",
+      "resume": "Resume",
+      "stop": "Stop",
+      "confirmStop": "Stop {name} and cancel its task?",
+      "viewTask": "View task",
+      "logs": "Logs",
+      "settings": "Settings"
+    }
+  },
+  "memory": {
+    "sharedTitle": "Memory",
+    "sharedDescription": "What agents know about you and your projects. Entries are given to models as data.",
+    "sharedIntro": "Facts about you are seen by every agent (unless turned off in its settings). Project notes are seen by agents that list the project.",
+    "agentIntro": "This agent's own notes. Pinned entries go into the prompt first.",
+    "add": "Add entry",
+    "empty": "No entries yet.",
+    "type": "Type",
+    "project": "Project",
+    "title": "Title",
+    "content": "Text",
+    "chars": "{count} of {max} characters",
+    "pinned": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "history": "Change history",
+    "version": "version {n}",
+    "forget": "Forget",
+    "forgetConfirm": "Forget \"{title}\"? The entry and its history will be deleted.",
+    "types": {
+      "user": "About you",
+      "agent": "Agent note",
+      "project": "Project",
+      "task_context": "Task context",
+      "conversation_context": "Conversation context"
+    },
+    "context": {
+      "summary": "Entries in the agent's prompt: {included} — {chars} of {max} characters.",
+      "omitted": "Did not fit: {count}. Pin the important ones or raise the size in the agent's settings.",
+      "show": "Show what the model sees",
+      "disabled": "Memory is turned off for this agent."
+    }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "description": "Important agent actions wait for your decision. An approval covers only that one action.",
+    "label": "Approval request: {action}",
+    "requestedBy": "Requested by {agent}",
+    "status": {
+      "pending": "waiting",
+      "approved": "approved",
+      "rejected": "rejected",
+      "expired": "expired",
+      "cancelled": "cancelled"
+    },
+    "tool": "Tool",
+    "resources": "Affects",
+    "consequences": "Consequences",
+    "why": "Why approval is needed",
+    "exactArgs": "Exact parameters",
+    "approve": "Approve",
+    "reject": "Reject",
+    "cancelTask": "Cancel task",
+    "cancelConfirm": "Cancel the whole task? The agent will stop.",
+    "expiresIn": "expires in {minutes} min",
+    "onlyThis": "The approval covers only this action with these parameters.",
+    "badge": "Waiting for approval: {count}",
+    "pending": "Waiting for you",
+    "none": "Nothing is waiting for approval.",
+    "answered": "Recent decisions",
+    "ops": {
+      "fs_write": {
+        "summary": "Write file {path} ({chars} characters)",
+        "consequences": "The file is created, or its current content is replaced."
+      },
+      "fs_append": {
+        "summary": "Append to file {path} ({chars} characters)",
+        "consequences": "Text is added to the end of the file."
+      },
+      "fs_move": {
+        "summary": "Move {source} → {destination}",
+        "consequences": "If the destination exists and replacing is allowed, its old content is lost."
+      },
+      "fs_delete": {
+        "summary": "Delete {path}",
+        "consequences": "The file (or folder) is deleted permanently."
+      },
+      "terminal_run": {
+        "summary": "Run: {command}",
+        "consequences": "The command may create, change or delete files in the task folder (sandbox, no network)."
+      },
+      "github_create_branch": {
+        "summary": "Create branch {branch} in {repo}",
+        "consequences": "A new branch appears in the repository. Nothing else changes."
+      },
+      "github_write_file": {
+        "summary": "Commit {path} to {repo}@{branch}: {message}",
+        "consequences": "A commit is pushed to this branch (visible to everyone with access)."
+      },
+      "github_create_pull_request": {
+        "summary": "Open pull request in {repo}: {head} → {base} — {title}",
+        "consequences": "A pull request is published under your account; people watching the repository are notified."
+      },
+      "memory_save": {
+        "summary": "Remember: {title}",
+        "consequences": "The note is added to the agent's memory and used in its future tasks."
+      }
+    },
+    "reasons": {
+      "override": "You asked to approve every use of this tool.",
+      "sensitive": "Sensitive actions always need approval.",
+      "write": "Changes need approval at this agent's autonomy level."
+    }
+  },
+  "tools": {
+    "title": "Tools",
+    "description": "What agents can do at all. Each agent is allowed tools separately in its settings; every action is checked by the server.",
+    "categories": {
+      "read": "read",
+      "write": "write",
+      "sensitive": "sensitive"
+    },
+    "enable": "Enable \"{name}\"",
+    "category": "Category",
+    "notConfigured": "not configured",
+    "off": "off",
+    "groups": {
+      "files": "Files",
+      "terminal": "Terminal (sandbox)",
+      "web": "Web",
+      "github": "GitHub",
+      "memory": "Memory",
+      "mcp": "MCP"
+    },
+    "calls": {
+      "title": "Agent actions ({count})",
+      "details": "Parameters and result",
+      "workspace": "Task workspace",
+      "status": {
+        "pending": "pending",
+        "awaiting_approval": "waiting for approval",
+        "running": "running",
+        "succeeded": "done",
+        "failed": "failed",
+        "denied": "denied",
+        "rejected": "rejected",
+        "expired": "approval expired",
+        "unknown": "outcome unknown"
+      }
+    },
+    "names": {
+      "fs_list": "List files",
+      "fs_read": "Read a file",
+      "fs_write": "Write a file",
+      "fs_move": "Move or rename",
+      "fs_delete": "Delete a file",
+      "terminal_run": "Run a command",
+      "web_fetch": "Open a web page",
+      "web_search": "Search the web",
+      "github_list_repos": "List repositories",
+      "github_list_dir": "Repository folder",
+      "github_read_file": "Read a GitHub file",
+      "github_list_issues": "List issues",
+      "github_get_issue": "Read an issue",
+      "github_list_commits": "Commit history",
+      "github_create_branch": "Create a branch",
+      "github_write_file": "Commit a file",
+      "github_create_pull_request": "Open a pull request",
+      "memory_save": "Remember"
+    }
+  },
+  "integrations": {
+    "github": {
+      "description": "Agents read repositories, issues and history, create branches and commits. Committing to the default branch and pull requests need your approval.",
+      "error": "Connection error: {error}",
+      "connected": "Connected as {login} (token {hint}).",
+      "notConnected": "Not connected.",
+      "newToken": "New token (to replace it)",
+      "token": "Access token (fine-grained)",
+      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need. Stored encrypted, never sent back to the browser.",
+      "repos": "Allowed repositories",
+      "reposHint": "One owner/repo per line. Empty = everything the token can access.",
+      "save": "Save",
+      "test": "Test",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Remove the GitHub token?"
+    },
+    "sandbox": {
+      "title": "Sandbox and web",
+      "description": "Agent commands run in a separate container: no network, no root, limited, only the task's folder visible.",
+      "notConfigured": "The sandbox is not configured: no terminal.",
+      "ok": "The sandbox is running.",
+      "down": "The sandbox does not answer.",
+      "image": "Image",
+      "limits": "Limits",
+      "limitsValue": "CPU {cpus}, memory {memory} MB, processes {pids}, time {timeout} s",
+      "network": "Network",
+      "noNetwork": "none",
+      "commands": "Allowed programs",
+      "searchOn": "Web search: on (SearXNG).",
+      "searchOff": "Web search is off (SEARXNG_URL not set). Opening pages works."
+    },
+    "mcp": {
+      "title": "MCP servers",
+      "description": "Connect MCP servers over HTTP. New tools stay off until you check and enable them.",
+      "name": "Name",
+      "url": "Address (Streamable HTTP)",
+      "token": "Token (optional)",
+      "addHint": "The server's tools appear turned off, as \"sensitive\". MCP output is treated as untrusted.",
+      "add": "Connect",
+      "cancel": "Cancel",
+      "statusOk": "Working",
+      "statusError": "Unavailable: {error}",
+      "statusUnknown": "Not checked",
+      "enabled": "Enabled",
+      "refresh": "Refresh tools",
+      "remove": "Remove server",
+      "removeConfirm": "Remove the server \"{name}\" and its tools?",
+      "addServer": "Add server",
+      "empty": "No servers yet."
+    }
+  },
+  "workspaces": {
+    "title": "Workspaces",
+    "description": "Files agents create and change. A task's folder is deleted some days after the task ends; project folders stay.",
+    "up": "Up",
+    "refresh": "Refresh",
+    "empty": "Empty.",
+    "link": "link",
+    "close": "Close",
+    "truncated": "Showing the beginning of the file.",
+    "newProject": "New project folder",
+    "create": "Create",
+    "kinds": {
+      "task": "task",
+      "project": "project"
+    },
+    "cleaned": "files removed",
+    "none": "No workspaces yet."
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Who did what: sign-ins, settings changes, agent actions, approvals, file changes. Entries can't be changed or deleted.",
+    "area": "Area",
+    "areas": {
+      "all": "All events",
+      "auth": "Sign-in",
+      "agent": "Agents",
+      "tool": "Tools",
+      "approval": "Approvals",
+      "workspace": "Files",
+      "memory": "Memory",
+      "integration": "Integrations",
+      "mcp": "MCP",
+      "system": "System"
+    },
+    "outcome": "Outcome",
+    "outcomes": {
+      "all": "Any",
+      "success": "success",
+      "failure": "failure",
+      "denied": "denied"
+    },
+    "empty": "No entries.",
+    "more": "Show more"
+  },
+  "notifications": {
+    "dismiss": "Dismiss notification",
+    "approval": {
+      "title": "Your approval is needed",
+      "body": "{subject}"
+    },
+    "taskDone": {
+      "title": "Task done",
+      "body": "{subject}"
+    },
+    "taskFailed": {
+      "title": "Task failed",
+      "body": "{subject}"
+    },
+    "settings": {
+      "title": "Notifications",
+      "description": "What to tell you about on this device.",
+      "kinds": {
+        "approval": "An agent needs approval",
+        "taskDone": "A task is done",
+        "taskFailed": "A task failed"
+      },
+      "system": "System notifications while moloko is in the background",
+      "allow": "Allow system notifications",
+      "blocked": "Notifications are blocked in the browser",
+      "unsupported": "This browser does not support notifications.",
+      "closedNote": "Notifications arrive while moloko is open (even in the background). Notifications with the app fully closed need Web Push — not enabled yet."
+    }
+  },
+  "backups": {
+    "title": "Backups",
+    "description": "A daily copy of the database and agents' files, a weekly restore check.",
+    "last": "Last backup",
+    "drill": "Restore check",
+    "copies": "Database copies",
+    "disk": "Free: {path}",
+    "free": "{free} ({percent}%)",
+    "ok": "ok",
+    "failed": "failed",
+    "drillOk": "restore works",
+    "noDrill": "not run yet (on Sundays)",
+    "howto": "Back up now: infrastructure/scripts/backup-now.sh --check. Restoring: docs/deployment.md, section on backups.",
+    "warnings": {
+      "not_configured": "No backup folder is mounted (BACKUP_DIR).",
+      "no_backup_yet": "No backup yet — the first one runs soon.",
+      "last_backup_failed": "The last backup failed. See docker compose logs backup.",
+      "backup_too_old": "The last backup is older than a day and a half.",
+      "restore_drill_failed": "The restore check failed — backups may be unusable.",
+      "same_disk": "Backups are on the same disk as the data. That is no protection: mount another disk (BACKUP_DIR).",
+      "low_disk": "Low free disk space."
+    }
+  }
+}
