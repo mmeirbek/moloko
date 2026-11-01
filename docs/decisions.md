@@ -13,14 +13,14 @@ plus every deviation from it. Newest last within each sprint. Format: date — d
 ## Open questions for the owner (⚠)
 
 Nothing below blocks the MVP; each is a choice the rules say only the owner makes.
-Resolved on 2026-11-01: Web Push, Phaser 4, the official GitHub MCP server, the Orchestrator →
-own agents hand-over and the branch clean-up (see "After Sprint 8 — owner requests").
+Resolved on 2026-11-01: Web Push, Phaser 4, the official GitHub MCP server and the Orchestrator →
+own agents hand-over (see "After Sprint 8 — owner requests").
 
 1. **Redis 8 license**: RSALv2/SSPLv1/AGPLv3 (we rely on AGPLv3, unmodified, internal only). Switch to Valkey (BSD-3, protocol-compatible, no code changes)?
 2. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
 3. **Subscription-based model access** (spec 26.1): still API keys only, as required.
 4. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
-5. **Default branch on GitHub**: set it to `main` (Settings → General → Default branch) if GitHub did not accept the switch automatically; the old branches are deleted.
+5. **Branches on GitHub**: the work is on `main`. Set `main` as the default branch (Settings → General → Default branch), then delete `claude/vigilant-cray-26u902` and `claude/pensive-bell-7okz27` (github.com/mmeirbek/moloko/branches) — branch deletion is not allowed from the coding session.
 
 ## Sprint 1 — Infrastructure foundation
 
@@ -227,7 +227,7 @@ for them: Web Push uses `cryptography` (already a dependency) and the official M
 | 2026-11-01 | **Web Push** for notifications with moloko fully closed. Implemented in-house on `cryptography`: RFC 8291 payload encryption (aes128gcm) + RFC 8292 VAPID (ES256). The VAPID key pair is created on first use and stored encrypted (`system_settings`, needs `APP_ENCRYPTION_KEY`). Subscriptions may only point to known push services (`PUSH_ALLOWED_HOSTS`: Google, Mozilla, Apple, Microsoft) — moloko never sends requests anywhere else. The worker reads new events every 5 s with a cursor (each event announced at most once, nothing older than 15 min, no backlog on first start), applies the same rules as in-app notifications (approval needed, top-level task done/failed), sends the title/short text **encrypted end-to-end** (the push service sees only ciphertext). 404/410 removes the subscription; 20 failures in a row too. The service worker does not show a push while a moloko window is focused (the in-app toast does that). Per device: Settings → Notifications → the Web Push switch. iPhone: only for the app installed to the Home Screen (iOS 16.4+). | Owner approved. |
 | 2026-11-01 | `PUSH_CONTACT` (VAPID `sub`) is a setting with a placeholder default; Apple rejects placeholder addresses, so the owner sets a real `mailto:` or `https://` contact (deployment docs). | No hardcoded values; it is the owner's choice what to share with push services. |
 | 2026-11-01 | **Phaser 4.2.1** replaces 3.90.0 (the spec said Phaser 3; the owner approved 4). The engine code needed no API changes; `pixelArt`, `roundPixels` (v4 default is `false`) and `antialias: false` are set explicitly so the art stays crisp at integer zoom. Checked by a screenshot and the full E2E suite (office test included). | Owner approved; `template-nextjs` moved to Phaser 4. |
-| 2026-11-01 | **Git**: the finished work is on `main`; the old default branch (`claude/vigilant-cray-26u902`, previous project) and the working branch were deleted at the owner's request. | Owner request. |
+| 2026-11-01 | **Git**: the finished work is pushed to a new `main` branch (same commits as the working branch, full sprint history kept). Deleting the other branches was refused from the coding session (HTTP 403), so the owner switches the default branch to `main` and deletes them on GitHub (open question 5). | Owner request. |
 
 ## Dependency register
 
