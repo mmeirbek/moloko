@@ -3,6 +3,7 @@
 python -m app.cli create-owner --username me
 python -m app.cli reset-password --username me
 python -m app.cli wait-for-db --timeout 60
+python -m app.cli has-owner              # exit 0 if the owner account exists (deploy script)
 """
 
 from __future__ import annotations
@@ -42,6 +43,22 @@ async def _create_owner(args: argparse.Namespace) -> None:
         print(f"Owner '{user.username}' created.")
     finally:
         await db.dispose()
+
+
+async def _has_owner(args: argparse.Namespace) -> None:
+    from sqlalchemy import func, select
+
+    from app.models.user import User
+
+    db = Database(get_settings())
+    try:
+        async with db.sessionmaker() as session:
+            count = (await session.execute(select(func.count()).select_from(User))).scalar()
+    finally:
+        await db.dispose()
+    print("yes" if count else "no")
+    if not count:
+        raise SystemExit(1)
 
 
 async def _reset_password(args: argparse.Namespace) -> None:
@@ -120,6 +137,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--username", required=True)
     p.add_argument("--password-stdin", action="store_true")
     p.set_defaults(func=_reset_password)
+
+    p = sub.add_parser("has-owner", help="Exit 0 if the owner account exists, 1 if not")
+    p.set_defaults(func=_has_owner)
 
     p = sub.add_parser("wait-for-db", help="Block until PostgreSQL accepts connections")
     p.add_argument("--timeout", type=float, default=60)

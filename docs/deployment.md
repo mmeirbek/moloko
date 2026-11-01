@@ -29,8 +29,22 @@
 
 ## 2. Установка moloko
 
+**Одной командой** (и для первой установки, и для обновлений):
+
 ```bash
-git clone https://github.com/mmeirbek/moloko.git
+git clone -b main https://github.com/mmeirbek/moloko.git
+```
+
+```bash
+cd moloko && infrastructure/scripts/deploy.sh
+```
+
+Скрипт берёт свежую ветку `main` и создаёт `.env` со случайными секретами (или дописывает недостающие ключи). Перед обновлением он делает резервную копию. Затем собирает образы, включая PostgreSQL с pgvector и браузер для агентов, запускает всё и ждёт, пока сервисы станут здоровыми. В конце он пишет, что осталось сделать: создать владельца и включить `tailscale serve`. Запускать его можно сколько угодно раз.
+
+То же самое по шагам, вручную:
+
+```bash
+git clone -b main https://github.com/mmeirbek/moloko.git
 cd moloko
 infrastructure/scripts/init-env.sh      # создаёт .env со случайными секретами (права 600)
 docker compose up -d --build            # первая сборка займёт несколько минут
@@ -195,6 +209,8 @@ docker compose --profile browser build browser
 Токен хранится один раз, в интеграции GitHub. Если его убрать, MCP-сервер тоже перестаёт работать.
 
 ## 9. Проверка после обновления
+
+Обновление = та же команда: `infrastructure/scripts/deploy.sh` (копия → сборка → запуск → проверка).
 
 **Обновление с версии без поиска (PostgreSQL на Alpine).** Образ базы теперь собирается локально: PostgreSQL 17.11 на Debian с расширением pgvector. Сначала сделайте свежую копию, потом пересоберите образ:
 

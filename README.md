@@ -43,8 +43,7 @@
 
 ```bash
 git clone -b main https://github.com/mmeirbek/moloko.git && cd moloko
-infrastructure/scripts/init-env.sh
-docker compose up -d --build
+infrastructure/scripts/deploy.sh          # установка и обновления — одна команда
 docker compose exec backend python -m app.cli create-owner --username <имя>
 sudo tailscale serve --bg 8080
 ```

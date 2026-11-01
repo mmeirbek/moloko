@@ -52,7 +52,10 @@ def test_cli_create_owner_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin", io.StringIO("cli password long enough\n"))
     get_settings.cache_clear()
     try:
+        with pytest.raises(SystemExit):
+            cli.main(["has-owner"])  # none yet: the deploy script asks to create one
         cli.main(["create-owner", "--username", "CliOwner", "--password-stdin"])
+        cli.main(["has-owner"])
         with pytest.raises(SystemExit, match="already exists"):
             monkeypatch.setattr("sys.stdin", io.StringIO("cli password long enough\n"))
             cli.main(["create-owner", "--username", "other", "--password-stdin"])
