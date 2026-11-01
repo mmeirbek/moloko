@@ -183,3 +183,11 @@ Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.me
 |---|---|---|
 | GET | `/agents/templates?locale` | Ready-made agents: `{key, name, description, specialization, allowed_tools}` |
 | POST | `/agents/from-template` | `{template, name?, locale}` → a new idle persistent agent (404 for an unknown template) |
+| GET | `/costs?month=YYYY-MM` | `{month, spent_usd, input_tokens, output_tokens, calls, unpriced_calls, budget {monthly_limit_usd, warn_percent, hard_stop, percent}, by_agent[], by_model[], by_day[]}` |
+| PUT | `/costs/budget` | `{monthly_limit_usd?, warn_percent, hard_stop}`; `409 budget_exceeded` is returned by model calls when "stop at the limit" is on and the month is used up |
+| POST | `/chats/{id}/attachments` | now also pictures (PNG/JPEG/WebP/GIF) and PDFs; `{…, kind: text\|image\|pdf, pages?}` |
+| GET | `/chats/{id}/attachments/{aid}/content` | The file (pictures inline, other files as a download) |
+
+Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_stop}`.
+| GET / PUT | `/ai/settings` | Voice & search: `{provider_id?, transcription_model?, embedding_model?, embedding_dimensions?, semantic_search}`; GET also `{active_provider_id, active_provider_name, available}` |
+| POST | `/ai/transcribe` | multipart `audio` (+ `language`) → `{text}`; `409 ai_service_unavailable` without an OpenAI-type provider, `413 audio_too_large` |

@@ -31,3 +31,12 @@ test("PWA and security headers", async ({ page, request }) => {
   await expect(page.getByTestId("github-mcp")).toBeVisible(); // official GitHub MCP preset
   expect(errors).toEqual([]);
 });
+
+test("costs page: totals, per-day chart and the monthly limit", async ({ page }) => {
+  await page.goto("/settings/costs");
+  await expect(page.getByTestId("costs-spent")).toBeVisible();
+  await page.getByLabel("Лимит в месяц, $").fill("100");
+  await page.getByTestId("budget-settings").getByRole("button", { name: "Сохранить" }).click();
+  await expect(page.getByText("Сохранено.")).toBeVisible();
+  await expect(page.getByRole("meter")).toBeVisible();
+});

@@ -96,3 +96,78 @@ async def test_only_small_utf8_text_files(app_factory: AppFactory) -> None:
             f"/api/v1/chats/{chat['id']}/attachments", files={"file": ("a.txt", b"a", "text/plain")}
         )
         assert no_csrf.status_code == 403
+
+
+PNG_1X1 = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478"
+    "da63f8cfc0f01f0005000201a0a2b6e30000000049454e44ae426082"
+)
+
+
+def tiny_pdf(text: str) -> bytes:
+    """A one-page PDF with `text` on it (built by hand: offsets computed)."""
+    stream = f"BT /F1 24 Tf 72 700 Td ({text}) Tj ET".encode()
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for i, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    for off in offsets:
+        out += f"{off:010d} 00000 n \n".encode()
+    out += (
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    )
+    return bytes(out)
+
+
+async def test_pictures_go_to_the_model_and_pdf_text_is_extracted(
+    app: FastAPI, owner: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[ChatRequest] = []
+
+    def capture(req: ChatRequest) -> ChatResult | None:
+        seen.append(req)
+        return None
+
+    monkeypatch.setattr(mock_provider, "_handlers", [capture])
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)
+        chat = await new_chat(client)
+        # the type comes from the bytes, not from the name or the client's claim
+        image = (await upload(client, chat["id"], "photo.txt", PNG_1X1)).json()
+        assert image["kind"] == "image" and image["content_type"] == "image/png"
+        pdf = (
+            await upload(client, chat["id"], "report.pdf", tiny_pdf("Quarterly milk report"))
+        ).json()
+        assert pdf["kind"] == "pdf" and pdf["pages"] == 1
+
+        status, _ = await send(client, chat["id"], "What is in these?", [image["id"], pdf["id"]])
+        assert status == 200
+        last = seen[-1].messages[-1]
+        assert [i.media_type for i in last.images] == ["image/png"]
+        assert 'type="pdf" pages="1" trust="untrusted"' in last.content
+        assert "Quarterly milk report" in last.content
+
+        resp = await client.get(f"/api/v1/chats/{chat['id']}/attachments/{image['id']}/content")
+        assert resp.status_code == 200 and resp.content == PNG_1X1
+        assert resp.headers["content-type"] == "image/png"
+        assert resp.headers["content-disposition"].startswith("inline")
+        resp = await client.get(f"/api/v1/chats/{chat['id']}/attachments/{pdf['id']}/content")
+        assert resp.headers["content-disposition"].startswith("attachment")
+
+        # later questions still see the picture (within the image budget)
+        await send(client, chat["id"], "And the colour?", [])
+        assert [i.media_type for i in seen[-1].messages[-3].images] == ["image/png"]
+
+        broken = await upload(client, chat["id"], "bad.pdf", b"%PDF-1.4 not really")
+        assert broken.status_code == 422

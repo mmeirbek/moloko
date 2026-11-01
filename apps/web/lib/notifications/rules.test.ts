@@ -41,9 +41,28 @@ describe("web push helpers", () => {
   it("decodes the VAPID key and picks the chosen kinds", async () => {
     const { kindsOf, urlBase64ToUint8Array } = await import("./push");
     expect([...urlBase64ToUint8Array("AQID_-8")]).toEqual([1, 2, 3, 255, 239]);
-    expect(kindsOf({ approval: true, taskDone: false, taskFailed: true, system: false, push: true })).toEqual([
+    expect(kindsOf({ approval: true, taskDone: false, taskFailed: true, budget: false, system: false, push: true })).toEqual([
       "approval",
       "taskFailed",
     ]);
   });
 });
+
+describe("budget notices", () => {
+  it("announces a budget warning once per month and threshold", async () => {
+    const { noticeFor } = await import("./rules");
+    const event = {
+      id: "e",
+      seq: 1,
+      type: "budget.warning" as const,
+      version: 1,
+      timestamp: new Date().toISOString(),
+      agent_id: null,
+      task_id: null,
+      run_id: null,
+      payload: { month: "2026-11", percent: 80, spent_usd: "8.00", limit_usd: "10" },
+    };
+    expect(noticeFor(event)).toMatchObject({ kind: "budget", key: "budget:2026-11:80", url: "/settings/costs" });
+  });
+});
+

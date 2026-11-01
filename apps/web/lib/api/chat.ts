@@ -11,6 +11,7 @@ import type {
 } from "@moloko/shared-types";
 
 import { api } from "./client";
+import { API_BASE } from "./config";
 import { readSse } from "./sse";
 
 export const chatKeys = {
@@ -100,8 +101,20 @@ export async function attachStream(
 }
 
 /** Upload a text file; send its id with the next message. */
+/** Where an attached file can be shown or downloaded (same origin; the cookie authorises it). */
+export const attachmentUrl = (chatId: string, attachmentId: string) =>
+  `${API_BASE}/chats/${chatId}/attachments/${attachmentId}/content`;
+
 export function uploadAttachment(chatId: string, file: File): Promise<AttachmentOut> {
   const form = new FormData();
   form.append("file", file, file.name);
   return api.request<AttachmentOut>(`/chats/${chatId}/attachments`, { method: "POST", body: form });
+}
+
+/** Voice input: the recording goes to the owner's OpenAI-type provider, text comes back. */
+export function transcribeAudio(audio: Blob, filename: string, language: string): Promise<{ text: string }> {
+  const form = new FormData();
+  form.append("audio", audio, filename);
+  form.append("language", language);
+  return api.request<{ text: string }>("/ai/transcribe", { method: "POST", body: form });
 }

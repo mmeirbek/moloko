@@ -1,12 +1,13 @@
 import type { EventEnvelope } from "@moloko/shared-types";
 
-export type NotificationKind = "approval" | "taskDone" | "taskFailed";
+export type NotificationKind = "approval" | "taskDone" | "taskFailed" | "budget";
 export type NotificationPrefs = Record<NotificationKind, boolean> & { system: boolean; push: boolean };
 
 export const DEFAULT_PREFS: NotificationPrefs = {
   approval: true,
   taskDone: true,
   taskFailed: true,
+  budget: true,
   system: false,
   push: false,
 };
@@ -71,6 +72,16 @@ export function noticeFor(event: EventEnvelope, now: number = Date.now()): Notic
     const a = p.approval as { id: string; summary: string } | undefined;
     if (!a) return null;
     return { kind: "approval", key: `approval:${a.id}`, title: "approval", subject: a.summary, url: "/approvals" };
+  }
+  if (event.type === "budget.warning") {
+    const percent = Number(p.percent ?? 0);
+    return {
+      kind: "budget",
+      key: `budget:${String(p.month)}:${percent}`,
+      title: "budget",
+      subject: `${percent}% · $${String(p.spent_usd)} / $${String(p.limit_usd)}`,
+      url: "/settings/costs",
+    };
   }
   if (event.type === "task.completed" || event.type === "task.failed") {
     const task = p.task as { id: string; title: string; parent_task_id: string | null } | undefined;

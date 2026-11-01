@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { PixelCow } from "@/features/mascot/pixel-cow";
+import { MicButton } from "@/features/voice/mic-button";
 import { runKeys, startRun } from "@/lib/api/runs";
 
 /** "New task" for the Orchestrator, opened from the cow button (phone tab bar, sidebar). */
@@ -83,6 +84,7 @@ export function NewTaskDialog({ open, onClose }: { open: boolean; onClose: () =>
           </p>
         )}
         <div className="flex justify-end gap-2">
+          <MicButton onText={(spoken) => setText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
           <Button type="submit" disabled={!text.trim() || start.isPending}>
             <Send /> {t("start")}
           </Button>

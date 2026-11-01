@@ -21,6 +21,7 @@ from app.models.tooling import (
     Workspace,
     WorkspaceFile,
 )
+from app.models.usage import UsageRecord
 from app.models.user import User
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "Task",
     "Tool",
     "ToolCall",
+    "UsageRecord",
     "User",
     "Workspace",
     "WorkspaceFile",

@@ -60,7 +60,10 @@
     "attachment_too_large": "The file is too large (up to 200 KB).",
     "github_not_connected": "Connect GitHub first (Integrations → GitHub).",
     "push_unavailable": "Push is unavailable: APP_ENCRYPTION_KEY is not set on the server.",
-    "invalid_subscription": "This push subscription cannot be saved."
+    "invalid_subscription": "This push subscription cannot be saved.",
+    "budget_exceeded": "The monthly budget is used up. Raise it in Settings → Costs.",
+    "ai_service_unavailable": "Voice and smart search need an OpenAI provider (Settings → AI providers).",
+    "audio_too_large": "The recording is too long."
   },
   "preferences": {
     "theme": "Theme",
@@ -96,7 +99,8 @@
       "title": "Settings",
       "description": "Account, appearance and system status.",
       "auditLink": "Audit log",
-      "integrationsLink": "Tools and integrations"
+      "integrationsLink": "Tools and integrations",
+      "costsLink": "Costs"
     }
   },
   "system": {
@@ -155,7 +159,8 @@
     "handedOff": "Done by agents — open the run",
     "attach": "Attach a text file",
     "attachments": "Attached files",
-    "removeAttachment": "Remove \"{name}\""
+    "removeAttachment": "Remove \"{name}\"",
+    "pages": "{count, plural, one {# page} other {# pages}}"
   },
   "settings": {
     "providers": {
@@ -716,7 +721,8 @@
       "kinds": {
         "approval": "An agent needs approval",
         "taskDone": "A task is done",
-        "taskFailed": "A task failed"
+        "taskFailed": "A task failed",
+        "budget": "Costs reached the threshold or the limit"
       },
       "system": "System notifications while moloko is in the background",
       "allow": "Allow system notifications",
@@ -727,6 +733,10 @@
       "pushUnsupported": "This browser does not support Web Push.",
       "pushNote": "Messages travel encrypted through your browser's push service (Apple, Google, Mozilla); it only sees the device address.",
       "pushError": "Could not turn it on: allow notifications in the browser settings and try again."
+    },
+    "budget": {
+      "title": "Costs near the limit",
+      "body": "{subject}"
     }
   },
   "backups": {
@@ -772,5 +782,64 @@
     "start": "Start",
     "close": "Close",
     "untitled": "New task"
+  },
+  "costs": {
+    "title": "Costs",
+    "description": "Tokens and money spent on agents and models. Money uses the prices you entered for each model.",
+    "loading": "Loading…",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "spent": "Spent this month",
+    "tokens": "Tokens",
+    "tokensSplit": "In {input} · out {output}",
+    "tokensShort": "tokens",
+    "calls": "Model calls",
+    "unpriced": "{count, plural, one {# call} other {# calls}} without a price — add prices below",
+    "allPriced": "All models have prices",
+    "ofLimit": "{percent}% of the monthly limit",
+    "limitLine": "{percent}% of {limit}",
+    "near": "Close to the limit.",
+    "over": "Over the limit.",
+    "noLimit": "No limit set — set one below.",
+    "pastMonth": "A past month",
+    "perDay": "Per day",
+    "perDayMax": "Most expensive day: {max}",
+    "perDayEmpty": "Nothing spent this month",
+    "empty": "Nothing spent yet",
+    "emptyHint": "Costs appear here once agents and chat start working.",
+    "byAgent": "By agent",
+    "byModel": "By model",
+    "chat": "Chat",
+    "orchestrator": "Orchestrator",
+    "noPrice": "no price",
+    "colName": "Who",
+    "colCalls": "Calls",
+    "colTokens": "Tokens",
+    "colCost": "Amount",
+    "budget": {
+      "title": "Monthly limit",
+      "description": "You get an in-app and push notification when costs reach the threshold and the limit.",
+      "limit": "Limit per month, $",
+      "limitPlaceholder": "e.g. 20",
+      "warn": "Warn at, %",
+      "hardStop": "Stop new model requests when the limit is used up",
+      "save": "Save",
+      "saved": "Saved."
+    },
+    "prices": {
+      "title": "Model prices",
+      "description": "Price in dollars per 1M tokens (see your provider's website). Without a price, costs are counted in tokens only.",
+      "input": "Input, $/1M",
+      "output": "Output, $/1M",
+      "save": "Save",
+      "saved": "Saved",
+      "none": "No enabled models."
+    }
+  },
+  "voice": {
+    "start": "Speak",
+    "stop": "Stop recording",
+    "denied": "No microphone access: allow it in the browser settings.",
+    "nothing": "No speech recognised. Try again."
   }
 }

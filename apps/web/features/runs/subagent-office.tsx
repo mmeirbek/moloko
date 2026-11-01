@@ -17,6 +17,7 @@ import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/features/mascot/empty-state";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
+import { MicButton } from "@/features/voice/mic-button";
 
 function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
   const t = useTranslations("runs");
@@ -58,9 +59,12 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
           {toMessage(start.error).message}
         </p>
       )}
-      <Button type="submit" className="self-start" disabled={!text.trim() || start.isPending}>
-        <Send /> {t("start")}
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button type="submit" disabled={!text.trim() || start.isPending}>
+          <Send /> {t("start")}
+        </Button>
+        <MicButton onText={(spoken) => setText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
+      </div>
     </form>
   );
 }

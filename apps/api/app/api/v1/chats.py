@@ -118,7 +118,7 @@ async def list_messages(
     "/{chat_id}/attachments",
     response_model=AttachmentOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload a text file to attach to the next message",
+    summary="Upload a file (text, picture or PDF) to attach to the next message",
 )
 async def upload_attachment(
     chat_id: uuid.UUID,
@@ -128,11 +128,54 @@ async def upload_attachment(
     gateway: GatewayDep,
     file: UploadFile,
 ) -> AttachmentOut:
-    data = await file.read(settings.chat_attachment_max_bytes + 1)
+    biggest = max(
+        settings.chat_attachment_max_bytes,
+        settings.chat_image_max_bytes,
+        settings.chat_pdf_max_bytes,
+    )
+    data = await file.read(biggest + 1)
     attachment = await ChatService(db, settings, gateway).upload(
         ctx.user.id, chat_id, file.filename or "file.txt", file.content_type or "text/plain", data
     )
     return AttachmentOut.model_validate(attachment)
+
+
+@router.get(
+    "/{chat_id}/attachments/{attachment_id}/content",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}}},
+    summary="Download an attached file (pictures are shown inline)",
+)
+async def attachment_content(
+    chat_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    gateway: GatewayDep,
+) -> Response:
+    from urllib.parse import quote
+
+    attachment, data = await ChatService(db, settings, gateway).attachment_content(
+        ctx.user.id, chat_id, attachment_id
+    )
+    inline = attachment.kind == "image"
+    media = (
+        attachment.content_type
+        if inline or attachment.kind == "pdf"
+        else "text/plain; charset=utf-8"
+    )
+    disposition = "inline" if inline else "attachment"
+    return Response(
+        content=data,
+        media_type=media,
+        headers={
+            "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(attachment.filename)}",
+            "Cache-Control": "private, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
+    )
 
 
 @router.post(

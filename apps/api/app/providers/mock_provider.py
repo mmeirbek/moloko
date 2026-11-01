@@ -80,6 +80,35 @@ def _scripted_tools(req: ChatRequest) -> ChatResult | None:
     )
 
 
+# Synonyms so the offline "semantic" search finds related words in tests and demos.
+_SYNONYMS = {
+    "milk": "молоко",
+    "молочный": "молоко",
+    "dairy": "молоко",
+    "cow": "корова",
+    "коровы": "корова",
+    "price": "цена",
+    "cost": "цена",
+    "стоимость": "цена",
+    "тариф": "цена",
+}
+
+
+def mock_vector(text: str, dims: int) -> list[float]:
+    """Deterministic embedding: hashed words (with a tiny synonym table), L2-normalised."""
+    import hashlib
+    import math
+    import re as _re
+
+    vec = [0.0] * dims
+    for word in _re.findall(r"\w+", text.lower()):
+        word = _SYNONYMS.get(word, word)
+        h = int(hashlib.sha256(word.encode()).hexdigest()[:8], 16)
+        vec[h % dims] += 1.0 if (h >> 8) & 1 else -1.0
+    norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+    return [v / norm for v in vec]
+
+
 class MockProvider:
     name = "mock"
 
@@ -113,6 +142,21 @@ class MockProvider:
             output_tokens=_count_words(reply),
         )
         return ChatResult(text=reply, usage=usage, stop_reason="end_turn", model=req.model)
+
+    async def transcribe(
+        self, audio: bytes, filename: str, model: str, language: str | None = None
+    ) -> str:
+        """Offline stand-in: a fixed phrase, so tests can check the round trip."""
+        if not audio:
+            raise ProviderError("bad_request", "empty audio", provider="mock")
+        return "Привет, moloko" if (language or "ru").startswith("ru") else "Hello, moloko"
+
+    async def embed(
+        self, texts: list[str], model: str, dimensions: int | None = None
+    ) -> tuple[list[list[float]], int | None]:
+        return [mock_vector(t, dimensions or 256) for t in texts], sum(
+            _count_words(t) for t in texts
+        )
 
     async def complete(self, req: ChatRequest) -> ChatResult:
         user_text = " ".join(m.content for m in req.messages if m.role == "user")

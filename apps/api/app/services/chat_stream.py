@@ -237,6 +237,17 @@ class ChatStreamManager:
                 payload = (
                     MessageOut.model_validate(message).model_dump(mode="json") if message else {}
                 )
+                if result is not None:
+                    from app.services import usage as ledger
+
+                    await ledger.record(
+                        db,
+                        user_id=state.user_id,
+                        target=target,
+                        usage=result.usage,
+                        source="chat",
+                        conversation_id=state.conversation_id,
+                    )
                 # The final message is persisted as an event in the same transaction (spec 10.3).
                 await bus.emit(
                     db,

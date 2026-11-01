@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, func
+from sqlalchemy import ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, Timestamps, UUIDPrimaryKey
@@ -70,4 +70,7 @@ class Attachment(UUIDPrimaryKey, Timestamps, Base):
     content_type: Mapped[str] = mapped_column(String(100))
     size: Mapped[int] = mapped_column(Integer)
     sha256: Mapped[str] = mapped_column(String(64))
-    text: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)  # the file's text (PDF: extracted text; image: "")
+    kind: Mapped[str] = mapped_column(String(8), server_default="text")  # text | image | pdf
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)  # image / PDF bytes
+    pages: Mapped[int | None] = mapped_column(Integer)  # PDF page count

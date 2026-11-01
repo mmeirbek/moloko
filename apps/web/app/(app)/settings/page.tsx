@@ -35,6 +35,9 @@ export default async function SettingsPage() {
         <BackupsSection />
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
+            <Link href="/settings/costs">{t("costsLink")}</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href="/settings/audit">{t("auditLink")}</Link>
           </Button>
           <Button variant="outline" asChild>

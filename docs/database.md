@@ -117,3 +117,8 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - `mcp_servers.headers jsonb` (extra request headers, e.g. `X-MCP-Readonly`) and `auth_source` (`token` = the server's own token, `github` = the Integrations → GitHub token).
 - Tasks the Orchestrator gives to the owner's agents carry `extra.assigned = true` and `extra.root_run` (no schema change).
 
+## Tables (revisions 0009–0010 — owner requests)
+
+- **`usage_records`** — append-only ledger: `user_id, source (chat|agent|orchestrator), agent_id?, agent_name?, task_id?, run_id?, conversation_id?, model_config_id? (SET NULL), provider_kind, model, input_tokens, output_tokens, cost_usd?, created_at`; index `(user_id, created_at)`. Budget settings and sent alerts live in `system_settings` (`budget`, `budget_alerts`).
+- `attachments.kind` (`text|image|pdf`), `data bytea` (picture/PDF bytes, deferred), `pages` (PDF).
+

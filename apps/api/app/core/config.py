@@ -69,6 +69,14 @@ class Settings(BaseSettings):
     chat_title_max_chars: int = Field(60, ge=10, le=200)
     chat_attachment_max_bytes: int = Field(200_000, ge=1000, le=5_000_000)
     chat_attachments_per_message: int = Field(5, ge=1, le=20)
+    # Pictures (for vision models) and PDFs (their text is extracted on the server).
+    chat_image_max_bytes: int = Field(5_000_000, ge=10_000, le=20_000_000)
+    chat_pdf_max_bytes: int = Field(10_000_000, ge=10_000, le=50_000_000)
+    chat_pdf_max_pages: int = Field(100, ge=1, le=1000)
+    chat_pdf_max_chars: int = Field(200_000, ge=1000, le=2_000_000)
+    chat_pdf_timeout_seconds: float = Field(20.0, gt=0, le=120)
+    # How many of the most recent pictures in a chat are sent to the model again.
+    chat_context_images: int = Field(4, ge=0, le=20)
 
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
     max_active_subagents_per_run: int = Field(5, ge=1, le=50)
@@ -175,6 +183,15 @@ class Settings(BaseSettings):
     # --- Integrations ----------------------------------------------------------------
     integration_timeout_seconds: float = Field(20.0, gt=0, le=120)
     mcp_timeout_seconds: float = Field(30.0, gt=0, le=600)
+    # --- Voice input and semantic search (through the owner's OpenAI provider) ------
+    # Model names are defaults; the owner can change them in Settings → Voice & search.
+    transcription_model: str = "gpt-4o-mini-transcribe"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = Field(1536, ge=64, le=4096)
+    voice_max_bytes: int = Field(10_000_000, ge=10_000, le=25_000_000)
+    search_chunk_chars: int = Field(1200, ge=200, le=8000)
+    search_max_results: int = Field(8, ge=1, le=50)
+    search_index_batch: int = Field(32, ge=1, le=256)
     # --- Web Push (notifications while the app is closed) ---------------------------
     # Contact for the push services (VAPID "sub"): use your e-mail, e.g. mailto:me@example.org
     push_contact: str = "mailto:owner@moloko.invalid"

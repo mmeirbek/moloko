@@ -5,6 +5,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAui,
   useAuiState,
   useExternalStoreRuntime,
   type AppendMessage,
@@ -20,6 +21,10 @@ import { createContext, useContext, useMemo, useRef, useState, type ReactNode } 
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { chatKeys, getChat, listPickerModels, modelKeys, updateChat, uploadAttachment } from "@/lib/api/chat";
+
+import { MicButton } from "@/features/voice/mic-button";
+
+import { AttachmentChip } from "./attachment-chip";
 import { handOff } from "@/lib/api/runs";
 import { cn } from "@/lib/utils";
 
@@ -71,9 +76,7 @@ function UserMessage() {
       {message?.attachments && message.attachments.length > 0 && (
         <ul className="flex max-w-[85%] flex-wrap justify-end gap-1" aria-label={t("attachments")}>
           {message.attachments.map((a) => (
-            <li key={a.id} className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-0.5 text-xs">
-              <Paperclip className="size-3" aria-hidden /> {a.filename}
-            </li>
+            <AttachmentChip key={a.id} chatId={message.conversation_id} attachment={a} />
           ))}
         </ul>
       )}
@@ -140,6 +143,21 @@ function AssistantMessage() {
   );
 }
 
+/** Voice input appends the spoken text to what is already typed. */
+function ComposerMic({ disabled }: { disabled?: boolean }) {
+  const aui = useAui();
+  return (
+    <MicButton
+      disabled={disabled}
+      onText={(text) => {
+        const composer = aui.composer();
+        const current = composer.getState().text;
+        composer.setText(current ? `${current.trimEnd()} ${text}` : text);
+      }}
+    />
+  );
+}
+
 function Composer({ disabled, attach }: { disabled?: boolean; attach?: ReactNode }) {
   const t = useTranslations("chat");
   return (
@@ -152,6 +170,7 @@ function Composer({ disabled, attach }: { disabled?: boolean; attach?: ReactNode
         placeholder={t("placeholder")}
         className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-muted-foreground md:text-sm"
       />
+      <ComposerMic disabled={disabled} />
       <ThreadPrimitive.If running={false}>
         <ComposerPrimitive.Send asChild>
           <Button size="icon" aria-label={t("send")} className="rounded-full">
@@ -272,7 +291,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
         type="file"
         multiple
         hidden
-        accept=".txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.xml,.html,.log,.py,.js,.ts,.tsx,.jsx,.sql,.sh,.toml,.ini,.cfg,text/*"
+        accept=".txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.xml,.html,.log,.py,.js,.ts,.tsx,.jsx,.sql,.sh,.toml,.ini,.cfg,text/*,image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf"
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           e.target.value = "";
@@ -360,12 +379,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                 {pending.length > 0 && !agentsMode && (
                   <ul className="flex flex-wrap gap-1 px-1" aria-label={t("attachments")}>
                     {pending.map((a) => (
-                      <li
-                        key={a.id}
-                        className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs"
-                        data-attachment={a.filename}
-                      >
-                        <Paperclip className="size-3" aria-hidden /> {a.filename}
+                      <AttachmentChip key={a.id} chatId={chatId} attachment={a}>
                         <button
                           type="button"
                           aria-label={t("removeAttachment", { name: a.filename })}
@@ -374,7 +388,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                         >
                           <X className="size-3" />
                         </button>
-                      </li>
+                      </AttachmentChip>
                     ))}
                   </ul>
                 )}

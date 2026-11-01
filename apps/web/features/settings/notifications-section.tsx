@@ -59,7 +59,7 @@ export function NotificationsSection() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
-        {(["approval", "taskDone", "taskFailed"] as const).map((kind) => (
+        {(["approval", "taskDone", "taskFailed", "budget"] as const).map((kind) => (
           <label key={kind} className="flex items-center gap-2">
             <input
               type="checkbox"

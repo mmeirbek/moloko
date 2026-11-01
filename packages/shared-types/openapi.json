@@ -1,6 +1,57 @@
 {
   "components": {
     "schemas": {
+      "AgentCost": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "name",
+          "source",
+          "cost_usd",
+          "input_tokens",
+          "output_tokens",
+          "calls"
+        ],
+        "title": "AgentCost",
+        "type": "object"
+      },
       "AgentCreate": {
         "additionalProperties": false,
         "properties": {
@@ -660,6 +711,138 @@
         "title": "AgentUpdate",
         "type": "object"
       },
+      "AiServicesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "embedding_dimensions": {
+            "anyOf": [
+              {
+                "maximum": 4096.0,
+                "minimum": 64.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Dimensions"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Model"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "semantic_search": {
+            "default": true,
+            "title": "Semantic Search",
+            "type": "boolean"
+          },
+          "transcription_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcription Model"
+          }
+        },
+        "title": "AiServicesIn",
+        "type": "object"
+      },
+      "AiServicesOut": {
+        "properties": {
+          "active_provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Provider Id"
+          },
+          "active_provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Provider Name"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "embedding_dimensions": {
+            "title": "Embedding Dimensions",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "semantic_search": {
+            "title": "Semantic Search",
+            "type": "boolean"
+          },
+          "transcription_model": {
+            "title": "Transcription Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "active_provider_id",
+          "active_provider_name",
+          "available",
+          "transcription_model",
+          "embedding_model",
+          "embedding_dimensions",
+          "semantic_search"
+        ],
+        "title": "AiServicesOut",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "agent_id": {
@@ -799,6 +982,22 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "kind": {
+            "default": "text",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
           },
           "size": {
             "title": "Size",
@@ -1030,6 +1229,32 @@
         "title": "BackupsStatus",
         "type": "object"
       },
+      "Body_transcribe_api_v1_ai_transcribe_post": {
+        "properties": {
+          "audio": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Audio",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "required": [
+          "audio"
+        ],
+        "title": "Body_transcribe_api_v1_ai_transcribe_post",
+        "type": "object"
+      },
       "Body_upload_attachment_api_v1_chats__chat_id__attachments_post": {
         "properties": {
           "file": {
@@ -1042,6 +1267,83 @@
           "file"
         ],
         "title": "Body_upload_attachment_api_v1_chats__chat_id__attachments_post",
+        "type": "object"
+      },
+      "BudgetIn": {
+        "additionalProperties": false,
+        "properties": {
+          "hard_stop": {
+            "default": false,
+            "title": "Hard Stop",
+            "type": "boolean"
+          },
+          "monthly_limit_usd": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Limit Usd"
+          },
+          "warn_percent": {
+            "default": 80,
+            "maximum": 99.0,
+            "minimum": 10.0,
+            "title": "Warn Percent",
+            "type": "integer"
+          }
+        },
+        "title": "BudgetIn",
+        "type": "object"
+      },
+      "BudgetOut": {
+        "properties": {
+          "hard_stop": {
+            "title": "Hard Stop",
+            "type": "boolean"
+          },
+          "monthly_limit_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Limit Usd"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "warn_percent": {
+            "title": "Warn Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "monthly_limit_usd",
+          "warn_percent",
+          "hard_stop",
+          "percent"
+        ],
+        "title": "BudgetOut",
         "type": "object"
       },
       "CancelResult": {
@@ -1171,6 +1473,72 @@
         "title": "ConversationUpdate",
         "type": "object"
       },
+      "CostSummary": {
+        "properties": {
+          "budget": {
+            "$ref": "#/components/schemas/BudgetOut"
+          },
+          "by_agent": {
+            "items": {
+              "$ref": "#/components/schemas/AgentCost"
+            },
+            "title": "By Agent",
+            "type": "array"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/DayCost"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCost"
+            },
+            "title": "By Model",
+            "type": "array"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "spent_usd": {
+            "title": "Spent Usd",
+            "type": "string"
+          },
+          "unpriced_calls": {
+            "title": "Unpriced Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "spent_usd",
+          "input_tokens",
+          "output_tokens",
+          "calls",
+          "unpriced_calls",
+          "budget",
+          "by_agent",
+          "by_model",
+          "by_day"
+        ],
+        "title": "CostSummary",
+        "type": "object"
+      },
       "CsrfResponse": {
         "properties": {
           "csrf_token": {
@@ -1182,6 +1550,30 @@
           "csrf_token"
         ],
         "title": "CsrfResponse",
+        "type": "object"
+      },
+      "DayCost": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "cost_usd",
+          "tokens"
+        ],
+        "title": "DayCost",
         "type": "object"
       },
       "DiskStatus": {
@@ -2417,6 +2809,56 @@
           "completed_at"
         ],
         "title": "MessageOut",
+        "type": "object"
+      },
+      "ModelCost": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "provider_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Kind"
+          },
+          "unpriced_calls": {
+            "title": "Unpriced Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_kind",
+          "model",
+          "cost_usd",
+          "input_tokens",
+          "output_tokens",
+          "calls",
+          "unpriced_calls"
+        ],
+        "title": "ModelCost",
         "type": "object"
       },
       "ModelCreate": {
@@ -4198,6 +4640,19 @@
         "title": "ToolUpdate",
         "type": "object"
       },
+      "Transcript": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Transcript",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "display_name": {
@@ -4948,6 +5403,107 @@
         ]
       }
     },
+    "/api/v1/ai/settings": {
+      "get": {
+        "operationId": "get_settings_api_v1_ai_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiServicesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Voice input and semantic search",
+        "tags": [
+          "voice & search"
+        ]
+      },
+      "put": {
+        "operationId": "put_settings_api_v1_ai_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiServicesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiServicesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Settings",
+        "tags": [
+          "voice & search"
+        ]
+      }
+    },
+    "/api/v1/ai/transcribe": {
+      "post": {
+        "operationId": "transcribe_api_v1_ai_transcribe_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_transcribe_api_v1_ai_transcribe_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speech to text (voice input)",
+        "tags": [
+          "voice & search"
+        ]
+      }
+    },
     "/api/v1/approvals": {
       "get": {
         "operationId": "list_approvals_api_v1_approvals_get",
@@ -5673,7 +6229,56 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload a text file to attach to the next message",
+        "summary": "Upload a file (text, picture or PDF) to attach to the next message",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/chats/{chat_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "operationId": "attachment_content_api_v1_chats__chat_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Chat Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download an attached file (pictures are shown inline)",
         "tags": [
           "chats"
         ]
@@ -5955,6 +6560,97 @@
         "summary": "Re-attach to an answer that is still being generated",
         "tags": [
           "chats"
+        ]
+      }
+    },
+    "/api/v1/costs": {
+      "get": {
+        "operationId": "costs_api_v1_costs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tokens and approximate cost for a month",
+        "tags": [
+          "costs"
+        ]
+      }
+    },
+    "/api/v1/costs/budget": {
+      "put": {
+        "operationId": "update_budget_api_v1_costs_budget_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Monthly limit and warnings",
+        "tags": [
+          "costs"
         ]
       }
     },

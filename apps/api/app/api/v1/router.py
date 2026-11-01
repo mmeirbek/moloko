@@ -15,8 +15,10 @@ from fastapi import APIRouter, Depends
 from app.api.deps import require_auth
 from app.api.v1 import (
     agents,
+    ai_services,
     auth,
     chats,
+    costs,
     events,
     health,
     memories,
@@ -43,6 +45,8 @@ protected.include_router(system.router)
 protected.include_router(runs.router)
 protected.include_router(memories.router)
 protected.include_router(push.router)
+protected.include_router(costs.router)
+protected.include_router(ai_services.router)
 protected.include_router(tooling.tools_router)
 protected.include_router(tooling.approvals_router)
 protected.include_router(tooling.integrations_router)

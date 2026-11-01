@@ -12,6 +12,7 @@ import { StatusBadge } from "@/features/agents/status-badge";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { modelLabel } from "@/features/chat/model-picker";
+import { MicButton } from "@/features/voice/mic-button";
 import { agentAction, agentKeys, runAgent, taskKeys } from "@/lib/api/agents";
 import { listPickerModels, modelKeys } from "@/lib/api/chat";
 import { api } from "@/lib/api/client";
@@ -146,9 +147,12 @@ export function AgentInspector({
               {toMessage(give.error).message}
             </p>
           )}
-          <Button type="submit" size="sm" className="self-start" disabled={!taskText.trim() || give.isPending}>
-            <Send /> {t("giveTask")}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button type="submit" size="sm" disabled={!taskText.trim() || give.isPending}>
+              <Send /> {t("giveTask")}
+            </Button>
+            <MicButton onText={(spoken) => setTaskText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
+          </div>
         </form>
       )}
 

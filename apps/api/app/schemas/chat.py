@@ -39,6 +39,8 @@ class AttachmentOut(BaseModel):
     filename: str
     content_type: str
     size: int
+    kind: str = "text"  # text | image | pdf
+    pages: int | None = None
     created_at: datetime
 
 

@@ -14,7 +14,7 @@
         "agent.created", "agent.updated", "agent.status_changed", "agent.message",
         "agent.task_started", "agent.task_completed", "agent.task_failed",
         "task.created", "task.updated", "task.completed", "task.failed", "task.cancelled",
-        "approval.required", "approval.resolved",
+        "approval.required", "approval.resolved", "budget.warning",
         "chat.message_delta", "chat.message_completed"
       ]
     },

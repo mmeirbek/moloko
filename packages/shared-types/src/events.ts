@@ -20,7 +20,8 @@ export type EventType =
   | "approval.required"
   | "approval.resolved"
   | "chat.message_delta"
-  | "chat.message_completed";
+  | "chat.message_completed"
+  | "budget.warning";
 
 export interface EventEnvelope<P = Record<string, unknown>> {
   id: string;

@@ -160,6 +160,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Voice input and semantic search */
+        get: operations["get_settings_api_v1_ai_settings_get"];
+        /** Put Settings */
+        put: operations["put_settings_api_v1_ai_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Speech to text (voice input) */
+        post: operations["transcribe_api_v1_ai_transcribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/approvals": {
         parameters: {
             query?: never;
@@ -376,8 +411,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload a text file to attach to the next message */
+        /** Upload a file (text, picture or PDF) to attach to the next message */
         post: operations["upload_attachment_api_v1_chats__chat_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chats/{chat_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an attached file (pictures are shown inline) */
+        get: operations["attachment_content_api_v1_chats__chat_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -446,6 +498,40 @@ export interface paths {
         /** Re-attach to an answer that is still being generated */
         get: operations["attach_stream_api_v1_chats__chat_id__messages__message_id__stream_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tokens and approximate cost for a month */
+        get: operations["costs_api_v1_costs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/costs/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Monthly limit and warnings */
+        put: operations["update_budget_api_v1_costs_budget_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1185,6 +1271,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AgentCost */
+        AgentCost: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Name */
+            name: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Source */
+            source: string;
+        };
         /** AgentCreate */
         AgentCreate: {
             /** @default autonomous */
@@ -1395,6 +1498,41 @@ export interface components {
             /** Workspace Id */
             workspace_id?: string | null;
         };
+        /** AiServicesIn */
+        AiServicesIn: {
+            /** Embedding Dimensions */
+            embedding_dimensions?: number | null;
+            /** Embedding Model */
+            embedding_model?: string | null;
+            /** Provider Id */
+            provider_id?: string | null;
+            /**
+             * Semantic Search
+             * @default true
+             */
+            semantic_search?: boolean;
+            /** Transcription Model */
+            transcription_model?: string | null;
+        };
+        /** AiServicesOut */
+        AiServicesOut: {
+            /** Active Provider Id */
+            active_provider_id: string | null;
+            /** Active Provider Name */
+            active_provider_name: string | null;
+            /** Available */
+            available: boolean;
+            /** Embedding Dimensions */
+            embedding_dimensions: number;
+            /** Embedding Model */
+            embedding_model: string;
+            /** Provider Id */
+            provider_id: string | null;
+            /** Semantic Search */
+            semantic_search: boolean;
+            /** Transcription Model */
+            transcription_model: string;
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /**
@@ -1463,6 +1601,13 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Kind
+             * @default text
+             */
+            kind?: string;
+            /** Pages */
+            pages?: number | null;
             /** Size */
             size: number;
         };
@@ -1540,10 +1685,43 @@ export interface components {
             /** Same Disk As Data */
             same_disk_as_data: boolean | null;
         };
+        /** Body_transcribe_api_v1_ai_transcribe_post */
+        Body_transcribe_api_v1_ai_transcribe_post: {
+            /** Audio */
+            audio: string;
+            /** Language */
+            language?: string | null;
+        };
         /** Body_upload_attachment_api_v1_chats__chat_id__attachments_post */
         Body_upload_attachment_api_v1_chats__chat_id__attachments_post: {
             /** File */
             file: string;
+        };
+        /** BudgetIn */
+        BudgetIn: {
+            /**
+             * Hard Stop
+             * @default false
+             */
+            hard_stop?: boolean;
+            /** Monthly Limit Usd */
+            monthly_limit_usd?: number | string | null;
+            /**
+             * Warn Percent
+             * @default 80
+             */
+            warn_percent?: number;
+        };
+        /** BudgetOut */
+        BudgetOut: {
+            /** Hard Stop */
+            hard_stop: boolean;
+            /** Monthly Limit Usd */
+            monthly_limit_usd: string | null;
+            /** Percent */
+            percent: number | null;
+            /** Warn Percent */
+            warn_percent: number;
         };
         /** CancelResult */
         CancelResult: {
@@ -1591,10 +1769,44 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** CostSummary */
+        CostSummary: {
+            budget: components["schemas"]["BudgetOut"];
+            /** By Agent */
+            by_agent: components["schemas"]["AgentCost"][];
+            /** By Day */
+            by_day: components["schemas"]["DayCost"][];
+            /** By Model */
+            by_model: components["schemas"]["ModelCost"][];
+            /** Calls */
+            calls: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Month */
+            month: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Spent Usd */
+            spent_usd: string;
+            /** Unpriced Calls */
+            unpriced_calls: number;
+        };
         /** CsrfResponse */
         CsrfResponse: {
             /** Csrf Token */
             csrf_token: string;
+        };
+        /** DayCost */
+        DayCost: {
+            /** Cost Usd */
+            cost_usd: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Tokens */
+            tokens: number;
         };
         /** DiskStatus */
         DiskStatus: {
@@ -2015,6 +2227,23 @@ export interface components {
             role: string;
             /** Status */
             status: string;
+        };
+        /** ModelCost */
+        ModelCost: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Model */
+            model: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Provider Kind */
+            provider_kind: string | null;
+            /** Unpriced Calls */
+            unpriced_calls: number;
         };
         /** ModelCreate */
         ModelCreate: {
@@ -2586,6 +2815,11 @@ export interface components {
             /** Enabled */
             enabled?: boolean | null;
         };
+        /** Transcript */
+        Transcript: {
+            /** Text */
+            text: string;
+        };
         /** UserOut */
         UserOut: {
             /** Display Name */
@@ -3034,6 +3268,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_settings_api_v1_ai_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiServicesOut"];
+                };
+            };
+        };
+    };
+    put_settings_api_v1_ai_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiServicesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiServicesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    transcribe_api_v1_ai_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_transcribe_api_v1_ai_transcribe_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
                 };
             };
             /** @description Validation Error */
@@ -3525,6 +3845,38 @@ export interface operations {
             };
         };
     };
+    attachment_content_api_v1_chats__chat_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     handoff_api_v1_chats__chat_id__handoff_post: {
         parameters: {
             query?: never;
@@ -3682,6 +4034,70 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    costs_api_v1_costs_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_budget_api_v1_costs_budget_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetOut"];
                 };
             };
             /** @description Validation Error */

@@ -90,6 +90,7 @@ class OrchestratorRuntime(NativeRuntime):
                 "max_steps_exceeded", f"The orchestrator used all {setup.max_steps} steps."
             )
         await self._ensure_working(ctx)
+        await self._budget_gate(ctx)
         request = ChatRequest(
             model=setup.target.model,
             messages=tuple(transcript),

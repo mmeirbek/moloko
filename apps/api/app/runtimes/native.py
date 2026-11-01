@@ -18,6 +18,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.control import Interrupted, Signal
@@ -273,6 +274,7 @@ class NativeRuntime:
                     "max_steps_exceeded", f"The agent used all {max_steps} steps without finishing."
                 )
             await self._ensure_working(ctx)
+            await self._budget_gate(ctx)
             request = ChatRequest(
                 model=target.model,
                 messages=tuple(transcript),
@@ -312,6 +314,16 @@ class NativeRuntime:
                 await set_agent_status(db, agent, AgentStatus.WORKING)
                 await bus.commit(db)
 
+    async def _budget_gate(self, ctx: RunContext) -> None:
+        """Before every model call: stop if the owner set "stop at the monthly limit"."""
+        from app.services.usage import BudgetExceeded, ensure_within_budget
+
+        async with ctx.sessionmaker() as db:
+            try:
+                await ensure_within_budget(db, ctx.user_id)
+            except BudgetExceeded as exc:
+                raise LimitExceeded("budget_exceeded", exc.message) from None
+
     async def _checkpoint(
         self,
         ctx: RunContext,
@@ -332,6 +344,24 @@ class NativeRuntime:
             if cost is not None:
                 usage["cost_usd"] = float(usage.get("cost_usd", 0.0)) + float(cost)
             run.usage = usage
+            from app.services import usage as ledger
+
+            who = (
+                await db.execute(
+                    select(Agent.name, Agent.agent_type).where(Agent.id == ctx.agent_id)
+                )
+            ).one_or_none()
+            await ledger.record(
+                db,
+                user_id=ctx.user_id,
+                target=target,
+                usage=result.usage,
+                source="orchestrator" if who and who[1] == "orchestrator" else "agent",
+                agent_id=ctx.agent_id,
+                agent_name=who[0] if who else None,
+                task_id=ctx.task_id,
+                run_id=ctx.run_id,
+            )
             run.steps = steps
             run.state = {
                 **run.state,

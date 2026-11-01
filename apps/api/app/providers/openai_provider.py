@@ -53,6 +53,24 @@ def _messages(req: ChatRequest) -> list[dict[str, Any]]:
                     ],
                 }
             )
+        elif m.role == "user" and m.images:
+            out.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": m.content},
+                        *(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{img.media_type};base64,{img.data_b64}"
+                                },
+                            }
+                            for img in m.images
+                        ),
+                    ],
+                }
+            )
         else:
             out.append({"role": m.role, "content": m.content})
     return out
@@ -122,6 +140,35 @@ class OpenAIProvider:
             page = await self._client.models.list()
             models = [ModelInfo(id=m.id) async for m in page]
             return sorted(models, key=lambda m: m.id)
+        except openai.OpenAIError as exc:
+            raise _map_error(exc) from exc
+
+    # --- voice and search (owner's OpenAI key; models come from settings) -----------------
+
+    async def transcribe(
+        self, audio: bytes, filename: str, model: str, language: str | None = None
+    ) -> str:
+        try:
+            kwargs: dict[str, Any] = {"model": model, "file": (filename, audio)}
+            if language:
+                kwargs["language"] = language
+            resp = await self._client.audio.transcriptions.create(**kwargs)
+            return str(getattr(resp, "text", "") or "")
+        except openai.OpenAIError as exc:
+            raise _map_error(exc) from exc
+
+    async def embed(
+        self, texts: list[str], model: str, dimensions: int | None = None
+    ) -> tuple[list[list[float]], int | None]:
+        """Vectors for `texts` and the tokens used."""
+        try:
+            kwargs: dict[str, Any] = {"model": model, "input": texts}
+            if dimensions:
+                kwargs["dimensions"] = dimensions
+            resp = await self._client.embeddings.create(**kwargs)
+            vectors = [list(d.embedding) for d in sorted(resp.data, key=lambda d: d.index)]
+            used = getattr(resp.usage, "total_tokens", None) if resp.usage else None
+            return vectors, used
         except openai.OpenAIError as exc:
             raise _map_error(exc) from exc
 

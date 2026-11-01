@@ -29,17 +29,19 @@ logger = logging.getLogger("moloko.push")
 
 CURSOR_KEY = "push_cursor"
 MAX_AGE = timedelta(minutes=15)
-TYPES = ("approval.required", "task.completed", "task.failed")
+TYPES = ("approval.required", "task.completed", "task.failed", "budget.warning")
 TITLES = {
     "ru": {
         "approval": "Нужно ваше одобрение",
         "taskDone": "Задача выполнена",
         "taskFailed": "Задача не выполнена",
+        "budget": "Расходы: {percent}% месячного лимита",
     },
     "en": {
         "approval": "Your approval is needed",
         "taskDone": "Task done",
         "taskFailed": "Task failed",
+        "budget": "Costs: {percent}% of the monthly limit",
     },
 }
 
@@ -50,6 +52,7 @@ class Notice:
     key: str
     subject: str
     url: str
+    percent: int = 0
 
 
 def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
@@ -66,6 +69,15 @@ def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
             f"{who}: {approval.get('summary', '')}" if who else str(approval.get("summary", ""))
         )
         return Notice("approval", f"approval:{approval['id']}", subject, "/approvals")
+    if event.type == "budget.warning":
+        percent = int(payload.get("percent", 0))
+        return Notice(
+            "budget",
+            f"budget:{payload.get('month')}:{percent}",
+            f"${payload.get('spent_usd')} / ${payload.get('limit_usd')}",
+            "/settings/costs",
+            percent,
+        )
     if event.type in ("task.completed", "task.failed"):
         task = payload.get("task") or {}
         if not task.get("id") or task.get("parent_task_id"):
@@ -159,7 +171,7 @@ async def dispatch(sessionmaker: async_sessionmaker[AsyncSession], settings: Set
 async def _deliver(
     db: AsyncSession, sub: PushSubscription, notice: Notice, keys: Any, settings: Settings
 ) -> int:
-    title = TITLES.get(sub.locale, TITLES["ru"])[notice.kind]
+    title = TITLES.get(sub.locale, TITLES["ru"])[notice.kind].format(percent=notice.percent)
     payload: dict[str, object] = {
         "title": title,
         "body": notice.subject[:300],
@@ -176,7 +188,7 @@ async def _deliver(
             keys,
             subject=settings.push_contact,
             ttl=settings.push_ttl_seconds,
-            urgency="high" if notice.kind == "approval" else "normal",
+            urgency="high" if notice.kind in ("approval", "budget") else "normal",
             topic=topic,
         )
     except Exception as exc:  # noqa: BLE001 — a push service being down must not stop the worker

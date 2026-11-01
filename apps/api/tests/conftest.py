@@ -80,6 +80,7 @@ async def migrated_database() -> AsyncIterator[None]:
 
 
 TABLES = (
+    "usage_records",
     "push_subscriptions",
     "attachments",
     "approvals",

@@ -31,7 +31,7 @@ export function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 export function kindsOf(prefs: NotificationPrefs): NotificationKind[] {
-  return (["approval", "taskDone", "taskFailed"] as const).filter((k) => prefs[k]);
+  return (["approval", "taskDone", "taskFailed", "budget"] as const).filter((k) => prefs[k]);
 }
 
 function deviceLabel(): string {

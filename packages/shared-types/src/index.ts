@@ -94,3 +94,6 @@ export type AuditPage = Schemas["AuditPage"];
 // Sprint 8 — chat attachments
 export type AttachmentOut = Schemas["AttachmentOut"];
 export type StorageStatus = Schemas["StorageStatus"];
+export type CostSummary = Schemas["CostSummary"];
+export type BudgetIn = Schemas["BudgetIn"];
+export type BudgetOut = Schemas["BudgetOut"];
