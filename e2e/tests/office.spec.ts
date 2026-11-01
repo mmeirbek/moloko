@@ -55,9 +55,9 @@ test("agent from a template rests in the office until it gets a task", async ({ 
   expect(tasks.items).toEqual([]);
 
   const form = inspector.getByTestId("give-task");
-  await form.getByRole("textbox").fill("Переведи: доброе утро [[mock:sleep:4]]");
+  await form.getByRole("textbox").fill("Переведи: доброе утро [[mock:sleep:12]]");
   await form.getByRole("button", { name: "Дать задачу" }).click();
   await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.pose === "type", 20_000);
-  await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.status === "idle", 40_000);
+  await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.status === "idle", 60_000);
   expect(errors).toEqual([]);
 });

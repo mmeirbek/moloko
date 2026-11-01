@@ -49,47 +49,49 @@ export function NewTaskDialog({ open, onClose }: { open: boolean; onClose: () =>
       className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl border bg-card p-0 text-card-foreground shadow-xl backdrop:bg-black/40"
       data-testid="new-task-dialog"
     >
-      <form
-        method="dialog"
-        className="flex flex-col gap-3 p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (text.trim()) start.mutate();
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <PixelCow mood="happy" size={40} />
-          <h2 id="new-task-title" className="flex-1 text-lg">
-            {t("title")}
-          </h2>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label={t("close")}>
-            <X />
-          </Button>
-        </div>
-        <label htmlFor="new-task-text" className="text-sm text-muted-foreground">
-          {t("hint")}
-        </label>
-        <textarea
-          id="new-task-text"
-          rows={4}
-          autoFocus
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t("placeholder")}
-          className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
-        />
-        {start.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {toMessage(start.error).message}
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <MicButton onText={(spoken) => setText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
-          <Button type="submit" disabled={!text.trim() || start.isPending}>
-            <Send /> {t("start")}
-          </Button>
-        </div>
-      </form>
+      {open && (
+        <form
+          method="dialog"
+          className="flex flex-col gap-3 p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim()) start.mutate();
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <PixelCow mood="happy" size={40} />
+            <h2 id="new-task-title" className="flex-1 text-lg">
+              {t("title")}
+            </h2>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label={t("close")}>
+              <X />
+            </Button>
+          </div>
+          <label htmlFor="new-task-text" className="text-sm text-muted-foreground">
+            {t("hint")}
+          </label>
+          <textarea
+            id="new-task-text"
+            rows={4}
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t("placeholder")}
+            className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
+          />
+          {start.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {toMessage(start.error).message}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <MicButton onText={(spoken) => setText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
+            <Button type="submit" disabled={!text.trim() || start.isPending}>
+              <Send /> {t("start")}
+            </Button>
+          </div>
+        </form>
+      )}
     </dialog>
   );
 }
