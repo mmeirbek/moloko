@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { CategoryBadge } from "@/features/approvals/approval-card";
 import { groupTools } from "@/features/integrations/tools-section";
-import { useToolTitle } from "@/features/integrations/use-tool-title";
+import { useToolHint, useToolTitle } from "@/features/integrations/use-tool-title";
 import { listTools, listWorkspaces, toolingKeys } from "@/lib/api/tooling";
 
 import { setOverride, toggleTool, type AgentFormValues, type ToolOverride } from "./agent-form-model";
@@ -21,6 +21,7 @@ export function AgentToolsField({
   const t = useTranslations("agents.form");
   const tt = useTranslations("tools");
   const titleOf = useToolTitle();
+  const hintOf = useToolHint();
   const tools = useQuery({ queryKey: toolingKeys.tools, queryFn: ({ signal }) => listTools(signal) });
   const projects = useQuery({
     queryKey: [...toolingKeys.workspaces, "project"],
@@ -40,13 +41,17 @@ export function AgentToolsField({
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1"
                 data-agent-tool={tool.name}
               >
-                <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                <label className="flex min-w-0 flex-1 items-start gap-2 text-sm">
                   <input
                     type="checkbox"
+                    className="mt-0.5 size-4 shrink-0"
                     checked={allowed}
                     onChange={(e) => onChange(toggleTool(values, tool.name, e.target.checked))}
                   />
-                  <span className="min-w-0 truncate">{titleOf(tool)}</span>
+                  <span className="min-w-0">
+                    <span className="block">{titleOf(tool)}</span>
+                    <span className="block text-xs text-muted-foreground">{hintOf(tool)}</span>
+                  </span>
                 </label>
                 <CategoryBadge category={tool.category} />
                 {(!tool.enabled || !tool.available) && (

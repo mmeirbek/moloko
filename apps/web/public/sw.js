@@ -4,7 +4,7 @@
  *   single source of truth, a stale copy of state must not be shown as current.
  * - Opens the right page when a notification is clicked.
  */
-const VERSION = "moloko-v3";
+const VERSION = "moloko-v4"; // v4: icons from the owner's logo
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png", "/icons/badge-96.png", "/icons/cow-sleep.png"];
 

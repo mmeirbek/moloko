@@ -1,5 +1,6 @@
-// Writes the PWA icons (public/icons/*.png) from the logo and cow pixel art
+// Writes the cow icons (public/icons/badge-96.png, cow-sleep.png) from the cow pixel art
 // (features/mascot/cow-art.json) — no image library needed (PNG = zlib + CRC).
+// The logo icons (favicon, PWA, apple-touch) come from the owner's image: scripts/make-brand.py.
 // Re-run after editing the art:   node scripts/make-icons.mjs
 import { readFileSync, writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
@@ -64,16 +65,8 @@ function png(rows, size, { padRatio = 0, background = NAVY, mono = false, palett
 }
 
 const face = ART.face.frames;
-const logo = ART.logo.rows;
-const L = { palette: ART.logo.palette };
 const out = new URL("../public/icons/", import.meta.url);
 const icons = [
-  // the owner's logo tile (cow in a meadow)
-  ["icon-192.png", logo, 192, { ...L }],
-  ["icon-512.png", logo, 512, { ...L }],
-  ["maskable-512.png", logo, 512, { ...L, padRatio: 0.12 }],
-  ["apple-touch-icon.png", logo, 180, { ...L, padRatio: 0.05 }],
-  ["favicon-32.png", logo, 32, { ...L }],
   // Android status-bar badge: white silhouette on transparent
   ["badge-96.png", face.idle, 96, { padRatio: 0.04, background: null, mono: true }],
   // offline page

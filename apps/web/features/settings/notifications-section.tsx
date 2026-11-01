@@ -53,9 +53,9 @@ export function NotificationsSection() {
     update({ ...prefs, system: result === "granted" });
   }
   return (
-    <Card id="notifications">
+    <Card>
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
+        <CardTitle>{t("deviceTitle")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">

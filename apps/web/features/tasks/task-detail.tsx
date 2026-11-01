@@ -16,6 +16,8 @@ import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { cancelTask, getTask, retryTask, taskEvents, taskKeys } from "@/lib/api/agents";
 import { useRealtimeStore } from "@/lib/realtime/store";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
+import { useDocumentTitle } from "@/lib/hooks";
 
 const ACTIVE = new Set(["created", "queued", "running", "waiting", "waiting_approval"]);
 
@@ -74,6 +76,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   const events = useQuery({ queryKey: taskKeys.events(taskId), queryFn: ({ signal }) => taskEvents(taskId, signal) });
   const live = useRealtimeStore((s) => s.tasks[taskId]);
   const task = live ?? detail.data?.task;
+  useDocumentTitle(task?.title);
   const agentName = useRealtimeStore((s) => (task?.agent_id ? s.agents[task.agent_id]?.name : undefined));
   const lastMessage = useRealtimeStore((s) => (task?.run_id ? s.lastMessage[task.run_id] : undefined));
 
@@ -88,7 +91,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   });
   const error = cancel.error ?? retry.error;
 
-  if (!task) return <p className="text-sm text-muted-foreground">{tc("loading")}</p>;
+  if (!task) return detail.isError ? <ErrorState error={detail.error} onRetry={() => detail.refetch()} /> : <LoadingState />;
   const run = detail.data?.run;
 
   return (
@@ -98,7 +101,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
       </Link>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{task.title}</h1>
+          <h1 className="font-sans text-2xl font-semibold tracking-tight break-words">{task.title}</h1>
           <StatusBadge status={task.status} />
           {(task.progress > 0 || task.status === "completed") && (
             <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} />

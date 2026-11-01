@@ -18,7 +18,8 @@ export function AiServicesSection() {
   const t = useTranslations("aiServices");
   const ai = useQuery({ queryKey: searchKeys.ai, queryFn: ({ signal }) => getAiServices(signal) });
   if (!ai.data) return null;
-  return <AiServicesForm key={JSON.stringify(ai.data)} data={ai.data} title={t("title")} />;
+  // Mounted once with the loaded values: saving must not reset the form (and its "Saved" state).
+  return <AiServicesForm data={ai.data} title={t("title")} />;
 }
 
 function AiServicesForm({ data, title }: { data: NonNullable<Awaited<ReturnType<typeof getAiServices>>>; title: string }) {

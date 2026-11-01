@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Network, Paperclip, RotateCcw, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -28,10 +28,14 @@ import { AttachmentChip } from "./attachment-chip";
 import { handOff } from "@/lib/api/runs";
 import { cn } from "@/lib/utils";
 
+import { useChatTitle } from "./chat-title";
 import { MarkdownText } from "./markdown";
 import { ModelPicker, modelLabel } from "./model-picker";
 import { useChatThread } from "./use-chat-thread";
 import { EmptyState } from "@/features/mascot/empty-state";
+import { useDocumentTitle } from "@/lib/hooks";
+
+const MAX_ATTACHMENTS = 5; // files per message
 
 /** Our own message records, so message components can show server-side details. */
 const MessagesById = createContext<Map<string, MessageOut>>(new Map());
@@ -158,16 +162,55 @@ function ComposerMic({ disabled }: { disabled?: boolean }) {
   );
 }
 
-function Composer({ disabled, attach }: { disabled?: boolean; attach?: ReactNode }) {
+/** Puts a draft back into the composer (a message the server did not accept is not lost). */
+function DraftRestorer({ draft, onRestored }: { draft: string | null; onRestored: () => void }) {
+  const aui = useAui();
+  useEffect(() => {
+    if (draft === null) return;
+    const composer = aui.composer();
+    if (!composer.getState().text) composer.setText(draft);
+    onRestored();
+  }, [aui, draft, onRestored]);
+  return null;
+}
+
+/** Example questions for an empty chat: a tap puts one into the composer to edit or send. */
+function Suggestions() {
+  const t = useTranslations("chat");
+  const aui = useAui();
+  const items = [t("suggestions.explain"), t("suggestions.plan"), t("suggestions.letter")];
+  return (
+    <ul className="flex flex-col gap-2" aria-label={t("suggestions.label")}>
+      {items.map((text) => (
+        <li key={text}>
+          <button
+            type="button"
+            onClick={() => aui.composer().setText(text)}
+            className="w-full rounded-xl border bg-card px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            {text}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Composer({ disabled, attach, agents }: { disabled?: boolean; attach?: ReactNode; agents?: boolean }) {
   const t = useTranslations("chat");
   return (
-    <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm">
+    <ComposerPrimitive.Root
+      className={cn(
+        "flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        agents && "border-sky/60 bg-accent/40",
+      )}
+    >
       {attach}
       <ComposerPrimitive.Input
         rows={1}
         autoFocus
         disabled={disabled}
-        placeholder={t("placeholder")}
+        placeholder={agents ? t("placeholderAgents") : t("placeholder")}
         className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-muted-foreground md:text-sm"
       />
       <ComposerMic disabled={disabled} />
@@ -191,20 +234,34 @@ function Composer({ disabled, attach }: { disabled?: boolean; attach?: ReactNode
 
 export function ChatThread({ chatId }: { chatId: string }) {
   const t = useTranslations("chat");
+  const tc = useTranslations("common");
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const thread = useChatThread(chatId);
+  const chatTitle = useChatTitle();
   const chat = useQuery({ queryKey: chatKeys.detail(chatId), queryFn: ({ signal }) => getChat(chatId, signal) });
+  useDocumentTitle(chat.data ? chatTitle(chat.data.title) : null);
   const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
   const [modelOverride, setModelOverride] = useState<string | null | undefined>(undefined);
   const [agentsMode, setAgentsMode] = useState(false);
   const [handoffError, setHandoffError] = useState<unknown>(null);
+  const [handingOff, setHandingOff] = useState(false);
+  const [modelError, setModelError] = useState<unknown>(null);
+  const [draft, setDraft] = useState<string | null>(null);
+  const clearDraft = useCallback(() => setDraft(null), []);
   const [pending, setPending] = useState<AttachmentOut[]>([]);
   const [uploadError, setUploadError] = useState<unknown>(null);
+  const [uploadSkipped, setUploadSkipped] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const upload = useMutation({
-    mutationFn: async (files: File[]) => Promise.all(files.map((f) => uploadAttachment(chatId, f))),
-    onSuccess: (added) => setPending((list) => [...list, ...added].slice(0, 5)),
+    // Each file on its own: one failure keeps the others that did upload.
+    mutationFn: async (files: File[]) => Promise.allSettled(files.map((f) => uploadAttachment(chatId, f))),
+    onSuccess: (results) => {
+      const added = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      const failed = results.find((r) => r.status === "rejected");
+      setPending((list) => [...list, ...added].slice(0, MAX_ATTACHMENTS));
+      if (failed) setUploadError(failed.reason);
+    },
     onError: setUploadError,
   });
   const selectedModel = modelOverride !== undefined ? modelOverride : (chat.data?.model_config_id ?? null);
@@ -222,21 +279,34 @@ export function ChatThread({ chatId }: { chatId: string }) {
     (lastUser.content.length > 400 ||
       lastUser.content.split("\n").filter((l) => /^\s*(\d+[.)]|[-*•])\s/.test(l)).length >= 3);
 
-  async function sendToAgents(text: string) {
+  async function sendToAgents(text: string): Promise<boolean> {
+    if (handingOff) return false;
     setHandoffError(null);
+    setHandingOff(true);
     try {
       await handOff(chatId, text);
       await queryClient.invalidateQueries({ queryKey: chatKeys.messages(chatId) });
       void queryClient.invalidateQueries({ queryKey: chatKeys.list });
+      return true;
     } catch (error) {
       setHandoffError(error);
+      return false;
+    } finally {
+      setHandingOff(false);
     }
   }
 
   async function chooseModel(id: string | null) {
+    const previous = modelOverride;
+    setModelError(null);
     setModelOverride(id);
-    const updated = await updateChat(chatId, { model_config_id: id });
-    queryClient.setQueryData(chatKeys.detail(chatId), updated);
+    try {
+      const updated = await updateChat(chatId, { model_config_id: id });
+      queryClient.setQueryData(chatKeys.detail(chatId), updated);
+    } catch (error) {
+      setModelOverride(previous); // show the model the server really has
+      setModelError(error);
+    }
   }
 
   function retry(failedAssistantId: string) {
@@ -245,7 +315,10 @@ export function ChatThread({ chatId }: { chatId: string }) {
       .slice(0, index)
       .reverse()
       .find((m) => m.role === "user");
-    if (question) void thread.send(question.content, selectedModel);
+    if (question) {
+      const ids = (question.attachments ?? []).map((a) => a.id);
+      void thread.send(question.content, selectedModel, ids);
+    }
   }
 
   function submit(message: AppendMessage) {
@@ -255,12 +328,22 @@ export function ChatThread({ chatId }: { chatId: string }) {
       .trim();
     if (!text) return;
     if (agentsMode) {
-      void sendToAgents(text);
+      void sendToAgents(text).then((ok) => !ok && setDraft(text));
       return;
     }
-    const ids = pending.map((a) => a.id);
+    const kept = pending;
     setPending([]);
-    void thread.send(text, selectedModel, ids);
+    void thread.send(
+      text,
+      selectedModel,
+      kept.map((a) => a.id),
+    ).then((accepted) => {
+      // Not accepted (network, budget, …): the typed text and the files come back.
+      if (!accepted) {
+        setDraft(text);
+        setPending((list) => (list.length ? list : kept));
+      }
+    });
   }
 
   const runtime = useExternalStoreRuntime<MessageOut>({
@@ -283,7 +366,10 @@ export function ChatThread({ chatId }: { chatId: string }) {
       ? toMessage(handoffError)
       : uploadError
         ? toMessage(uploadError)
-        : null;
+        : modelError
+          ? toMessage(modelError)
+          : null;
+  const loadFailed = Boolean(thread.loadError) && thread.messages.length === 0;
   const attachButton = agentsMode ? undefined : (
     <>
       <input
@@ -293,8 +379,10 @@ export function ChatThread({ chatId }: { chatId: string }) {
         hidden
         accept=".txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.xml,.html,.log,.py,.js,.ts,.tsx,.jsx,.sql,.sh,.toml,.ini,.cfg,text/*,image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf"
         onChange={(e) => {
-          const files = [...(e.target.files ?? [])];
+          const chosen = [...(e.target.files ?? [])];
           e.target.value = "";
+          const files = chosen.slice(0, MAX_ATTACHMENTS - pending.length);
+          setUploadSkipped(chosen.length - files.length);
           if (files.length) {
             setUploadError(null);
             upload.mutate(files);
@@ -307,7 +395,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
         variant="ghost"
         className="rounded-full"
         aria-label={t("attach")}
-        disabled={noModels || upload.isPending || pending.length >= 5}
+        disabled={noModels || loadFailed || upload.isPending || pending.length >= MAX_ATTACHMENTS}
         onClick={() => fileInput.current?.click()}
       >
         <Paperclip />
@@ -322,27 +410,51 @@ export function ChatThread({ chatId }: { chatId: string }) {
           <AssistantRuntimeProvider runtime={runtime}>
             <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
               <div className="flex items-center justify-between gap-2 border-b px-1 pb-3">
-                <h1 className="truncate text-lg font-semibold">{chat.data?.title ?? ""}</h1>
+                <h1 className="truncate font-sans text-lg font-semibold">{chat.data ? chatTitle(chat.data.title) : ""}</h1>
                 {models.data && models.data.length > 0 && (
                   <ModelPicker models={models.data} value={selectedModel} onChange={chooseModel} />
                 )}
               </div>
 
-              <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-1 py-6">
-                <ThreadPrimitive.Empty>
-                  <div className="m-auto max-w-sm text-center text-sm text-muted-foreground">
-                    {noModels ? (
-                      <>
-                        <p>{t("noModels")}</p>
-                        <Link href="/settings" className="mt-2 inline-block underline">
-                          {t("openSettings")}
-                        </Link>
-                      </>
-                    ) : (
-                      <EmptyState title={t("empty")} mood="happy" className="py-2" />
-                    )}
+              {/* A log: screen readers read new messages; aria-busy holds them while an answer streams. */}
+              <ThreadPrimitive.Viewport
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                aria-busy={thread.isRunning}
+                aria-label={t("messages")}
+                className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-1 py-6"
+              >
+                {thread.isLoading && (
+                  <p className="m-auto text-sm text-muted-foreground">{tc("loading")}</p>
+                )}
+                {loadFailed && (
+                  <div role="alert" className="m-auto flex max-w-sm flex-col items-center gap-2 text-center text-sm">
+                    <p>{toMessage(thread.loadError).message}</p>
+                    <Button variant="outline" size="sm" onClick={thread.reload}>
+                      <RotateCcw /> {tc("retry")}
+                    </Button>
                   </div>
-                </ThreadPrimitive.Empty>
+                )}
+                {!thread.isLoading && !loadFailed && (
+                  <ThreadPrimitive.Empty>
+                    <div className="m-auto flex w-full max-w-md flex-col gap-4 text-center text-sm text-muted-foreground">
+                      {noModels ? (
+                        <>
+                          <EmptyState title={t("noModels")} hint={t("noModelsHint")} mood="sad" className="py-2" />
+                          <Button asChild className="self-center">
+                            <Link href="/settings#ai">{t("openSettings")}</Link>
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <EmptyState title={t("empty")} hint={t("emptyHint")} mood="happy" className="py-2" />
+                          <Suggestions />
+                        </>
+                      )}
+                    </div>
+                  </ThreadPrimitive.Empty>
+                )}
                 <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
               </ThreadPrimitive.Viewport>
 
@@ -368,10 +480,20 @@ export function ChatThread({ chatId }: { chatId: string }) {
                     </button>
                   </div>
                 )}
+                {uploadSkipped > 0 && (
+                  <p role="status" className="px-1 text-xs text-muted-foreground">
+                    {t("tooManyFiles", { max: MAX_ATTACHMENTS, count: uploadSkipped })}
+                  </p>
+                )}
                 {looksComplex && !agentsMode && lastUser && (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-accent/50 px-3 py-2 text-sm">
                     <span>{t("suggestAgents")}</span>
-                    <Button size="sm" variant="outline" onClick={() => void sendToAgents(lastUser.content)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={handingOff}
+                      onClick={() => void sendToAgents(lastUser.content)}
+                    >
                       <Network /> {t("handOff")}
                     </Button>
                   </div>
@@ -383,7 +505,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                         <button
                           type="button"
                           aria-label={t("removeAttachment", { name: a.filename })}
-                          className="text-muted-foreground hover:text-foreground"
+                          className="-m-1.5 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
                           onClick={() => setPending((list) => list.filter((x) => x.id !== a.id))}
                         >
                           <X className="size-3" />
@@ -392,10 +514,19 @@ export function ChatThread({ chatId }: { chatId: string }) {
                     ))}
                   </ul>
                 )}
-                <Composer disabled={noModels} attach={attachButton} />
-                <label className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-                  <input type="checkbox" checked={agentsMode} onChange={(e) => setAgentsMode(e.target.checked)} />
-                  <Network className="size-3.5" /> {t("agentsMode")}
+                <Composer disabled={noModels || loadFailed} attach={attachButton} agents={agentsMode} />
+                <DraftRestorer draft={draft} onRestored={clearDraft} />
+                <label className="flex min-h-9 items-start gap-2 px-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 shrink-0"
+                    checked={agentsMode}
+                    onChange={(e) => setAgentsMode(e.target.checked)}
+                  />
+                  <Network className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  <span>
+                    <span className="font-medium text-foreground">{t("agentsMode")}</span> — {t("agentsModeHint")}
+                  </span>
                 </label>
                 {(() => {
                   const current = models.data?.find((m) => m.id === selectedModel);

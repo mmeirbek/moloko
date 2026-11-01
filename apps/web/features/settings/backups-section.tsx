@@ -27,7 +27,8 @@ export function BackupsSection() {
   const drill = data?.backups.drill as { ok?: boolean; at?: string } | null | undefined;
   const when = (iso?: string) =>
     iso ? format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short" }) : "—";
-  const size = (bytes: number) => `${format.number(bytes / 1_000_000, { maximumFractionDigits: 1 })} MB`;
+  const size = (bytes: number) =>
+    format.number(bytes / 1_000_000, { style: "unit", unit: "megabyte", unitDisplay: "short", maximumFractionDigits: 1 });
   return (
     <Card id="backups">
       <CardHeader>

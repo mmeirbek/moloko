@@ -130,7 +130,10 @@ export class OfficeScene extends Phaser.Scene {
     this.off.push(this.bus.on("select", (id) => this.select(id)));
     this.off.push(this.bus.on("message", ({ from, to }) => this.flyEnvelope(from, to)));
     this.off.push(this.bus.on("env", (env) => this.applyEnv(env)));
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.off.forEach((f) => f()));
+    // game.destroy() emits DESTROY, not SHUTDOWN: unsubscribe on whichever comes first.
+    const unsubscribe = () => this.off.splice(0).forEach((f) => f());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    this.events.once(Phaser.Scenes.Events.DESTROY, unsubscribe);
     this.bus.emit("ready", undefined);
   }
 
@@ -814,7 +817,19 @@ export class OfficeScene extends Phaser.Scene {
       cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
       cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
     });
-    this.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => this.zoomBy(dy > 0 ? -1 : 1));
+    // A plain wheel scrolls the page past the office; Ctrl/⌘ + wheel (a trackpad pinch sends
+    // ctrlKey too) zooms one step at a time. Own non-passive listener, so preventDefault works.
+    const canvas = this.game.canvas;
+    let lastZoom = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      if (e.timeStamp - lastZoom < 180) return; // a pinch is dozens of tiny events
+      lastZoom = e.timeStamp;
+      this.zoomBy(e.deltaY > 0 ? -1 : 1);
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    this.off.push(() => canvas.removeEventListener("wheel", onWheel));
   }
 
   private handlePinch(): void {

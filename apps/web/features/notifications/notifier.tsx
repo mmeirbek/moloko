@@ -52,17 +52,17 @@ export function Notifier() {
     });
   }, [client, t]);
 
-  if (toasts.length === 0) return null;
+  // The live region is always mounted, so screen readers announce the first toast too.
   return (
     <div
-      className="fixed inset-x-4 bottom-24 z-30 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
+      className="pointer-events-none fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
       role="status"
       aria-live="polite"
     >
       {toasts.map((toast) => (
         <div
           key={toast.key}
-          className="flex items-start gap-3 rounded-lg border bg-card p-3 shadow-lg"
+          className="pointer-events-auto flex items-start gap-3 rounded-lg border bg-card p-3 shadow-lg"
           data-toast={toast.kind}
         >
           <Link
@@ -76,7 +76,7 @@ export function Notifier() {
           <button
             type="button"
             aria-label={t("dismiss")}
-            className="text-muted-foreground hover:text-foreground"
+            className="-m-2 flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
             onClick={() => setToasts((l) => l.filter((x) => x.key !== toast.key))}
           >
             <X className="size-4" />

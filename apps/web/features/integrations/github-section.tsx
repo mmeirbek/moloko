@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { getGitHub, putGitHub, testGitHub, toolingKeys } from "@/lib/api/tooling";
 
@@ -24,6 +25,7 @@ export function parseRepos(text: string): string[] {
 
 export function GitHubSection() {
   const t = useTranslations("integrations.github");
+  const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const uid = useId();
@@ -31,19 +33,23 @@ export function GitHubSection() {
   const [token, setToken] = useState("");
   const [repos, setRepos] = useState<string | null>(null);
   const reposText = repos ?? (github.data?.allowed_repos ?? []).join("\n");
-  const done = () => {
-    setToken("");
-    setRepos(null);
+  const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: toolingKeys.github });
     void queryClient.invalidateQueries({ queryKey: toolingKeys.tools });
     void queryClient.invalidateQueries({ queryKey: toolingKeys.status });
+  };
+  const done = () => {
+    setToken("");
+    setRepos(null);
+    refresh();
   };
   const save = useMutation({
     mutationFn: () => putGitHub({ ...(token ? { token } : {}), allowed_repos: parseRepos(reposText) }),
     onSuccess: done,
   });
   const disconnect = useMutation({ mutationFn: () => putGitHub({ clear_token: true }), onSuccess: done });
-  const test = useMutation({ mutationFn: testGitHub, onSuccess: done });
+  // Testing checks the saved token: it must not wipe what is typed but not saved yet.
+  const test = useMutation({ mutationFn: testGitHub, onSuccess: refresh });
   const data = github.data;
   const error = save.error ?? disconnect.error ?? test.error;
 
@@ -104,8 +110,10 @@ export function GitHubSection() {
                   type="button"
                   variant="ghost"
                   className="text-destructive"
-                  onClick={() => {
-                    if (window.confirm(t("disconnectConfirm"))) disconnect.mutate();
+                  disabled={disconnect.isPending}
+                  onClick={async () => {
+                    if (await confirm({ title: t("disconnectConfirm"), confirmLabel: t("disconnect"), destructive: true }))
+                      disconnect.mutate();
                   }}
                 >
                   {t("disconnect")}

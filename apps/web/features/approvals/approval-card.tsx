@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, taskKeys } from "@/lib/api/agents";
 import { resolveApproval } from "@/lib/api/tooling";
@@ -35,6 +36,7 @@ export function CategoryBadge({ category }: { category: string }) {
 /** Spec 15.4: who asks, for which task, exactly what, what it touches and what happens. */
 export function ApprovalCard({ approval, compact = false }: { approval: ApprovalOut; compact?: boolean }) {
   const t = useTranslations("approvals");
+  const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const task = useRealtimeStore((s) => s.tasks[approval.task_id]);
@@ -134,8 +136,9 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
             variant="ghost"
             className="text-destructive"
             disabled={act.isPending}
-            onClick={() => {
-              if (window.confirm(t("cancelConfirm"))) act.mutate("cancel-task");
+            onClick={async () => {
+              if (await confirm({ title: t("cancelConfirm"), confirmLabel: t("cancelTask"), destructive: true }))
+                act.mutate("cancel-task");
             }}
           >
             <Ban /> {t("cancelTask")}

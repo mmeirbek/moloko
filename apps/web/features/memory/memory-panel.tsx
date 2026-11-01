@@ -9,6 +9,7 @@ import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { systemLimits, systemLimitsKey } from "@/lib/api/agents";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/lib/api/memories";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/features/mascot/empty-state";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
 
 const textareaClass = "rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm";
 
@@ -166,6 +168,7 @@ function Revisions({ memoryId }: { memoryId: string }) {
 
 function MemoryItem({ memory, scope }: { memory: MemoryOut; scope: MemoryScope }) {
   const t = useTranslations("memory");
+  const confirm = useConfirm();
   const format = useFormatter();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
@@ -221,8 +224,10 @@ function MemoryItem({ memory, scope }: { memory: MemoryOut; scope: MemoryScope }
             size="icon"
             variant="ghost"
             aria-label={t("forget")}
-            onClick={() => {
-              if (window.confirm(t("forgetConfirm", { title: memory.title }))) remove.mutate();
+            disabled={remove.isPending}
+            onClick={async () => {
+              if (await confirm({ title: t("forgetConfirm", { title: memory.title }), confirmLabel: t("forget"), destructive: true }))
+                remove.mutate();
             }}
           >
             <Trash2 />
@@ -294,6 +299,8 @@ export function MemoryPanel({ scope }: { scope: MemoryScope }) {
       </div>
       {"agentId" in scope && <MemoryContextPreview agentId={scope.agentId} />}
       {adding && <MemoryEditor scope={scope} onDone={() => setAdding(false)} />}
+      {memories.isPending && <LoadingState />}
+      {memories.isError && !memories.data && <ErrorState error={memories.error} onRetry={() => memories.refetch()} />}
       <ul className="flex flex-col gap-3">
         {memories.data?.map((m) => (
           <MemoryItem key={m.id} memory={m} scope={scope} />

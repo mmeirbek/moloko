@@ -6,9 +6,10 @@ import { ArrowRight, Send } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useOrchestratorBusy } from "@/features/agents/agent-controls";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
@@ -19,12 +20,14 @@ import { EmptyState } from "@/features/mascot/empty-state";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ExportMenu } from "@/features/tasks/export-menu";
 import { MicButton } from "@/features/voice/mic-button";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
 
 function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
   const t = useTranslations("runs");
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
+  const busy = useOrchestratorBusy();
   const start = useMutation({
     mutationFn: () => {
       const title = text.split("\n")[0]!.slice(0, 120).trim() || t("untitled");
@@ -41,7 +44,7 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
       className="flex flex-col gap-2 rounded-lg border bg-card p-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (text.trim()) start.mutate();
+        if (text.trim() && !busy) start.mutate();
       }}
     >
       <label htmlFor="run-text" className="text-sm font-medium">
@@ -60,8 +63,13 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
           {toMessage(start.error).message}
         </p>
       )}
+      {busy && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {t("orchestratorBusy")}
+        </p>
+      )}
       <div className="flex items-center gap-1">
-        <Button type="submit" disabled={!text.trim() || start.isPending}>
+        <Button type="submit" disabled={!text.trim() || start.isPending || busy}>
           <Send /> {t("start")}
         </Button>
         <MicButton onText={(spoken) => setText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
@@ -98,11 +106,10 @@ function SubagentCard({ agent, task }: { agent: AgentOut; task?: TaskOut }) {
 
 function RunView({ runId }: { runId: string }) {
   const t = useTranslations("runs");
-  const tc = useTranslations("common");
   const format = useFormatter();
   const tree = useQuery({ queryKey: runKeys.tree(runId), queryFn: ({ signal }) => getRunTree(runId, signal) });
   const liveTask = useRealtimeStore((s) => (tree.data ? s.tasks[tree.data.task.id] : undefined));
-  if (!tree.data) return <p className="text-sm text-muted-foreground">{tc("loading")}</p>;
+  if (!tree.data) return tree.isError ? <ErrorState error={tree.error} onRetry={() => tree.refetch()} /> : <LoadingState />;
   const { run, subagents, subtasks, messages } = tree.data;
   const task = liveTask ?? tree.data.task;
   const agents = subagents as AgentOut[];
@@ -114,7 +121,7 @@ function RunView({ runId }: { runId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">{task.title}</h2>
+        <h2 className="min-w-0 text-lg font-semibold break-words">{task.title}</h2>
         <StatusBadge status={task.status} />
         {(task.progress > 0 || task.status === "completed") && (
           <MilkBottle percent={task.progress} done={task.status === "completed"} size={18} />
@@ -200,23 +207,38 @@ export function SubagentOffice() {
   const t = useTranslations("runs");
   const runs = useQuery({ queryKey: runKeys.list, queryFn: ({ signal }) => listRuns(signal) });
   const fromUrl = useSearchParams().get("run");
-  const [selected, setSelected] = useState<string | null>(fromUrl);
+  // A click picks a run until the URL names another one (the cow dialog pushes ?run=<new>).
+  const [picked, setPicked] = useState<{ url: string | null; id: string | null }>({ url: fromUrl, id: null });
+  const selected = picked.url === fromUrl ? (picked.id ?? fromUrl) : fromUrl;
   const current = selected ?? runs.data?.[0]?.id ?? null;
+  const viewRef = useRef<HTMLDivElement>(null);
+
+  function select(id: string) {
+    setPicked({ url: fromUrl, id });
+    // Phones show the run under the list: bring it into view so the tap visibly did something.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      requestAnimationFrame(() => viewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
       <div className="flex flex-col gap-3">
-        <NewRun onStarted={setSelected} />
+        <NewRun onStarted={select} />
+        {runs.isPending && <LoadingState />}
+        {runs.isError && !runs.data && <ErrorState error={runs.error} onRetry={() => runs.refetch()} />}
         <ul className="flex flex-col gap-1" aria-label={t("runs")}>
           {runs.data?.map((run: RunOut) => (
-            <RunListItem key={run.id} run={run} active={run.id === current} onSelect={() => setSelected(run.id)} />
+            <RunListItem key={run.id} run={run} active={run.id === current} onSelect={() => select(run.id)} />
           ))}
         </ul>
         {runs.data?.length === 0 && (
-          <EmptyState title={t("empty")} size={56} className="py-4" />
+          <EmptyState title={t("empty")} hint={t("emptyHint")} size={56} className="py-4" />
         )}
       </div>
-      <div>{current && <RunView key={current} runId={current} />}</div>
+      <div ref={viewRef} className="min-w-0 scroll-mt-20">
+        {current && <RunView key={current} runId={current} />}
+      </div>
     </div>
   );
 }

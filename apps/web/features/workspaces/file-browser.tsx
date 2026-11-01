@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { toolingKeys, workspaceFile, workspaceFiles, workspaceRawUrl } from "@/lib/api/tooling";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
 
 export function parentOf(path: string): string {
   const parts = path.split("/").filter(Boolean);
@@ -18,6 +19,10 @@ export function parentOf(path: string): string {
 export function FileBrowser({ workspaceId }: { workspaceId: string }) {
   const t = useTranslations("workspaces");
   const format = useFormatter();
+  const fileSize = (bytes: number) => {
+    const [value, unit] = bytes < 1000 ? [bytes, "byte"] : bytes < 1_000_000 ? [bytes / 1000, "kilobyte"] : [bytes / 1_000_000, "megabyte"];
+    return format.number(value, { style: "unit", unit, unitDisplay: "short", maximumFractionDigits: 1 });
+  };
   const [path, setPath] = useState(".");
   const [open, setOpen] = useState<string | null>(null);
   const entries = useQuery({
@@ -53,12 +58,14 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
             >
               {e.type === "dir" ? <Folder className="size-4 shrink-0" /> : <File className="size-4 shrink-0" />}
               <span className="min-w-0 flex-1 truncate">{e.path.split("/").pop()}</span>
-              {e.type === "file" && <span className="text-xs text-muted-foreground">{format.number(e.size)} B</span>}
+              {e.type === "file" && <span className="text-xs text-muted-foreground">{fileSize(e.size)}</span>}
               {e.type === "link" && <span className="text-xs text-muted-foreground">{t("link")}</span>}
             </button>
           </li>
         ))}
       </ul>
+      {open && file.isPending && <LoadingState />}
+      {open && file.isError && <ErrorState error={file.error} onRetry={() => file.refetch()} />}
       {open && file.data && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">

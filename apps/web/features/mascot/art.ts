@@ -18,8 +18,6 @@ interface CowArt {
   face: Sheet & { frames: Record<CowMood, string[]> };
   overlays: Record<Season, string[]>;
   side: Sheet;
-  /** the owner's logo (cow in a meadow), 32×32 with its own palette */
-  logo: { width: number; height: number; palette: Record<string, string>; rows: string[] };
 }
 
 export const COW = raw as unknown as CowArt;

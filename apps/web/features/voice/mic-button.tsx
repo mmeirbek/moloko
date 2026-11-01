@@ -41,14 +41,18 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
   const [error, setError] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<number>(0);
+  const mounted = useRef(true);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      // Closed mid-recording (e.g. Escape on a dialog): stop the mic and send nothing — a
+      // transcription nobody will see would still be a paid call.
+      mounted.current = false;
       window.clearInterval(timer.current);
       recorder.current?.stream.getTracks().forEach((track) => track.stop());
-    },
-    [],
-  );
+    };
+  }, []);
 
   if (!canRecord) return null;
 
@@ -68,6 +72,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
     rec.onstop = async () => {
       window.clearInterval(timer.current);
       stream.getTracks().forEach((track) => track.stop());
+      if (!mounted.current) return;
       const mime = rec.mimeType || type || "audio/webm";
       const blob = new Blob(chunks, { type: mime });
       if (blob.size === 0) {
@@ -119,14 +124,20 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
         {state === "sending" ? <Loader2 className="animate-spin" /> : recording ? <Square /> : <Mic />}
       </Button>
       {recording && (
-        <span className="absolute -top-5 left-1/2 -translate-x-1/2 rounded bg-destructive px-1 text-[10px] text-white tabular-nums" role="status">
+        <span className="absolute -top-5 left-1/2 -translate-x-1/2 rounded bg-destructive px-1 text-[10px] text-white tabular-nums" aria-hidden>
           ● {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
         </span>
       )}
       {error && !recording && (
-        <span role="alert" className="sr-only">
+        // Visible, not only a tooltip: phones have no hover. A tap closes it.
+        <button
+          type="button"
+          role="alert"
+          onClick={() => setError(null)}
+          className="absolute right-0 bottom-full z-10 mb-1 w-max max-w-56 rounded-md border bg-card px-2 py-1 text-left text-xs text-destructive shadow-md"
+        >
           {error}
-        </span>
+        </button>
       )}
     </span>
   );

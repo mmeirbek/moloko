@@ -32,6 +32,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Lets the safe-area insets (iPhone home indicator) reach CSS: the tab bar pads itself with them.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fbf8ef" },
     { media: "(prefers-color-scheme: dark)", color: "#0c1024" },

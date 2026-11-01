@@ -18,8 +18,8 @@ test("orchestrator: splits work, merges results, answers simple requests directl
   await page.goto("/chat");
   await page.getByRole("button", { name: "Новый чат" }).first().click();
   await page.waitForURL(/\/chat\/[0-9a-f-]{36}/);
-  await page.getByLabel(/Агенты: отправлять Оркестратору/).check();
-  const input = page.getByPlaceholder("Сообщение для moloko…");
+  await page.getByLabel(/Отдать агентам/).check();
+  const input = page.getByPlaceholder("Опишите задачу для агентов…"); // the composer shows the mode
   await input.fill("Plan a trip [[mock:plan:2]]");
   await input.press("Enter");
   await expect(page.getByText("Агенты работают над этим…")).toBeVisible();

@@ -14,7 +14,8 @@ export function createOfficeGame(parent: HTMLElement, bus: OfficeBus): Phaser.Ga
     antialias: false,
     banner: false,
     audio: { noAudio: true },
-    input: { activePointers: 3 },
+    // The page scrolls over the office; zoom is Ctrl/⌘ + wheel (OfficeScene), buttons or pinch.
+    input: { activePointers: 3, mouse: { preventDefaultWheel: false } },
     scale: {
       mode: Phaser.Scale.RESIZE,
       width: Math.max(1, parent.clientWidth),

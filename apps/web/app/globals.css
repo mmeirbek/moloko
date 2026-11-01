@@ -18,14 +18,16 @@
   --primary-foreground: #f6efdc;
   --accent: #dcecf9;
   --accent-foreground: #10142b;
-  --sky: #3f9ddf;
-  --grass: #4f9e3a;
+  /* Sky and grass are also text colours (status badges, links, "saved"): darkened in the light
+     theme to WCAG AA — ≥4.5:1 on card, milk, muted and their own 15 % tint. */
+  --sky: #1c6aa3;
+  --grass: #357526;
   --chart-bar: #2f86c6; /* validated: ≥3:1 on the card surface */
   --destructive: #c8372f;
   --destructive-foreground: #ffffff;
   --border: #e2dccb;
   --input: #d6cfbb;
-  --ring: #3f9ddf;
+  --ring: #1c6aa3; /* focus ring ≥3:1 on every light surface */
   --radius: 0.375rem;
 }
 
@@ -93,13 +95,23 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    /* Long words, links and ids wrap instead of widening the page on phones. */
+    overflow-wrap: break-word;
   }
   /* Pixel art must never be smoothed. */
   .pixelated {
     image-rendering: pixelated;
   }
+  /* The logo's own "moloko" lettering (public/brand/wordmark-mask.png, 458×96), in the text colour. */
+  .wordmark {
+    display: inline-block;
+    aspect-ratio: 458 / 96;
+    background-color: currentColor;
+    -webkit-mask: url("/brand/wordmark-mask.png") center / contain no-repeat;
+    mask: url("/brand/wordmark-mask.png") center / contain no-repeat;
+  }
+  /* Page titles, the logo and big numbers only: a pixel font is hard to read in small or long text. */
   h1,
-  h2,
   .font-pixel {
     font-family: var(--font-pixel);
     font-synthesis: none; /* the font has one weight: no smeared fake bold */

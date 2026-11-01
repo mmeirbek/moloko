@@ -2,7 +2,7 @@
 
 import type { ToolCallOut } from "@moloko/shared-types";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { ApprovalCard, CategoryBadge } from "@/features/approvals/approval-card";
@@ -25,6 +25,7 @@ const STATUS_TONE: Record<string, string> = {
 
 function CallItem({ call }: { call: ToolCallOut }) {
   const t = useTranslations("tools.calls");
+  const format = useFormatter();
   return (
     <li className="flex flex-col gap-1 py-3" data-tool-call={call.tool_name}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -33,7 +34,11 @@ function CallItem({ call }: { call: ToolCallOut }) {
         <span className={cn("text-xs font-medium", STATUS_TONE[call.status])}>
           {t(`status.${call.status as "succeeded"}`)}
         </span>
-        {call.duration_ms !== null && <span className="text-xs text-muted-foreground">{call.duration_ms} ms</span>}
+        {call.duration_ms !== null && (
+          <span className="text-xs text-muted-foreground">
+            {format.number(call.duration_ms, { style: "unit", unit: "millisecond", unitDisplay: "short" })}
+          </span>
+        )}
       </div>
       {call.decision_reason && call.decision !== "allow" && (
         <p className="text-xs text-muted-foreground">{call.decision_reason}</p>

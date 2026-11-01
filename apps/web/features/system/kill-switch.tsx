@@ -6,10 +6,14 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/confirm";
+import { useErrorMessage } from "@/features/auth/use-error-message";
 import { startEngine, stopAll, systemState, systemStateKey, taskKeys } from "@/lib/api/agents";
 
 export function KillSwitchCard() {
   const t = useTranslations("system");
+  const confirm = useConfirm();
+  const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const state = useQuery({ queryKey: systemStateKey, queryFn: ({ signal }) => systemState(signal) });
   const refresh = () => {
@@ -22,7 +26,7 @@ export function KillSwitchCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("engine")}</CardTitle>
+        <CardTitle>{t("engineTitle")}</CardTitle>
         <CardDescription>
           {stopped ? t("engineStopped") : t("engineRunning", { count: state.data?.active_tasks ?? 0 })}
         </CardDescription>
@@ -36,14 +40,20 @@ export function KillSwitchCard() {
           <Button
             variant="destructive"
             disabled={stop.isPending}
-            onClick={() => {
-              if (window.confirm(t("confirmStopAll"))) stop.mutate();
+            onClick={async () => {
+              if (await confirm({ title: t("confirmStopAll"), confirmLabel: t("stopAll"), destructive: true })) stop.mutate();
             }}
           >
             <OctagonX /> {t("stopAll")}
           </Button>
         )}
         {stop.data && <p className="mt-2 text-sm text-muted-foreground">{t("stoppedCount", { count: stop.data.cancelled_tasks })}</p>}
+        {/* A failed emergency stop must never look like a successful one. */}
+        {(stop.error ?? start.error) && (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            {toMessage(stop.error ?? start.error).message}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

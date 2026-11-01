@@ -14,6 +14,7 @@ import { EmptyState } from "@/features/mascot/empty-state";
 import { MicButton } from "@/features/voice/mic-button";
 import { searchAll, searchKeys } from "@/lib/api/search";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/features/system/query-state";
 
 const TYPES = ["memory", "file", "attachment"] as const;
 const ICON = { memory: Brain, file: FileText, attachment: MessageSquare } as const;
@@ -92,7 +93,10 @@ export function SearchView() {
         })}
       </div>
 
-      {results.isFetching && <p className="text-sm text-muted-foreground">{t("searching")}</p>}
+      {results.isFetching && <p role="status" className="text-sm text-muted-foreground">{t("searching")}</p>}
+      {query && results.isError && !results.isFetching && (
+        <ErrorState error={results.error} onRetry={() => results.refetch()} />
+      )}
       {query && results.isSuccess && hits.length === 0 && (
         <EmptyState title={t("nothing")} hint={t("nothingHint")} mood="sad" className="rounded-lg border border-dashed" />
       )}

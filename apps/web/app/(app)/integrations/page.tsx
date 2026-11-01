@@ -18,11 +18,12 @@ export default async function IntegrationsPage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <div className="grid max-w-4xl gap-4">
-        <ToolsSection />
-        <SandboxSection />
+      <div className="grid max-w-4xl grid-cols-1 gap-4">
+        {/* What the owner connects first; the tool catalogue and housekeeping after it. */}
         <GitHubSection />
         <McpSection />
+        <ToolsSection />
+        <SandboxSection />
         <WorkspacesSection />
       </div>
     </>

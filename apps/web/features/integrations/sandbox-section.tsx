@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { integrationsStatus, toolingKeys } from "@/lib/api/tooling";
+import { ErrorState } from "@/features/system/query-state";
 
 export function SandboxSection() {
   const t = useTranslations("integrations.sandbox");
@@ -18,7 +19,11 @@ export function SandboxSection() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
-        <p role="status">{!s ? "…" : !s.configured ? t("notConfigured") : s.ok ? t("ok") : t("down")}</p>
+        {status.isError ? (
+          <ErrorState error={status.error} onRetry={() => status.refetch()} />
+        ) : (
+          <p role="status">{!s ? "…" : !s.configured ? t("notConfigured") : s.ok ? t("ok") : t("down")}</p>
+        )}
         {s?.configured && s.ok && (
           <dl className="grid gap-1 sm:grid-cols-[12rem_1fr]">
             <dt className="text-muted-foreground">{t("image")}</dt>

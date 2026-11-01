@@ -1,7 +1,7 @@
 "use client";
 
 import type { CostSummary, ModelOut } from "@moloko/shared-types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ChevronLeft, ChevronRight, OctagonAlert, Save } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -15,6 +15,7 @@ import { EmptyState } from "@/features/mascot/empty-state";
 import { costKeys, getCosts, updateBudget } from "@/lib/api/costs";
 import { listAllModels, providerKeys, updateModel } from "@/lib/api/providers";
 import { cn } from "@/lib/utils";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
 
 import { budgetLevel, fillDays, tokens, usd } from "./format";
 
@@ -30,12 +31,16 @@ export function CostsView() {
   const locale = useLocale();
   const format = useFormatter();
   const [month, setMonth] = useState<string | null>(null);
-  const costs = useQuery({ queryKey: costKeys.month(month), queryFn: ({ signal }) => getCosts(month, signal) });
+  const costs = useQuery({
+    queryKey: costKeys.month(month),
+    queryFn: ({ signal }) => getCosts(month, signal),
+    placeholderData: keepPreviousData, // switching months keeps the page (and unsaved edits) on screen
+  });
   const data = costs.data;
   const current = data?.month ?? null;
   const isThisMonth = month === null;
 
-  if (!data) return <p className="text-sm text-muted-foreground">{t("loading")}</p>;
+  if (!data) return costs.isError ? <ErrorState error={costs.error} onRetry={() => costs.refetch()} /> : <LoadingState />;
   const label = format.dateTime(new Date(`${data.month}-01T12:00:00Z`), { month: "long", year: "numeric" });
 
   return (
@@ -115,7 +120,7 @@ function Tile({ title, value, children }: { title: string; value: string; childr
     <Card>
       <CardHeader className="pb-1">
         <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
+        <CardTitle className="font-pixel text-3xl font-normal tabular-nums">{value}</CardTitle>
       </CardHeader>
       <CardContent className="text-xs text-muted-foreground">{children}</CardContent>
     </Card>
@@ -131,7 +136,7 @@ function SpentTile({ data, locale, isThisMonth }: { data: CostSummary; locale: s
     <Card data-testid="costs-spent">
       <CardHeader className="pb-1">
         <CardDescription>{t("spent")}</CardDescription>
-        <CardTitle className="text-3xl tabular-nums">{usd(data.spent_usd, locale)}</CardTitle>
+        <CardTitle className="font-pixel text-3xl font-normal tabular-nums">{usd(data.spent_usd, locale)}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-xs text-muted-foreground">
         {budget.monthly_limit_usd !== null && isThisMonth ? (

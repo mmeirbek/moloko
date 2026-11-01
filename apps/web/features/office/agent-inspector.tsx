@@ -2,24 +2,23 @@
 
 import type { AgentOut, EventOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Pause, Play, Send, Settings2, Square, X } from "lucide-react";
+import { ExternalLink, Send, Settings2, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { AgentControls } from "@/features/agents/agent-controls";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { modelLabel } from "@/features/chat/model-picker";
 import { MicButton } from "@/features/voice/mic-button";
-import { agentAction, agentKeys, runAgent, taskKeys } from "@/lib/api/agents";
+import { agentKeys, runAgent, taskKeys } from "@/lib/api/agents";
 import { listPickerModels, modelKeys } from "@/lib/api/chat";
 import { api } from "@/lib/api/client";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
-
-const ACTIVE = new Set(["planning", "working", "waiting", "reviewing"]);
 
 const recentEvents = (agentId: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/events?agent_id=${agentId}&latest=true&limit=8`, {
@@ -43,6 +42,14 @@ export function AgentInspector({
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const [showLogs, setShowLogs] = useState(false);
+  // Escape closes the inspector (unless a dialog is open: it handles Escape itself).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open]")) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const task = useRealtimeStore((s) => (agent.current_task_id ? s.tasks[agent.current_task_id] : undefined));
   const allApprovals = useRealtimeStore((s) => s.approvals);
   const approvals = Object.values(allApprovals).filter((a) => a.agent_id === agent.id && a.status === "pending");
@@ -53,13 +60,6 @@ export function AgentInspector({
   const events = useQuery({
     queryKey: [...agentKeys.detail(agent.id), "events", agent.status],
     queryFn: ({ signal }) => recentEvents(agent.id, signal),
-  });
-  const action = useMutation({
-    mutationFn: (a: "pause" | "resume" | "stop") => agentAction(agent.id, a),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: agentKeys.all });
-      void queryClient.invalidateQueries({ queryKey: taskKeys.all });
-    },
   });
   const [taskText, setTaskText] = useState("");
   const give = useMutation({
@@ -95,7 +95,7 @@ export function AgentInspector({
         </div>
         <div className="flex items-center gap-1">
           <StatusBadge status={agent.status} />
-          <Button size="icon" variant="ghost" className="size-7" onClick={onClose} aria-label={t("close")}>
+          <Button size="icon" variant="ghost" className="-m-1 size-9" onClick={onClose} aria-label={t("close")}>
             <X />
           </Button>
         </div>
@@ -156,28 +156,7 @@ export function AgentInspector({
         </form>
       )}
 
-      <div className="flex flex-wrap gap-1">
-        {ACTIVE.has(agent.status) && (
-          <Button size="sm" variant="outline" onClick={() => action.mutate("pause")}>
-            <Pause /> {t("pause")}
-          </Button>
-        )}
-        {agent.status === "paused" && (
-          <Button size="sm" variant="outline" onClick={() => action.mutate("resume")}>
-            <Play /> {t("resume")}
-          </Button>
-        )}
-        {(ACTIVE.has(agent.status) || agent.status === "paused") && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (window.confirm(t("confirmStop", { name: agent.name }))) action.mutate("stop");
-            }}
-          >
-            <Square /> {t("stop")}
-          </Button>
-        )}
+      <AgentControls agent={agent}>
         {task && (
           <Button size="sm" variant="ghost" asChild>
             <Link href={`/tasks/${task.id}`}>
@@ -195,12 +174,7 @@ export function AgentInspector({
             </Link>
           </Button>
         )}
-      </div>
-      {action.error && (
-        <p role="alert" className="text-xs text-destructive">
-          {toMessage(action.error).message}
-        </p>
-      )}
+      </AgentControls>
 
       {approvals.map((a) => (
         <ApprovalCard key={a.id} approval={a} compact />

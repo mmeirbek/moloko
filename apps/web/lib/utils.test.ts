@@ -4,7 +4,7 @@ import { localeFromAcceptLanguage } from "@/i18n/config";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
-import { safeNextPath } from "./utils";
+import { plainTitle, safeNextPath } from "./utils";
 
 describe("safeNextPath", () => {
   it.each([
@@ -44,5 +44,20 @@ function keys(obj: object, prefix = ""): string[] {
 describe("translations", () => {
   it("ru and en define exactly the same keys", () => {
     expect(keys(ru).sort()).toEqual(keys(en).sort());
+  });
+});
+
+describe("plainTitle", () => {
+  it.each([
+    ["Привет, **moloko**!", "Привет, moloko!"],
+    ["# План на неделю", "План на неделю"],
+    ["- купить `pgvector` и __Valkey__", "купить pgvector и Valkey"],
+    ["Читай [документацию](https://example.org) *внимательно*.", "Читай документацию внимательно."],
+    ["fs_write_file и snake_case_name", "fs_write_file и snake_case_name"],
+    ["a * b * c", "a * b * c"],
+    ["Plan a trip [[mock:plan:2]]", "Plan a trip [[mock:plan:2]]"],
+    ["  много   пробелов\nи строк ", "много пробелов и строк"],
+  ])("%s -> %s", (input, expected) => {
+    expect(plainTitle(input)).toBe(expected);
   });
 });

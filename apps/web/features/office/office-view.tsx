@@ -117,18 +117,19 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div role="tablist" aria-label={t("mode")} className="inline-flex rounded-md border p-0.5 text-sm">
+        {/* A two-way switch (not tabs: there is no separate panel per choice). */}
+        <div role="group" aria-label={t("mode")} className="inline-flex rounded-md border p-0.5 text-sm">
           {(["subagents", "agents"] as const).map((m) => (
             <button
               key={m}
-              role="tab"
-              aria-selected={mode === m}
+              type="button"
+              aria-pressed={mode === m}
               onClick={() => {
                 setMode(m);
                 setSelected(null);
               }}
               className={cn(
-                "rounded-sm px-3 py-1",
+                "min-h-9 rounded-sm px-3",
                 mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >

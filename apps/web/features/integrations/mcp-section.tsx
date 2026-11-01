@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import {
   addGitHubMcp,
@@ -101,6 +102,7 @@ function AddServer({ onDone }: { onDone: () => void }) {
 
 function ServerCard({ server }: { server: McpServerOut }) {
   const t = useTranslations("integrations.mcp");
+  const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const invalidate = useInvalidate();
   const refresh = useMutation({ mutationFn: () => refreshMcpServer(server.id), onSuccess: invalidate });
@@ -142,8 +144,10 @@ function ServerCard({ server }: { server: McpServerOut }) {
             size="icon"
             variant="ghost"
             aria-label={t("remove")}
-            onClick={() => {
-              if (window.confirm(t("removeConfirm", { name: server.name }))) remove.mutate();
+            disabled={remove.isPending}
+            onClick={async () => {
+              if (await confirm({ title: t("removeConfirm", { name: server.name }), confirmLabel: t("remove"), destructive: true }))
+                remove.mutate();
             }}
           >
             <Trash2 />

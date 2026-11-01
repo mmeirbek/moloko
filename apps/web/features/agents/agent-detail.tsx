@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Pause, Play, Send, Square, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,18 +9,21 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MemoryPanel } from "@/features/memory/memory-panel";
-import { agentAction, agentKeys, deleteAgent, getAgent, listAgentTasks, runAgent, taskKeys } from "@/lib/api/agents";
+import { agentKeys, deleteAgent, getAgent, listAgentTasks, runAgent, taskKeys } from "@/lib/api/agents";
 import { ApiError } from "@/lib/api/errors";
 import { memoryKeys } from "@/lib/api/memories";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
+import { useDocumentTitle } from "@/lib/hooks";
 
+import { AgentControls, isAgentBusy } from "./agent-controls";
 import { AgentForm } from "./agent-form";
 import { StatusBadge } from "./status-badge";
 
-const ACTIVE = new Set(["planning", "working", "waiting", "reviewing"]);
 const TABS = ["profile", "memory", "tasks"] as const;
 type Tab = (typeof TABS)[number];
 
@@ -65,6 +68,7 @@ function AgentTasks({ agentId }: { agentId: string }) {
 export function AgentDetail({ agentId }: { agentId: string }) {
   const t = useTranslations("agents");
   const td = useTranslations("agents.detail");
+  const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -73,6 +77,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
   const agent = useQuery({ queryKey: agentKeys.detail(agentId), queryFn: ({ signal }) => getAgent(agentId, signal) });
   const liveAgent = useRealtimeStore((s) => s.agents[agentId]);
   const live = liveAgent ? { ...agent.data, ...liveAgent } : agent.data;
+  useDocumentTitle(live?.name);
   const task = useRealtimeStore((s) => (live?.current_task_id ? s.tasks[live.current_task_id] : undefined));
 
   const invalidate = () => {
@@ -85,10 +90,6 @@ export function AgentDetail({ agentId }: { agentId: string }) {
       setTaskTitle("");
       invalidate();
     },
-  });
-  const action = useMutation({
-    mutationFn: (a: "pause" | "resume" | "stop") => agentAction(agentId, a),
-    onSuccess: invalidate,
   });
   const remove = useMutation({
     mutationFn: () => deleteAgent(agentId),
@@ -111,7 +112,8 @@ export function AgentDetail({ agentId }: { agentId: string }) {
       </div>
     );
   }
-  if (!agent.data || !live) return <p className="text-sm text-muted-foreground">{td("loading")}</p>;
+  if (!agent.data || !live)
+    return agent.isError ? <ErrorState error={agent.error} onRetry={() => agent.refetch()} /> : <LoadingState />;
 
   if (agent.data.archived_at) {
     return (
@@ -119,7 +121,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
         <Link href="/office/agents" className="flex items-center gap-1 text-sm text-muted-foreground hover:underline">
           <ArrowLeft className="size-4" /> {td("back")}
         </Link>
-        <h1 className="truncate text-2xl font-semibold">{agent.data.name}</h1>
+        <h1 className="truncate font-sans text-2xl font-semibold">{agent.data.name}</h1>
         <p role="status" className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
           {td("archived")}
         </p>
@@ -129,8 +131,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
   }
 
   const isSub = live.agent_type === "subagent";
-  const busy = ACTIVE.has(live.status ?? "") || live.status === "paused" || Boolean(live.current_task_id);
-  const error = run.error ?? action.error ?? remove.error;
+  const busy = isAgentBusy({ status: live.status ?? "idle", current_task_id: live.current_task_id ?? null });
 
   return (
     <div className="flex flex-col gap-6">
@@ -140,7 +141,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold">{live.name}</h1>
+            <h1 className="truncate font-sans text-2xl font-semibold">{live.name}</h1>
             <p className="text-sm text-muted-foreground">
               {t(`types.${live.agent_type as "autonomous"}`)}
               {live.specialization ? ` · ${live.specialization}` : ""}
@@ -153,60 +154,34 @@ export function AgentDetail({ agentId }: { agentId: string }) {
             {t("currentTask")}: {task.title}
           </Link>
         )}
-        {!isSub && (
-          <div className="flex flex-wrap items-center gap-2">
-            {!busy && (
-              <form
-                className="flex min-w-64 flex-1 gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (taskTitle.trim()) run.mutate();
-                }}
-              >
-                <Input
-                  aria-label={t("giveTask")}
-                  placeholder={t("giveTask")}
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                />
-                <Button type="submit" disabled={!taskTitle.trim() || run.isPending}>
-                  <Send /> {t("start")}
-                </Button>
-              </form>
-            )}
-            {ACTIVE.has(live.status ?? "") && (
-              <Button variant="outline" onClick={() => action.mutate("pause")}>
-                <Pause /> {t("pause")}
-              </Button>
-            )}
-            {(live.status === "paused" || task?.status === "waiting") && (
-              <Button variant="outline" onClick={() => action.mutate("resume")}>
-                <Play /> {t("resume")}
-              </Button>
-            )}
-            {(busy || live.status === "failed") && (
-              <Button variant="ghost" onClick={() => action.mutate("stop")}>
-                <Square /> {t("stop")}
-              </Button>
-            )}
-            {live.agent_type === "autonomous" && (
-              <Button
-                variant="ghost"
-                className="text-destructive"
-                disabled={busy || remove.isPending}
-                title={busy ? td("deleteBusy") : undefined}
-                onClick={() => {
-                  if (window.confirm(td("deleteConfirm", { name: live.name ?? "" }))) remove.mutate();
-                }}
-              >
-                <Trash2 /> {td("delete")}
-              </Button>
-            )}
-          </div>
+        {!isSub && !busy && (
+          <form
+            className="flex max-w-xl gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (taskTitle.trim()) run.mutate();
+            }}
+          >
+            <Input
+              aria-label={t("giveTask")}
+              placeholder={t("giveTask")}
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+            />
+            <Button type="submit" disabled={!taskTitle.trim() || run.isPending}>
+              <Send /> {t("start")}
+            </Button>
+          </form>
         )}
-        {error && (
+        {!isSub && (
+          <AgentControls
+            agent={{ id: agentId, name: live.name ?? "", status: live.status ?? "idle", current_task_id: live.current_task_id ?? null }}
+            size="default"
+          />
+        )}
+        {run.error && (
           <p role="alert" className="text-sm text-destructive">
-            {toMessage(error).message}
+            {toMessage(run.error).message}
           </p>
         )}
       </div>
@@ -247,6 +222,36 @@ export function AgentDetail({ agentId }: { agentId: string }) {
           ))}
         {tab === "tasks" && <AgentTasks agentId={agentId} />}
       </div>
+
+      {live.agent_type === "autonomous" && (
+        <section
+          aria-labelledby="danger-title"
+          className="flex flex-col items-start gap-2 rounded-lg border border-destructive/40 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex flex-col gap-0.5">
+            <p id="danger-title" className="text-sm font-medium">
+              {td("dangerTitle")}
+            </p>
+            <p className="text-sm text-muted-foreground">{busy ? td("deleteBusy") : td("dangerHint")}</p>
+          </div>
+          <Button
+            variant="outline"
+            className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            disabled={busy || remove.isPending}
+            onClick={async () => {
+              const question = td("deleteConfirm", { name: live.name ?? "" });
+              if (await confirm({ title: question, confirmLabel: td("delete"), destructive: true })) remove.mutate();
+            }}
+          >
+            <Trash2 /> {td("delete")}
+          </Button>
+          {remove.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {toMessage(remove.error).message}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

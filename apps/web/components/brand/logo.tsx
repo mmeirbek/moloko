@@ -1,27 +1,43 @@
-"use client";
-
-import { COW } from "@/features/mascot/art";
-import { CowSvg } from "@/features/mascot/pixel-cow";
 import { cn } from "@/lib/utils";
 
 /*
- * The owner's moloko logo: the cow-in-a-meadow tile (redrawn as 32×32 pixel art in
- * features/mascot/cow-art.json → "logo") and the pixel wordmark. This is the only place
- * the mark is composed; favicon and PWA icons come from the same art (scripts/make-icons.mjs).
+ * The owner's moloko logo: the cow-in-a-meadow tile and the "moloko" wordmark, both cut
+ * from the owner's image (assets/brand/logo-source.jpg) by scripts/make-brand.py — the
+ * favicon and PWA icons come from the same script. This is the only place the mark is composed.
  */
-export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
-  return <CowSvg rows={COW.logo.rows} palette={COW.logo.palette} width={size} height={size} className={className} />;
+const SIZES = {
+  sm: { mark: "size-7", word: "h-4" },
+  md: { mark: "size-8", word: "h-5" },
+  lg: { mark: "size-16", word: "h-10" },
+} as const;
+
+type LogoSize = keyof typeof SIZES;
+
+export function LogoMark({ size = "md", className }: { size?: LogoSize; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- a small static brand image, no optimisation needed
+    <img src="/brand/logo-tile.png" alt="" width={64} height={64} className={cn("shrink-0", SIZES[size].mark, className)} />
+  );
 }
 
-export function Logo({ className, showWordmark = true }: { className?: string; showWordmark?: boolean }) {
+/** The wordmark in the logo's own lettering, tinted with the theme's text colour (CSS mask). */
+export function Wordmark({ size = "md", className }: { size?: LogoSize; className?: string }) {
+  return <span role="img" aria-label="moloko" className={cn("wordmark", SIZES[size].word, className)} />;
+}
+
+export function Logo({
+  size = "md",
+  className,
+  showWordmark = true,
+}: {
+  size?: LogoSize;
+  className?: string;
+  showWordmark?: boolean;
+}) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <LogoMark className="size-8" />
-      {showWordmark && (
-        <span className="font-pixel text-xl font-bold tracking-tight lowercase [text-shadow:2px_2px_0_rgb(0_0_0/0.18)] dark:text-[#f6efdc] dark:[text-shadow:2px_2px_0_#000]">
-          moloko
-        </span>
-      )}
+    <span className={cn("inline-flex items-center", size === "lg" ? "gap-4" : "gap-2.5", className)}>
+      <LogoMark size={size} />
+      {showWordmark && <Wordmark size={size} />}
     </span>
   );
 }

@@ -32,6 +32,8 @@ export class RealtimeClient {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private firstFrameTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<EventListener>();
+  /** A connect() is between "start" and "socket created" (it awaits the CSRF token). */
+  private connecting = false;
   private onUnauthenticated: () => void;
 
   constructor(opts: { onUnauthenticated: () => void }) {
@@ -57,7 +59,7 @@ export class RealtimeClient {
 
   /** Reconnect now (e.g. the tab became visible or the network came back). */
   nudge(): void {
-    if (this.stopped) return;
+    if (this.stopped || this.connecting) return;
     if (this.ws && this.ws.readyState <= WebSocket.OPEN) return;
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.attempt = 0;
@@ -76,15 +78,20 @@ export class RealtimeClient {
   }
 
   private async connect(): Promise<void> {
-    if (this.stopped) return;
+    if (this.stopped || this.connecting) return;
+    this.connecting = true;
     useRealtimeStore.getState().setStatus("connecting");
     let csrf: string;
     try {
       csrf = await this.csrfToken();
     } catch {
+      this.connecting = false;
       this.scheduleReconnect();
       return;
     }
+    this.connecting = false;
+    // Stopped (page left) while the token was loading: open nothing, or the socket is orphaned.
+    if (this.stopped) return;
     const scheme = window.location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${scheme}://${window.location.host}/ws/v1/events`);
     this.ws = ws;

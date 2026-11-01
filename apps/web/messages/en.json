@@ -3,7 +3,10 @@
     "appName": "moloko",
     "loading": "Loading…",
     "retry": "Try again",
-    "errorId": "Error ID: {id}"
+    "errorId": "Error ID: {id}",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "delete": "Delete"
   },
   "nav": {
     "label": "Main navigation",
@@ -15,7 +18,27 @@
     "tasks": "Tasks",
     "integrations": "Integrations",
     "settings": "Settings",
-    "search": "Search"
+    "search": "Search",
+    "approvals": "Approvals",
+    "more": "More",
+    "moreLabel": "Other sections",
+    "skipToContent": "Skip to content",
+    "pendingCount": "waiting for you: {count}",
+    "groups": {
+      "work": "Work",
+      "office": "Office",
+      "system": "System"
+    },
+    "hints": {
+      "chat": "Ask an AI model anything",
+      "tasks": "Everything agents do and have done",
+      "approvals": "Agent actions waiting for your yes",
+      "search": "Find things in agent memory and files",
+      "agentOffice": "Your permanent agents at their desks",
+      "subagentOffice": "How the Orchestrator splits a big task",
+      "integrations": "GitHub, MCP servers and agent tools",
+      "settings": "AI providers, notifications, costs, backups"
+    }
   },
   "auth": {
     "title": "Sign in",
@@ -74,7 +97,10 @@
     "themeDark": "Dark",
     "themeSystem": "System",
     "language": "Language",
-    "toggleTheme": "Switch theme"
+    "toggleTheme": "Switch theme",
+    "appearanceTitle": "Theme and language",
+    "appearanceHint": "Saved on this device.",
+    "themeSystemShort": "Auto"
   },
   "pages": {
     "comingSoon": "This section arrives in Sprint {sprint}.",
@@ -96,14 +122,37 @@
     },
     "integrations": {
       "title": "Integrations",
-      "description": "AI providers, MCP servers, GitHub, browser and file system."
+      "description": "What agents are connected to: GitHub, MCP servers, their tools, the sandbox and work folders. AI models are in Settings."
     },
     "settings": {
       "title": "Settings",
-      "description": "Account, appearance and system status.",
+      "description": "AI models, notifications, agents, appearance, backups and server health.",
       "auditLink": "Audit log",
       "integrationsLink": "Tools and integrations",
-      "costsLink": "Costs"
+      "costsLink": "Costs",
+      "sectionsLabel": "Settings sections",
+      "sections": {
+        "ai": {
+          "title": "AI models",
+          "hint": "Connect at least one provider — chat and agents need it."
+        },
+        "notifications": {
+          "title": "Notifications",
+          "hint": "When and how moloko calls you: approvals, finished and failed tasks."
+        },
+        "agents": {
+          "title": "Agents",
+          "hint": "Emergency stop and the shared memory every agent can see."
+        },
+        "appearance": {
+          "title": "Appearance",
+          "hint": "Theme, language and the cow mascot."
+        },
+        "system": {
+          "title": "System and data",
+          "hint": "Server health, your sign-in and backups."
+        }
+      }
     }
   },
   "system": {
@@ -122,7 +171,8 @@
     "stopAll": "Stop all agents",
     "startEngine": "Allow agents to run again",
     "confirmStopAll": "Cancel every running task and block new ones?",
-    "stoppedCount": "{count} tasks stopped."
+    "stoppedCount": "{count} tasks stopped.",
+    "engineTitle": "Emergency stop"
   },
   "chat": {
     "newChat": "New chat",
@@ -140,9 +190,9 @@
     "tokens": "{count} tokens",
     "model": "Model",
     "defaultModel": "Default model",
-    "empty": "Ask anything. Answers stream in and are saved — you can close this tab.",
-    "noModels": "No AI model is set up yet.",
-    "openSettings": "Add a provider in Settings",
+    "empty": "Ask anything",
+    "noModels": "No AI model connected yet",
+    "openSettings": "Connect an AI model",
     "dismiss": "Dismiss",
     "errors": {
       "provider_auth_failed": "The provider rejected the API key. Check it in Settings.",
@@ -155,7 +205,7 @@
       "interrupted": "The answer was interrupted because the server restarted.",
       "internal_error": "Something went wrong while generating the answer."
     },
-    "agentsMode": "Agents: send to the Orchestrator instead of the chat model",
+    "agentsMode": "Hand to agents",
     "handOff": "Hand off to agents",
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
     "agentsWorking": "Agents are working on it…",
@@ -163,7 +213,19 @@
     "attach": "Attach a text file",
     "attachments": "Attached files",
     "removeAttachment": "Remove \"{name}\"",
-    "pages": "{count, plural, one {# page} other {# pages}}"
+    "pages": "{count, plural, one {# page} other {# pages}}",
+    "emptyHint": "The answer appears as it is written and is saved on the server — you can close the tab. Or start with an example:",
+    "noModelsHint": "Add an OpenAI or Anthropic key in Settings — it takes a minute.",
+    "placeholderAgents": "Describe the job for the agents…",
+    "agentsModeHint": "The Orchestrator splits the job into steps for agents. For bigger work.",
+    "messages": "Messages",
+    "tooManyFiles": "Up to {max} files per message. Not added: {count}.",
+    "suggestions": {
+      "label": "Example questions",
+      "explain": "Explain in simple words how search by meaning works",
+      "plan": "Make a weekly plan: three workouts and an hour of reading a day",
+      "letter": "Help me write a polite email declining a meeting"
+    }
   },
   "settings": {
     "providers": {
@@ -187,7 +249,9 @@
       "clearKey": "Remove key",
       "enabled": "Enabled",
       "testOk": "Works — {count} models available.",
-      "synced": "{added} new models imported."
+      "synced": "{added} new models imported.",
+      "mockKind": "Test model (offline)",
+      "clearKeyConfirm": "Delete the saved API key? This provider's models stop answering until you add a key again."
     },
     "models": {
       "title": "Models",
@@ -203,7 +267,8 @@
   "realtime": {
     "online": "Live",
     "connecting": "Connecting…",
-    "offline": "Offline — reconnecting"
+    "offline": "Offline — reconnecting",
+    "banner": "No connection to the server — reconnecting. What you see may be out of date."
   },
   "status": {
     "idle": "Idle",
@@ -233,7 +298,7 @@
     "cancelForm": "Cancel",
     "filter": "Filter",
     "search": "Search tasks",
-    "empty": "No tasks here.",
+    "empty": "No tasks yet.",
     "filters": {
       "all": "All",
       "active": "Active",
@@ -268,7 +333,9 @@
       "agentFailed": "The agent failed",
       "approvalRequired": "Approval needed: {tool}",
       "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}"
-    }
+    },
+    "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
+    "emptyFiltered": "Nothing found. Try another filter or search."
   },
   "agents": {
     "new": "New agent",
@@ -370,14 +437,17 @@
       "deleteConfirm": "Delete the agent \"{name}\"? It leaves the office and the lists. Its task history and memory are kept.",
       "subagentReadOnly": "A subagent is temporary: the Orchestrator creates and configures it for one subtask.",
       "subagentNoMemory": "Subagents have no memory of their own: the Orchestrator passes them their context.",
-      "archived": "This agent was deleted. Its task history is kept."
+      "archived": "This agent was deleted. Its task history is kept.",
+      "dangerTitle": "Delete this agent",
+      "dangerHint": "The agent leaves the office. Its task history and memory are kept."
     },
     "templates": {
       "title": "New agent from a template",
       "hint": "The agent walks into the office and rests until you give it a task.",
       "add": "Add",
       "close": "Close"
-    }
+    },
+    "confirmStop": "Stop {name} and cancel its task?"
   },
   "runs": {
     "newRun": "New task for the Orchestrator",
@@ -394,7 +464,9 @@
     "result": "Result",
     "messages": "Messages between agents",
     "orchestrator": "Orchestrator",
-    "team": "Your agents on the team ({count})"
+    "team": "Your agents on the team ({count})",
+    "emptyHint": "Describe a bigger job in the form above — the Orchestrator makes a plan and hires temporary subagents. You will see here who does what.",
+    "orchestratorBusy": "The Orchestrator is finishing the previous task — the button turns on as soon as it is free. You can type already."
   },
   "office": {
     "mode": "Office view",
@@ -546,11 +618,12 @@
       "override": "You asked to approve every use of this tool.",
       "sensitive": "Sensitive actions always need approval.",
       "write": "Changes need approval at this agent's autonomy level."
-    }
+    },
+    "noneHint": "When an agent wants to do something important (delete a file, open a pull request), the request appears here and you get a notification."
   },
   "tools": {
     "title": "Tools",
-    "description": "What agents can do at all. Each agent is allowed tools separately in its settings; every action is checked by the server.",
+    "description": "Everything agents can do. A tool switched off here is off for everyone; a tool switched on works only for agents you allowed it to. Actions marked “change” and “important” may need your approval.",
     "categories": {
       "read": "read",
       "write": "write",
@@ -605,6 +678,28 @@
       "memory_save": "Remember",
       "browser_screenshot": "Open a website in the browser",
       "knowledge_search": "Search memory and files"
+    },
+    "hints": {
+      "fs_list": "Sees which files are in the task's work folder.",
+      "fs_read": "Reads a text file from the work folder.",
+      "fs_write": "Creates or changes a text file in the work folder.",
+      "fs_move": "Moves or renames a file in the work folder.",
+      "fs_delete": "Deletes a file or folder — only with your approval.",
+      "terminal_run": "Runs one command (e.g. python) in a locked sandbox without internet.",
+      "web_fetch": "Opens a public web page and reads its text.",
+      "web_search": "Searches the web through your SearXNG.",
+      "github_list_repos": "Sees the repositories the token can access.",
+      "github_list_dir": "Looks inside a folder of a repository.",
+      "github_read_file": "Reads a file from a repository.",
+      "github_list_issues": "Reads the issue list of a repository.",
+      "github_get_issue": "Reads one issue with its comments.",
+      "github_list_commits": "Looks at the latest commits of a branch.",
+      "github_create_branch": "Creates a new branch.",
+      "github_write_file": "Commits a file to a branch; to the default branch only with approval.",
+      "github_create_pull_request": "Opens a pull request — always with your approval.",
+      "memory_save": "Saves a short note to its own memory for later.",
+      "browser_screenshot": "Opens a site in a real browser and takes a screenshot — always with approval.",
+      "knowledge_search": "Searches its memory and task files by meaning."
     }
   },
   "integrations": {
@@ -709,7 +804,13 @@
       "denied": "denied"
     },
     "empty": "No entries.",
-    "more": "Show more"
+    "more": "Show more",
+    "actors": {
+      "user": "you",
+      "agent": "agent",
+      "system": "system",
+      "anonymous": "not signed in"
+    }
   },
   "notifications": {
     "dismiss": "Dismiss notification",
@@ -742,7 +843,8 @@
       "pushHomeScreen": "On iPhone and iPad: first add moloko to the Home Screen (Share → Add to Home Screen) and open it from there.",
       "pushUnsupported": "This browser does not support Web Push.",
       "pushNote": "Messages travel encrypted through your browser's push service (Apple, Google, Mozilla); it only sees the device address.",
-      "pushError": "Could not turn it on: allow notifications in the browser settings and try again."
+      "pushError": "Could not turn it on: allow notifications in the browser settings and try again.",
+      "deviceTitle": "On this device"
     },
     "budget": {
       "title": "Costs near the limit",
@@ -791,7 +893,8 @@
     "placeholder": "For example: find three recent articles about pgvector and write a short overview",
     "start": "Start",
     "close": "Close",
-    "untitled": "New task"
+    "untitled": "New task",
+    "orchestratorBusy": "The Orchestrator is finishing the previous task — the button turns on as soon as it is free. You can type already."
   },
   "costs": {
     "title": "Costs",
@@ -890,5 +993,32 @@
     "link": "Link",
     "copied": "Copied",
     "copyFailed": "Could not copy the link."
+  },
+  "start": {
+    "title": "Getting started",
+    "progress": "{done} of {total} done",
+    "hide": "Hide this guide",
+    "stepDone": "done",
+    "stepTodo": "not done yet",
+    "model": {
+      "title": "Connect an AI model",
+      "hint": "Paste an OpenAI or Anthropic API key — the brain of moloko.",
+      "action": "Connect"
+    },
+    "chat": {
+      "title": "Ask your first question",
+      "hint": "A plain conversation with the model. History is saved.",
+      "action": "New chat"
+    },
+    "task": {
+      "title": "Give the Orchestrator a task",
+      "hint": "It splits bigger work into steps and hands them to agents.",
+      "action": "Give a task"
+    },
+    "agent": {
+      "title": "Hire a permanent agent",
+      "hint": "Researcher, programmer, reviewer or translator — from a ready template.",
+      "action": "To the office"
+    }
   }
 }

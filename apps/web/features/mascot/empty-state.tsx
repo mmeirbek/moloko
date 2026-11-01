@@ -27,7 +27,7 @@ export function EmptyState({
       data-testid="empty-state"
     >
       <PixelCow mood={mood} size={size} interactive />
-      <p className="font-pixel text-base">{title}</p>
+      <p className="max-w-sm text-base font-medium">{title}</p>
       {hint && <p className="max-w-sm text-sm text-muted-foreground">{hint}</p>}
       {action}
     </div>

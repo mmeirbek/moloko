@@ -4,7 +4,6 @@ import { unique, watchErrors } from "./helpers";
 
 test("agents: create with limits, edit, memory with history, run/pause/resume, delete", async ({ page }) => {
   const errors = watchErrors(page);
-  page.on("dialog", (d) => d.accept());
   await page.goto("/office/agents/new");
   const name = unique("Writer");
   await page.getByLabel("Имя", { exact: true }).fill(name);
@@ -49,6 +48,7 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await expect(page.getByRole("list", { name: "Задачи агента" }).getByText("Готово")).toBeVisible({ timeout: 60_000 });
 
   await page.getByRole("button", { name: "Удалить" }).click();
+  await page.getByTestId("confirm-dialog").getByRole("button", { name: "Удалить" }).click(); // in-app confirm
   await page.waitForURL(/\/office\/agents$/);
   await expect(page.getByRole("link", { name })).toHaveCount(0);
   expect(errors).toEqual([]);

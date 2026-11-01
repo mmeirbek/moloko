@@ -8,3 +8,9 @@ export function useToolTitle(): (tool: Pick<ToolOut, "name" | "title" | "source"
   const t = useTranslations("tools.names");
   return (tool) => (tool.source === "builtin" && t.has(tool.name as "fs_read") ? t(tool.name as "fs_read") : tool.title);
 }
+
+/** A plain-language line about a built-in tool; MCP tools keep the server's description. */
+export function useToolHint(): (tool: Pick<ToolOut, "name" | "description" | "source">) => string {
+  const t = useTranslations("tools.hints");
+  return (tool) => (tool.source === "builtin" && t.has(tool.name as "fs_read") ? t(tool.name as "fs_read") : tool.description);
+}

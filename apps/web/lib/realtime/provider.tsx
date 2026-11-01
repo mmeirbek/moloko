@@ -1,7 +1,7 @@
 "use client";
 
 import type { EventEnvelope, MessagePage } from "@moloko/shared-types";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { agentKeys, systemStateKey, taskKeys } from "@/lib/api/agents";
@@ -29,6 +29,20 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    // A busy run sends an event per step and a chat answer one per token: refetch each key at
+    // most once per burst, and never abort a refetch that is already on its way.
+    const due = new Map<string, QueryKey>();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = (queryKey: QueryKey) => {
+      due.set(JSON.stringify(queryKey), queryKey);
+      timer ??= setTimeout(() => {
+        timer = null;
+        const keys = [...due.values()];
+        due.clear();
+        for (const key of keys) void queryClient.invalidateQueries({ queryKey: key }, { cancelRefetch: false });
+      }, 250);
+    };
+
     const off = client.subscribe((event: EventEnvelope | { type: "snapshot" }) => {
       if (event.type === "snapshot") {
         // Caught up after a gap: refresh everything that may be stale.
@@ -37,23 +51,23 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       }
       const e = event as EventEnvelope;
       if (e.type.startsWith("task.") || e.type.startsWith("agent.task_") || e.type === "agent.message") {
-        void queryClient.invalidateQueries({ queryKey: taskKeys.all });
-        void queryClient.invalidateQueries({ queryKey: systemStateKey });
+        refresh(taskKeys.all);
+        refresh(systemStateKey);
       }
       if (e.type.startsWith("agent.") && e.type !== "agent.message") {
-        void queryClient.invalidateQueries({ queryKey: agentKeys.all });
+        refresh(agentKeys.all);
       }
       if (e.type === "chat.message_completed") {
         const conversationId = String(e.payload.conversation_id ?? "");
-        void queryClient.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
-        void queryClient.invalidateQueries({ queryKey: chatKeys.list });
+        refresh(chatKeys.messages(conversationId));
+        refresh(chatKeys.list);
       }
       if (e.type === "chat.message_delta") {
         // Another device started an answer we don't know yet: load it (we then re-attach).
         const conversationId = String(e.payload.conversation_id ?? "");
         const page = queryClient.getQueryData<MessagePage>(chatKeys.messages(conversationId));
         if (page && !page.items.some((m) => m.id === e.payload.message_id)) {
-          void queryClient.invalidateQueries({ queryKey: chatKeys.messages(conversationId) });
+          refresh(chatKeys.messages(conversationId));
         }
       }
     });
@@ -63,6 +77,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", wake);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      if (timer) clearTimeout(timer);
       off();
       client.stop();
       useRealtimeStore.getState().reset();
