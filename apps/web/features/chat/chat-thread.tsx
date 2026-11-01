@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown";
 import { ModelPicker, modelLabel } from "./model-picker";
 import { useChatThread } from "./use-chat-thread";
+import { EmptyState } from "@/features/mascot/empty-state";
 
 /** Our own message records, so message components can show server-side details. */
 const MessagesById = createContext<Map<string, MessageOut>>(new Map());
@@ -319,7 +320,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                         </Link>
                       </>
                     ) : (
-                      <p>{t("empty")}</p>
+                      <EmptyState title={t("empty")} mood="happy" className="py-2" />
                     )}
                   </div>
                 </ThreadPrimitive.Empty>

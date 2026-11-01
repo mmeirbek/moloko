@@ -18,8 +18,7 @@ own agents hand-over (see "After Sprint 8 — owner requests").
 
 1. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
 2. **Subscription-based model access** (spec 26.1): still API keys only, as required.
-3. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
-4. **Branches on GitHub**: the work is on `main`. Set `main` as the default branch (Settings → General → Default branch), then delete `claude/vigilant-cray-26u902` and `claude/pensive-bell-7okz27` (github.com/mmeirbek/moloko/branches) — branch deletion is not allowed from the coding session.
+3. **Branches on GitHub**: the work is on `main`. Set `main` as the default branch (Settings → General → Default branch), then delete `claude/vigilant-cray-26u902` and `claude/pensive-bell-7okz27` (github.com/mmeirbek/moloko/branches) — branch deletion is not allowed from the coding session.
 
 ## Sprint 1 — Infrastructure foundation
 
@@ -227,7 +226,18 @@ for them: Web Push uses `cryptography` (already a dependency) and the official M
 | 2026-11-01 | `PUSH_CONTACT` (VAPID `sub`) is a setting with a placeholder default; Apple rejects placeholder addresses, so the owner sets a real `mailto:` or `https://` contact (deployment docs). | No hardcoded values; it is the owner's choice what to share with push services. |
 | 2026-11-01 | **Phaser 4.2.1** replaces 3.90.0 (the spec said Phaser 3; the owner approved 4). The engine code needed no API changes; `pixelArt`, `roundPixels` (v4 default is `false`) and `antialias: false` are set explicitly so the art stays crisp at integer zoom. Checked by a screenshot and the full E2E suite (office test included). | Owner approved; `template-nextjs` moved to Phaser 4. |
 | 2026-11-01 | **Valkey 9.1.3 instead of Redis 8** (owner decision). Valkey is the Linux Foundation fork of Redis under BSD-3, speaks the same protocol, so `redis-py`, ARQ, `REDIS_URL` and all code stay as they are. Changed: the image in compose, the test script and CI (`valkey-cli ping` health check). No data migration needed: Valkey holds no durable state (invariant 2). It gets a new volume `valkey-data` because Valkey refuses to start on a Redis 8 snapshot (newer RDB format); the old `redis-data` volume can be removed (`docker volume rm moloko_redis-data`). | Removes the RSAL/SSPL/AGPL question. |
-| 2026-11-01 | **Git**: the finished work is pushed to a new `main` branch (same commits as the working branch, full sprint history kept). Deleting the other branches was refused from the coding session (HTTP 403), so the owner switches the default branch to `main` and deletes them on GitHub (open question 4). | Owner request. |
+| 2026-11-01 | **Git**: the finished work is pushed to a new `main` branch (same commits as the working branch, full sprint history kept). Deleting the other branches was refused from the coding session (HTTP 403), so the owner switches the default branch to `main` and deletes them on GitHub (open question 3). | Owner request. |
+
+## Mascot, office life and new features (owner request, 2026-11-01)
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-11-01 | **The owner's logo** (cow in a meadow) is used as the brand mark, favicon and PWA icons. The PNG was shared in chat, not as a file, so it is redrawn as 32×32 pixel art in `features/mascot/cow-art.json` (crisp at every size). The owner can still drop the original into `apps/web/public/brand/` — swap `LogoMark` for an `<img>` then. | Owner request. |
+| 2026-11-01 | **The moloko cow** (original pixel art in the logo's colours) is the mascot: front view for the UI (idle with blinking, happy, sleep, sad, moo), side view for the office. One JSON file feeds the UI, Phaser and the icon generator. | Single source for all art. |
+| 2026-11-01 | Cow in the UI: empty states, loading screen (walking cow), offline page (sleeping cow), notification badge, settings card; **milk-bottle progress** that fills with `task.progress` and clinks when done. **Easter egg**: five quick clicks on a cow → "Му!" bubble; the sound (synthesized with Web Audio, no file) only if the owner turns it on (Settings → Mascot, per device, off by default). **Seasonal outfits** (New Year hat 15 Dec–14 Jan, witch hat 24 Oct–1 Nov, flowers March–May), switchable. | Owner request; sound off by default (no surprises). |
+| 2026-11-01 | **Office**: the Orchestrator is drawn as the cow with its own pasture by a meadow gate. Status → look in `cowBehaviorFor` (same one-way rule as other characters): idle = grazing (at night: sleeping with "Zz"), working = walks from agent to agent carrying papers, planning = at the board, failed = sad ears, completed = cheer, any pending approval = "МУ!" bubble. Windows show the logo's meadow; **day and night follow the owner's local time** (React passes the hour; `?hour=` overrides for screenshots/tests); lit monitors glow at night. Persistent agents get a stable desk with a **pet** (chick, cat, frog, bunny, piggy, duck). Messages between agents fly as pixel **envelopes** on an arc. | Owner request; the scene still reads nothing on its own. |
+| 2026-11-01 | **Pixel font for headings**: Pixelify Sans (SIL OFL 1.1, Cyrillic), self-hosted with `next/font/local` (no requests to Google at runtime). Only `h1`/`h2` and the wordmark; body text keeps the system font. | Readability; privacy. |
+| 2026-11-01 | **Phone tab bar**: the cow in the middle opens "New task" (to the Orchestrator); the same button is at the top of the desktop sidebar. | Owner request. |
 
 ## Dependency register
 
@@ -294,6 +304,7 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | @playwright/test (dev) | 1.63.0 | Apache-2.0 | E2E browser tests | 8 | 2026-11-01 |
 | python-multipart | 0.0.33 (now a direct dependency) | Apache-2.0 | File uploads (chat attachments) | 8 | 2026-11-01 |
 | **After Sprint 8** | | | | | |
+| Pixelify Sans (font file, self-hosted) | 2023 release (google/fonts `ofl/pixelifysans`) | OFL-1.1 | Pixel font for headings | 8+ | 2026-11-01 |
 | phaser | 4.2.1 (replaces 3.90.0) | MIT | Pixel Office engine | 8+ | 2026-11-01 |
 | github/github-mcp-server (hosted endpoint, not bundled) | — | MIT | Official GitHub MCP server, reached over HTTPS | 8+ | 2026-11-01 |
 | Web Push services (Apple / Google / Mozilla / Microsoft) | — | external service, free | Deliver encrypted notifications to closed apps | 8+ | 2026-11-01 |

@@ -44,7 +44,7 @@ export function Notifier() {
         Notification.permission === "granted" &&
         document.visibilityState === "hidden"
       ) {
-        const options = { body: text, tag: notice.key, icon: "/icons/icon-192.png", data: { url: notice.url } };
+        const options = { body: text, tag: notice.key, icon: "/icons/icon-192.png", badge: "/icons/badge-96.png", data: { url: notice.url } };
         void navigator.serviceWorker?.ready
           .then((reg) => reg.showNotification(heading, options))
           .catch(() => new Notification(heading, options));

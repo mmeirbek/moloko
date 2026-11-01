@@ -1,21 +1,12 @@
-// Writes the PWA icons (public/icons/*.png) from the placeholder pixel mark in
-// components/brand/logo.tsx — no image library needed (PNG = zlib + CRC).
-// When the owner's logo arrives, replace PIXELS below (or the PNGs) and re-run:
-//   node scripts/make-icons.mjs
-import { writeFileSync } from "node:fs";
+// Writes the PWA icons (public/icons/*.png) from the logo and cow pixel art
+// (features/mascot/cow-art.json) — no image library needed (PNG = zlib + CRC).
+// Re-run after editing the art:   node scripts/make-icons.mjs
+import { readFileSync, writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 
-const RECTS = [
-  [0, 0, 16, 16, "#f6efdc"], [1, 1, 14, 9, "#4aa8e8"], [3, 3, 4, 1, "#ffffff"], [4, 2, 2, 1, "#ffffff"],
-  [10, 4, 3, 1, "#ffffff"], [1, 10, 14, 3, "#5bbf4a"], [1, 13, 14, 2, "#6b4a2f"], [5, 7, 6, 3, "#ffffff"],
-  [6, 8, 2, 1, "#3b2a24"], [11, 6, 2, 2, "#ffffff"], [5, 10, 1, 1, "#3b2a24"], [10, 10, 1, 1, "#3b2a24"],
-];
-
-function grid() {
-  const g = Array.from({ length: 16 }, () => Array(16).fill("#f6efdc"));
-  for (const [x, y, w, h, c] of RECTS) for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) g[j][i] = c;
-  return g;
-}
+const ART = JSON.parse(readFileSync(new URL("../features/mascot/cow-art.json", import.meta.url), "utf8"));
+const NAVY = "#10142b"; // the logo's night background
+const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 
 const CRC = new Uint32Array(256).map((_, n) => {
   let c = n;
@@ -36,38 +27,57 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-/** size×size PNG; the 16×16 mark scaled by whole pixels, centred with `pad` (maskable). */
-function png(size, padRatio) {
-  const g = grid();
-  const scale = Math.floor((size * (1 - 2 * padRatio)) / 16);
-  const offset = Math.floor((size - scale * 16) / 2);
-  const rows = [];
+/**
+ * size×size RGBA PNG: `rows` (pixel art) scaled by whole pixels and centred with `padRatio`.
+ * `background` null = transparent; `mono` paints every opaque pixel white (notification badge).
+ */
+function png(rows, size, { padRatio = 0, background = NAVY, mono = false, palette = ART.palette } = {}) {
+  const w = rows[0].length;
+  const h = rows.length;
+  const scale = Math.max(1, Math.floor((size * (1 - 2 * padRatio)) / Math.max(w, h)));
+  const ox = Math.floor((size - scale * w) / 2);
+  const oy = Math.floor((size - scale * h) / 2);
+  const bg = background ? [...hex(background), 255] : [0, 0, 0, 0];
+  const lines = [];
   for (let y = 0; y < size; y++) {
-    const row = Buffer.alloc(1 + size * 3);
+    const line = Buffer.alloc(1 + size * 4);
     for (let x = 0; x < size; x++) {
-      const gx = Math.floor((x - offset) / scale), gy = Math.floor((y - offset) / scale);
-      const c = gx >= 0 && gx < 16 && gy >= 0 && gy < 16 ? g[gy][gx] : "#f6efdc";
-      row[1 + x * 3] = parseInt(c.slice(1, 3), 16);
-      row[2 + x * 3] = parseInt(c.slice(3, 5), 16);
-      row[3 + x * 3] = parseInt(c.slice(5, 7), 16);
+      const gx = Math.floor((x - ox) / scale);
+      const gy = Math.floor((y - oy) / scale);
+      const key = gx >= 0 && gx < w && gy >= 0 && gy < h ? rows[gy][gx] : ".";
+      const rgba = key === "." ? bg : mono ? [255, 255, 255, 255] : [...hex(palette[key]), 255];
+      line.set(rgba, 1 + x * 4);
     }
-    rows.push(row);
+    lines.push(line);
   }
   const header = Buffer.alloc(13);
   header.writeUInt32BE(size, 0);
   header.writeUInt32BE(size, 4);
   header[8] = 8; // bit depth
-  header[9] = 2; // RGB
+  header[9] = 6; // RGBA
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", header),
-    chunk("IDAT", deflateSync(Buffer.concat(rows))),
+    chunk("IDAT", deflateSync(Buffer.concat(lines))),
     chunk("IEND", Buffer.alloc(0)),
   ]);
 }
 
+const face = ART.face.frames;
+const logo = ART.logo.rows;
+const L = { palette: ART.logo.palette };
 const out = new URL("../public/icons/", import.meta.url);
-for (const [name, size, pad] of [["icon-192.png", 192, 0], ["icon-512.png", 512, 0], ["maskable-512.png", 512, 0.12], ["apple-touch-icon.png", 180, 0.06], ["favicon-32.png", 32, 0]]) {
-  writeFileSync(new URL(name, out), png(size, pad));
-}
+const icons = [
+  // the owner's logo tile (cow in a meadow)
+  ["icon-192.png", logo, 192, { ...L }],
+  ["icon-512.png", logo, 512, { ...L }],
+  ["maskable-512.png", logo, 512, { ...L, padRatio: 0.12 }],
+  ["apple-touch-icon.png", logo, 180, { ...L, padRatio: 0.05 }],
+  ["favicon-32.png", logo, 32, { ...L }],
+  // Android status-bar badge: white silhouette on transparent
+  ["badge-96.png", face.idle, 96, { padRatio: 0.04, background: null, mono: true }],
+  // offline page
+  ["cow-sleep.png", face.sleep, 160, { background: null }],
+];
+for (const [name, rows, size, options] of icons) writeFileSync(new URL(name, out), png(rows, size, options));
 console.log("icons written to public/icons/");

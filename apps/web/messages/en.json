@@ -741,5 +741,26 @@
       "same_disk": "Backups are on the same disk as the data. That is no protection: mount another disk (BACKUP_DIR).",
       "low_disk": "Low free disk space."
     }
+  },
+  "mascot": {
+    "moo": "Moo!",
+    "bottle": "{percent}% done",
+    "bottleDone": "Done!",
+    "settings": {
+      "title": "Mascot",
+      "description": "The moloko pixel cow lives in the office and the interface. These settings are for this device.",
+      "seasonal": "Seasonal outfits (New Year, Halloween, spring)",
+      "sound": "Sounds (\"Moo!\")",
+      "hint": "Sound is only turned on here, and only on this device."
+    }
+  },
+  "newTask": {
+    "button": "Task",
+    "title": "New task",
+    "hint": "Describe what needs to be done. The Orchestrator splits the work between agents.",
+    "placeholder": "For example: find three recent articles about pgvector and write a short overview",
+    "start": "Start",
+    "close": "Close",
+    "untitled": "New task"
   }
 }

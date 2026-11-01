@@ -57,3 +57,46 @@ export const BEHAVIOR: Record<AgentStatus, Behavior> = {
 export function behaviorFor(status: string): Behavior {
   return BEHAVIOR[status as AgentStatus] ?? BEHAVIOR.idle;
 }
+
+// --- the cow (the Orchestrator) -----------------------------------------------------------
+
+export type CowPose = "stand" | "graze" | "carry" | "moo" | "sad" | "sleep" | "cheer" | "frozen";
+export type Bubble = "moo" | "zzz" | null;
+
+export interface CowBehavior {
+  /** "patrol" = walk from agent to agent handing out work and collecting results */
+  place: "pasture" | "board" | "review" | "patrol" | "stay";
+  pose: CowPose;
+  indicator: Indicator;
+  bubble: Bubble;
+  animated: boolean;
+}
+
+/**
+ * The Orchestrator is drawn as the moloko cow. Same rule as everyone else: its look
+ * comes only from the backend status, plus two facts the office is told — the owner's
+ * night (22:00–06:00 local) and whether an approval is waiting. Pure: tested.
+ */
+export function cowBehaviorFor(status: string, { night = false, attention = false } = {}): CowBehavior {
+  const s = (status in BEHAVIOR ? status : "idle") as AgentStatus;
+  if (s === "paused") return { place: "stay", pose: "frozen", indicator: "pause", bubble: null, animated: false };
+  if (attention) return { place: "pasture", pose: "moo", indicator: "none", bubble: "moo", animated: true };
+  switch (s) {
+    case "idle":
+      return night
+        ? { place: "pasture", pose: "sleep", indicator: "none", bubble: "zzz", animated: true }
+        : { place: "pasture", pose: "graze", indicator: "none", bubble: null, animated: true };
+    case "planning":
+      return { place: "board", pose: "stand", indicator: "thinking", bubble: null, animated: true };
+    case "working":
+      return { place: "patrol", pose: "carry", indicator: "none", bubble: null, animated: true };
+    case "waiting":
+      return { place: "pasture", pose: "stand", indicator: "hourglass", bubble: null, animated: true };
+    case "reviewing":
+      return { place: "review", pose: "stand", indicator: "document", bubble: null, animated: true };
+    case "completed":
+      return { place: "pasture", pose: "cheer", indicator: "check", bubble: null, animated: true };
+    case "failed":
+      return { place: "pasture", pose: "sad", indicator: "alert", bubble: null, animated: true };
+  }
+}

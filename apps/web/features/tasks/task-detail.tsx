@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { TaskToolActivity } from "@/features/tasks/tool-calls";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
+import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { cancelTask, getTask, retryTask, taskEvents, taskKeys } from "@/lib/api/agents";
@@ -98,6 +99,9 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{task.title}</h1>
           <StatusBadge status={task.status} />
+          {(task.progress > 0 || task.status === "completed") && (
+            <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} />
+          )}
         </div>
         <p className="text-sm text-muted-foreground">
           {agentName ?? t("noAgent")}

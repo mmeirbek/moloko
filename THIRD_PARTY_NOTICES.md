@@ -73,3 +73,10 @@ SOFTWARE.
 No third-party art assets. All Pixel Office art is original and drawn in code; every
 asset is listed with its source and license in `apps/web/assets/MANIFEST.md`
 (spec 18.2). The brand logo belongs to the owner.
+
+## Pixelify Sans (font)
+
+`apps/web/app/fonts/PixelifySans-wght.ttf` — Copyright 2021 The Pixelify Sans Project
+Authors (https://github.com/eifetx/Pixelify-Sans). Licensed under the SIL Open Font
+License, Version 1.1; the full license is in `apps/web/app/fonts/PixelifySans-OFL.txt`.
+

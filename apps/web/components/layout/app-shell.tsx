@@ -5,16 +5,18 @@ import { LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { ApprovalsBadge } from "@/features/approvals/approvals-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
+import { PixelCow, WalkingCow } from "@/features/mascot/pixel-cow";
 import { Notifier } from "@/features/notifications/notifier";
 import { RegisterServiceWorker } from "@/features/notifications/register-sw";
 import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
 import { ThemeToggle } from "@/features/preferences/theme-toggle";
+import { NewTaskDialog } from "@/features/runs/new-task-dialog";
 import { authKeys, getMe, logout } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
 import { ConnectionDot, RealtimeProvider } from "@/lib/realtime/provider";
@@ -33,6 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const toMessage = useErrorMessage();
+  const [newTask, setNewTask] = useState(false);
 
   // The backend decides whether we are signed in; the UI only reflects it.
   const me = useQuery({ queryKey: authKeys.me, queryFn: ({ signal }) => getMe(signal) });
@@ -53,8 +56,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (me.isPending || (me.error instanceof ApiError && me.error.isUnauthenticated)) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
-        {t("common.loading")}
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <WalkingCow size={84} />
+        <span className="font-pixel">{t("common.loading")}</span>
       </div>
     );
   }
@@ -85,6 +89,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo />
           </Link>
           <ApprovalsBadge />
+        </div>
+        <div className="px-2 pt-1">
+          <Button className="w-full justify-start gap-2" onClick={() => setNewTask(true)} data-testid="new-task-sidebar">
+            <PixelCow mood="happy" size={22} outfit={false} />
+            {t("newTask.button")}
+          </Button>
         </div>
         <nav aria-label={t("nav.label")} className="flex flex-1 flex-col gap-1 px-2 py-2">
           {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => (
@@ -158,11 +168,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile bottom tab bar */}
         <nav
           aria-label={t("nav.label")}
-          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-6 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-7 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         >
-          {NAV_ITEMS.map(({ href, labelKey, shortLabelKey, icon: Icon }) => (
+          {NAV_ITEMS.map(({ href, labelKey, shortLabelKey, icon: Icon }, index) => (
+            <TabSlot key={href} withCow={index === 3} onNewTask={() => setNewTask(true)} label={t("newTask.button")}>
             <Link
-              key={href}
               href={href}
               aria-label={t(`nav.${labelKey}`)}
               aria-current={isActive(pathname, href) ? "page" : undefined}
@@ -176,10 +186,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {t(`nav.${shortLabelKey ?? labelKey}`)}
               </span>
             </Link>
+            </TabSlot>
           ))}
         </nav>
       </div>
     </div>
+    <NewTaskDialog open={newTask} onClose={() => setNewTask(false)} />
     <Notifier />
     <RegisterServiceWorker />
     </RealtimeProvider>
@@ -194,5 +206,38 @@ function ConnectionStatus() {
       <ConnectionDot />
       <span className="sr-only md:not-sr-only">{t(status)}</span>
     </span>
+  );
+}
+
+/** The cow "new task" button sits in the middle of the phone tab bar, before item `withCow`. */
+function TabSlot({
+  withCow,
+  onNewTask,
+  label,
+  children,
+}: {
+  withCow: boolean;
+  onNewTask: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      {withCow && (
+        <button
+          type="button"
+          onClick={onNewTask}
+          aria-label={label}
+          data-testid="new-task-cow"
+          className="relative flex flex-col items-center justify-end gap-0.5 px-1 pb-2 text-[10px] leading-tight font-medium"
+        >
+          <span className="-mt-5 flex size-12 items-center justify-center rounded-full border-2 border-[#1b1b2e] bg-[#10142b] shadow-md active:scale-95">
+            <PixelCow mood="happy" size={36} />
+          </span>
+          <span aria-hidden="true">{label}</span>
+        </button>
+      )}
+      {children}
+    </>
   );
 }

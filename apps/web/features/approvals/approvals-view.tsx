@@ -8,6 +8,7 @@ import { listApprovals, toolingKeys } from "@/lib/api/tooling";
 import { pendingApprovals, useRealtimeStore } from "@/lib/realtime/store";
 
 import { ApprovalCard } from "./approval-card";
+import { EmptyState } from "@/features/mascot/empty-state";
 
 export function ApprovalsView() {
   const t = useTranslations("approvals");
@@ -25,7 +26,7 @@ export function ApprovalsView() {
           {t("pending")}
         </h2>
         {pending.length === 0 && (
-          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t("none")}</p>
+          <EmptyState title={t("none")} mood="happy" className="rounded-lg border border-dashed" />
         )}
         {pending.map((a) => (
           <ApprovalCard key={a.id} approval={a} />

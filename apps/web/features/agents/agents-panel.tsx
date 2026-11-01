@@ -14,6 +14,7 @@ import { agentAction, agentKeys, listAgents, runAgent, taskKeys } from "@/lib/ap
 import { useRealtimeStore } from "@/lib/realtime/store";
 
 import { StatusBadge } from "./status-badge";
+import { EmptyState } from "@/features/mascot/empty-state";
 
 const ACTIVE = new Set(["planning", "working", "waiting", "reviewing"]);
 
@@ -126,7 +127,7 @@ export function AgentsPanel({ types }: { types?: string[] }) {
         ))}
       </ul>
       {agents.data && shown.length === 0 && (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{t("empty")}</p>
+        <EmptyState title={t("empty")} className="rounded-lg border border-dashed" />
       )}
     </div>
   );

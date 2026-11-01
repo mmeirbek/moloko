@@ -1,11 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
 import { Providers } from "./providers";
 import "./globals.css";
+
+// Pixelify Sans — SIL Open Font License 1.1 (app/fonts/PixelifySans-OFL.txt), self-hosted.
+const pixelify = localFont({
+  src: "./fonts/PixelifySans-wght.ttf",
+  variable: "--font-pixelify",
+  weight: "400 700",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "moloko", template: "%s · moloko" },
@@ -31,7 +40,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const locale = await getLocale();
   const nonce = (await headers()).get("x-nonce") ?? undefined; // set by proxy.ts (CSP)
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} className={pixelify.variable} suppressHydrationWarning>
       <body className="min-h-dvh">
         <NextIntlClientProvider>
           <Providers nonce={nonce}>{children}</Providers>

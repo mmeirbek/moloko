@@ -72,6 +72,8 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  /* Pixelify Sans (OFL, self-hosted: app/fonts) — headings only; body text stays readable. */
+  --font-pixel: var(--font-pixelify), ui-monospace, monospace;
 }
 
 @layer base {
@@ -94,6 +96,28 @@
   .pixelated {
     image-rendering: pixelated;
   }
+  h1,
+  h2,
+  .font-pixel {
+    font-family: var(--font-pixel);
+    letter-spacing: 0.01em;
+  }
+}
+
+/* Milk bottles clink when a task is done (MilkBottle). */
+@keyframes clink-left {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(14deg) translateX(2px); }
+  60% { transform: rotate(10deg) translateX(1px); }
+}
+@keyframes clink-right {
+  0%, 100% { transform: scaleX(-1) rotate(0deg); }
+  45% { transform: scaleX(-1) rotate(14deg) translateX(2px); }
+  60% { transform: scaleX(-1) rotate(10deg) translateX(1px); }
+}
+@keyframes sparkle {
+  0%, 30%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 /* Chat Markdown (model output). */

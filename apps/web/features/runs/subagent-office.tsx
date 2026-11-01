@@ -2,7 +2,7 @@
 
 import type { AgentOut, RunOut, TaskOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Network, Send } from "lucide-react";
+import { ArrowRight, Send } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -15,6 +15,8 @@ import { MarkdownBody } from "@/features/chat/markdown";
 import { getRunTree, listRuns, runKeys, startRun } from "@/lib/api/runs";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/features/mascot/empty-state";
+import { MilkBottle } from "@/features/mascot/milk-bottle";
 
 function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
   const t = useTranslations("runs");
@@ -109,6 +111,9 @@ function RunView({ runId }: { runId: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-semibold">{task.title}</h2>
         <StatusBadge status={task.status} />
+        {(task.progress > 0 || task.status === "completed") && (
+          <MilkBottle percent={task.progress} done={task.status === "completed"} size={18} />
+        )}
         <Link
           href={`/tasks/${task.id}`}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
@@ -200,9 +205,7 @@ export function SubagentOffice() {
           ))}
         </ul>
         {runs.data?.length === 0 && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Network className="size-4" /> {t("empty")}
-          </p>
+          <EmptyState title={t("empty")} size={56} className="py-4" />
         )}
       </div>
       <div>{current && <RunView key={current} runId={current} />}</div>

@@ -2,13 +2,17 @@
 
 import type { AgentOut } from "@moloko/shared-types";
 import { Maximize, Minus, Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
+import { playMoo } from "@/features/mascot/moo";
+import { useSeason } from "@/features/mascot/pixel-cow";
+import { mascotSnapshot } from "@/features/mascot/prefs";
 import { useRealtimeClient } from "@/lib/realtime/provider";
-import { useRealtimeStore } from "@/lib/realtime/store";
+import { pendingApprovals, useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
 import { AgentInspector } from "./agent-inspector";
@@ -42,6 +46,17 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   const [selected, setSelected] = useState<string | null>(null);
   const agentsById = useRealtimeStore((s) => s.agents);
   const realtime = useRealtimeClient();
+  const locale = useLocale();
+  const season = useSeason();
+  const attention = useRealtimeStore((s) => pendingApprovals(s.approvals).length > 0);
+  // `?hour=22` shows the office at that hour (screenshots, tests); otherwise the real clock.
+  const forcedHour = useSearchParams().get("hour");
+  const [hour, setHour] = useState(() => new Date().getHours());
+  useEffect(() => {
+    const timer = window.setInterval(() => setHour(new Date().getHours()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const shownHour = forcedHour !== null && /^\d{1,2}$/.test(forcedHour) ? Number(forcedHour) % 24 : hour;
 
   const shown = useMemo(() => agentsForMode(Object.values(agentsById), mode), [agentsById, mode]);
 
@@ -51,6 +66,9 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
     let cancelled = false;
     const offReady = bus.on("ready", () => setReady(true));
     const offSelected = bus.on("selected", (id) => setSelected(id));
+    const offMoo = bus.on("moo", () => {
+      if (mascotSnapshot().sound) playMoo();
+    });
     void import("./engine/createGame")
       .then(({ createOfficeGame }) => {
         if (!cancelled && container.current) game = createOfficeGame(container.current, bus);
@@ -60,6 +78,7 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
       cancelled = true;
       offReady();
       offSelected();
+      offMoo();
       game?.destroy(true);
     };
   }, [bus]);
@@ -72,6 +91,10 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   useEffect(() => {
     if (ready) bus.emit("select", selected);
   }, [bus, ready, selected]);
+
+  useEffect(() => {
+    if (ready) bus.emit("env", { hour: shownHour, locale, season, attention });
+  }, [bus, ready, shownHour, locale, season, attention]);
 
   // Agent↔agent messages fly across the office.
   useEffect(() => {

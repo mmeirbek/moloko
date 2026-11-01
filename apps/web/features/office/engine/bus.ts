@@ -10,6 +10,17 @@ export interface OfficeAgent {
   kind: "orchestrator" | "subagent" | "autonomous";
 }
 
+/** What the office is told about the world around it (never decided by the scene). */
+export interface OfficeEnv {
+  /** the owner's local hour (0–23): day and night */
+  hour: number;
+  locale: string;
+  /** seasonal outfit for the cow, if the owner keeps outfits on */
+  season: "newyear" | "halloween" | "spring" | null;
+  /** an approval is waiting: the cow moos */
+  attention: boolean;
+}
+
 export interface OfficeEvents {
   /** React → scene: the agents to show (already filtered by mode) */
   agents: OfficeAgent[];
@@ -19,6 +30,10 @@ export interface OfficeEvents {
   select: string | null;
   /** React → scene: an agent sent a message to another (animated envelope) */
   message: { from: string; to: string };
+  /** React → scene: time of day, language, season, pending approvals */
+  env: OfficeEnv;
+  /** scene → React: the cow was clicked five times (easter egg; React decides about sound) */
+  moo: undefined;
   /** scene → React: the user clicked a character (or empty floor → null) */
   selected: string | null;
   /** scene → React: the scene is ready to receive agents */

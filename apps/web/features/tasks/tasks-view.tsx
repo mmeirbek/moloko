@@ -15,6 +15,7 @@ import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, createTask, listAgents, listTasks, taskKeys } from "@/lib/api/agents";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/features/mascot/empty-state";
 
 const FILTERS = ["all", "active", "completed", "failed", "cancelled"] as const;
 
@@ -166,7 +167,11 @@ export function TasksView() {
       </div>
       <ul className="divide-y rounded-lg border bg-card">
         {tasks.data?.items.map((task) => <TaskRow key={task.id} task={task} />)}
-        {tasks.data?.items.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">{t("empty")}</li>}
+        {tasks.data?.items.length === 0 && (
+          <li>
+            <EmptyState title={t("empty")} mood="sleep" />
+          </li>
+        )}
       </ul>
     </div>
   );

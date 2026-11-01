@@ -2,7 +2,8 @@
  * The office floor plan (640×352 px world, 16 px tiles → 40×22). Pure data, no Phaser.
  *
  * Legend: '#' wall, '.' floor, 'D' desk, 'B' task board (on the wall), 'S' sofa,
- * 'T' meeting table, 'K' bookshelf, 'b' waiting bench, 'P' plant, 'R' rug (walkable).
+ * 'T' meeting table, 'K' bookshelf, 'b' waiting bench, 'P' plant, 'R' rug (walkable),
+ * 'G' the cow's pasture (grass, walkable), 'H' hay bale.
  */
 export const TILE = 16;
 export const COLS = 40;
@@ -22,10 +23,10 @@ export const LAYOUT = [
   "#..DD....DD....DD....DD....#...........#",
   "#..........................#####...#####",
   "#......................................#",
-  "#..DD....DD....DD....DD................#",
-  "#......................................#",
-  "#......................................#",
-  "#..........................P...........#",
+  "#..DD....DD....DD....DD.......GGGGGGGH.#",
+  "#.............................GGGGGGGG.#",
+  "#.............................GGGGGGGG.#",
+  "#..........................P..GGGGGGGG.#",
   "#......................................#",
   "#.RRRRRRR..........................P...#",
   "#.RRRRRRR..............................#",
@@ -35,7 +36,7 @@ export const LAYOUT = [
   "###################..###################",
 ];
 
-const BLOCKING = new Set(["#", "D", "B", "S", "T", "K", "b", "P"]);
+const BLOCKING = new Set(["#", "D", "B", "S", "T", "K", "b", "P", "H"]);
 
 export function walkable(col: number, row: number): boolean {
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
@@ -74,6 +75,12 @@ export const ZONES = {
   review: [...row(2, [7, 8, 9, 10], "up"), ...row(2, [28, 29, 30, 31], "up")],
   /** discussion room (orchestrator meetings) */
   meeting: [...row(3, [31, 32, 33, 34, 35]), ...row(7, [32, 33, 34, 35, 36], "up")],
+  /** the cow's (Orchestrator's) corner by the meadow gate */
+  pasture: [
+    { col: 33, row: 12, facing: "down" as const },
+    { col: 35, row: 13, facing: "down" as const },
+    { col: 31, row: 13, facing: "down" as const },
+  ],
   door: [
     { col: 19, row: 21 },
     { col: 20, row: 21 },

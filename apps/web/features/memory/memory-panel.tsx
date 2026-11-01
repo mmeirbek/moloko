@@ -22,6 +22,7 @@ import {
   type MemoryScope,
 } from "@/lib/api/memories";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/features/mascot/empty-state";
 
 const textareaClass = "rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm";
 
@@ -299,7 +300,7 @@ export function MemoryPanel({ scope }: { scope: MemoryScope }) {
         ))}
       </ul>
       {memories.data?.length === 0 && !adding && (
-        <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t("empty")}</p>
+        <EmptyState title={t("empty")} mood="sleep" className="rounded-lg border border-dashed" />
       )}
     </div>
   );
