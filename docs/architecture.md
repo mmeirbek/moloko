@@ -105,3 +105,14 @@ worker: Executor.execute(task_id) ─ claim (row lock, queued→running) ─► 
 
 `app/orchestrator/`: `plan.py` (schema + validation), `prompts.py`, `subagents.py` (creation with limits), `scheduler.py` (start ready subtasks within the active limit, pass results along dependencies, wake orchestrators), `messaging.py` (agent↔agent), `runtime.py` (`OrchestratorRuntime`, `SubagentRuntime`), `service.py` (start runs, chat hand-off, run trees), `mock_script.py` (scripted offline replies for tests). The executor's `after_task` hook runs a scheduling pass after every job.
 Frontend: `features/runs/subagent-office.tsx` (runs, live subagents, messages, result); chat "Agents" mode and hand-off suggestion.
+
+## Pixel Office (Sprint 5)
+
+```
+realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► OfficeScene (Phaser 3)
+        ▲                        │ Agent Inspector (React) ─► REST (pause/resume/stop/logs)
+        └── WebSocket events ────┘
+```
+
+`apps/web/features/office/engine/`: `map.ts` (640×360 floor plan, 16 px tiles, desks and zones), `pathfinding.ts` (A*), `behavior.ts` (status → place/pose/indicator, spec 18.4), `assign.ts` (stable desk/spot assignment), `sprites.ts` (original pixel art drawn in code), `bus.ts` (typed React ⇄ Phaser bus), `OfficeScene.ts` (rendering, movement, camera), `createGame.ts`. `office-view.tsx` loads Phaser only in the browser (dynamic import), filters agents by mode and feeds the bus; `agent-inspector.tsx` shows details and actions. The scene only renders: it never changes agent state.
+

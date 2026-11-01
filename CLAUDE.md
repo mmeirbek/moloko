@@ -6,7 +6,8 @@ Read first, in this order:
 3. `docs/decisions.md` — every choice made so far + the dependency register. Add to it whenever you decide something the spec leaves open.
 
 ## Status
-- Sprints 1–4 (infrastructure, chat, agent engine, orchestrator) **done**. Next: Sprint 5 (Pixel Office). Do not start a later sprint early.
+- Sprints 1–5 (infrastructure, chat, agent engine, orchestrator, pixel office) **done**. Next: Sprint 6 (autonomous agents). Do not start a later sprint early.
+- Pixel Office: the Phaser scene only renders what the store says (`features/office/engine/`); status → animation lives in `behavior.ts` only. All art is original, drawn in code — list any new asset in `apps/web/assets/MANIFEST.md`.
 
 ## Hard rules (from the spec — never break)
 - Backend is the single source of truth; PostgreSQL holds all durable state; Redis never holds the only copy.

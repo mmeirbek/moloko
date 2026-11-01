@@ -113,6 +113,28 @@ External repository checked: **FoundationAgents/AOrchestra** (REFERENCE, Apache-
 | 2026-10-31 | **Realtime fix**: the "too far behind → snapshot" rule now counts the user's *missed events*; subtracting `seq` values was wrong (global sequence with gaps) and was caught by the full test suite. | Correct resume. |
 | 2026-10-31 | ORM timestamps are set on the Python side (DB defaults stay). | A DB-side `onupdate` expires the attribute after a flush and reading it would need lazy I/O, which async SQLAlchemy forbids. |
 
+## Sprint 5 — Pixel Office
+
+External repositories checked (only at this sprint, as instructed):
+- **phaserjs/template-nextjs** (USE, MIT). Adopted its architecture *inside* `apps/web` (not as a separate app): a client-only component dynamically imports the game, and React and Phaser talk only through an event bus. Our bus is typed (`features/office/engine/bus.ts`) and one-directional for agent data: store → bus → scene. Notice in `THIRD_PARTY_NOTICES.md`.
+- **pablodelucca/pixel-agents** (REFERENCE, MIT) and **neomatrix25/pixel-office-openclaw** (REFERENCE, MIT): ideas only, re-implemented, nothing copied — a single status → animation table, stable desk assignment, A* movement on a tile grid, secrets stay on the server (the office only reads the store).
+- **fumeilab/pixelfloor** (REFERENCE): only the idea of pushing state over the WebSocket — we already have it (spec 11). Not used.
+- Canvas 2D (used by the references) was **not** adopted; Phaser stays as the spec requires.
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-10-31 | **Phaser 3.90.0**, not the template's version. ⚠ Conflict for the owner: `template-nextjs` `main` now ships **Phaser 4.0.0**; the spec (4.1, 18.6) and `docs/external-repositories.md` say Phaser 3. We follow the spec and use the latest Phaser 3 with the template's pattern. Moving to Phaser 4 later is a contained change (only `features/office/engine/`). | Spec wins over a template's moving `main`. |
+| 2026-10-31 | **All art is original and drawn in code** (16×16 characters with 17 frames, 8×8 status icons, furniture with Phaser Graphics). No external asset pack. Listed in `apps/web/assets/MANIFEST.md`. | Spec 18.2 (unified style, every asset's license known); no REFERENCE assets copied. |
+| 2026-10-31 | World **640×360**, 16 px tiles (40×22), `pixelArt`, `roundPixels`, **integer camera zoom only** (1–6). Default = the largest integer zoom that shows the whole office, centred; narrow screens stay at zoom 1 and pan by drag; pinch / wheel / buttons change zoom by whole steps. | Spec 18.6 pixel-perfect rendering. |
+| 2026-10-31 | **Status → behaviour table** (`engine/behavior.ts`) is the only place that maps agent status to place, pose, indicator and animation (spec 18.4): idle → lounge, planning → task board, working → own desk (monitor lights up), waiting → waiting area with hourglass, reviewing → review corner, paused → frozen where it stands, completed → desk + check, failed → desk + alert. Unknown statuses fall back to idle. | One table, tested; no state logic in the scene. |
+| 2026-10-31 | **Desks are assigned stably** per agent (hash + first free desk, kept while the agent exists), so a reload puts everyone back at the same desk. | Office matches reality after reload. |
+| 2026-10-31 | Phaser **never changes agent state**: the scene receives the agents list from the realtime store, actions (pause, resume, stop, logs, open task) go through the Agent Inspector, which is React and calls the REST API. | Spec 18.7 one-way data flow. |
+| 2026-10-31 | Agents mode shows persistent agents; Subagents mode shows the live subagents plus the Orchestrator. Subagents walk in through the door when created and leave when archived (end of the run). `agent.message` events between agents animate an envelope. | Spec 18.3, 18.5. |
+| 2026-10-31 | Name labels are shown on hover and for the selected character only. A plain list of agents with statuses sits under the canvas (accessible and readable on a phone). | Labels overlapped in the lounge; canvas content is invisible to screen readers. |
+| 2026-10-31 | **Test hook**: the canvas carries `data-agents` (id, status, pose, screen position) refreshed every 300 ms. Browser tests read it to check that the office matches the backend and to click characters. No secrets in it — only what the page already shows. | Phaser draws to a canvas; tests need a reliable view of it. |
+| 2026-10-31 | `GET /events` gained `latest=true` (the newest `limit` events, still returned oldest → newest) for the inspector's recent-events log. | Avoid paging through the whole history. |
+| 2026-10-31 | Mock provider: `[[mock:sleep:N]]` makes a non-streaming answer take N seconds (max 60), so browser tests can watch a character work. Mock provider stays disabled by default. | Deterministic E2E without a real key. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).
@@ -165,6 +187,9 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | remark-gfm | 4.0.1 | MIT | Tables, lists, strikethrough | 2 | 2026-10-31 |
 | rehype-highlight | 7.0.2 | MIT | Code highlighting (highlight.js, BSD-3-Clause) | 2 | 2026-10-31 |
 | zustand | 5.0.16 | MIT | Realtime client store | 3 | 2026-10-31 |
+| **Frontend (npm) — Sprint 5** | | | | | |
+| phaser | 3.90.0 | MIT | Pixel Office engine (spec 18.6) | 5 | 2026-10-31 |
+| phaserjs/template-nextjs (pattern only) | main @ 2026-10-31 | MIT | React ⇄ Phaser bus architecture | 5 | 2026-10-31 |
 | **Container images** | | | | | |
 | postgres | 17.11-alpine | PostgreSQL License | Database | 1 | 2026-10-31 |
 | redis | 8.10.3-alpine | RSALv2 / SSPLv1 / AGPLv3 (we rely on AGPLv3) | Cache/queue/pub-sub | 1 | 2026-10-31 |

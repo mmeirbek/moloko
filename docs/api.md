@@ -99,7 +99,7 @@ Error codes: `provider_auth_failed`, `provider_rate_limited`, `provider_timeout`
 | POST | `/tasks/{id}/cancel` | Cancels the task and its subtasks |
 | POST | `/tasks/{id}/retry` | New task with `attempt + 1`, `retry_of_id`; the old one keeps its history |
 | GET | `/tasks/{id}/events` | Execution history (ordered by `seq`) |
-| GET | `/events?after_seq&run_id&task_id&agent_id&limit` · `/events/{id}` | Event log |
+| GET | `/events?after_seq&run_id&task_id&agent_id&limit&latest` · `/events/{id}` | Event log (oldest → newest; `latest=true` returns the newest `limit` events — used by the Agent Inspector) |
 | GET | `/system/state` | `{engine_stopped, active_tasks}` |
 | POST | `/system/stop-all` · `/system/start` | Kill switch |
 

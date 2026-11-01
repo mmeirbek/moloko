@@ -140,6 +140,12 @@ async def test_task_create_list_filter_search_and_history(
             await client.get(f"/api/v1/events?after_seq={seqs[2]}&task_id={draft['id']}")
         ).json()
         assert all(e["seq"] > seqs[2] for e in after)
+        latest = (
+            await client.get(f"/api/v1/events?agent_id={agent['id']}&latest=true&limit=2")
+        ).json()
+        assert len(latest) == 2 and latest[0]["seq"] < latest[1]["seq"]
+        all_agent = (await client.get(f"/api/v1/events?agent_id={agent['id']}&limit=500")).json()
+        assert [e["id"] for e in latest] == [e["id"] for e in all_agent[-2:]]
         one = (await client.get(f"/api/v1/events/{history[0]['id']}")).json()
         assert one["id"] == history[0]["id"]
 

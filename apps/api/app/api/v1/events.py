@@ -23,6 +23,9 @@ async def list_events(
     run_id: uuid.UUID | None = None,
     task_id: uuid.UUID | None = None,
     agent_id: uuid.UUID | None = None,
+    latest: bool = Query(
+        False, description="the most recent `limit` events (still oldest → newest)"
+    ),
 ) -> list[EventOut]:
     query = select(AgentEvent).where(AgentEvent.user_id == ctx.user.id, AgentEvent.seq > after_seq)
     if run_id is not None:
@@ -31,8 +34,14 @@ async def list_events(
         query = query.where(AgentEvent.task_id == task_id)
     if agent_id is not None:
         query = query.where(AgentEvent.agent_id == agent_id)
-    rows = await db.execute(query.order_by(AgentEvent.seq).limit(limit))
-    return [event_out(e) for e in rows.scalars()]
+    if latest:
+        rows = list(
+            (await db.execute(query.order_by(AgentEvent.seq.desc()).limit(limit))).scalars()
+        )
+        rows.reverse()
+        return [event_out(e) for e in rows]
+    rows_asc = await db.execute(query.order_by(AgentEvent.seq).limit(limit))
+    return [event_out(e) for e in rows_asc.scalars()]
 
 
 @router.get("/{event_id}", response_model=EventOut)

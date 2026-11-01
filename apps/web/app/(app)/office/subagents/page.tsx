@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { OfficeView } from "@/features/office/office-view";
 import { SubagentOffice } from "@/features/runs/subagent-office";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,6 +16,9 @@ export default async function SubagentOfficePage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
+      <div className="mb-8">
+        <OfficeView initialMode="subagents" />
+      </div>
       <Suspense>
         <SubagentOffice />
       </Suspense>

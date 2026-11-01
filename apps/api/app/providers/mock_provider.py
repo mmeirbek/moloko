@@ -5,6 +5,7 @@ message, so tests can steer it:
 
 * ``[[mock:error:<kind>]]``  raise ProviderError(<kind>) (e.g. rate_limited, auth_failed)
 * ``[[mock:slow]]``          stream slowly / answer after 3 s (cancellation, live-status tests)
+* ``[[mock:sleep:N]]``       answer after N seconds (max 60)
 * anything else              "Echo: <message>"
 
 Agent-related behaviours (planning, tool calls) are added by ``scripted_reply``
@@ -31,6 +32,7 @@ from app.providers.base import (
 
 MOCK_MODELS = (ModelInfo("mock-fast", "Mock Fast"), ModelInfo("mock-smart", "Mock Smart"))
 _ERROR_RE = re.compile(r"\[\[mock:error:([a-z_]+)\]\]")
+_SLEEP_RE = re.compile(r"\[\[mock:sleep:(\d+(?:\.\d+)?)\]\]")
 
 # Handlers registered by other modules (e.g. the orchestrator) to script replies.
 ScriptedHandler = Callable[[ChatRequest], ChatResult | None]
@@ -85,7 +87,11 @@ class MockProvider:
         return ChatResult(text=reply, usage=usage, stop_reason="end_turn", model=req.model)
 
     async def complete(self, req: ChatRequest) -> ChatResult:
-        if any("[[mock:slow]]" in m.content for m in req.messages if m.role == "user"):
+        user_text = " ".join(m.content for m in req.messages if m.role == "user")
+        sleep = _SLEEP_RE.search(user_text)
+        if sleep:
+            await asyncio.sleep(min(float(sleep.group(1)), 60.0))
+        elif "[[mock:slow]]" in user_text:
             await asyncio.sleep(3.0)  # lets tests observe a running agent
         return self._reply(req)
 

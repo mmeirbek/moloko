@@ -275,5 +275,42 @@
     "result": "Result",
     "messages": "Messages between agents",
     "orchestrator": "Orchestrator"
+  },
+  "office": {
+    "mode": "Office view",
+    "modes": {
+      "subagents": "Subagents",
+      "agents": "Agents"
+    },
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to screen",
+    "canvasLabel": "Pixel office with {count} agents",
+    "list": "Agents in the office",
+    "failed": "The office could not start (WebGL/Canvas unavailable). The list below shows the same state.",
+    "emptyAgents": "No agents at their desks yet.",
+    "emptySubagents": "No subagents right now — start a run below.",
+    "inspector": {
+      "label": "Agent {name}",
+      "close": "Close",
+      "task": "Task",
+      "model": "Model",
+      "defaultModel": "Default model",
+      "autonomy": "Autonomy",
+      "autonomyLevels": {
+        "supervised": "Supervised",
+        "balanced": "Balanced",
+        "restricted": "Restricted"
+      },
+      "tools": "Tools",
+      "noTools": "none",
+      "pause": "Pause",
+      "resume": "Resume",
+      "stop": "Stop",
+      "confirmStop": "Stop {name} and cancel its task?",
+      "viewTask": "View task",
+      "logs": "Logs",
+      "settings": "Settings"
+    }
   }
 }

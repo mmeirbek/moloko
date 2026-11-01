@@ -3548,6 +3548,18 @@
               ],
               "title": "Agent Id"
             }
+          },
+          {
+            "description": "the most recent `limit` events (still oldest → newest)",
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "the most recent `limit` events (still oldest → newest)",
+              "title": "Latest",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

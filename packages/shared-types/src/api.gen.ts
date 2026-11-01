@@ -2160,6 +2160,8 @@ export interface operations {
                 run_id?: string | null;
                 task_id?: string | null;
                 agent_id?: string | null;
+                /** @description the most recent `limit` events (still oldest → newest) */
+                latest?: boolean;
             };
             header?: never;
             path?: never;
