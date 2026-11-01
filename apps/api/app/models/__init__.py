@@ -4,7 +4,7 @@ from app.models.agent import Agent, AgentRun
 from app.models.agent_message import AgentMessage
 from app.models.audit_log import AuditLog
 from app.models.base import Base
-from app.models.chat import Conversation, Message
+from app.models.chat import Attachment, Conversation, Message
 from app.models.event import AgentEvent
 from app.models.memory import Memory, MemoryRevision
 from app.models.provider import ModelConfig, Provider
@@ -28,6 +28,7 @@ __all__ = [
     "AgentMessage",
     "AgentRun",
     "Approval",
+    "Attachment",
     "AuditLog",
     "Base",
     "Conversation",

@@ -79,21 +79,41 @@ async def migrated_database() -> AsyncIterator[None]:
     yield
 
 
+TABLES = (
+    "attachments",
+    "approvals",
+    "tool_calls",
+    "workspace_files",
+    "workspaces",
+    "tools",
+    "mcp_servers",
+    "integrations",
+    "memory_revisions",
+    "memories",
+    "agent_messages",
+    "agent_events",
+    "idempotency_keys",
+    "system_settings",
+    "tasks",
+    "agent_runs",
+    "agents",
+    "messages",
+    "conversations",
+    "model_configs",
+    "model_providers",
+    "sessions",
+    "users",
+    "audit_logs",
+)
+
+
 @pytest.fixture(autouse=True)
 async def clean_tables(migrated_database: None) -> AsyncIterator[None]:
     yield
     engine = create_async_engine(TEST_DATABASE_URL)
     async with engine.begin() as conn:
         # TRUNCATE bypasses the row-level append-only trigger on audit_logs.
-        await conn.execute(
-            text(
-                "TRUNCATE approvals, tool_calls, workspace_files, workspaces, tools, mcp_servers,"
-                " integrations, memory_revisions, memories, agent_messages, agent_events,"
-                " idempotency_keys, system_settings, tasks, agent_runs, agents, messages,"
-                " conversations, model_configs, model_providers, sessions, users, audit_logs"
-                " CASCADE"
-            )
-        )
+        await conn.execute(text("TRUNCATE " + ", ".join(TABLES) + " CASCADE"))
     await engine.dispose()
 
 

@@ -88,3 +88,6 @@ export type WorkspaceEntry = Schemas["WorkspaceEntry"];
 export type WorkspaceFileContent = Schemas["WorkspaceFileContent"];
 export type AuditOut = Schemas["AuditOut"];
 export type AuditPage = Schemas["AuditPage"];
+
+// Sprint 8 — chat attachments
+export type AttachmentOut = Schemas["AttachmentOut"];

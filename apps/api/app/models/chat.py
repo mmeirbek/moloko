@@ -49,3 +49,25 @@ class Message(UUIDPrimaryKey, Timestamps, Base):
     error_id: Mapped[str | None] = mapped_column(String(64))
     agent_run_id: Mapped[uuid.UUID | None]  # set when the message hands off to agents (Sprint 4)
     completed_at: Mapped[datetime | None]
+
+
+class Attachment(UUIDPrimaryKey, Timestamps, Base):
+    """A text file attached to a chat message (spec 19). The text itself is stored here, in
+    PostgreSQL (small files only), so backups and the source of truth stay in one place.
+    It is given to the model fenced as untrusted data."""
+
+    __tablename__ = "attachments"
+    __table_args__ = (Index("ix_attachments_conversation", "conversation_id", "created_at"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE")
+    )
+    message_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("messages.id", ondelete="CASCADE"), index=True
+    )  # NULL until sent with a message
+    filename: Mapped[str] = mapped_column(String(200))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    text: Mapped[str] = mapped_column(Text)

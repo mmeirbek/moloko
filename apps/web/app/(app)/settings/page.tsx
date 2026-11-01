@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { MemorySection } from "@/features/settings/memory-section";
+import { NotificationsSection } from "@/features/settings/notifications-section";
 import { ProvidersSection } from "@/features/settings/providers-section";
 import { KillSwitchCard } from "@/features/system/kill-switch";
 import { AccountCard, SystemStatus } from "@/features/system/system-status";
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
         </div>
         <ProvidersSection />
         <MemorySection />
+        <NotificationsSection />
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href="/settings/audit">{t("auditLink")}</Link>

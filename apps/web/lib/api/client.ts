@@ -58,7 +58,8 @@ export function createApiClient(deps: ClientDeps) {
     const headers: Record<string, string> = {
       Accept: opts.raw ? "text/event-stream" : "application/json",
     };
-    if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+    const isForm = typeof FormData !== "undefined" && opts.body instanceof FormData;
+    if (opts.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
     if (withCsrf) {
       headers[CSRF_HEADER] = deps.readCookie(CSRF_COOKIE) ?? (await fetchCsrf());
     }
@@ -68,7 +69,7 @@ export function createApiClient(deps: ClientDeps) {
       response = await deps.fetch(`${API_BASE}${path}`, {
         method,
         headers,
-        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
         credentials: "same-origin",
         signal: opts.signal,
       });

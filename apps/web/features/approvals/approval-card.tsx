@@ -14,6 +14,7 @@ import { resolveApproval } from "@/lib/api/tooling";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
+import { opParams, reasonKey } from "./approval-text";
 import { minutesLeft } from "./time-left";
 
 const CATEGORY_TONE: Record<string, string> = {
@@ -52,18 +53,28 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
   });
   const pending = approval.status === "pending";
   const left = minutesLeft(approval.expires_at, now);
+  const params = opParams(approval);
+  const op = params
+    ? approval.tool_name === "fs_write" && params.mode === "append"
+      ? "fs_append"
+      : approval.tool_name
+    : null;
+  const summary = op ? t(`ops.${op}.summary` as "ops.fs_write.summary", params!) : approval.summary;
+  const consequences = op ? t(`ops.${op}.consequences` as "ops.fs_write.consequences") : approval.consequences;
+  const why = reasonKey(approval);
+  const reason = why ? t(`reasons.${why}`) : approval.reason;
 
   return (
     <article
       className={cn("flex flex-col gap-3 rounded-lg border bg-card p-4", pending && "border-amber-400/60")}
       data-approval-id={approval.id}
-      aria-label={t("label", { action: approval.summary })}
+      aria-label={t("label", { action: summary })}
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
           <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
           <div className="min-w-0">
-            <p className="font-medium break-words">{approval.summary}</p>
+            <p className="font-medium break-words">{summary}</p>
             <p className="text-xs text-muted-foreground">
               {t("requestedBy", { agent: approval.agent_name ?? "—" })}
               {task && (
@@ -94,14 +105,14 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
               <dd className="break-all">{approval.resources.join(", ")}</dd>
             </>
           )}
-          {approval.consequences && (
+          {consequences && (
             <>
               <dt className="text-muted-foreground">{t("consequences")}</dt>
-              <dd>{approval.consequences}</dd>
+              <dd>{consequences}</dd>
             </>
           )}
           <dt className="text-muted-foreground">{t("why")}</dt>
-          <dd>{approval.reason}</dd>
+          <dd>{reason}</dd>
         </dl>
       )}
       <details className="text-sm">

@@ -709,6 +709,41 @@
         "title": "ApprovalOut",
         "type": "object"
       },
+      "AttachmentOut": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "content_type",
+          "size",
+          "created_at"
+        ],
+        "title": "AttachmentOut",
+        "type": "object"
+      },
       "AuditOut": {
         "properties": {
           "action": {
@@ -823,6 +858,120 @@
         ],
         "title": "AutonomyLevel",
         "type": "string"
+      },
+      "BackupFile": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "bytes",
+          "at"
+        ],
+        "title": "BackupFile",
+        "type": "object"
+      },
+      "BackupsStatus": {
+        "properties": {
+          "age_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Hours"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "drill": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drill"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BackupFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          },
+          "same_disk_as_data": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Same Disk As Data"
+          }
+        },
+        "required": [
+          "configured",
+          "last",
+          "age_hours",
+          "drill",
+          "files",
+          "same_disk_as_data"
+        ],
+        "title": "BackupsStatus",
+        "type": "object"
+      },
+      "Body_upload_attachment_api_v1_chats__chat_id__attachments_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_attachment_api_v1_chats__chat_id__attachments_post",
+        "type": "object"
       },
       "CancelResult": {
         "properties": {
@@ -962,6 +1111,39 @@
           "csrf_token"
         ],
         "title": "CsrfResponse",
+        "type": "object"
+      },
+      "DiskStatus": {
+        "properties": {
+          "free_bytes": {
+            "title": "Free Bytes",
+            "type": "integer"
+          },
+          "free_percent": {
+            "title": "Free Percent",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "total_bytes": {
+            "title": "Total Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "total_bytes",
+          "free_bytes",
+          "free_percent",
+          "low"
+        ],
+        "title": "DiskStatus",
         "type": "object"
       },
       "ErrorBody": {
@@ -1918,6 +2100,15 @@
       "MessageCreate": {
         "additionalProperties": false,
         "properties": {
+          "attachment_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Attachment Ids",
+            "type": "array"
+          },
           "content": {
             "maxLength": 32000,
             "minLength": 1,
@@ -1956,6 +2147,13 @@
               }
             ],
             "title": "Agent Run Id"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentOut"
+            },
+            "title": "Attachments",
+            "type": "array"
           },
           "completed_at": {
             "anyOf": [
@@ -3000,6 +3198,34 @@
           "cancelled_tasks"
         ],
         "title": "StopAllResult",
+        "type": "object"
+      },
+      "StorageStatus": {
+        "properties": {
+          "backups": {
+            "$ref": "#/components/schemas/BackupsStatus"
+          },
+          "disks": {
+            "items": {
+              "$ref": "#/components/schemas/DiskStatus"
+            },
+            "title": "Disks",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "backups",
+          "disks",
+          "warnings"
+        ],
+        "title": "StorageStatus",
         "type": "object"
       },
       "SyncModelsResult": {
@@ -5078,6 +5304,59 @@
         ]
       }
     },
+    "/api/v1/chats/{chat_id}/attachments": {
+      "post": {
+        "operationId": "upload_attachment_api_v1_chats__chat_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Chat Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_attachment_api_v1_chats__chat_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload a text file to attach to the next message",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
     "/api/v1/chats/{chat_id}/handoff": {
       "post": {
         "operationId": "handoff_api_v1_chats__chat_id__handoff_post",
@@ -6824,6 +7103,27 @@
           }
         },
         "summary": "Kill switch: stop every active run",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/storage": {
+      "get": {
+        "operationId": "system_storage_api_v1_system_storage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Backups and disk space (spec 21.2/21.3)",
         "tags": [
           "system"
         ]

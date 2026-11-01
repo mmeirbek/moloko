@@ -7,8 +7,9 @@ from app.agents.state import ACTIVE_TASK
 from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
 from app.events import bus
 from app.models.task import Task
-from app.schemas.tasks import StopAllResult, SystemLimits, SystemState
+from app.schemas.tasks import StopAllResult, StorageStatus, SystemLimits, SystemState
 from app.services.audit import AuditService
+from app.services.storage import storage_status
 from app.services.system import count_active_tasks, engine_stopped, set_engine_stopped
 from app.services.tasks import TaskService
 
@@ -35,6 +36,13 @@ async def system_limits(ctx: CurrentAuth, settings: SettingsDep) -> SystemLimits
         memory_context_max_chars=settings.memory_context_max_chars,
         memory_entry_max_chars=settings.memory_entry_max_chars,
     )
+
+
+@router.get(
+    "/storage", response_model=StorageStatus, summary="Backups and disk space (spec 21.2/21.3)"
+)
+async def system_storage(ctx: CurrentAuth, settings: SettingsDep) -> StorageStatus:
+    return StorageStatus.model_validate(storage_status(settings))
 
 
 @router.post(

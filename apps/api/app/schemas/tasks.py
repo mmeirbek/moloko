@@ -101,6 +101,36 @@ class TaskDetail(BaseModel):
     run: RunOut | None = None
 
 
+class BackupFile(BaseModel):
+    name: str
+    kind: str
+    bytes: int
+    at: datetime
+
+
+class BackupsStatus(BaseModel):
+    configured: bool
+    last: dict[str, Any] | None
+    age_hours: float | None
+    drill: dict[str, Any] | None
+    files: list[BackupFile]
+    same_disk_as_data: bool | None
+
+
+class DiskStatus(BaseModel):
+    path: str
+    total_bytes: int
+    free_bytes: int
+    free_percent: float
+    low: bool
+
+
+class StorageStatus(BaseModel):
+    backups: BackupsStatus
+    disks: list[DiskStatus]
+    warnings: list[str]
+
+
 class SystemLimits(BaseModel):
     max_steps_per_run: int
     run_timeout_seconds: int

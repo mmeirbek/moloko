@@ -4,7 +4,8 @@
   "description": "moloko — personal AI office (monorepo root)",
   "workspaces": [
     "apps/web",
-    "packages/shared-types"
+    "packages/shared-types",
+    "e2e"
   ],
   "engines": {
     "node": ">=22"
@@ -16,6 +17,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "generate:types": "npm run generate -w @moloko/shared-types",
-    "check:types": "npm run check -w @moloko/shared-types"
+    "check:types": "npm run check -w @moloko/shared-types",
+    "e2e": "npm run e2e -w @moloko/e2e"
   }
 }

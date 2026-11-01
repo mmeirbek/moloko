@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>moloko — нет связи</title>
+    <link rel="icon" href="/icons/favicon-32.png" />
+    <style>
+      body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #fbf8ef; color: #1d1a16;
+             font: 16px/1.5 system-ui, sans-serif; text-align: center; padding: 1rem; }
+      @media (prefers-color-scheme: dark) { body { background: #0c1024; color: #f6efdc; } }
+      img { width: 64px; height: 64px; image-rendering: pixelated; border-radius: 6px; }
+      button { margin-top: 1rem; padding: .6rem 1.2rem; border-radius: 6px; border: 1px solid currentColor; background: none; color: inherit; font: inherit; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="" />
+      <h1>Нет связи с сервером</h1>
+      <p>Проверьте, что Tailscale включён и сервер работает.<br />No connection to the moloko server.</p>
+      <button onclick="location.reload()">Повторить / Retry</button>
+    </main>
+  </body>
+</html>

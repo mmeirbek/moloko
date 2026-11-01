@@ -333,6 +333,23 @@ export interface paths {
         patch: operations["update_chat_api_v1_chats__chat_id__patch"];
         trace?: never;
     };
+    "/api/v1/chats/{chat_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a text file to attach to the next message */
+        post: operations["upload_attachment_api_v1_chats__chat_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats/{chat_id}/handoff": {
         parameters: {
             query?: never;
@@ -853,6 +870,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Backups and disk space (spec 21.2/21.3) */
+        get: operations["system_storage_api_v1_system_storage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks": {
         parameters: {
             query?: never;
@@ -1301,6 +1335,25 @@ export interface components {
             /** Tool Name */
             tool_name: string;
         };
+        /** AttachmentOut */
+        AttachmentOut: {
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Size */
+            size: number;
+        };
         /** AuditOut */
         AuditOut: {
             /** Action */
@@ -1342,6 +1395,44 @@ export interface components {
          * @enum {string}
          */
         AutonomyLevel: "supervised" | "balanced" | "restricted";
+        /** BackupFile */
+        BackupFile: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Bytes */
+            bytes: number;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+        };
+        /** BackupsStatus */
+        BackupsStatus: {
+            /** Age Hours */
+            age_hours: number | null;
+            /** Configured */
+            configured: boolean;
+            /** Drill */
+            drill: {
+                [key: string]: unknown;
+            } | null;
+            /** Files */
+            files: components["schemas"]["BackupFile"][];
+            /** Last */
+            last: {
+                [key: string]: unknown;
+            } | null;
+            /** Same Disk As Data */
+            same_disk_as_data: boolean | null;
+        };
+        /** Body_upload_attachment_api_v1_chats__chat_id__attachments_post */
+        Body_upload_attachment_api_v1_chats__chat_id__attachments_post: {
+            /** File */
+            file: string;
+        };
         /** CancelResult */
         CancelResult: {
             /** Cancelled */
@@ -1392,6 +1483,19 @@ export interface components {
         CsrfResponse: {
             /** Csrf Token */
             csrf_token: string;
+        };
+        /** DiskStatus */
+        DiskStatus: {
+            /** Free Bytes */
+            free_bytes: number;
+            /** Free Percent */
+            free_percent: number;
+            /** Low */
+            low: boolean;
+            /** Path */
+            path: string;
+            /** Total Bytes */
+            total_bytes: number;
         };
         /** ErrorBody */
         ErrorBody: {
@@ -1723,6 +1827,8 @@ export interface components {
         };
         /** MessageCreate */
         MessageCreate: {
+            /** Attachment Ids */
+            attachment_ids?: string[];
             /** Content */
             content: string;
             /** Model Config Id */
@@ -1732,6 +1838,8 @@ export interface components {
         MessageOut: {
             /** Agent Run Id */
             agent_run_id: string | null;
+            /** Attachments */
+            attachments?: components["schemas"]["AttachmentOut"][];
             /** Completed At */
             completed_at: string | null;
             /** Content */
@@ -2053,6 +2161,14 @@ export interface components {
         StopAllResult: {
             /** Cancelled Tasks */
             cancelled_tasks: number;
+        };
+        /** StorageStatus */
+        StorageStatus: {
+            backups: components["schemas"]["BackupsStatus"];
+            /** Disks */
+            disks: components["schemas"]["DiskStatus"][];
+            /** Warnings */
+            warnings: string[];
         };
         /** SyncModelsResult */
         SyncModelsResult: {
@@ -3110,6 +3226,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_attachment_api_v1_chats__chat_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_chats__chat_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentOut"];
                 };
             };
             /** @description Validation Error */
@@ -4290,6 +4441,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StopAllResult"];
+                };
+            };
+        };
+    };
+    system_storage_api_v1_system_storage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageStatus"];
                 };
             };
         };

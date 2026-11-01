@@ -1,4 +1,5 @@
 import type {
+  AttachmentOut,
   CancelResult,
   ConversationCreate,
   ConversationOut,
@@ -79,7 +80,7 @@ async function consume(response: Response, handlers: StreamHandlers): Promise<vo
 /** Send a message and stream the answer. The answer is saved server-side even if this aborts. */
 export async function sendMessage(
   chatId: string,
-  body: { content: string; model_config_id?: string | null },
+  body: { content: string; model_config_id?: string | null; attachment_ids?: string[] },
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -96,4 +97,11 @@ export async function attachStream(
 ): Promise<void> {
   const response = await api.stream(`/chats/${chatId}/messages/${messageId}/stream`, { signal });
   await consume(response, handlers);
+}
+
+/** Upload a text file; send its id with the next message. */
+export function uploadAttachment(chatId: string, file: File): Promise<AttachmentOut> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return api.request<AttachmentOut>(`/chats/${chatId}/attachments`, { method: "POST", body: form });
 }

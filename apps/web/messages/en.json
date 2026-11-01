@@ -55,7 +55,9 @@
     "approval_not_pending": "This request was already answered or has expired.",
     "unknown_tool": "There is no such tool.",
     "invalid_path": "This path is not allowed.",
-    "category_fixed": "Built-in tools have a fixed category."
+    "category_fixed": "Built-in tools have a fixed category.",
+    "invalid_attachment": "This file cannot be attached: a UTF-8 text file is needed.",
+    "attachment_too_large": "The file is too large (up to 200 KB)."
   },
   "preferences": {
     "theme": "Theme",
@@ -147,7 +149,10 @@
     "handOff": "Hand off to agents",
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
     "agentsWorking": "Agents are working on it…",
-    "handedOff": "Done by agents — open the run"
+    "handedOff": "Done by agents — open the run",
+    "attach": "Attach a text file",
+    "attachments": "Attached files",
+    "removeAttachment": "Remove \"{name}\""
   },
   "settings": {
     "providers": {
@@ -472,7 +477,50 @@
     "badge": "Waiting for approval: {count}",
     "pending": "Waiting for you",
     "none": "Nothing is waiting for approval.",
-    "answered": "Recent decisions"
+    "answered": "Recent decisions",
+    "ops": {
+      "fs_write": {
+        "summary": "Write file {path} ({chars} characters)",
+        "consequences": "The file is created, or its current content is replaced."
+      },
+      "fs_append": {
+        "summary": "Append to file {path} ({chars} characters)",
+        "consequences": "Text is added to the end of the file."
+      },
+      "fs_move": {
+        "summary": "Move {source} → {destination}",
+        "consequences": "If the destination exists and replacing is allowed, its old content is lost."
+      },
+      "fs_delete": {
+        "summary": "Delete {path}",
+        "consequences": "The file (or folder) is deleted permanently."
+      },
+      "terminal_run": {
+        "summary": "Run: {command}",
+        "consequences": "The command may create, change or delete files in the task folder (sandbox, no network)."
+      },
+      "github_create_branch": {
+        "summary": "Create branch {branch} in {repo}",
+        "consequences": "A new branch appears in the repository. Nothing else changes."
+      },
+      "github_write_file": {
+        "summary": "Commit {path} to {repo}@{branch}: {message}",
+        "consequences": "A commit is pushed to this branch (visible to everyone with access)."
+      },
+      "github_create_pull_request": {
+        "summary": "Open pull request in {repo}: {head} → {base} — {title}",
+        "consequences": "A pull request is published under your account; people watching the repository are notified."
+      },
+      "memory_save": {
+        "summary": "Remember: {title}",
+        "consequences": "The note is added to the agent's memory and used in its future tasks."
+      }
+    },
+    "reasons": {
+      "override": "You asked to approve every use of this tool.",
+      "sensitive": "Sensitive actions always need approval.",
+      "write": "Changes need approval at this agent's autonomy level."
+    }
   },
   "tools": {
     "title": "Tools",
@@ -625,5 +673,34 @@
     },
     "empty": "No entries.",
     "more": "Show more"
+  },
+  "notifications": {
+    "dismiss": "Dismiss notification",
+    "approval": {
+      "title": "Your approval is needed",
+      "body": "{subject}"
+    },
+    "taskDone": {
+      "title": "Task done",
+      "body": "{subject}"
+    },
+    "taskFailed": {
+      "title": "Task failed",
+      "body": "{subject}"
+    },
+    "settings": {
+      "title": "Notifications",
+      "description": "What to tell you about on this device.",
+      "kinds": {
+        "approval": "An agent needs approval",
+        "taskDone": "A task is done",
+        "taskFailed": "A task failed"
+      },
+      "system": "System notifications while moloko is in the background",
+      "allow": "Allow system notifications",
+      "blocked": "Notifications are blocked in the browser",
+      "unsupported": "This browser does not support notifications.",
+      "closedNote": "Notifications arrive while moloko is open (even in the background). Notifications with the app fully closed need Web Push — not enabled yet."
+    }
   }
 }

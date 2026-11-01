@@ -82,3 +82,22 @@ describe("helpers", () => {
     expect(parentOf("a")).toBe(".");
   });
 });
+
+describe("localized approval texts", () => {
+  it("builds parameters for built-in operations and falls back for others", async () => {
+    const { opParams, reasonKey } = await import("./approval-text");
+    expect(opParams({ tool_name: "fs_write", args: { path: "a.md", content: "hello" } } as never)).toEqual({
+      path: "a.md",
+      chars: "5",
+      mode: "overwrite",
+    });
+    expect(opParams({ tool_name: "mcp_x_y", args: {} } as never)).toBeNull();
+    expect(reasonKey({ reason: "The owner wants to approve every use of this tool.", category: "read" } as never)).toBe(
+      "override",
+    );
+    expect(reasonKey({ reason: "Sensitive actions always need approval.", category: "sensitive" } as never)).toBe(
+      "sensitive",
+    );
+    expect(reasonKey({ reason: "x", category: "read" } as never)).toBeNull();
+  });
+});

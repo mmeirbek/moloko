@@ -32,6 +32,16 @@ class ConversationUpdate(BaseModel):
     model_config_id: uuid.UUID | None = None
 
 
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    filename: str
+    content_type: str
+    size: int
+    created_at: datetime
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,6 +62,7 @@ class MessageOut(BaseModel):
     agent_run_id: uuid.UUID | None
     created_at: datetime
     completed_at: datetime | None
+    attachments: list[AttachmentOut] = Field(default_factory=list)
 
 
 class MessageCreate(BaseModel):
@@ -59,6 +70,8 @@ class MessageCreate(BaseModel):
 
     content: str = Field(min_length=1, max_length=32_000)
     model_config_id: uuid.UUID | None = None
+    # Uploaded first via POST /chats/{id}/attachments; at most CHAT_ATTACHMENTS_PER_MESSAGE.
+    attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
 
 
 class CancelResult(BaseModel):

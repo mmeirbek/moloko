@@ -4,13 +4,14 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, Response, UploadFile, status
 
 from app.api.deps import ChatStreamsDep, CurrentAuth, DbSession, GatewayDep, QueueDep, SettingsDep
 from app.api.sse import queue_events, sse_event, sse_response
 from app.orchestrator.service import hand_off_chat
 from app.schemas.agents import StartedRun
 from app.schemas.chat import (
+    AttachmentOut,
     CancelResult,
     ConversationCreate,
     ConversationOut,
@@ -101,10 +102,37 @@ async def list_messages(
     limit: int = Query(50, ge=1, le=200),
     cursor: str | None = None,
 ) -> Page[MessageOut]:
-    rows, next_cursor = await ChatService(db, settings, gateway).messages(
-        ctx.user.id, chat_id, limit=limit, cursor=cursor
+    service = ChatService(db, settings, gateway)
+    rows, next_cursor = await service.messages(ctx.user.id, chat_id, limit=limit, cursor=cursor)
+    files = await service.attachments_by_message([m.id for m in rows])
+    items = [
+        MessageOut.model_validate(m).model_copy(
+            update={"attachments": [AttachmentOut.model_validate(a) for a in files.get(m.id, [])]}
+        )
+        for m in rows
+    ]
+    return Page(items=items, next_cursor=next_cursor)
+
+
+@router.post(
+    "/{chat_id}/attachments",
+    response_model=AttachmentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a text file to attach to the next message",
+)
+async def upload_attachment(
+    chat_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    gateway: GatewayDep,
+    file: UploadFile,
+) -> AttachmentOut:
+    data = await file.read(settings.chat_attachment_max_bytes + 1)
+    attachment = await ChatService(db, settings, gateway).upload(
+        ctx.user.id, chat_id, file.filename or "file.txt", file.content_type or "text/plain", data
     )
-    return Page(items=[MessageOut.model_validate(m) for m in rows], next_cursor=next_cursor)
+    return AttachmentOut.model_validate(attachment)
 
 
 @router.post(
@@ -119,13 +147,17 @@ async def send_message(
     gateway: GatewayDep,
     streams: ChatStreamsDep,
 ) -> Response:
-    user_msg, assistant_msg, _ = await ChatService(db, settings, gateway).send(
-        ctx.user.id, chat_id, body.content, body.model_config_id, streams
+    service = ChatService(db, settings, gateway)
+    user_msg, assistant_msg, _ = await service.send(
+        ctx.user.id, chat_id, body.content, body.model_config_id, streams, body.attachment_ids
     )
+    sent_files = (await service.attachments_by_message([user_msg.id])).get(user_msg.id, [])
     # Subscribe before yielding control so no token is missed.
     subscription = streams.subscribe(assistant_msg.id)
     created = {
-        "user_message": MessageOut.model_validate(user_msg).model_dump(mode="json"),
+        "user_message": MessageOut.model_validate(user_msg)
+        .model_copy(update={"attachments": [AttachmentOut.model_validate(a) for a in sent_files]})
+        .model_dump(mode="json"),
         "assistant_message": MessageOut.model_validate(assistant_msg).model_dump(mode="json"),
     }
 

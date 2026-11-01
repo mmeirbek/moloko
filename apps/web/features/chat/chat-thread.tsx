@@ -10,16 +10,16 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import type { MessageOut } from "@moloko/shared-types";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Network, RotateCcw, Square } from "lucide-react";
+import type { AttachmentOut, MessageOut } from "@moloko/shared-types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUp, Network, Paperclip, RotateCcw, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
-import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
+import { chatKeys, getChat, listPickerModels, modelKeys, updateChat, uploadAttachment } from "@/lib/api/chat";
 import { handOff } from "@/lib/api/runs";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +67,15 @@ function UserMessage() {
       <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 whitespace-pre-wrap text-primary-foreground">
         <MessagePrimitive.Parts />
       </div>
+      {message?.attachments && message.attachments.length > 0 && (
+        <ul className="flex max-w-[85%] flex-wrap justify-end gap-1" aria-label={t("attachments")}>
+          {message.attachments.map((a) => (
+            <li key={a.id} className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-0.5 text-xs">
+              <Paperclip className="size-3" aria-hidden /> {a.filename}
+            </li>
+          ))}
+        </ul>
+      )}
       {runId && (
         <Link
           href={`/office/subagents?run=${runId}`}
@@ -107,16 +116,11 @@ function AssistantMessage() {
         )}
       </div>
       {failed && message && (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
-        >
+        <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
           <p>{errorText(message)}</p>
           <div className="mt-1 flex items-center justify-between gap-2">
             {message.error_id && (
-              <span className="font-mono text-xs text-muted-foreground">
-                {tc("errorId", { id: message.error_id })}
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{tc("errorId", { id: message.error_id })}</span>
             )}
             <Button size="sm" variant="outline" onClick={() => retry(message.id)}>
               <RotateCcw /> {tc("retry")}
@@ -135,10 +139,11 @@ function AssistantMessage() {
   );
 }
 
-function Composer({ disabled }: { disabled?: boolean }) {
+function Composer({ disabled, attach }: { disabled?: boolean; attach?: ReactNode }) {
   const t = useTranslations("chat");
   return (
     <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm">
+      {attach}
       <ComposerPrimitive.Input
         rows={1}
         autoFocus
@@ -174,14 +179,19 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const [modelOverride, setModelOverride] = useState<string | null | undefined>(undefined);
   const [agentsMode, setAgentsMode] = useState(false);
   const [handoffError, setHandoffError] = useState<unknown>(null);
+  const [pending, setPending] = useState<AttachmentOut[]>([]);
+  const [uploadError, setUploadError] = useState<unknown>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const upload = useMutation({
+    mutationFn: async (files: File[]) => Promise.all(files.map((f) => uploadAttachment(chatId, f))),
+    onSuccess: (added) => setPending((list) => [...list, ...added].slice(0, 5)),
+    onError: setUploadError,
+  });
   const selectedModel = modelOverride !== undefined ? modelOverride : (chat.data?.model_config_id ?? null);
 
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
   const answeredRuns = useMemo(
-    () =>
-      new Set(
-        thread.messages.filter((m) => m.role === "assistant" && m.agent_run_id).map((m) => m.agent_run_id!),
-      ),
+    () => new Set(thread.messages.filter((m) => m.role === "assistant" && m.agent_run_id).map((m) => m.agent_run_id!)),
     [thread.messages],
   );
   const lastUser = [...thread.messages].reverse().find((m) => m.role === "user");
@@ -189,7 +199,8 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const looksComplex =
     !!lastUser &&
     !lastUser.agent_run_id &&
-    (lastUser.content.length > 400 || lastUser.content.split("\n").filter((l) => /^\s*(\d+[.)]|[-*•])\s/.test(l)).length >= 3);
+    (lastUser.content.length > 400 ||
+      lastUser.content.split("\n").filter((l) => /^\s*(\d+[.)]|[-*•])\s/.test(l)).length >= 3);
 
   async function sendToAgents(text: string) {
     setHandoffError(null);
@@ -217,19 +228,31 @@ export function ChatThread({ chatId }: { chatId: string }) {
     if (question) void thread.send(question.content, selectedModel);
   }
 
+  function submit(message: AppendMessage) {
+    const text = message.content
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .join("")
+      .trim();
+    if (!text) return;
+    if (agentsMode) {
+      void sendToAgents(text);
+      return;
+    }
+    const ids = pending.map((a) => a.id);
+    setPending([]);
+    void thread.send(text, selectedModel, ids);
+  }
+
   const runtime = useExternalStoreRuntime<MessageOut>({
     messages: thread.messages,
     isRunning: thread.isRunning,
     convertMessage: toThreadMessage,
-    onNew: async (message: AppendMessage) => {
-      const text = message.content
-        .map((part) => (part.type === "text" ? part.text : ""))
-        .join("")
-        .trim();
-      if (!text) return;
-      if (agentsMode) await sendToAgents(text);
-      else await thread.send(text, selectedModel);
-    },
+    // Return at once (send() reports its own errors; isRunning comes from our store).
+    onNew: async (message: AppendMessage) => submit(message),
+    // assistant-ui treats a send whose parent is not its latest message as an edit (this can
+    // happen right after a refetch). We have no branches: an "edit" is a new message —
+    // without this handler such a message was silently dropped.
+    onEdit: async (message: AppendMessage) => submit(message),
     onCancel: thread.cancel,
   });
 
@@ -238,83 +261,135 @@ export function ChatThread({ chatId }: { chatId: string }) {
     ? toMessage(thread.sendError)
     : handoffError
       ? toMessage(handoffError)
-      : null;
+      : uploadError
+        ? toMessage(uploadError)
+        : null;
+  const attachButton = agentsMode ? undefined : (
+    <>
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        hidden
+        accept=".txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.xml,.html,.log,.py,.js,.ts,.tsx,.jsx,.sql,.sh,.toml,.ini,.cfg,text/*"
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          if (files.length) {
+            setUploadError(null);
+            upload.mutate(files);
+          }
+        }}
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="rounded-full"
+        aria-label={t("attach")}
+        disabled={noModels || upload.isPending || pending.length >= 5}
+        onClick={() => fileInput.current?.click()}
+      >
+        <Paperclip />
+      </Button>
+    </>
+  );
 
   return (
     <MessagesById.Provider value={byId}>
       <AnsweredRuns.Provider value={answeredRuns}>
-      <RetryContext.Provider value={retry}>
-        <AssistantRuntimeProvider runtime={runtime}>
-          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            <div className="flex items-center justify-between gap-2 border-b px-1 pb-3">
-              <h1 className="truncate text-lg font-semibold">{chat.data?.title ?? ""}</h1>
-              {models.data && models.data.length > 0 && (
-                <ModelPicker models={models.data} value={selectedModel} onChange={chooseModel} />
-              )}
-            </div>
+        <RetryContext.Provider value={retry}>
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+              <div className="flex items-center justify-between gap-2 border-b px-1 pb-3">
+                <h1 className="truncate text-lg font-semibold">{chat.data?.title ?? ""}</h1>
+                {models.data && models.data.length > 0 && (
+                  <ModelPicker models={models.data} value={selectedModel} onChange={chooseModel} />
+                )}
+              </div>
 
-            <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-1 py-6">
-              <ThreadPrimitive.Empty>
-                <div className="m-auto max-w-sm text-center text-sm text-muted-foreground">
-                  {noModels ? (
-                    <>
-                      <p>{t("noModels")}</p>
-                      <Link href="/settings" className="mt-2 inline-block underline">
-                        {t("openSettings")}
-                      </Link>
-                    </>
-                  ) : (
-                    <p>{t("empty")}</p>
-                  )}
-                </div>
-              </ThreadPrimitive.Empty>
-              <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
-            </ThreadPrimitive.Viewport>
+              <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-1 py-6">
+                <ThreadPrimitive.Empty>
+                  <div className="m-auto max-w-sm text-center text-sm text-muted-foreground">
+                    {noModels ? (
+                      <>
+                        <p>{t("noModels")}</p>
+                        <Link href="/settings" className="mt-2 inline-block underline">
+                          {t("openSettings")}
+                        </Link>
+                      </>
+                    ) : (
+                      <p>{t("empty")}</p>
+                    )}
+                  </div>
+                </ThreadPrimitive.Empty>
+                <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+              </ThreadPrimitive.Viewport>
 
-            <div className="flex flex-col gap-2 pt-2">
-              {sendError && (
-                <div
-                  role="alert"
-                  className={cn(
-                    "flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm",
-                  )}
-                >
-                  <span>{sendError.message}</span>
-                  <button
-                    type="button"
-                    className="text-xs underline"
-                    onClick={() => {
-                      thread.clearSendError();
-                      setHandoffError(null);
-                    }}
+              <div className="flex flex-col gap-2 pt-2">
+                {sendError && (
+                  <div
+                    role="alert"
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm",
+                    )}
                   >
-                    {t("dismiss")}
-                  </button>
-                </div>
-              )}
-              {looksComplex && !agentsMode && lastUser && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-accent/50 px-3 py-2 text-sm">
-                  <span>{t("suggestAgents")}</span>
-                  <Button size="sm" variant="outline" onClick={() => void sendToAgents(lastUser.content)}>
-                    <Network /> {t("handOff")}
-                  </Button>
-                </div>
-              )}
-              <Composer disabled={noModels} />
-              <label className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-                <input type="checkbox" checked={agentsMode} onChange={(e) => setAgentsMode(e.target.checked)} />
-                <Network className="size-3.5" /> {t("agentsMode")}
-              </label>
-              {(() => {
-                const current = models.data?.find((m) => m.id === selectedModel);
-                return current ? (
-                  <p className="px-2 text-xs text-muted-foreground">{modelLabel(current)}</p>
-                ) : null;
-              })()}
-            </div>
-          </ThreadPrimitive.Root>
-        </AssistantRuntimeProvider>
-      </RetryContext.Provider>
+                    <span>{sendError.message}</span>
+                    <button
+                      type="button"
+                      className="text-xs underline"
+                      onClick={() => {
+                        thread.clearSendError();
+                        setHandoffError(null);
+                        setUploadError(null);
+                      }}
+                    >
+                      {t("dismiss")}
+                    </button>
+                  </div>
+                )}
+                {looksComplex && !agentsMode && lastUser && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-accent/50 px-3 py-2 text-sm">
+                    <span>{t("suggestAgents")}</span>
+                    <Button size="sm" variant="outline" onClick={() => void sendToAgents(lastUser.content)}>
+                      <Network /> {t("handOff")}
+                    </Button>
+                  </div>
+                )}
+                {pending.length > 0 && !agentsMode && (
+                  <ul className="flex flex-wrap gap-1 px-1" aria-label={t("attachments")}>
+                    {pending.map((a) => (
+                      <li
+                        key={a.id}
+                        className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs"
+                        data-attachment={a.filename}
+                      >
+                        <Paperclip className="size-3" aria-hidden /> {a.filename}
+                        <button
+                          type="button"
+                          aria-label={t("removeAttachment", { name: a.filename })}
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => setPending((list) => list.filter((x) => x.id !== a.id))}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Composer disabled={noModels} attach={attachButton} />
+                <label className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={agentsMode} onChange={(e) => setAgentsMode(e.target.checked)} />
+                  <Network className="size-3.5" /> {t("agentsMode")}
+                </label>
+                {(() => {
+                  const current = models.data?.find((m) => m.id === selectedModel);
+                  return current ? <p className="px-2 text-xs text-muted-foreground">{modelLabel(current)}</p> : null;
+                })()}
+              </div>
+            </ThreadPrimitive.Root>
+          </AssistantRuntimeProvider>
+        </RetryContext.Provider>
       </AnsweredRuns.Provider>
     </MessagesById.Provider>
   );

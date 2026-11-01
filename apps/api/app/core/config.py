@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     chat_context_max_messages: int = Field(40, ge=1, le=500)
     chat_max_output_tokens: int = Field(4096, ge=1)
     chat_title_max_chars: int = Field(60, ge=10, le=200)
+    chat_attachment_max_bytes: int = Field(200_000, ge=1000, le=5_000_000)
+    chat_attachments_per_message: int = Field(5, ge=1, le=20)
 
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
     max_active_subagents_per_run: int = Field(5, ge=1, le=50)
@@ -103,6 +105,11 @@ class Settings(BaseSettings):
     workspace_max_files: int = Field(5000, ge=10)  # files scanned per workspace
     # Task workspaces of finished tasks are deleted this many days later (0 = never).
     workspace_task_ttl_days: int = Field(14, ge=0)
+
+    # Where the backup service writes (mounted read-only into the backend for its status).
+    backup_dir: str = "/backups"
+    backup_max_age_hours: int = Field(36, ge=1)
+    disk_warn_free_percent: float = Field(10.0, ge=0, le=90)
 
     # --- Tools (spec 15) ----------------------------------------------------------
     tool_timeout_seconds: float = Field(60.0, gt=0, le=3600)

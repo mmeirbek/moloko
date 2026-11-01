@@ -72,7 +72,7 @@ export function useChatThread(chatId: string) {
   }, [running?.id, chatId]);
 
   const send = useCallback(
-    async (content: string, modelConfigId: string | null) => {
+    async (content: string, modelConfigId: string | null, attachmentIds: string[] = []) => {
       setSendError(null);
       let assistantId: string | null = null;
       const controller = new AbortController();
@@ -80,7 +80,7 @@ export function useChatThread(chatId: string) {
       try {
         await sendMessage(
           chatId,
-          { content, model_config_id: modelConfigId },
+          { content, model_config_id: modelConfigId, attachment_ids: attachmentIds },
           {
             onCreated: (user, assistant) => {
               assistantId = assistant.id;

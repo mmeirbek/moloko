@@ -110,6 +110,7 @@ services:
       RUN_MIGRATIONS: "true"
     volumes:
       - workspaces:/data/workspaces  # read by the owner's workspace browser
+      - ${BACKUP_DIR:-./backups}:/backups:ro  # backup status for Settings → Backups
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
     networks: [internal, edge]
     healthcheck:
@@ -178,7 +179,7 @@ services:
       SANDBOX_MEMORY_MB: ${SANDBOX_MEMORY_MB:-512}
       SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-128}
       SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-60}
-      SANDBOX_WORKSPACES_VOLUME: moloko_workspaces
+      SANDBOX_WORKSPACES_VOLUME: ${WORKSPACES_VOLUME:-moloko_workspaces}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks: [internal]
@@ -192,6 +193,42 @@ services:
       timeout: 6s
       retries: 5
       start_period: 15s
+    logging: *logging
+
+  # Daily PostgreSQL dump + workspace archive, verified and rotated; weekly restore drill.
+  # BACKUP_DIR must be on ANOTHER disk (infrastructure/backup/README.md).
+  backup:
+    image: postgres:17.11-alpine
+    entrypoint: []
+    command: ["sh", "/scripts/loop.sh"]
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]  # write into a BACKUP_DIR owned by the host user
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-moloko}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATABASE: ${POSTGRES_DB:-moloko}
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+    volumes:
+      - ./infrastructure/backup:/scripts:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+      - workspaces:/data/workspaces:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h postgres -U \"$${PGUSER}\""]
+      interval: 60s
+      timeout: 5s
+      retries: 3
     logging: *logging
 
   frontend:
@@ -243,7 +280,7 @@ networks:
 
 volumes:
   workspaces:
-    name: moloko_workspaces  # fixed name: the sandbox runner mounts subpaths of it
+    name: ${WORKSPACES_VOLUME:-moloko_workspaces}  # fixed name: the sandbox runner mounts subpaths of it
   postgres-data:
   redis-data:
   caddy-data:

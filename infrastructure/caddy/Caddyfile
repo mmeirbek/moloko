@@ -37,6 +37,10 @@
 		Referrer-Policy "same-origin"
 		Cross-Origin-Opener-Policy "same-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Resource-Policy "same-origin"
+		# Browsers only honour this over HTTPS (Tailscale Serve); harmless on plain HTTP.
+		Strict-Transport-Security "max-age=31536000"
+		# Content-Security-Policy is set per request (with a nonce) by apps/web/proxy.ts.
 	}
 
 	handle /caddy-health {

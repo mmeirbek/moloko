@@ -11,6 +11,8 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { ApprovalsBadge } from "@/features/approvals/approvals-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
+import { Notifier } from "@/features/notifications/notifier";
+import { RegisterServiceWorker } from "@/features/notifications/register-sw";
 import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
 import { ThemeToggle } from "@/features/preferences/theme-toggle";
 import { authKeys, getMe, logout } from "@/lib/api/auth";
@@ -178,6 +180,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
     </div>
+    <Notifier />
+    <RegisterServiceWorker />
     </RealtimeProvider>
   );
 }
