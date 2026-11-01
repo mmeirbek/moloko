@@ -175,6 +175,21 @@ class Settings(BaseSettings):
     # --- Integrations ----------------------------------------------------------------
     integration_timeout_seconds: float = Field(20.0, gt=0, le=120)
     mcp_timeout_seconds: float = Field(30.0, gt=0, le=600)
+    # --- Web Push (notifications while the app is closed) ---------------------------
+    # Contact for the push services (VAPID "sub"): use your e-mail, e.g. mailto:me@example.org
+    push_contact: str = "mailto:owner@moloko.invalid"
+    push_ttl_seconds: int = Field(86_400, ge=60, le=2_419_200)
+    # Subscriptions may only point to these push services (no requests to anything else).
+    push_allowed_hosts: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "fcm.googleapis.com",
+            "*.push.services.mozilla.com",
+            "updates.push.services.mozilla.com",
+            "web.push.apple.com",
+            "*.notify.windows.com",
+        ]
+    )
+
     # The official GitHub MCP server (github/github-mcp-server, hosted by GitHub).
     github_mcp_url: str = "https://api.githubcopilot.com/mcp/"
 
@@ -193,7 +208,11 @@ class Settings(BaseSettings):
         return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator(
-        "cors_allowed_origins", "sandbox_allowed_commands", "web_fetch_allowed_ports", mode="before"
+        "cors_allowed_origins",
+        "sandbox_allowed_commands",
+        "web_fetch_allowed_ports",
+        "push_allowed_hosts",
+        mode="before",
     )
     @classmethod
     def _split_origins(cls, value: object) -> object:

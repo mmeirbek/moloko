@@ -47,6 +47,10 @@ x-backend-env: &backend-env
   WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-14}
   MEMORY_CONTEXT_MAX_CHARS: ${MEMORY_CONTEXT_MAX_CHARS:-8000}
   MEMORY_ENTRY_MAX_CHARS: ${MEMORY_ENTRY_MAX_CHARS:-4000}
+  # Web Push (notifications while the app is closed) and the official GitHub MCP server
+  PUSH_CONTACT: ${PUSH_CONTACT:-mailto:owner@moloko.invalid}
+  PUSH_TTL_SECONDS: ${PUSH_TTL_SECONDS:-86400}
+  GITHUB_MCP_URL: ${GITHUB_MCP_URL:-https://api.githubcopilot.com/mcp/}
   # The backend is reachable only from Caddy on the Docker network.
   FORWARDED_ALLOW_IPS: "*"
 

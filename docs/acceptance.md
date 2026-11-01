@@ -55,3 +55,11 @@ server/devices; the steps are in `docs/deployment.md`. Status as of 2026-11-01.
 |---|---|---|
 | Automatic daily DB + file backups, integrity checks, rotation, tested restore | ✅ | `infrastructure/backup/*`, `tests/test_storage.py`; manual end-to-end restore test |
 | Stored off the primary disk | 👤 | set `BACKUP_DIR` to an external disk; Settings → Backups must not warn «тот же диск» |
+
+## After Sprint 8 (owner requests)
+| Item | Status | Evidence |
+|---|---|---|
+| Orchestrator hands plan parts to the owner's own autonomous agents | ✅ | `tests/test_orchestrator.py` (assigned part runs as that agent's task, busy agent waits, unknown name = plan error) |
+| Official GitHub MCP server: read-only default, tools start disabled, token reused | ✅ · 👤 with your token | `tests/test_tools_integrations.py`; `e2e/tests/pwa.spec.ts` (block present) |
+| Web Push with the app closed: encryption (RFC 8291) + VAPID, allow-listed hosts, each event once, stale events skipped, dead subscriptions removed | ✅ · 👤 on your phone (install to Home Screen on iPhone) | `tests/test_push.py` (11 tests: decrypts with the receiver key, VAPID JWT verifies, cursor, 410 cleanup) |
+| Phaser 4 office renders crisply and stays in sync | ✅ | `e2e/tests/office.spec.ts` on Phaser 4.2.1 |

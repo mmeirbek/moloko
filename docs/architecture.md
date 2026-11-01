@@ -109,7 +109,7 @@ Frontend: `features/runs/subagent-office.tsx` (runs, live subagents, messages, r
 ## Pixel Office (Sprint 5)
 
 ```
-realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► OfficeScene (Phaser 3)
+realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► OfficeScene (Phaser 4)
         ▲                        │ Agent Inspector (React) ─► REST (pause/resume/stop/logs)
         └── WebSocket events ────┘
 ```

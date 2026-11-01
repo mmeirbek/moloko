@@ -4,7 +4,7 @@
  *   single source of truth, a stale copy of state must not be shown as current.
  * - Opens the right page when a notification is clicked.
  */
-const VERSION = "moloko-v1";
+const VERSION = "moloko-v2";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png"];
 
@@ -53,6 +53,28 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
   }
+});
+
+// Web Push: show the notification unless the owner is looking at moloko right now.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "moloko", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      if (windows.some((w) => w.focused && w.visibilityState === "visible")) return undefined;
+      return self.registration.showNotification(data.title || "moloko", {
+        body: data.body || "",
+        tag: data.tag,
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        data: { url: data.url || "/" },
+      });
+    }),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

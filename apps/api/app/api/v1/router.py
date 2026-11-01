@@ -21,6 +21,7 @@ from app.api.v1 import (
     health,
     memories,
     providers,
+    push,
     runs,
     system,
     tasks,
@@ -41,6 +42,7 @@ protected.include_router(events.router)
 protected.include_router(system.router)
 protected.include_router(runs.router)
 protected.include_router(memories.router)
+protected.include_router(push.router)
 protected.include_router(tooling.tools_router)
 protected.include_router(tooling.approvals_router)
 protected.include_router(tooling.integrations_router)

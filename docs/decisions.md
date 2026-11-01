@@ -13,16 +13,14 @@ plus every deviation from it. Newest last within each sprint. Format: date — d
 ## Open questions for the owner (⚠)
 
 Nothing below blocks the MVP; each is a choice the rules say only the owner makes.
+Resolved on 2026-11-01: Web Push, Phaser 4, the official GitHub MCP server, the Orchestrator →
+own agents hand-over and the branch clean-up (see "After Sprint 8 — owner requests").
 
-1. **Official GitHub MCP server** (`github/github-mcp-server`, MIT, active): connect it through the MCP Manager? Until then GitHub works through moloko's own REST tools.
-2. **Web Push** for notifications with the app fully closed: it goes through Apple/Google/Mozilla push services (payload encrypted). Enable?
-3. **Phaser 4**: `phaserjs/template-nextjs` moved to Phaser 4; the spec says Phaser 3, so moloko uses 3.90.0. Upgrade later?
-4. **Orchestrator → existing autonomous agents** (spec 14.1): today the Orchestrator creates subagents only. Build the hand-over to persistent agents?
-5. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
-6. **Subscription-based model access** (spec 26.1): still API keys only, as required.
-7. **Redis 8 license**: RSALv2/SSPLv1/AGPLv3 (we rely on AGPLv3, unmodified, internal only). Prefer Valkey (BSD)?
-8. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
-9. **Default branch** of the GitHub repository (`claude/vigilant-cray-26u902`) still holds the old project; this work is on `claude/pensive-bell-7okz27`. Merge/rename when you are ready.
+1. **Redis 8 license**: RSALv2/SSPLv1/AGPLv3 (we rely on AGPLv3, unmodified, internal only). Switch to Valkey (BSD-3, protocol-compatible, no code changes)?
+2. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
+3. **Subscription-based model access** (spec 26.1): still API keys only, as required.
+4. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
+5. **Default branch on GitHub**: set it to `main` (Settings → General → Default branch) if GitHub did not accept the switch automatically; the old branches are deleted.
 
 ## Sprint 1 — Infrastructure foundation
 
@@ -217,6 +215,20 @@ No external repository is assigned to this sprint. New dependency: `@playwright/
 | 2026-11-01 | `WORKSPACES_VOLUME` (default `moloko_workspaces`) makes the workspace volume name configurable so a second stack (E2E) never shares a real one. | Isolation of test runs. |
 | 2026-11-01 | Dependency audit: npm production dependencies — 0 known vulnerabilities; 18 *moderate* findings only in dev tooling (ESLint's `minimatch`), not shipped. Python runtime (55 packages, `pip-audit`) — no known vulnerabilities. | Security review. |
 
+## After Sprint 8 — owner requests
+
+The owner approved four items from the open questions on 2026-11-01. No new library was added
+for them: Web Push uses `cryptography` (already a dependency) and the official MCP SDK (Sprint 7).
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-11-01 | **Orchestrator → the owner's autonomous agents** (spec 14.1). The planning prompt lists up to 20 active, non-archived autonomous agents (name, role, skills); a plan subtask may name one in `"agent"`. That part becomes a task of that agent (`extra.assigned`, `extra.root_run`) instead of a new subagent; it cannot delegate further and uses the agent's own tools, permissions and memory. An unknown name is a plan error (the plan is retried). A busy agent's part waits; an archived agent's part is cancelled (`agent_unavailable`). Inputs from earlier parts are appended to the task, fenced as data; results return to the Orchestrator as normal messages (allowed across runs only inside the same tree). The run screen shows a "team" section. | Owner approved; spec 14.1. |
+| 2026-11-01 | **Official GitHub MCP server** (`github/github-mcp-server`, MIT) connected through the MCP Manager at the hosted endpoint `GITHUB_MCP_URL` (default `https://api.githubcopilot.com/mcp/`), authenticated with the token already stored in Integrations → GitHub (never stored twice). Defaults: **read-only** (`X-MCP-Readonly: true`) and the toolsets `repos, issues, pull_requests`; all its tools start **disabled**, tools that announce `readOnlyHint` are suggested as `read`, everything else as `sensitive`. The Docker image (stdio only) is not used: moloko talks to MCP servers over Streamable HTTP and only the sandbox may run containers. | Owner approved; least privilege. |
+| 2026-11-01 | **Web Push** for notifications with moloko fully closed. Implemented in-house on `cryptography`: RFC 8291 payload encryption (aes128gcm) + RFC 8292 VAPID (ES256). The VAPID key pair is created on first use and stored encrypted (`system_settings`, needs `APP_ENCRYPTION_KEY`). Subscriptions may only point to known push services (`PUSH_ALLOWED_HOSTS`: Google, Mozilla, Apple, Microsoft) — moloko never sends requests anywhere else. The worker reads new events every 5 s with a cursor (each event announced at most once, nothing older than 15 min, no backlog on first start), applies the same rules as in-app notifications (approval needed, top-level task done/failed), sends the title/short text **encrypted end-to-end** (the push service sees only ciphertext). 404/410 removes the subscription; 20 failures in a row too. The service worker does not show a push while a moloko window is focused (the in-app toast does that). Per device: Settings → Notifications → the Web Push switch. iPhone: only for the app installed to the Home Screen (iOS 16.4+). | Owner approved. |
+| 2026-11-01 | `PUSH_CONTACT` (VAPID `sub`) is a setting with a placeholder default; Apple rejects placeholder addresses, so the owner sets a real `mailto:` or `https://` contact (deployment docs). | No hardcoded values; it is the owner's choice what to share with push services. |
+| 2026-11-01 | **Phaser 4.2.1** replaces 3.90.0 (the spec said Phaser 3; the owner approved 4). The engine code needed no API changes; `pixelArt`, `roundPixels` (v4 default is `false`) and `antialias: false` are set explicitly so the art stays crisp at integer zoom. Checked by a screenshot and the full E2E suite (office test included). | Owner approved; `template-nextjs` moved to Phaser 4. |
+| 2026-11-01 | **Git**: the finished work is on `main`; the old default branch (`claude/vigilant-cray-26u902`, previous project) and the working branch were deleted at the owner's request. | Owner request. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).
@@ -281,6 +293,10 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | **Sprint 8** | | | | | |
 | @playwright/test (dev) | 1.63.0 | Apache-2.0 | E2E browser tests | 8 | 2026-11-01 |
 | python-multipart | 0.0.33 (now a direct dependency) | Apache-2.0 | File uploads (chat attachments) | 8 | 2026-11-01 |
+| **After Sprint 8** | | | | | |
+| phaser | 4.2.1 (replaces 3.90.0) | MIT | Pixel Office engine | 8+ | 2026-11-01 |
+| github/github-mcp-server (hosted endpoint, not bundled) | — | MIT | Official GitHub MCP server, reached over HTTPS | 8+ | 2026-11-01 |
+| Web Push services (Apple / Google / Mozilla / Microsoft) | — | external service, free | Deliver encrypted notifications to closed apps | 8+ | 2026-11-01 |
 | **Optional, not bundled** | | | | | |
 | SearXNG (separate service, if the owner runs it) | — | AGPL-3.0 (service, not linked) | web_search back-end | 7 | 2026-11-01 |
 | **Container images** | | | | | |

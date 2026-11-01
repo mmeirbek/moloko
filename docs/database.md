@@ -111,3 +111,9 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 
 - **`attachments`** — `user_id, conversation_id → conversations (cascade), message_id? → messages (cascade; NULL until sent), filename, content_type, size, sha256, text, created_at, updated_at`. Text files only; the content lives in PostgreSQL (and therefore in backups).
 
+## Tables (revision 0008 — after Sprint 8)
+
+- **`push_subscriptions`** — `user_id → users (cascade), endpoint (unique), p256dh, auth, kinds jsonb, locale, label, failures, last_sent_at`. The VAPID key pair (`push_vapid`, private key encrypted) and the dispatcher cursor (`push_cursor`) live in `system_settings`.
+- `mcp_servers.headers jsonb` (extra request headers, e.g. `X-MCP-Readonly`) and `auth_source` (`token` = the server's own token, `github` = the Integrations → GitHub token).
+- Tasks the Orchestrator gives to the owner's agents carry `extra.assigned = true` and `extra.root_run` (no schema change).
+

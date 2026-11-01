@@ -26,5 +26,8 @@ test("PWA and security headers", async ({ page, request }) => {
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Резервные копии" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Уведомления" })).toBeVisible();
+  await expect(page.getByTestId("push-settings")).toBeVisible(); // Web Push option for this device
+  await page.goto("/integrations");
+  await expect(page.getByTestId("github-mcp")).toBeVisible(); // official GitHub MCP preset
   expect(errors).toEqual([]);
 });

@@ -58,7 +58,9 @@
     "category_fixed": "Built-in tools have a fixed category.",
     "invalid_attachment": "This file cannot be attached: a UTF-8 text file is needed.",
     "attachment_too_large": "The file is too large (up to 200 KB).",
-    "github_not_connected": "Connect GitHub first (Integrations → GitHub)."
+    "github_not_connected": "Connect GitHub first (Integrations → GitHub).",
+    "push_unavailable": "Push is unavailable: APP_ENCRYPTION_KEY is not set on the server.",
+    "invalid_subscription": "This push subscription cannot be saved."
   },
   "preferences": {
     "theme": "Theme",
@@ -710,7 +712,11 @@
       "allow": "Allow system notifications",
       "blocked": "Notifications are blocked in the browser",
       "unsupported": "This browser does not support notifications.",
-      "closedNote": "Notifications arrive while moloko is open (even in the background). Notifications with the app fully closed need Web Push — not enabled yet."
+      "push": "Notifications while moloko is closed (Web Push)",
+      "pushHomeScreen": "On iPhone and iPad: first add moloko to the Home Screen (Share → Add to Home Screen) and open it from there.",
+      "pushUnsupported": "This browser does not support Web Push.",
+      "pushNote": "Messages travel encrypted through your browser's push service (Apple, Google, Mozilla); it only sees the device address.",
+      "pushError": "Could not turn it on: allow notifications in the browser settings and try again."
     }
   },
   "backups": {
