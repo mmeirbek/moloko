@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT/apps/api"
 
 PG_IMAGE="postgres:17.11-alpine"
-REDIS_IMAGE="redis:8.10.3-alpine"
+REDIS_IMAGE="valkey/valkey:9.1.3-alpine"  # Redis-compatible (BSD-3)
 PG_NAME="moloko-test-pg-$$"
 REDIS_NAME="moloko-test-redis-$$"
 

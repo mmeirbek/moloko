@@ -16,11 +16,10 @@ Nothing below blocks the MVP; each is a choice the rules say only the owner make
 Resolved on 2026-11-01: Web Push, Phaser 4, the official GitHub MCP server and the Orchestrator →
 own agents hand-over (see "After Sprint 8 — owner requests").
 
-1. **Redis 8 license**: RSALv2/SSPLv1/AGPLv3 (we rely on AGPLv3, unmodified, internal only). Switch to Valkey (BSD-3, protocol-compatible, no code changes)?
-2. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
-3. **Subscription-based model access** (spec 26.1): still API keys only, as required.
-4. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
-5. **Branches on GitHub**: the work is on `main`. Set `main` as the default branch (Settings → General → Default branch), then delete `claude/vigilant-cray-26u902` and `claude/pensive-bell-7okz27` (github.com/mmeirbek/moloko/branches) — branch deletion is not allowed from the coding session.
+1. **E2B sandbox** later needs KVM on the server: check `ls -l /dev/kvm` before deciding.
+2. **Subscription-based model access** (spec 26.1): still API keys only, as required.
+3. **Logo**: upload the original PNG to `apps/web/public/brand/` — then the placeholder mark and PWA icons can be replaced (`apps/web/scripts/make-icons.mjs`).
+4. **Branches on GitHub**: the work is on `main`. Set `main` as the default branch (Settings → General → Default branch), then delete `claude/vigilant-cray-26u902` and `claude/pensive-bell-7okz27` (github.com/mmeirbek/moloko/branches) — branch deletion is not allowed from the coding session.
 
 ## Sprint 1 — Infrastructure foundation
 
@@ -227,7 +226,8 @@ for them: Web Push uses `cryptography` (already a dependency) and the official M
 | 2026-11-01 | **Web Push** for notifications with moloko fully closed. Implemented in-house on `cryptography`: RFC 8291 payload encryption (aes128gcm) + RFC 8292 VAPID (ES256). The VAPID key pair is created on first use and stored encrypted (`system_settings`, needs `APP_ENCRYPTION_KEY`). Subscriptions may only point to known push services (`PUSH_ALLOWED_HOSTS`: Google, Mozilla, Apple, Microsoft) — moloko never sends requests anywhere else. The worker reads new events every 5 s with a cursor (each event announced at most once, nothing older than 15 min, no backlog on first start), applies the same rules as in-app notifications (approval needed, top-level task done/failed), sends the title/short text **encrypted end-to-end** (the push service sees only ciphertext). 404/410 removes the subscription; 20 failures in a row too. The service worker does not show a push while a moloko window is focused (the in-app toast does that). Per device: Settings → Notifications → the Web Push switch. iPhone: only for the app installed to the Home Screen (iOS 16.4+). | Owner approved. |
 | 2026-11-01 | `PUSH_CONTACT` (VAPID `sub`) is a setting with a placeholder default; Apple rejects placeholder addresses, so the owner sets a real `mailto:` or `https://` contact (deployment docs). | No hardcoded values; it is the owner's choice what to share with push services. |
 | 2026-11-01 | **Phaser 4.2.1** replaces 3.90.0 (the spec said Phaser 3; the owner approved 4). The engine code needed no API changes; `pixelArt`, `roundPixels` (v4 default is `false`) and `antialias: false` are set explicitly so the art stays crisp at integer zoom. Checked by a screenshot and the full E2E suite (office test included). | Owner approved; `template-nextjs` moved to Phaser 4. |
-| 2026-11-01 | **Git**: the finished work is pushed to a new `main` branch (same commits as the working branch, full sprint history kept). Deleting the other branches was refused from the coding session (HTTP 403), so the owner switches the default branch to `main` and deletes them on GitHub (open question 5). | Owner request. |
+| 2026-11-01 | **Valkey 9.1.3 instead of Redis 8** (owner decision). Valkey is the Linux Foundation fork of Redis under BSD-3, speaks the same protocol, so `redis-py`, ARQ, `REDIS_URL` and all code stay as they are. Changed: the image in compose, the test script and CI (`valkey-cli ping` health check). No data migration needed: Valkey holds no durable state (invariant 2). It gets a new volume `valkey-data` because Valkey refuses to start on a Redis 8 snapshot (newer RDB format); the old `redis-data` volume can be removed (`docker volume rm moloko_redis-data`). | Removes the RSAL/SSPL/AGPL question. |
+| 2026-11-01 | **Git**: the finished work is pushed to a new `main` branch (same commits as the working branch, full sprint history kept). Deleting the other branches was refused from the coding session (HTTP 403), so the owner switches the default branch to `main` and deletes them on GitHub (open question 4). | Owner request. |
 
 ## Dependency register
 
@@ -301,7 +301,8 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | SearXNG (separate service, if the owner runs it) | — | AGPL-3.0 (service, not linked) | web_search back-end | 7 | 2026-11-01 |
 | **Container images** | | | | | |
 | postgres | 17.11-alpine | PostgreSQL License | Database | 1 | 2026-10-31 |
-| redis | 8.10.3-alpine | RSALv2 / SSPLv1 / AGPLv3 (we rely on AGPLv3) | Cache/queue/pub-sub | 1 | 2026-10-31 |
+| ~~redis~~ | ~~8.10.3-alpine~~ | replaced by Valkey on 2026-11-01 | | 1 | 2026-10-31 |
+| valkey/valkey | 9.1.3-alpine | BSD-3-Clause | Cache/queue/pub-sub (Redis-compatible; redis-py and ARQ unchanged) | 8+ | 2026-11-01 |
 | caddy | 2.11.7-alpine | Apache-2.0 | Reverse proxy | 1 | 2026-10-31 |
 | python | 3.12.16-slim | PSF-2.0 | Backend runtime | 1 | 2026-10-31 |
 | node | 22.23.4-alpine | MIT | Frontend runtime | 1 | 2026-10-31 |

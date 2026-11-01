@@ -27,10 +27,10 @@ jobs:
           --health-cmd "pg_isready -U moloko -d moloko_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:8.10.3-alpine
+        image: valkey/valkey:9.1.3-alpine
         ports: ["6379:6379"]
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "valkey-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql+asyncpg://moloko:moloko@127.0.0.1:5432/moloko_test

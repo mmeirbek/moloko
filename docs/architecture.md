@@ -20,7 +20,7 @@ Phone / laptops ──(tailnet, HTTPS)──► Tailscale Serve on the server
 ```
 
 - Only Caddy publishes a port, bound to loopback. TLS is Tailscale's.
-- `internal` Docker network (`internal: true`): PostgreSQL, Redis, backend. No route to the outside.
+- `internal` Docker network (`internal: true`): PostgreSQL, Valkey (Redis-compatible; `REDIS_URL`), backend. No route to the outside.
 - `edge` network: Caddy, frontend, backend (backend needs egress for AI providers from Sprint 2).
 - One origin: the browser never talks cross-origin, so cookies are first-party and CORS stays off.
 - The ARQ **worker** (same image, `arq app.workers.main.WorkerSettings`) executes agent runs; it is on `internal` + `edge`.

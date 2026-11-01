@@ -12,7 +12,7 @@ Read first, in this order:
 - Memory goes into prompts only through `app/memory/context.py` (fenced as data, size-limited). Never put memory or tool/web text into the instruction part of a prompt.
 
 ## Hard rules (from the spec — never break)
-- Backend is the single source of truth; PostgreSQL holds all durable state; Redis never holds the only copy.
+- Backend is the single source of truth; PostgreSQL holds all durable state; Valkey (the Redis-compatible cache/queue; code and settings still say "redis") never holds the only copy.
 - Every new API router goes into `protected` in `apps/api/app/api/v1/router.py`. Public routes must be added to `PUBLIC_ROUTES` deliberately. Never use `include_in_schema=False`.
 - State-changing requests need CSRF (global middleware) — don't bypass it.
 - Change agent/task status only via `app/agents/engine.py` (validates the state machine and emits the event); commit with `app.events.bus.commit`.
@@ -22,7 +22,7 @@ Read first, in this order:
 
 ## Commands
 - All checks (what CI runs): `infrastructure/scripts/check.sh`
-- Backend only (starts throwaway Postgres/Redis containers): `infrastructure/scripts/test-api.sh`
+- Backend only (starts throwaway Postgres/Valkey containers): `infrastructure/scripts/test-api.sh`
 - After changing API schemas: `cd apps/api && uv run python scripts/export_openapi.py && cd ../.. && npm run generate:types`
 - New migration: `cd apps/api && uv run alembic revision --autogenerate -m "..."` (review it; `tests/test_migrations_and_audit.py` checks models == migrations)
 - Frontend: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`

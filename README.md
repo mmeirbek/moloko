@@ -14,7 +14,7 @@
 
 | Спринт | Содержание | Состояние |
 |---|---|---|
-| 1 | Инфраструктура: монорепозиторий, Docker Compose, FastAPI, Next.js, PostgreSQL + Alembic, Redis, вход владельца, health-checks, CI | ✅ готово |
+| 1 | Инфраструктура: монорепозиторий, Docker Compose, FastAPI, Next.js, PostgreSQL + Alembic, Valkey (совместим с Redis), вход владельца, health-checks, CI | ✅ готово |
 | 2 | Чат: Model Gateway, OpenAI и Anthropic по API-ключу, стриминг, история, настройки моделей | ✅ готово |
 | 3 | Движок агентов: задачи, фоновый воркер, события в реальном времени, восстановление после перезапуска, аварийная остановка | ✅ готово |
 | 4 | Оркестратор: план, субагенты (≤5 активных, глубина ≤2), сообщения между агентами, проверка, передача из чата | ✅ готово |
@@ -74,7 +74,7 @@ API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev:web
 
 ```bash
 infrastructure/scripts/check.sh      # всё, что запускает CI
-infrastructure/scripts/test-api.sh   # только бэкенд: поднимает временные PostgreSQL и Redis
+infrastructure/scripts/test-api.sh   # только бэкенд: поднимает временные PostgreSQL и Valkey
 ```
 
 После изменения схем API перегенерируйте типы для фронтенда:

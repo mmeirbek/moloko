@@ -7,7 +7,7 @@ This file tracks what is implemented and what is still open.
 
 **Network**
 - Only Caddy publishes a port, on `127.0.0.1:8080`; reachable from outside only through Tailscale Serve (HTTPS, tailnet members only). No Funnel.
-- PostgreSQL and Redis sit on an `internal: true` Docker network: no published ports, no egress.
+- PostgreSQL and Valkey (Redis-compatible) sit on an `internal: true` Docker network: no published ports, no egress.
 - Tailscale is network-level only — the app has its own authentication.
 
 **Authentication**

@@ -79,15 +79,15 @@ services:
     logging: *logging
 
   redis:
-    image: redis:8.10.3-alpine
+    image: valkey/valkey:9.1.3-alpine
     restart: unless-stopped
     <<: *hardening
-    # Redis holds no durable state (spec invariant 2); snapshots only speed up restarts.
+    # Valkey (Redis-compatible, BSD-3) holds no durable state (spec invariant 2); snapshots only speed up restarts.
     volumes:
-      - redis-data:/data
+      - valkey-data:/data
     networks: [internal]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -286,6 +286,6 @@ volumes:
   workspaces:
     name: ${WORKSPACES_VOLUME:-moloko_workspaces}  # fixed name: the sandbox runner mounts subpaths of it
   postgres-data:
-  redis-data:
+  valkey-data:
   caddy-data:
   caddy-config:
