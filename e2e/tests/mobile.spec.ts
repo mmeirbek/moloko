@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { watchErrors } from "./helpers";
 
-const PAGES = ["/chat", "/office/subagents", "/office/agents", "/tasks", "/integrations", "/approvals", "/settings", "/settings/audit", "/settings/costs"];
+const PAGES = ["/chat", "/office/subagents", "/office/agents", "/tasks", "/integrations", "/approvals", "/settings", "/settings/audit", "/settings/costs", "/search"];
 
 test("phone: every section fits the screen and the tab bar works", async ({ page }) => {
   const errors = watchErrors(page);

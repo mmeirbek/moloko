@@ -191,3 +191,6 @@ Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.me
 Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_stop}`.
 | GET / PUT | `/ai/settings` | Voice & search: `{provider_id?, transcription_model?, embedding_model?, embedding_dimensions?, semantic_search}`; GET also `{active_provider_id, active_provider_name, available}` |
 | POST | `/ai/transcribe` | multipart `audio` (+ `language`) → `{text}`; `409 ai_service_unavailable` without an OpenAI-type provider, `413 audio_too_large` |
+| GET | `/search?q&types=memory,file,attachment&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?}]}` |
+| GET | `/search/status` | `{chunks, with_vectors, sources}` |
+

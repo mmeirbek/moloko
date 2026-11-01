@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { AiServicesSection } from "@/features/settings/ai-services-section";
 import { BackupsSection } from "@/features/settings/backups-section";
 import { MascotSection } from "@/features/settings/mascot-section";
 import { MemorySection } from "@/features/settings/memory-section";
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
         </div>
         <ProvidersSection />
         <MemorySection />
+        <AiServicesSection />
         <NotificationsSection />
         <MascotSection />
         <BackupsSection />

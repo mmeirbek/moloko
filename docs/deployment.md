@@ -186,6 +186,18 @@ infrastructure/scripts/restore.sh /mnt/backup/moloko/daily/moloko-ГГГГММД
 
 ## 9. Проверка после обновления
 
+**Обновление с версии без поиска (PostgreSQL на Alpine).** Образ базы теперь собирается локально: PostgreSQL 17.11 на Debian с расширением pgvector. Сначала сделайте свежую копию, потом пересоберите образ:
+
+```bash
+infrastructure/scripts/backup-now.sh --check
+```
+
+```bash
+docker compose up -d --build
+```
+
+Миграция один раз перестроит индексы таблиц: на Debian порядок сортировки текста может отличаться от Alpine. Ваши данные остаются на месте.
+
 Если вы обновляетесь с версии, где был Redis, старый том больше не нужен (moloko теперь использует Valkey):
 
 ```bash

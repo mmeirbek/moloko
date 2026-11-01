@@ -43,7 +43,15 @@ TEMPLATES: tuple[AgentTemplate, ...] = (
             "and report findings with links. Say clearly when sources disagree or when "
             "you could not verify something. Save lasting facts to memory when useful. " + _COMMON
         ),
-        allowed_tools=("web_search", "web_fetch", "fs_list", "fs_read", "fs_write", "memory_save"),
+        allowed_tools=(
+            "web_search",
+            "web_fetch",
+            "fs_list",
+            "fs_read",
+            "fs_write",
+            "memory_save",
+            "knowledge_search",
+        ),
     ),
     AgentTemplate(
         key="programmer",

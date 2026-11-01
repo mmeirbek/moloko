@@ -54,6 +54,8 @@ x-backend-env: &backend-env
   EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
   EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
   VOICE_MAX_BYTES: ${VOICE_MAX_BYTES:-10000000}
+  SEARCH_CHUNK_CHARS: ${SEARCH_CHUNK_CHARS:-1200}
+  SEARCH_MAX_RESULTS: ${SEARCH_MAX_RESULTS:-8}
   # Web Push (notifications while the app is closed) and the official GitHub MCP server
   PUSH_CONTACT: ${PUSH_CONTACT:-mailto:owner@moloko.invalid}
   PUSH_TTL_SECONDS: ${PUSH_TTL_SECONDS:-86400}
@@ -67,7 +69,11 @@ x-hardening: &hardening
 
 services:
   postgres:
-    image: postgres:17.11-alpine
+    # PostgreSQL 17.11 + pgvector (semantic search): infrastructure/docker/postgres.Dockerfile
+    build:
+      context: infrastructure/docker
+      dockerfile: postgres.Dockerfile
+    image: moloko-postgres:local
     restart: unless-stopped
     <<: *hardening
     environment:

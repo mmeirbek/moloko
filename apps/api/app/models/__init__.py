@@ -8,6 +8,7 @@ from app.models.chat import Attachment, Conversation, Message
 from app.models.event import AgentEvent
 from app.models.memory import Memory, MemoryRevision
 from app.models.provider import ModelConfig, Provider
+from app.models.search import SearchChunk
 from app.models.session import Session
 from app.models.system import IdempotencyKey, SystemSetting
 from app.models.task import Task
@@ -43,6 +44,7 @@ __all__ = [
     "ModelConfig",
     "Provider",
     "PushSubscription",
+    "SearchChunk",
     "Session",
     "SystemSetting",
     "Task",

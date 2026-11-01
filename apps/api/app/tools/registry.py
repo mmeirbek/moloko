@@ -17,13 +17,15 @@ from app.tools.base import BaseTool
 from app.tools.builtin.files import FILE_TOOLS
 from app.tools.builtin.github import GITHUB_TOOLS
 from app.tools.builtin.memory import MEMORY_TOOLS
+from app.tools.builtin.search import SEARCH_TOOLS
 from app.tools.builtin.terminal import TERMINAL_TOOLS
 from app.tools.builtin.web import WEB_TOOLS
 from app.tools.mcp import McpTool
 from app.tools.policy import CatalogEntry
 
 BUILTIN: dict[str, BaseTool] = {
-    t.name: t for t in (*FILE_TOOLS, *TERMINAL_TOOLS, *WEB_TOOLS, *GITHUB_TOOLS, *MEMORY_TOOLS)
+    t.name: t
+    for t in (*FILE_TOOLS, *TERMINAL_TOOLS, *WEB_TOOLS, *GITHUB_TOOLS, *MEMORY_TOOLS, *SEARCH_TOOLS)
 }
 
 

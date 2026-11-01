@@ -121,4 +121,5 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 
 - **`usage_records`** — append-only ledger: `user_id, source (chat|agent|orchestrator), agent_id?, agent_name?, task_id?, run_id?, conversation_id?, model_config_id? (SET NULL), provider_kind, model, input_tokens, output_tokens, cost_usd?, created_at`; index `(user_id, created_at)`. Budget settings and sent alerts live in `system_settings` (`budget`, `budget_alerts`).
 - `attachments.kind` (`text|image|pdf`), `data bytea` (picture/PDF bytes, deferred), `pages` (PDF).
+- **`search_chunks`** (0011, pgvector) — derived, rebuilt from sources: `user_id, source_type (memory|file|attachment), source_id, agent_id?, memory_type?, project?, workspace_id?, conversation_id?, title, chunk_index, text, content_hash, model?, embedding vector?`; index `(user_id, source_type, source_id)`. Migration 0011 also creates the `vector` extension and re-indexes all tables once (Alpine → Debian image).
 

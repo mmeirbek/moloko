@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:17.11-alpine
+        image: pgvector/pgvector:0.8.1-pg17-trixie  # PostgreSQL 17 + pgvector, as in production
         env:
           POSTGRES_USER: moloko
           POSTGRES_PASSWORD: moloko

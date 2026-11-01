@@ -107,6 +107,15 @@ async def push_notifications(ctx: dict[str, Any]) -> None:
         logger.info("push_sent", extra={"count": sent})
 
 
+async def search_index(ctx: dict[str, Any]) -> None:
+    """Every half minute: bring the search index up to date with memories and files."""
+    from app.search.index import index_all
+
+    done = await index_all(ctx["db"].sessionmaker, ctx["gateway"], ctx["settings"])
+    if done:
+        logger.info("search_indexed", extra={"count": done})
+
+
 async def housekeeping(ctx: dict[str, Any]) -> None:
     """Hourly: delete files of old finished task workspaces (spec 16)."""
     async with ctx["db"].sessionmaker() as db:

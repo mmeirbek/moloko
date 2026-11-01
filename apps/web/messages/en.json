@@ -14,7 +14,8 @@
     "agentOfficeShort": "Agents",
     "tasks": "Tasks",
     "integrations": "Integrations",
-    "settings": "Settings"
+    "settings": "Settings",
+    "search": "Search"
   },
   "auth": {
     "title": "Sign in",
@@ -841,5 +842,39 @@
     "stop": "Stop recording",
     "denied": "No microphone access: allow it in the browser settings.",
     "nothing": "No speech recognised. Try again."
+  },
+  "search": {
+    "title": "Search",
+    "description": "Agents' memory, files in workspaces and files from chats — by meaning, not only by words.",
+    "label": "What to find",
+    "placeholder": "For example: how much does milk cost at the farm",
+    "go": "Search",
+    "filters": "Where to look",
+    "types": {
+      "memory": "Memory",
+      "file": "Files",
+      "attachment": "Chat files"
+    },
+    "searching": "Searching…",
+    "nothing": "Nothing found",
+    "nothingHint": "Try other words. New notes and files reach the search within a minute.",
+    "bySense": "Found by meaning",
+    "byWords": "Found by words (search by meaning is off or not ready yet)",
+    "start": "What shall we look for?",
+    "startHint": "Ask in your own words: the cow finds related things even when the words differ."
+  },
+  "aiServices": {
+    "title": "Voice & search",
+    "description": "Voice input and search by meaning use your OpenAI provider with your key.",
+    "active": "In use now: {name}.",
+    "unavailable": "No suitable provider: add OpenAI in AI providers. Search by words works without it.",
+    "provider": "Provider",
+    "auto": "Automatic",
+    "voiceModel": "Speech-to-text model",
+    "embedModel": "Search (embedding) model",
+    "semantic": "Search by meaning (texts are sent to the provider for embeddings)",
+    "index": "In the index: {sources} sources, {chunks} chunks, {vectors} by meaning.",
+    "save": "Save",
+    "saved": "Saved"
   }
 }

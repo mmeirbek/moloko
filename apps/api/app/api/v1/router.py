@@ -25,6 +25,7 @@ from app.api.v1 import (
     providers,
     push,
     runs,
+    search,
     system,
     tasks,
     tooling,
@@ -47,6 +48,7 @@ protected.include_router(memories.router)
 protected.include_router(push.router)
 protected.include_router(costs.router)
 protected.include_router(ai_services.router)
+protected.include_router(search.router)
 protected.include_router(tooling.tools_router)
 protected.include_router(tooling.approvals_router)
 protected.include_router(tooling.integrations_router)

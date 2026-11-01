@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
+import { LogOut, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
         <nav aria-label={t("nav.label")} className="flex flex-1 flex-col gap-1 px-2 py-2">
-          {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => (
+          {[...NAV_ITEMS, { href: "/search", labelKey: "search" as const, icon: Search }].map(({ href, labelKey, icon: Icon }) => (
             <Link
               key={href}
               href={href}
@@ -147,6 +147,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo className="[&_svg]:size-7 [&>span:last-child]:text-lg" />
           </Link>
           <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/search" aria-label={t("nav.search")}>
+                <Search />
+              </Link>
+            </Button>
             <ApprovalsBadge />
             <ConnectionStatus />
             <LocaleSwitcher />

@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT/apps/api"
 
-PG_IMAGE="postgres:17.11-alpine"
+PG_IMAGE="pgvector/pgvector:0.8.1-pg17-trixie"  # PostgreSQL 17 + pgvector
 REDIS_IMAGE="valkey/valkey:9.1.3-alpine"  # Redis-compatible (BSD-3)
 PG_NAME="moloko-test-pg-$$"
 REDIS_NAME="moloko-test-redis-$$"
