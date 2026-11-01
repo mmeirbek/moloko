@@ -130,6 +130,8 @@ class McpServerOut(BaseModel):
     last_error: str | None
     last_checked_at: datetime | None
     server_info: dict[str, Any]
+    headers: dict[str, Any] = Field(default_factory=dict)
+    auth_source: str = "token"
     tools: list[ToolOut]
 
 
@@ -139,6 +141,45 @@ class McpServerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     url: str = Field(min_length=8, max_length=500, pattern=r"^https?://")
     token: SecretStr | None = Field(default=None, max_length=2000)
+
+
+GITHUB_TOOLSETS = (
+    "repos",
+    "issues",
+    "pull_requests",
+    "actions",
+    "code_security",
+    "dependabot",
+    "discussions",
+    "gists",
+    "git",
+    "labels",
+    "notifications",
+    "orgs",
+    "projects",
+    "security_advisories",
+    "stargazers",
+    "users",
+)
+
+
+class GitHubMcpCreate(BaseModel):
+    """Connect the official GitHub MCP server with the token saved in Integrations → GitHub."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    readonly: bool = True
+    toolsets: list[str] = Field(
+        default_factory=lambda: ["repos", "issues", "pull_requests"], max_length=20
+    )
+
+    @field_validator("toolsets")
+    @classmethod
+    def _toolsets(cls, value: list[str]) -> list[str]:
+        unknown = [t for t in value if t not in GITHUB_TOOLSETS]
+        if unknown:
+            raise ValueError(f"unknown toolsets: {unknown}")
+        return list(dict.fromkeys(value)) or ["repos"]
 
 
 class McpServerUpdate(BaseModel):

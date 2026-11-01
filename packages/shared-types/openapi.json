@@ -1405,6 +1405,27 @@
         "title": "GitHubIntegrationUpdate",
         "type": "object"
       },
+      "GitHubMcpCreate": {
+        "additionalProperties": false,
+        "description": "Connect the official GitHub MCP server with the token saved in Integrations → GitHub.",
+        "properties": {
+          "readonly": {
+            "default": true,
+            "title": "Readonly",
+            "type": "boolean"
+          },
+          "toolsets": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Toolsets",
+            "type": "array"
+          }
+        },
+        "title": "GitHubMcpCreate",
+        "type": "object"
+      },
       "HandoffRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1571,6 +1592,11 @@
       },
       "McpServerOut": {
         "properties": {
+          "auth_source": {
+            "default": "token",
+            "title": "Auth Source",
+            "type": "string"
+          },
           "enabled": {
             "title": "Enabled",
             "type": "boolean"
@@ -1578,6 +1604,11 @@
           "has_token": {
             "title": "Has Token",
             "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": true,
+            "title": "Headers",
+            "type": "object"
           },
           "id": {
             "format": "uuid",
@@ -3084,6 +3115,11 @@
           },
           "task": {
             "$ref": "#/components/schemas/TaskOut"
+          },
+          "team": {
+            "items": {},
+            "title": "Team",
+            "type": "array"
           }
         },
         "required": [
@@ -6015,6 +6051,47 @@
           }
         },
         "summary": "Add a server (its tools start disabled)",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers/github": {
+      "post": {
+        "operationId": "add_github_mcp_api_v1_mcp_servers_github_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubMcpCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect the official GitHub MCP server with the saved GitHub token",
         "tags": [
           "integrations"
         ]

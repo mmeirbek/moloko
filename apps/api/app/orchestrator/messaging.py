@@ -43,17 +43,25 @@ async def send_message(
     artifacts: list[dict[str, Any]] | None = None,
     notes: list[str] | None = None,
     task_id: uuid.UUID | None = None,
+    tree_run: uuid.UUID | None = None,
 ) -> AgentMessage:
-    run_id = run_of(sender)
+    """``tree_run``: only the scheduler passes it — it vouches that both agents work on that
+    run tree (a persistent agent assigned a part has no ``run_id`` of its own)."""
+    run_id = run_of(sender) or tree_run
     content = {
         "summary": summary[:500],
         "result": (result or "")[:MAX_TEXT],
         "artifacts": artifacts or [],
         "notes": notes or [],
     }
-    same_run = (
-        run_id is not None and run_id == run_of(receiver) and sender.user_id == receiver.user_id
-    )
+    if tree_run is not None:
+        members = {run_of(sender), run_of(receiver)}
+        same_run = sender.user_id == receiver.user_id and tree_run in members
+        run_id = tree_run
+    else:
+        same_run = (
+            run_id is not None and run_id == run_of(receiver) and sender.user_id == receiver.user_id
+        )
     message = AgentMessage(
         user_id=sender.user_id,
         run_id=run_id or uuid.uuid4(),

@@ -174,6 +174,7 @@ class RunTree(BaseModel):
     run: RunOut
     task: TaskOut
     subagents: list[Any]  # AgentOut
+    team: list[Any] = Field(default_factory=list)  # the owner's own agents that took parts
     subtasks: list[TaskOut]
     messages: list[AgentMessageOut]
 

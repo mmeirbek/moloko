@@ -31,7 +31,7 @@ from app.orchestrator.messaging import format_inputs, inbox
 from app.orchestrator.plan import Plan, PlanError, parse_plan
 from app.orchestrator.prompts import planning_system, synthesis_system
 from app.orchestrator.scheduler import WAITING_FOR_SUBTASKS
-from app.orchestrator.subagents import create_review_task, create_subtasks
+from app.orchestrator.subagents import create_review_task, create_subtasks, owner_agents
 from app.providers.base import ChatMessage, ChatRequest, ChatResult
 from app.providers.gateway import ModelTarget
 from app.runtimes.base import RunContext
@@ -116,11 +116,14 @@ class OrchestratorRuntime(NativeRuntime):
         agent, task = setup.agent, setup.task
         can_create = agent.depth + 1 <= settings.max_subagent_depth
         can_delegate_further = agent.depth + 2 <= settings.max_subagent_depth
+        async with ctx.sessionmaker() as db:
+            roster = await owner_agents(db, agent.user_id)
         system = planning_system(
             max_subtasks=settings.max_subtasks_per_plan,
             max_active=settings.max_active_subagents_per_run,
             can_delegate=can_delegate_further,
             tools=tuple(t.name for t in setup.tools),
+            agents=tuple((a.name, a.specialization or "", a.description) for a in roster),
         )
         if setup.memory:
             system += "\n\n" + setup.memory
@@ -136,6 +139,7 @@ class OrchestratorRuntime(NativeRuntime):
                     result.text,
                     max_subtasks=settings.max_subtasks_per_plan,
                     can_delegate_further=can_delegate_further,
+                    agents=[a.name for a in roster],
                 )
                 if plan.mode == "delegate" and not can_create:
                     raise PlanError("delegation is not allowed at this depth; answer directly")

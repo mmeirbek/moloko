@@ -25,7 +25,9 @@ ClientFactory = Callable[[McpServer, str | None, Settings], Client]
 def _http_client(server: McpServer, token: str | None, settings: Settings) -> Client:
     from mcp.client.streamable_http import streamable_http_client
 
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    headers = {str(k): str(v) for k, v in (server.headers or {}).items()}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     http = httpx2.AsyncClient(headers=headers, timeout=settings.mcp_timeout_seconds)
     return Client(
         streamable_http_client(server.url, http_client=http),
@@ -51,7 +53,15 @@ def slugify(name: str) -> str:
     return slug or "server"
 
 
-def _token(server: McpServer, settings: Settings) -> str | None:
+async def server_token(db: AsyncSession, server: McpServer, settings: Settings) -> str | None:
+    """The bearer token: stored with the server, or the GitHub integration's token."""
+    if server.auth_source == "github":
+        from app.integrations.github import access_for
+
+        access = await access_for(db, settings, server.user_id)
+        if access is None:
+            raise McpUnavailable("GitHub is not connected (Integrations → GitHub).")
+        return access.token
     if not server.secret_encrypted:
         return None
     try:
@@ -62,11 +72,20 @@ def _token(server: McpServer, settings: Settings) -> str | None:
         ) from None
 
 
+def suggested_category(tool: Any) -> str:
+    """MCP annotations are hints from the server (untrusted): read-only tools are suggested
+    as ``read``, everything else as ``sensitive``. Tools stay OFF until the owner decides."""
+    annotations = getattr(tool, "annotations", None)
+    if annotations is not None and getattr(annotations, "read_only_hint", None) is True:
+        return ToolCategory.READ.value
+    return ToolCategory.SENSITIVE.value
+
+
 async def list_remote_tools(
-    server: McpServer, settings: Settings
+    server: McpServer, settings: Settings, token: str | None
 ) -> tuple[dict[str, Any], list[Any]]:
     try:
-        async with CLIENT_FACTORY(server, _token(server, settings), settings) as client:
+        async with CLIENT_FACTORY(server, token, settings) as client:
             info = client.server_info
             tools: list[Any] = []
             cursor = None
@@ -92,7 +111,9 @@ async def refresh_server(db: AsyncSession, server: McpServer, settings: Settings
     """Connect, list tools and store them. New tools start DISABLED (never auto-trust)."""
     now = datetime.now(UTC)
     try:
-        meta, remote = await list_remote_tools(server, settings)
+        meta, remote = await list_remote_tools(
+            server, settings, await server_token(db, server, settings)
+        )
     except McpUnavailable as exc:
         server.status, server.last_error, server.last_checked_at = "error", str(exc)[:500], now
         rows = (await db.execute(select(Tool).where(Tool.server_id == server.id))).scalars()
@@ -120,7 +141,7 @@ async def refresh_server(db: AsyncSession, server: McpServer, settings: Settings
                 server_id=server.id,
                 remote_name=item.name,
                 description=(item.description or "")[:2000],
-                category=ToolCategory.SENSITIVE.value,
+                category=suggested_category(item),
                 input_schema=schema,
                 enabled=False,
                 available=True,
@@ -158,9 +179,9 @@ class McpTool(BaseTool):
 
     async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolOutput:
         try:
-            async with CLIENT_FACTORY(
-                self.server, _token(self.server, ctx.settings), ctx.settings
-            ) as client:
+            async with ctx.sessionmaker() as db:
+                token = await server_token(db, self.server, ctx.settings)
+            async with CLIENT_FACTORY(self.server, token, ctx.settings) as client:
                 result = await client.call_tool(self.row.remote_name or "", args)
         except McpUnavailable as exc:
             raise ToolFailed(str(exc)) from None

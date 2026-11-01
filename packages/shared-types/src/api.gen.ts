@@ -557,6 +557,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp-servers/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connect the official GitHub MCP server with the saved GitHub token */
+        post: operations["add_github_mcp_api_v1_mcp_servers_github_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mcp-servers/{server_id}": {
         parameters: {
             query?: never;
@@ -1580,6 +1597,19 @@ export interface components {
             /** Token */
             token?: string | null;
         };
+        /**
+         * GitHubMcpCreate
+         * @description Connect the official GitHub MCP server with the token saved in Integrations → GitHub.
+         */
+        GitHubMcpCreate: {
+            /**
+             * Readonly
+             * @default true
+             */
+            readonly?: boolean;
+            /** Toolsets */
+            toolsets?: string[];
+        };
         /** HandoffRequest */
         HandoffRequest: {
             /** Content */
@@ -1642,10 +1672,19 @@ export interface components {
         };
         /** McpServerOut */
         McpServerOut: {
+            /**
+             * Auth Source
+             * @default token
+             */
+            auth_source?: string;
             /** Enabled */
             enabled: boolean;
             /** Has Token */
             has_token: boolean;
+            /** Headers */
+            headers?: {
+                [key: string]: unknown;
+            };
             /**
              * Id
              * Format: uuid
@@ -2116,6 +2155,8 @@ export interface components {
             /** Subtasks */
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
+            /** Team */
+            team?: unknown[];
         };
         /** SandboxStatus */
         SandboxStatus: {
@@ -3684,6 +3725,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["McpServerCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpServerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    add_github_mcp_api_v1_mcp_servers_github_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubMcpCreate"];
             };
         };
         responses: {

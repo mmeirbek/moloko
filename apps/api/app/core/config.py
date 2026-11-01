@@ -175,6 +175,8 @@ class Settings(BaseSettings):
     # --- Integrations ----------------------------------------------------------------
     integration_timeout_seconds: float = Field(20.0, gt=0, le=120)
     mcp_timeout_seconds: float = Field(30.0, gt=0, le=600)
+    # The official GitHub MCP server (github/github-mcp-server, hosted by GitHub).
+    github_mcp_url: str = "https://api.githubcopilot.com/mcp/"
 
     @field_validator("secret_key")
     @classmethod

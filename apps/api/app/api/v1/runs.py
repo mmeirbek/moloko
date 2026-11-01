@@ -3,9 +3,11 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Header, Query
+from sqlalchemy import select
 
 from app.api.deps import CurrentAuth, DbSession, QueueDep
 from app.core.errors import NotFound
+from app.models.agent import Agent
 from app.models.task import Task
 from app.orchestrator.service import (
     get_run,
@@ -63,10 +65,17 @@ async def get_run_tree(run_id: uuid.UUID, ctx: CurrentAuth, db: DbSession) -> Ru
     if task is None:
         raise NotFound("Run task not found.")
     agents, tasks, messages = await run_tree(db, run)
+    team_ids = {t.agent_id for t in tasks if (t.extra or {}).get("assigned") and t.agent_id}
+    team = (
+        list((await db.execute(select(Agent).where(Agent.id.in_(team_ids)))).scalars())
+        if team_ids
+        else []
+    )
     return RunTree(
         run=RunOut.model_validate(run),
         task=TaskOut.model_validate(task),
         subagents=[AgentOut.model_validate(a).model_dump(mode="json") for a in agents],
+        team=[AgentOut.model_validate(a).model_dump(mode="json") for a in team],
         subtasks=[TaskOut.model_validate(t) for t in tasks],
         messages=[AgentMessageOut.model_validate(m) for m in messages],
     )

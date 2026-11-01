@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import agent_payload, task_payload
@@ -82,6 +83,24 @@ async def create_subagent(
     return agent
 
 
+MAX_ROSTER = 20
+
+
+async def owner_agents(db: AsyncSession, user_id: uuid.UUID) -> list[Agent]:
+    """The owner's persistent agents the Orchestrator may give parts of a plan to."""
+    rows = await db.execute(
+        select(Agent)
+        .where(
+            Agent.user_id == user_id,
+            Agent.agent_type == AgentType.AUTONOMOUS.value,
+            Agent.archived_at.is_(None),
+        )
+        .order_by(Agent.created_at)
+        .limit(MAX_ROSTER)
+    )
+    return list(rows.scalars())
+
+
 async def create_subtasks(
     db: AsyncSession,
     *,
@@ -92,10 +111,19 @@ async def create_subtasks(
 ) -> list[Task]:
     root = root_run_id(orchestrator, parent_task)
     tasks_by_key: dict[str, Task] = {}
+    roster = {a.name: a for a in await owner_agents(db, orchestrator.user_id)}
     for spec in plan.subtasks:
-        sub = await create_subagent(
-            db, parent=orchestrator, root_run=root, spec=spec, settings=settings
-        )
+        extra: dict[str, object] = {"key": spec.key, "specialization": spec.specialization}
+        assigned = roster.get(spec.agent) if spec.agent else None
+        if assigned is not None:
+            # A persistent agent takes this part: no subagent; the task records its run tree.
+            worker_id = assigned.id
+            extra.update(assigned=True, root_run=str(root), specialization=assigned.specialization)
+        else:
+            sub = await create_subagent(
+                db, parent=orchestrator, root_run=root, spec=spec, settings=settings
+            )
+            worker_id = sub.id
         task = Task(
             user_id=orchestrator.user_id,
             title=spec.title,
@@ -103,11 +131,11 @@ async def create_subtasks(
             task_type=TaskType.SUBTASK.value,
             status=TaskStatus.CREATED.value,
             priority=parent_task.priority,
-            agent_id=sub.id,
+            agent_id=worker_id,
             parent_task_id=parent_task.id,
             created_by="agent",
             depends_on=[],
-            extra={"key": spec.key, "specialization": spec.specialization},
+            extra=extra,
         )
         db.add(task)
         tasks_by_key[spec.key] = task

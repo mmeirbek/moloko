@@ -57,7 +57,8 @@
     "invalid_path": "This path is not allowed.",
     "category_fixed": "Built-in tools have a fixed category.",
     "invalid_attachment": "This file cannot be attached: a UTF-8 text file is needed.",
-    "attachment_too_large": "The file is too large (up to 200 KB)."
+    "attachment_too_large": "The file is too large (up to 200 KB).",
+    "github_not_connected": "Connect GitHub first (Integrations → GitHub)."
   },
   "preferences": {
     "theme": "Theme",
@@ -376,7 +377,8 @@
     "waitsFor": "waits for {count} other part(s)",
     "result": "Result",
     "messages": "Messages between agents",
-    "orchestrator": "Orchestrator"
+    "orchestrator": "Orchestrator",
+    "team": "Your agents on the team ({count})"
   },
   "office": {
     "mode": "Office view",
@@ -627,7 +629,15 @@
       "remove": "Remove server",
       "removeConfirm": "Remove the server \"{name}\" and its tools?",
       "addServer": "Add server",
-      "empty": "No servers yet."
+      "empty": "No servers yet.",
+      "github": {
+        "title": "GitHub — official MCP server",
+        "hint": "Uses the token from the GitHub section above (no need to enter it again). Its tools appear turned off.",
+        "needsToken": "Save a GitHub token in the section above first.",
+        "readonly": "Read-only (recommended)",
+        "connect": "Connect GitHub MCP",
+        "update": "Update GitHub MCP settings"
+      }
     }
   },
   "workspaces": {
