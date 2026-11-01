@@ -6,6 +6,7 @@ import type {
   EventOut,
   StartedRun,
   StopAllResult,
+  SystemLimits,
   SystemState,
   TaskCreate,
   TaskDetail,
@@ -16,7 +17,11 @@ import type {
 
 import { api } from "./client";
 
-export const agentKeys = { all: ["agents"] as const, detail: (id: string) => ["agents", id] as const };
+export const agentKeys = {
+  all: ["agents"] as const,
+  detail: (id: string) => ["agents", id] as const,
+  tasks: (id: string) => ["tasks", "agent", id] as const,
+};
 export const taskKeys = {
   all: ["tasks"] as const,
   list: (filter: string, q: string) => ["tasks", "list", filter, q] as const,
@@ -24,8 +29,10 @@ export const taskKeys = {
   events: (id: string) => ["tasks", "events", id] as const,
 };
 export const systemStateKey = ["system", "state"] as const;
+export const systemLimitsKey = ["system", "limits"] as const;
 
 export const listAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents", { signal });
+export const getAgent = (id: string, signal?: AbortSignal) => api.request<AgentOut>(`/agents/${id}`, { signal });
 export const createAgent = (body: AgentCreate) => api.request<AgentOut>("/agents", { method: "POST", body });
 export const updateAgent = (id: string, body: AgentUpdate) =>
   api.request<AgentOut>(`/agents/${id}`, { method: "PATCH", body });
@@ -40,6 +47,11 @@ export function listTasks(filter: string, q: string, signal?: AbortSignal) {
   if (q) params.set("q", q);
   return api.request<TaskPage>(`/tasks?${params}`, { signal });
 }
+/** Task history of one agent (newest first). */
+export function listAgentTasks(agentId: string, signal?: AbortSignal) {
+  const params = new URLSearchParams({ status: "all", agent_id: agentId, limit: "100" });
+  return api.request<TaskPage>(`/tasks?${params}`, { signal });
+}
 export const getTask = (id: string, signal?: AbortSignal) => api.request<TaskDetail>(`/tasks/${id}`, { signal });
 export const taskEvents = (id: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/tasks/${id}/events`, { signal });
@@ -49,6 +61,7 @@ export const updateTask = (id: string, body: TaskUpdate) =>
 export const cancelTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/cancel`, { method: "POST" });
 export const retryTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/retry`, { method: "POST" });
 
+export const systemLimits = (signal?: AbortSignal) => api.request<SystemLimits>("/system/limits", { signal });
 export const systemState = (signal?: AbortSignal) => api.request<SystemState>("/system/state", { signal });
 export const stopAll = () => api.request<StopAllResult>("/system/stop-all", { method: "POST" });
 export const startEngine = () => api.request<SystemState>("/system/start", { method: "POST" });

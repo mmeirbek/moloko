@@ -139,7 +139,7 @@ export function AgentInspector({
         </Button>
         {!isSub && (
           <Button size="sm" variant="ghost" asChild>
-            <Link href="/office/agents">
+            <Link href={`/office/agents/${agent.id}`}>
               <Settings2 /> {t("settings")}
             </Link>
           </Button>

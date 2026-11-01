@@ -5,11 +5,13 @@ import uuid
 from fastapi import APIRouter, Header, Query, Response, status
 
 from app.agents.state import AgentType
-from app.api.deps import CurrentAuth, DbSession, QueueDep
+from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
 from app.schemas.agents import AgentCreate, AgentOut, AgentRunRequest, AgentUpdate, StartedRun
+from app.schemas.memories import MemoryContextOut
 from app.schemas.tasks import RunOut, TaskOut
 from app.services.agents import AgentService
 from app.services.idempotency import idempotent
+from app.services.memories import MemoryService
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -31,9 +33,10 @@ async def list_agents(
 
 @router.post("", response_model=AgentOut, status_code=status.HTTP_201_CREATED)
 async def create_agent(
-    body: AgentCreate, ctx: CurrentAuth, db: DbSession, queue: QueueDep
+    body: AgentCreate, ctx: CurrentAuth, db: DbSession, queue: QueueDep, settings: SettingsDep
 ) -> AgentOut:
-    return AgentOut.model_validate(await AgentService(db, queue).create(ctx.user.id, body))
+    agent = await AgentService(db, queue, settings).create(ctx.user.id, body)
+    return AgentOut.model_validate(agent)
 
 
 @router.get("/{agent_id}", response_model=AgentOut)
@@ -45,10 +48,33 @@ async def get_agent(
 
 @router.patch("/{agent_id}", response_model=AgentOut)
 async def update_agent(
-    agent_id: uuid.UUID, body: AgentUpdate, ctx: CurrentAuth, db: DbSession, queue: QueueDep
+    agent_id: uuid.UUID,
+    body: AgentUpdate,
+    ctx: CurrentAuth,
+    db: DbSession,
+    queue: QueueDep,
+    settings: SettingsDep,
 ) -> AgentOut:
-    return AgentOut.model_validate(
-        await AgentService(db, queue).update(ctx.user.id, agent_id, body)
+    agent = await AgentService(db, queue, settings).update(ctx.user.id, agent_id, body)
+    return AgentOut.model_validate(agent)
+
+
+@router.get(
+    "/{agent_id}/memory-context",
+    response_model=MemoryContextOut,
+    summary="Exactly what this agent's prompt receives from memory",
+)
+async def agent_memory_context(
+    agent_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep
+) -> MemoryContextOut:
+    mc = await MemoryService(db, settings).context_for(ctx.user.id, agent_id)
+    return MemoryContextOut(
+        enabled=mc.enabled,
+        text=mc.text,
+        included=mc.included,
+        omitted=mc.omitted,
+        chars=mc.chars,
+        max_chars=mc.max_chars,
     )
 
 

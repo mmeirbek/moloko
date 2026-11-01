@@ -48,7 +48,10 @@
     "engine_stopped": "All agents are stopped. Start them again in Settings.",
     "invalid_transition": "This action is not possible right now.",
     "agent_archived": "This agent was deleted.",
-    "idempotency_key_reused": "This request was already sent with different content."
+    "idempotency_key_reused": "This request was already sent with different content.",
+    "invalid_memory": "This memory entry is not valid. Check its type, agent and project.",
+    "memory_too_long": "This memory entry is too long.",
+    "limit_too_high": "An agent's limit can only be stricter than the global limit."
   },
   "preferences": {
     "theme": "Theme",
@@ -258,6 +261,77 @@
       "autonomous": "Autonomous agent",
       "orchestrator": "Orchestrator",
       "subagent": "Subagent"
+    },
+    "configure": "Configure",
+    "form": {
+      "newDescription": "A persistent agent: its own model, instructions, autonomy level and memory.",
+      "profile": "Profile",
+      "description": "Description",
+      "descriptionHint": "In a few words: what this agent does. Shown in the office and the list.",
+      "specialization": "Specialization",
+      "specializationHint": "For example: development, research, finance.",
+      "modelHint": "If empty, the agent uses the default model from Settings.",
+      "modelUnavailable": "Model unavailable (disabled)",
+      "systemPromptHint": "Added to the agent's system prompt in every task.",
+      "autonomy": "Autonomy",
+      "autonomyLevels": {
+        "supervised": {
+          "title": "Supervised",
+          "body": "Any change (write) and important action needs your approval."
+        },
+        "balanced": {
+          "title": "Balanced",
+          "body": "Ordinary permitted actions run on their own; sensitive ones need approval."
+        },
+        "restricted": {
+          "title": "Restricted",
+          "body": "Only explicitly allowed tools within strict bounds; everything else is denied."
+        }
+      },
+      "autonomyNote": "A level can never give an agent more than the security policy allows. It applies when the agent uses tools.",
+      "limits": "Limits",
+      "maxSteps": "Maximum steps",
+      "timeoutMinutes": "Time per task, minutes",
+      "globalLimit": {
+        "steps": "Empty — the global limit ({value}).",
+        "minutes": "Empty — the global limit ({value} min).",
+        "chars": "Empty — the global limit ({value})."
+      },
+      "memory": "Memory",
+      "memoryEnabled": "Use memory in tasks",
+      "includeShared": "Know the shared facts about you (Settings → Memory)",
+      "projects": "Projects",
+      "projectsHint": "Comma-separated: the agent sees the shared notes of these projects.",
+      "maxContextChars": "Memory in the prompt, characters",
+      "memoryNote": "Memory is given to the model as data, not as instructions.",
+      "orchestratorNote": "The Orchestrator also uses this model for its subagents.",
+      "save": "Save",
+      "saved": "Saved",
+      "errors": {
+        "required": "Required.",
+        "number": "Enter a whole number.",
+        "tooHigh": "At most {limit} (the global limit).",
+        "tooLow": "At least {limit}."
+      }
+    },
+    "detail": {
+      "back": "All agents",
+      "loading": "Loading…",
+      "notFound": "This agent does not exist or was deleted.",
+      "sections": "Agent sections",
+      "tabs": {
+        "profile": "Settings",
+        "memory": "Memory",
+        "tasks": "Task history"
+      },
+      "tasks": "The agent's tasks",
+      "noTasks": "This agent has had no tasks yet.",
+      "delete": "Delete",
+      "deleteBusy": "Stop the agent first.",
+      "deleteConfirm": "Delete the agent \"{name}\"? It leaves the office and the lists. Its task history and memory are kept.",
+      "subagentReadOnly": "A subagent is temporary: the Orchestrator creates and configures it for one subtask.",
+      "subagentNoMemory": "Subagents have no memory of their own: the Orchestrator passes them their context.",
+      "archived": "This agent was deleted. Its task history is kept."
     }
   },
   "runs": {
@@ -311,6 +385,42 @@
       "viewTask": "View task",
       "logs": "Logs",
       "settings": "Settings"
+    }
+  },
+  "memory": {
+    "sharedTitle": "Memory",
+    "sharedDescription": "What agents know about you and your projects. Entries are given to models as data.",
+    "sharedIntro": "Facts about you are seen by every agent (unless turned off in its settings). Project notes are seen by agents that list the project.",
+    "agentIntro": "This agent's own notes. Pinned entries go into the prompt first.",
+    "add": "Add entry",
+    "empty": "No entries yet.",
+    "type": "Type",
+    "project": "Project",
+    "title": "Title",
+    "content": "Text",
+    "chars": "{count} of {max} characters",
+    "pinned": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "history": "Change history",
+    "version": "version {n}",
+    "forget": "Forget",
+    "forgetConfirm": "Forget \"{title}\"? The entry and its history will be deleted.",
+    "types": {
+      "user": "About you",
+      "agent": "Agent note",
+      "project": "Project",
+      "task_context": "Task context",
+      "conversation_context": "Conversation context"
+    },
+    "context": {
+      "summary": "Entries in the agent's prompt: {included} — {chars} of {max} characters.",
+      "omitted": "Did not fit: {count}. Pin the important ones or raise the size in the agent's settings.",
+      "show": "Show what the model sees",
+      "disabled": "Memory is turned off for this agent."
     }
   }
 }

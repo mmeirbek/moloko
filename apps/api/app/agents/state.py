@@ -37,6 +37,16 @@ class AutonomyLevel(StrEnum):
     RESTRICTED = "restricted"
 
 
+class MemoryType(StrEnum):
+    """Spec 8.4 / 17."""
+
+    USER = "user"  # facts about the owner, shared by all agents
+    AGENT = "agent"  # one agent's own notes
+    PROJECT = "project"  # notes about a named project
+    TASK_CONTEXT = "task_context"
+    CONVERSATION_CONTEXT = "conversation_context"
+
+
 class TaskStatus(StrEnum):
     CREATED = "created"
     QUEUED = "queued"

@@ -32,6 +32,8 @@ This file tracks what is implemented and what is still open.
 
 **AI providers (Sprint 2)**: official API keys only; keys encrypted at rest (Fernet), never returned to the browser (only `…last4`), never logged (provider errors are redacted); official base URLs pinned so environment variables can't redirect keys; `base_url` overrides must be HTTPS; model output rendered without raw HTML.
 
+**Memory (Sprint 6)**: memory is injected into prompts only as fenced, labelled data (never as instructions); fence-like text inside entries is neutralised; per-entry and per-prompt size limits; subagents get no memory; the audit log records memory changes without their content; "forget" deletes the entry and its history.
+
 ## Open items
 
 | Item | Planned |

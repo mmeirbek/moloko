@@ -25,13 +25,20 @@ from app.agents.state import (
     TaskStatus,
     agent_transition_allowed,
 )
-from app.core.errors import NotFound
+from app.core.config import Settings
+from app.core.errors import AppError, NotFound
 from app.events import bus
 from app.models.agent import Agent, AgentRun
 from app.models.provider import ModelConfig
 from app.models.task import Task
 from app.providers.gateway import ModelUnavailable
-from app.schemas.agents import AgentCreate, AgentRunRequest, AgentUpdate
+from app.schemas.agents import (
+    AgentCreate,
+    AgentLimits,
+    AgentRunRequest,
+    AgentUpdate,
+    MemorySettings,
+)
 from app.schemas.tasks import TaskCreate
 from app.services.audit import AuditService
 from app.services.system import ensure_engine_running
@@ -39,10 +46,19 @@ from app.services.tasks import AgentBusy, TaskService
 from app.tasks.queue import TaskEnqueuer
 
 
+class LimitTooHigh(AppError):
+    status_code = 422
+    code = "limit_too_high"
+    message = "A per-agent limit can only be stricter than the global one."
+
+
 class AgentService:
-    def __init__(self, db: AsyncSession, queue: TaskEnqueuer | None) -> None:
+    def __init__(
+        self, db: AsyncSession, queue: TaskEnqueuer | None, settings: Settings | None = None
+    ) -> None:
         self.db = db
         self.queue = queue
+        self.settings = settings
         self.tasks = TaskService(db, queue)
         self.audit = AuditService(db)
 
@@ -76,9 +92,32 @@ class AgentService:
         if config is None or config.user_id != user_id:
             raise ModelUnavailable("The selected model does not exist.")
 
+    def _check_limits(self, limits: AgentLimits | None, memory: MemorySettings | None) -> None:
+        """Per-agent limits may only be stricter than the global ones (spec 7.2, 14.2)."""
+        if self.settings is None:
+            return
+        caps = {
+            "max_steps": (limits.max_steps if limits else None, self.settings.max_steps_per_run),
+            "run_timeout_seconds": (
+                limits.run_timeout_seconds if limits else None,
+                self.settings.run_timeout_seconds,
+            ),
+            "max_context_chars": (
+                memory.max_context_chars if memory else None,
+                self.settings.memory_context_max_chars,
+            ),
+        }
+        for name, (value, cap) in caps.items():
+            if value is not None and value > cap:
+                raise LimitTooHigh(
+                    f"{name} can be at most {cap} (the global limit).",
+                    details={"field": name, "max": cap},
+                )
+
     async def create(self, user_id: uuid.UUID, data: AgentCreate) -> Agent:
         if data.agent_type == AgentType.SUBAGENT:
             raise InvalidTransition("Subagents are created by the Orchestrator, not by hand.")
+        self._check_limits(data.limits, data.memory_settings)
         await self._check_model(user_id, data.model_config_id)
         agent = Agent(
             user_id=user_id,
@@ -93,7 +132,7 @@ class AgentService:
             permissions={},
             status=AgentStatus.IDLE.value,
             limits=data.limits.model_dump(exclude_none=True),
-            memory_settings=data.memory_settings,
+            memory_settings=data.memory_settings.model_dump(exclude_defaults=True),
         )
         self.db.add(agent)
         await self.db.flush()
@@ -126,6 +165,7 @@ class AgentService:
         agent = await lock_agent(self.db, agent_id)
         if agent.user_id != user_id or agent.archived_at is not None:
             raise NotFound("Agent not found.")
+        self._check_limits(data.limits, data.memory_settings)
         changed: list[str] = []
         fields = data.model_fields_set
         for name in ("name", "description", "system_prompt"):
@@ -149,11 +189,15 @@ class AgentService:
                 agent.allowed_tools = tools
                 changed.append("allowed_tools")
         if data.limits is not None:
-            agent.limits = data.limits.model_dump(exclude_none=True)
-            changed.append("limits")
+            limits = data.limits.model_dump(exclude_none=True)
+            if limits != agent.limits:
+                agent.limits = limits
+                changed.append("limits")
         if data.memory_settings is not None:
-            agent.memory_settings = data.memory_settings
-            changed.append("memory_settings")
+            memory_settings = data.memory_settings.model_dump(exclude_defaults=True)
+            if memory_settings != agent.memory_settings:
+                agent.memory_settings = memory_settings
+                changed.append("memory_settings")
         if changed:
             agent.config_version += 1
             agent.updated_at = datetime.now(UTC)

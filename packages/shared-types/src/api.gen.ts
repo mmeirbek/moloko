@@ -41,6 +41,23 @@ export interface paths {
         patch: operations["update_agent_api_v1_agents__agent_id__patch"];
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/memory-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exactly what this agent's prompt receives from memory */
+        get: operations["agent_memory_context_api_v1_agents__agent_id__memory_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/pause": {
         parameters: {
             query?: never;
@@ -351,6 +368,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Memories */
+        get: operations["list_memories_api_v1_memories_get"];
+        put?: never;
+        /** Create Memory */
+        post: operations["create_memory_api_v1_memories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memories/{memory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Memory */
+        get: operations["get_memory_api_v1_memories__memory_id__get"];
+        put?: never;
+        post?: never;
+        /** Forget: deletes the entry and its history */
+        delete: operations["delete_memory_api_v1_memories__memory_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edit (saves a new revision) */
+        patch: operations["update_memory_api_v1_memories__memory_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/memories/{memory_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Memory Revisions */
+        get: operations["memory_revisions_api_v1_memories__memory_id__revisions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/models": {
         parameters: {
             query?: never;
@@ -499,6 +570,23 @@ export interface paths {
         };
         /** Plan, subagents, subtasks and messages */
         get: operations["get_run_tree_api_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Global limits (per-agent ones may be lower) */
+        get: operations["system_limits_api_v1_system_limits_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -663,10 +751,7 @@ export interface components {
              */
             description?: string;
             limits?: components["schemas"]["AgentLimits"];
-            /** Memory Settings */
-            memory_settings?: {
-                [key: string]: unknown;
-            };
+            memory_settings?: components["schemas"]["MemorySettings"];
             /** Model Config Id */
             model_config_id?: string | null;
             /** Name */
@@ -813,10 +898,7 @@ export interface components {
             /** Description */
             description?: string | null;
             limits?: components["schemas"]["AgentLimits"] | null;
-            /** Memory Settings */
-            memory_settings?: {
-                [key: string]: unknown;
-            } | null;
+            memory_settings?: components["schemas"]["MemorySettings"] | null;
             /** Model Config Id */
             model_config_id?: string | null;
             /** Name */
@@ -980,6 +1062,140 @@ export interface components {
         MeResponse: {
             session: components["schemas"]["SessionOut"];
             user: components["schemas"]["UserOut"];
+        };
+        /**
+         * MemoryContextOut
+         * @description Exactly what an agent's prompt receives from memory, and how much of the budget.
+         */
+        MemoryContextOut: {
+            /** Chars */
+            chars: number;
+            /** Enabled */
+            enabled: boolean;
+            /** Included */
+            included: string[];
+            /** Max Chars */
+            max_chars: number;
+            /** Omitted */
+            omitted: string[];
+            /** Text */
+            text: string;
+        };
+        /**
+         * MemoryCreate
+         * @description ``user`` = shared facts about the owner (no agent); ``project`` needs a project name;
+         *     ``agent`` / ``task_context`` / ``conversation_context`` belong to one agent.
+         */
+        MemoryCreate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Content */
+            content: string;
+            memory_type: components["schemas"]["MemoryType"];
+            /**
+             * Pinned
+             * @default false
+             */
+            pinned?: boolean;
+            /** Project */
+            project?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** MemoryOut */
+        MemoryOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Memory Type */
+            memory_type: string;
+            /** Pinned */
+            pinned: boolean;
+            /** Project */
+            project: string | null;
+            /** Revision */
+            revision: number;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MemoryRevisionOut */
+        MemoryRevisionOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Changed By */
+            changed_by: string;
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Memory Type */
+            memory_type: string;
+            /** Pinned */
+            pinned: boolean;
+            /** Project */
+            project: string | null;
+            /** Revision */
+            revision: number;
+            /** Title */
+            title: string;
+        };
+        /**
+         * MemorySettings
+         * @description How much saved memory an agent sees (spec 17). Defaults apply to ``{}``.
+         */
+        MemorySettings: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Include Shared
+             * @default true
+             */
+            include_shared?: boolean;
+            /** Max Context Chars */
+            max_context_chars?: number | null;
+            /** Projects */
+            projects?: string[];
+        };
+        /**
+         * MemoryType
+         * @description Spec 8.4 / 17.
+         * @enum {string}
+         */
+        MemoryType: "user" | "agent" | "project" | "task_context" | "conversation_context";
+        /** MemoryUpdate */
+        MemoryUpdate: {
+            /** Content */
+            content?: string | null;
+            /** Pinned */
+            pinned?: boolean | null;
+            /** Project */
+            project?: string | null;
+            /** Title */
+            title?: string | null;
         };
         /** MessageCreate */
         MessageCreate: {
@@ -1304,6 +1520,21 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** SystemLimits */
+        SystemLimits: {
+            /** Max Active Subagents Per Run */
+            max_active_subagents_per_run: number;
+            /** Max Steps Per Run */
+            max_steps_per_run: number;
+            /** Max Subagent Depth */
+            max_subagent_depth: number;
+            /** Memory Context Max Chars */
+            memory_context_max_chars: number;
+            /** Memory Entry Max Chars */
+            memory_entry_max_chars: number;
+            /** Run Timeout Seconds */
+            run_timeout_seconds: number;
+        };
         /** SystemState */
         SystemState: {
             /** Active Tasks */
@@ -1588,6 +1819,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    agent_memory_context_api_v1_agents__agent_id__memory_context_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryContextOut"];
                 };
             };
             /** @description Validation Error */
@@ -2269,6 +2531,202 @@ export interface operations {
             };
         };
     };
+    list_memories_api_v1_memories_get: {
+        parameters: {
+            query?: {
+                agent_id?: string | null;
+                /** @description true: shared only; false: agents' own only */
+                shared?: boolean | null;
+                memory_type?: components["schemas"]["MemoryType"] | null;
+                project?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_memory_api_v1_memories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_memory_api_v1_memories__memory_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_memory_api_v1_memories__memory_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_memory_api_v1_memories__memory_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    memory_revisions_api_v1_memories__memory_id__revisions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryRevisionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_models_api_v1_models_get: {
         parameters: {
             query?: {
@@ -2632,6 +3090,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    system_limits_api_v1_system_limits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemLimits"];
                 };
             };
         };

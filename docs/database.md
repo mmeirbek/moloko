@@ -90,3 +90,10 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 
 - **`agent_messages`** — `created_at, user_id, run_id (root run), sender_agent_id, receiver_agent_id, task_id?, message_type (task_result|error|context|note), content jsonb {summary, result, artifacts, notes}, status (delivered|refused), error?`.
 - Subagents are `agents` rows with `agent_type = subagent`, `parent_agent_id`, `run_id` = root run, `depth`, `runtime` (`orchestrator` if it may delegate further).
+
+## Tables (revision 0005 — Sprint 6)
+
+- **`memories`** — `user_id, agent_id? (NULL = shared; FK → agents, cascade), memory_type (user|agent|project|task_context|conversation_context), project?, title, content, pinned, revision, created_by (user|agent|system), created_at, updated_at`; index `(user_id, agent_id)`.
+- **`memory_revisions`** — one row per saved version: `memory_id (FK → memories, cascade), user_id, revision, memory_type, agent_id, project, title, content, pinned, changed_by, created_at`; unique `(memory_id, revision)`. Forgetting a memory deletes its revisions too.
+- `agents.memory_settings` is validated: `{enabled, include_shared, projects[], max_context_chars}` (defaults omitted).
+

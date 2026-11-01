@@ -60,3 +60,14 @@ export type RunCreate = Schemas["RunCreate"];
 export type RunTree = Schemas["RunTree"];
 export type AgentMessageOut = Schemas["AgentMessageOut"];
 export type HandoffRequest = Schemas["HandoffRequest"];
+
+// Sprint 6 — autonomous agents, memory
+export type AgentLimits = Schemas["AgentLimits"];
+export type MemorySettings = Schemas["MemorySettings"];
+export type MemoryType = MemoryCreate["memory_type"];
+export type MemoryOut = Schemas["MemoryOut"];
+export type MemoryCreate = Schemas["MemoryCreate"];
+export type MemoryUpdate = Schemas["MemoryUpdate"];
+export type MemoryRevisionOut = Schemas["MemoryRevisionOut"];
+export type MemoryContextOut = Schemas["MemoryContextOut"];
+export type SystemLimits = Schemas["SystemLimits"];

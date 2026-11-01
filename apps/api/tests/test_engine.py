@@ -190,7 +190,16 @@ async def test_agent_limit_cannot_exceed_global_limit(
     app = await app_factory(max_steps_per_run=2)
     app.state.queue = RecordingQueue()
     async with logged_in_client(app) as client:
-        agent = await setup_agent(client, limits={"max_steps": 500})
+        # The API refuses a higher per-agent limit (test_memory.py); this agent was saved
+        # when the global limit was higher and the owner has lowered it since.
+        agent = await setup_agent(client)
+        async with app.state.db.sessionmaker() as db:
+            await db.execute(
+                update(Agent)
+                .where(Agent.id == uuid.UUID(agent["id"]))
+                .values(limits={"max_steps": 500})
+            )
+            await db.commit()
         task_id = (await run_agent(client, agent["id"], "Loop")).json()["task"]["id"]
         await executor_for(app).execute(uuid.UUID(task_id))
         assert (await client.get(f"/api/v1/tasks/{task_id}")).json()["run"]["steps"] == 2

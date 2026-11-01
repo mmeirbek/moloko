@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     max_subtasks_per_plan: int = Field(8, ge=1, le=50)
     agent_max_output_tokens: int = Field(4096, ge=1)
 
+    # --- Memory (spec 17) ---------------------------------------------------------
+    # Max characters of saved memory put into one agent's prompt (per-agent may be lower).
+    memory_context_max_chars: int = Field(8000, ge=500, le=200_000)
+    memory_entry_max_chars: int = Field(4000, ge=100, le=100_000)
+
     # --- Worker (ARQ) ------------------------------------------------------------
     worker_max_jobs: int = Field(10, ge=1, le=100)
     # Queued tasks older than this are re-enqueued by the sweeper (duplicates are harmless).

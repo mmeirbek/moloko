@@ -116,3 +116,8 @@ realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► Offic
 
 `apps/web/features/office/engine/`: `map.ts` (640×360 floor plan, 16 px tiles, desks and zones), `pathfinding.ts` (A*), `behavior.ts` (status → place/pose/indicator, spec 18.4), `assign.ts` (stable desk/spot assignment), `sprites.ts` (original pixel art drawn in code), `bus.ts` (typed React ⇄ Phaser bus), `OfficeScene.ts` (rendering, movement, camera), `createGame.ts`. `office-view.tsx` loads Phaser only in the browser (dynamic import), filters agents by mode and feeds the bus; `agent-inspector.tsx` shows details and actions. The scene only renders: it never changes agent state.
 
+## Autonomous agents & memory (Sprint 6)
+
+`app/memory/context.py` builds the memory block for one agent (scope, order, size budget, data fence); `app/services/memories.py` is CRUD + history + scope rules; `NativeRuntime.setup` adds the block to the system prompt (`RunSetup.memory`), and the Orchestrator adds it to its planning and synthesis prompts. Subagents get none.
+Frontend: `features/agents/agent-form.tsx` (+ `agent-form-model.ts`, pure and unit-tested), `features/agents/agent-detail.tsx` (`/office/agents/[id]`), `features/memory/memory-panel.tsx` (agent memory with a "what the model sees" preview; shared memory in Settings).
+

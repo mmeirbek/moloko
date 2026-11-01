@@ -28,6 +28,8 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 404 | `not_found` | Unknown route |
 | 405 | `method_not_allowed` | |
 | 422 | `validation_error` | Body/params failed validation |
+| 422 | `limit_too_high` | A per-agent limit above the global one (`details: {field, max}`) |
+| 422 | `invalid_memory` / `memory_too_long` | Memory scope rules broken / entry longer than `MEMORY_ENTRY_MAX_CHARS` |
 | 429 | `too_many_attempts` | Login locked out; see `Retry-After` |
 | 500 | `internal_error` | Unexpected bug (details only in server log) |
 | 503 | `database_unavailable` / `redis_unavailable` | A dependency is down; see `Retry-After` |
@@ -124,3 +126,17 @@ Close codes: `4401` not authenticated / session ended, `4403` bad CSRF in hello,
 | POST | `/chats/{id}/handoff` | `{content}` → `{task, run}`: the question goes to the Orchestrator; the result is posted back into the chat |
 
 Plan format and limits: see `docs/decisions.md` (Sprint 4). Subtasks are tasks with `task_type = subtask | review` and `parent_task_id`; dependencies in `depends_on` (task ids); the subagent's plan key in `extra.key`.
+
+## Endpoints — autonomous agents & memory (Sprint 6)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/system/limits` | Global limits: `max_steps_per_run, run_timeout_seconds, max_active_subagents_per_run, max_subagent_depth, memory_context_max_chars, memory_entry_max_chars` |
+| POST / PATCH | `/agents` · `/agents/{id}` | `limits` and `memory_settings {enabled, include_shared, projects[], max_context_chars}` are validated; values above the global limits → `422 limit_too_high` |
+| GET | `/agents/{id}/memory-context` | `{enabled, text, included[], omitted[], chars, max_chars}` — exactly what the agent's prompt receives |
+| GET | `/memories?agent_id&shared&memory_type&project&q&limit` | Memory entries, pinned first then newest |
+| POST | `/memories` | `{memory_type, agent_id?, project?, title, content, pinned?}` (scope rules: `docs/decisions.md`, Sprint 6) |
+| GET / PATCH / DELETE | `/memories/{id}` | Read; edit (`title, content, project, pinned` — saves a new revision); forget (deletes the entry and its history) |
+| GET | `/memories/{id}/revisions` | Change history, newest first |
+| GET | `/tasks?agent_id={id}&status=all` | Per-agent task history (already available since Sprint 3) |
+

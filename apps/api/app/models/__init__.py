@@ -6,6 +6,7 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.chat import Conversation, Message
 from app.models.event import AgentEvent
+from app.models.memory import Memory, MemoryRevision
 from app.models.provider import ModelConfig, Provider
 from app.models.session import Session
 from app.models.system import IdempotencyKey, SystemSetting
@@ -21,6 +22,8 @@ __all__ = [
     "Base",
     "Conversation",
     "IdempotencyKey",
+    "Memory",
+    "MemoryRevision",
     "Message",
     "ModelConfig",
     "Provider",

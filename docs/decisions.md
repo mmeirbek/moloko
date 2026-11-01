@@ -135,6 +135,26 @@ External repositories checked (only at this sprint, as instructed):
 | 2026-10-31 | `GET /events` gained `latest=true` (the newest `limit` events, still returned oldest → newest) for the inspector's recent-events log. | Avoid paging through the whole history. |
 | 2026-10-31 | Mock provider: `[[mock:sleep:N]]` makes a non-streaming answer take N seconds (max 60), so browser tests can watch a character work. Mock provider stays disabled by default. | Deterministic E2E without a real key. |
 
+## Sprint 6 — Autonomous agents
+
+No external repository is assigned to this sprint in `docs/external-repositories.md`; none used. No new dependencies.
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-11-01 | **Agent settings page** `/office/agents/{id}` (tabs: settings, memory, task history) and `/office/agents/new`. The Agent Inspector's "Settings" opens it. Run / pause / resume / stop / delete are on the page too. | Spec 19 Agent Office "create/manage agents"; Sprint 6 Done-when. |
+| 2026-11-01 | **Delete = archive**: the agent leaves the office and all lists, its task history and memory stay; its page shows "deleted" with the history only. Refused while the agent is busy. | Spec 1.1: no silent data deletion; history is evidence. |
+| 2026-11-01 | **Per-agent limits may only be stricter** than the global ones: the API now rejects higher values (`422 limit_too_high`, with `details.max`); the runtime still caps at the global value (for agents saved before the owner lowered a global limit). `GET /system/limits` lets the UI show the caps. | Spec 7.2, 14.2. |
+| 2026-11-01 | `memory_settings` is a validated object (`enabled`, `include_shared`, `projects[]`, `max_context_chars`), stored compactly (defaults omitted). | Free-form JSON would let a typo silently disable memory. |
+| 2026-11-01 | **Memory = plain rows** (`memories`) + **change history** (`memory_revisions`, one row per saved version). No vectors, no semantic search. | Spec 17 MVP. |
+| 2026-11-01 | **Scopes**: `user` (facts about the owner) is always shared (no agent); `project` needs a project name (shared or one agent's); `agent`, `task_context`, `conversation_context` belong to one agent. Subagents have no memory of their own — the Orchestrator passes them their context. | Clear rules; spec 17 "scope to an agent or project, access control". |
+| 2026-11-01 | **What reaches the prompt**: the agent's own entries, shared `user` entries (unless `include_shared` is off) and shared notes of the projects it lists; pinned first, then newest; added while they fit `max_context_chars` (≤ `MEMORY_CONTEXT_MAX_CHARS`, default 8000), the rest is reported as omitted. Each entry ≤ `MEMORY_ENTRY_MAX_CHARS` (4000). The Orchestrator gets memory when planning and when writing the final answer. `GET /agents/{id}/memory-context` returns exactly the injected text (shown in the UI). | Spec 17 "context-size limiting"; the owner can see what the model sees. |
+| 2026-11-01 | **Memory is data, never instructions**: it goes at the end of the system prompt inside `<memory …>` blocks under a header that says so; text that imitates the fence (`<memory`, `</memory`) is neutralised to `&lt;memory`, titles can't break out of their attribute. | Spec 17, invariant 13 (prompt injection). |
+| 2026-11-01 | **Forgetting deletes** the entry and its history (the owner asked to forget it); the audit log records create/update/delete with type and agent only — never the content. | Privacy: a "deleted" memory must not survive in a history table or the audit log. |
+| 2026-11-01 | Memory is written by the owner (UI/API) in this sprint. Agents saving memory themselves comes with tools (Sprint 7, a `write` tool that goes through the permission check and approvals). | Spec 15: every agent action through the permission system. |
+| 2026-11-01 | Autonomy levels are stored, explained in the UI and enforced by the permission check in Sprint 7 (there are no tools yet, so nothing to enforce). | Spec 14.2, 15.2. |
+| 2026-11-01 | ⚠ **Deferred**: the Orchestrator giving subtasks to existing autonomous agents (spec 14.1 "receive tasks from the Orchestrator"). It needs busy-agent queuing across run trees and cross-run context passing (agent messages are same-run only by design). Today the Orchestrator creates subagents. Proposed for after Sprint 7. | Not in the Sprint 6 task list; risky to rush. Flagged for the owner. |
+| 2026-11-01 | Test isolation fix: `tests/conftest.py` imports the scripted orchestrator replies up front; a test that patched the mock handler list could otherwise swallow their registration for every later test. | Found while adding memory tests. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).

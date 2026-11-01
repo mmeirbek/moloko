@@ -4,10 +4,10 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from app.agents.state import ACTIVE_TASK
-from app.api.deps import CurrentAuth, DbSession, QueueDep
+from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
 from app.events import bus
 from app.models.task import Task
-from app.schemas.tasks import StopAllResult, SystemState
+from app.schemas.tasks import StopAllResult, SystemLimits, SystemState
 from app.services.audit import AuditService
 from app.services.system import count_active_tasks, engine_stopped, set_engine_stopped
 from app.services.tasks import TaskService
@@ -20,6 +20,20 @@ async def system_state(ctx: CurrentAuth, db: DbSession) -> SystemState:
     return SystemState(
         engine_stopped=await engine_stopped(db, ctx.user.id),
         active_tasks=await count_active_tasks(db, ctx.user.id),
+    )
+
+
+@router.get(
+    "/limits", response_model=SystemLimits, summary="Global limits (per-agent ones may be lower)"
+)
+async def system_limits(ctx: CurrentAuth, settings: SettingsDep) -> SystemLimits:
+    return SystemLimits(
+        max_steps_per_run=settings.max_steps_per_run,
+        run_timeout_seconds=settings.run_timeout_seconds,
+        max_active_subagents_per_run=settings.max_active_subagents_per_run,
+        max_subagent_depth=settings.max_subagent_depth,
+        memory_context_max_chars=settings.memory_context_max_chars,
+        memory_entry_max_chars=settings.memory_entry_max_chars,
     )
 
 

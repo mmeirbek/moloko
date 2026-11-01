@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { MemorySection } from "@/features/settings/memory-section";
 import { ProvidersSection } from "@/features/settings/providers-section";
 import { KillSwitchCard } from "@/features/system/kill-switch";
 import { AccountCard, SystemStatus } from "@/features/system/system-status";
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
           <KillSwitchCard />
         </div>
         <ProvidersSection />
+        <MemorySection />
       </div>
     </>
   );

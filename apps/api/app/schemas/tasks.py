@@ -101,6 +101,15 @@ class TaskDetail(BaseModel):
     run: RunOut | None = None
 
 
+class SystemLimits(BaseModel):
+    max_steps_per_run: int
+    run_timeout_seconds: int
+    max_active_subagents_per_run: int
+    max_subagent_depth: int
+    memory_context_max_chars: int
+    memory_entry_max_chars: int
+
+
 class SystemState(BaseModel):
     engine_stopped: bool
     active_tasks: int

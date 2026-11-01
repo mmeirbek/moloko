@@ -121,6 +121,8 @@ class OrchestratorRuntime(NativeRuntime):
             max_active=settings.max_active_subagents_per_run,
             can_delegate=can_delegate_further,
         )
+        if setup.memory:
+            system += "\n\n" + setup.memory
         async with ctx.sessionmaker() as db:
             inputs = await inputs_for(db, agent)
         prompt = task_prompt(task) + (f"\n\n{inputs}" if inputs else "")
@@ -260,7 +262,8 @@ class OrchestratorRuntime(NativeRuntime):
             run.phase = "aggregating"
             await bus.commit(db)
         transcript = [ChatMessage(role="user", content=f"{task_prompt(setup.task)}\n\n{inputs}")]
-        result = await self._call(ctx, setup, synthesis_system(), transcript, segment_started)
+        system = synthesis_system() + (f"\n\n{setup.memory}" if setup.memory else "")
+        result = await self._call(ctx, setup, system, transcript, segment_started)
         await self._complete(ctx, result.text)
 
     async def _ensure_working_in(self, db: AsyncSession, agent: Agent) -> None:

@@ -23,6 +23,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import Settings
 from app.main import create_app
+
+# Register the scripted orchestrator replies before any test monkeypatches the handler list.
+from app.orchestrator import mock_script as _mock_script  # noqa: F401
 from app.services.users import UserService
 
 TEST_DATABASE_URL = os.environ.get(
@@ -84,9 +87,10 @@ async def clean_tables(migrated_database: None) -> AsyncIterator[None]:
         # TRUNCATE bypasses the row-level append-only trigger on audit_logs.
         await conn.execute(
             text(
-                "TRUNCATE agent_messages, agent_events, idempotency_keys, system_settings,"
-                " tasks, agent_runs, agents, messages, conversations, model_configs,"
-                " model_providers, sessions, users, audit_logs CASCADE"
+                "TRUNCATE memory_revisions, memories, agent_messages, agent_events,"
+                " idempotency_keys, system_settings, tasks, agent_runs, agents, messages,"
+                " conversations, model_configs, model_providers, sessions, users, audit_logs"
+                " CASCADE"
             )
         )
     await engine.dispose()

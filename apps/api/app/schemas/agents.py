@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -45,6 +45,21 @@ class AgentLimits(BaseModel):
     run_timeout_seconds: int | None = Field(default=None, ge=10, le=86_400)
 
 
+class MemorySettings(BaseModel):
+    """How much saved memory an agent sees (spec 17). Defaults apply to ``{}``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    include_shared: bool = True  # shared ``user`` memories about the owner
+    # Shared notes of these projects are included too.
+    projects: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(
+        default_factory=list, max_length=20
+    )
+    # At most MEMORY_CONTEXT_MAX_CHARS (checked by the service); None = the global limit.
+    max_context_chars: int | None = Field(default=None, ge=200, le=200_000)
+
+
 class AgentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -57,7 +72,7 @@ class AgentCreate(BaseModel):
     autonomy_level: AutonomyLevel = AutonomyLevel.SUPERVISED
     allowed_tools: list[str] = Field(default_factory=list, max_length=100)
     limits: AgentLimits = Field(default_factory=AgentLimits)
-    memory_settings: dict[str, Any] = Field(default_factory=dict)
+    memory_settings: MemorySettings = Field(default_factory=MemorySettings)
 
 
 class AgentUpdate(BaseModel):
@@ -71,7 +86,7 @@ class AgentUpdate(BaseModel):
     autonomy_level: AutonomyLevel | None = None
     allowed_tools: list[str] | None = Field(default=None, max_length=100)
     limits: AgentLimits | None = None
-    memory_settings: dict[str, Any] | None = None
+    memory_settings: MemorySettings | None = None
 
 
 class AgentRunRequest(BaseModel):
