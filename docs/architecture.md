@@ -121,3 +121,16 @@ realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► Offic
 `app/memory/context.py` builds the memory block for one agent (scope, order, size budget, data fence); `app/services/memories.py` is CRUD + history + scope rules; `NativeRuntime.setup` adds the block to the system prompt (`RunSetup.memory`), and the Orchestrator adds it to its planning and synthesis prompts. Subagents get none.
 Frontend: `features/agents/agent-form.tsx` (+ `agent-form-model.ts`, pure and unit-tested), `features/agents/agent-detail.tsx` (`/office/agents/[id]`), `features/memory/memory-panel.tsx` (agent memory with a "what the model sees" preview; shared memory in Settings).
 
+## Tools, approvals, sandbox (Sprint 7)
+
+```
+model → tool call → ToolRunner ─ authorize() ─┬─ DENY ──────────────► result "denied"
+                    (tool_calls row)          ├─ REQUIRE_APPROVAL ─► approvals row, task waiting_approval,
+                                              │                      approval.required → owner decides → re-queue
+                                              └─ ALLOW ─► tool.run() ─► fenced result → model
+terminal_run ─► RunnerSandbox (worker) ─HTTP+token─► sandbox runner ─docker.sock─► fresh locked-down container
+```
+
+`app/tools/`: `base.py` (tool contract, categories, `args_hash`), `policy.py` (`authorize`), `registry.py` (catalog), `runner.py` (`ToolRunner`: records, approvals, execution, fencing), `mcp.py`, `builtin/` (files, terminal, web, github, memory). `app/sandbox/`: `base.py` (`Sandbox` interface), `client.py` (worker side), `runner.py` + `docker_api.py` (runner service). `app/workspaces/paths.py` (safe paths), `app/services/{approvals,tools,integrations,mcp,workspaces}.py`.
+Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (tools, sandbox, GitHub, MCP, workspaces), `features/tasks/tool-calls.tsx` (actions + workspace files on the task page), `features/agents/agent-tools-field.tsx`, `features/settings/audit-log.tsx`. The realtime store keeps approvals from the snapshot and `approval.*` events.
+

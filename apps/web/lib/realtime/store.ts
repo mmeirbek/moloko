@@ -1,4 +1,4 @@
-import type { AgentOut, EventEnvelope, RunOut, SnapshotFrame, TaskOut } from "@moloko/shared-types";
+import type { AgentOut, ApprovalOut, EventEnvelope, RunOut, SnapshotFrame, TaskOut } from "@moloko/shared-types";
 import { create } from "zustand";
 
 export type ConnectionStatus = "connecting" | "online" | "offline";
@@ -10,6 +10,8 @@ export interface RealtimeState {
   agents: Record<string, AgentOut>;
   tasks: Record<string, TaskOut>;
   runs: Record<string, RunOut>;
+  /** Approval requests (pending ones need the owner); resolved ones stay for display. */
+  approvals: Record<string, ApprovalOut>;
   /** Latest intermediate message per run (agent.message), for live progress. */
   lastMessage: Record<string, { step: number; text: string }>;
   setStatus: (status: ConnectionStatus) => void;
@@ -19,7 +21,7 @@ export interface RealtimeState {
   reset: () => void;
 }
 
-const empty = { lastSeq: null, agents: {}, tasks: {}, runs: {}, lastMessage: {} };
+const empty = { lastSeq: null, agents: {}, tasks: {}, runs: {}, approvals: {}, lastMessage: {} };
 
 function byId<T extends { id: string }>(items: T[]): Record<string, T> {
   return Object.fromEntries(items.map((item) => [item.id, item]));
@@ -39,6 +41,7 @@ export const useRealtimeStore = create<RealtimeState>()((set, get) => ({
       agents: byId(snapshot.agents),
       tasks: byId(snapshot.tasks),
       runs: byId(snapshot.runs),
+      approvals: byId(snapshot.approvals ?? []),
       lastMessage: {},
     }),
   applyEvent: (event) => {
@@ -52,7 +55,11 @@ export const useRealtimeStore = create<RealtimeState>()((set, get) => ({
       if (agent) next.agents = { ...state.agents, [agent.id]: agent };
       const task = payload.task as TaskOut | undefined;
       if (task) next.tasks = { ...state.tasks, [task.id]: task };
-      if (event.type === "agent.message" && event.run_id) {
+      const approval = payload.approval as ApprovalOut | undefined;
+      if (approval && (event.type === "approval.required" || event.type === "approval.resolved")) {
+        next.approvals = { ...state.approvals, [approval.id]: approval };
+      }
+      if (event.type === "agent.message" && event.run_id && payload.kind !== "tool_call") {
         next.lastMessage = {
           ...state.lastMessage,
           [event.run_id]: { step: Number(payload.step ?? 0), text: String(payload.text ?? "") },
@@ -64,3 +71,10 @@ export const useRealtimeStore = create<RealtimeState>()((set, get) => ({
   },
   reset: () => set({ status: "connecting", ...empty }),
 }));
+
+/** Pending approval requests, oldest first (stable order for the owner). */
+export function pendingApprovals(approvals: Record<string, ApprovalOut>): ApprovalOut[] {
+  return Object.values(approvals)
+    .filter((a) => a.status === "pending")
+    .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""));
+}

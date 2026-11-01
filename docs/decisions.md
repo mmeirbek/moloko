@@ -155,6 +155,36 @@ No external repository is assigned to this sprint in `docs/external-repositories
 | 2026-11-01 | ⚠ **Deferred**: the Orchestrator giving subtasks to existing autonomous agents (spec 14.1 "receive tasks from the Orchestrator"). It needs busy-agent queuing across run trees and cross-run context passing (agent messages are same-run only by design). Today the Orchestrator creates subagents. Proposed for after Sprint 7. | Not in the Sprint 6 task list; risky to rush. Flagged for the owner. |
 | 2026-11-01 | Test isolation fix: `tests/conftest.py` imports the scripted orchestrator replies up front; a test that patched the mock handler list could otherwise swallow their registration for every later test. | Found while adding memory tests. |
 
+## Sprint 7 — Tools & integrations
+
+External repositories checked (only at this sprint, as instructed):
+- **modelcontextprotocol/python-sdk** — the official MCP SDK, PyPI `mcp` 2.3.0 (MIT, released 2026-10-02, uses `httpx2`, which we already had). USED as a dependency for the MCP Manager (Streamable HTTP client).
+- **modelcontextprotocol/servers** (USE selectively): its reference servers (Filesystem, Git, Fetch, Memory, Time) speak stdio. moloko connects MCP servers over **Streamable HTTP**; running a reference server for moloko means putting it behind an HTTP transport in its own container. None is bundled; archived servers are not used.
+- **github/github-mcp-server** (official GitHub MCP server): MIT, not archived, latest release v2.0.3 (Oct 21); offers a hosted HTTP endpoint and the image `ghcr.io/github/github-mcp-server`; auth by OAuth or PAT. ⚠ **Not added — needs the owner's confirmation** (docs/external-repositories.md). The GitHub integration uses our own small REST client instead; once confirmed, the server can be connected through the MCP Manager without code changes.
+- **e2b-dev** (REFERENCE / upgrade path): not integrated. Our `Sandbox` interface (`app/sandbox/base.py`) is where an E2B backend would go. E2B self-hosting needs KVM: check the home server with `ls -l /dev/kvm` (or `kvm-ok`) before proposing it — not checked yet (no access to the server).
+- **matuscvengros/agent-sandbox**: AVOID — not used.
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-11-01 | **Tool Registry**: built-in tools are defined in code (`app/tools/builtin/`), MCP tools live in the `tools` table; a `tools` row also stores the owner's on/off switch for a built-in tool. Each tool declares name, description, JSON input schema, category, scope check, timeout and how to describe an operation for approval. | Spec 15.1. |
+| 2026-11-01 | **`authorize()` runs before every call** (`app/tools/policy.py`): enabled + available + in `allowed_tools` → schema + scope (paths, repositories, URLs) → category (may depend on the arguments) × autonomy → audit. Matrix: supervised = read allow / write approve / sensitive approve; balanced = read, write allow / sensitive approve; restricted = read allow / write approve / **sensitive deny**. Per-tool overrides are `approve` or `deny` only (stricter). The model is only offered allowed, enabled, available tools — and calls are authorized again anyway. | Spec 14.2, 15.2. |
+| 2026-11-01 | **Approvals** bind to ONE operation: tool name + SHA-256 of the canonical JSON of the exact arguments, with `APPROVAL_TTL_MINUTES` expiry. The task goes `waiting_approval` (agent `waiting`), the worker slot is freed, `approval.required` is emitted. Approve → a fresh TTL window to execute, task re-queued; on resume the runner re-checks status, hash, `used_at`, expiry **and re-runs `authorize()`**. Reject → the agent is told and continues; Cancel task → the whole run tree is cancelled; unanswered → `expired` by the worker sweeper (the agent is told). | Spec 15.4; one approval never carries over. |
+| 2026-11-01 | **`tool_calls` is the source of truth** for each call (unique per run + model call id). A finished call is never executed again on resume; a call that was running when the worker died is reported to the model as *outcome unknown* (and the task first waits for the owner, as in Sprint 3). | Spec 9.1, 16 ("record commands, files, errors, results"). |
+| 2026-11-01 | Tool calls of one model step run **sequentially** (so `MAX_PARALLEL_TOOL_CALLS` is never exceeded). | Simple and safe; parallel read-only calls can come later. |
+| 2026-11-01 | Every tool result is fenced as `<tool_output … trust="untrusted">` (fence-like text neutralised) and capped at `TOOL_OUTPUT_MAX_CHARS`. | Spec 20 prompt-injection defence. |
+| 2026-11-01 | **Workspaces**: one per root task (shared by its subagents) or a named **project** workspace an agent can be bound to. Paths are relative, no `..`, no absolute paths, and **no symlinks anywhere on the path** (checked with `lstat`). Changes are recorded in `workspace_files` and the audit log. Task workspaces are deleted `WORKSPACE_TASK_TTL_DAYS` (14) after the task ends; project workspaces stay. | Spec 16. |
+| 2026-11-01 | **Sandbox = a separate runner service**, the only one with the Docker socket; it has no database/app secrets and accepts one token-protected request type. Each command gets a fresh container: fixed image, `NetworkMode: none`, uid 10001, read-only root, `cap_drop: ALL`, `no-new-privileges`, tmpfs `/tmp`, CPU/RAM/pids limits, wall-clock timeout, only that workspace mounted (named-volume subpath; Docker Engine ≥ 26). Verified against a real daemon by `tests/test_sandbox_runner.py`. | Spec 16; the backend and worker never get the socket. |
+| 2026-11-01 | Terminal commands run **without a shell** (`shlex` split, exec form) and the program must be in `SANDBOX_ALLOWED_COMMANDS`. This is intent control; the isolation is the container. No network in the MVP (no `pip install` from the internet). | Spec 16 "command allow/deny control", "controlled network". |
+| 2026-11-01 | **Browser** = `web_fetch` (HTTP + readable text), not a headless browser. SSRF guard: http(s) only, ports 80/443, no credentials in URLs, every resolved address must be public, the connection goes to the checked address (no DNS re-binding, TLS name still verified), redirects re-checked per hop, size/time limits. `web_search` only with a self-hosted SearXNG (`SEARXNG_URL`) — no paid search API without the owner. | Spec 15.6; spec 1.1 (no paid services). |
+| 2026-11-01 | **GitHub** via REST with a fine-grained PAT stored encrypted (Fernet), API host pinned, optional repository allow-list. Reading = `read`; branch / commit to a non-default branch = `write`; commit to the default branch and pull requests = `sensitive`. | Spec 15.6. |
+| 2026-11-01 | **MCP Manager**: Streamable HTTP servers with an optional encrypted bearer token. New tools start **disabled** and classified `sensitive` until the owner enables/classifies them; a changed tool schema or a new URL/token turns its tools off again. Each call opens a short session with a timeout, so a server that is down fails only that call. | Spec 15.5. |
+| 2026-11-01 | `memory_save` (agents write their own memory) is a `write` tool, so a supervised agent asks first. | Sprint 6 note. |
+| 2026-11-01 | Audit log UI at Settings → Audit log (filters by area and outcome, cursor paging); anonymous entries (failed logins) are shown to the owner too. | Spec 20. |
+| 2026-11-01 | Mock provider `[[mock:tools]][…][[/mock:tools]]` drives tool calls offline (browser tests); still disabled by default. | E2E without a real key. |
+| 2026-11-01 | Server-generated operation texts (approval summary, consequences, reason) are English for now; the UI around them is localized. Localizing them is planned for Sprint 8. | Scope. |
+| 2026-11-01 | Chat attachments (deferred from Sprint 2) are moved to Sprint 8. | Sprint 7 scope; they need upload limits and text extraction. |
+| 2026-11-01 | Pixel Office: the lounge has 23 spots (3 rows on the rug) and the waiting bench 13, so idle characters no longer stack on one tile and stay clickable. | Found by the office browser test once there were more than 7 idle agents. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).
@@ -210,6 +240,14 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | **Frontend (npm) — Sprint 5** | | | | | |
 | phaser | 3.90.0 | MIT | Pixel Office engine (spec 18.6) | 5 | 2026-10-31 |
 | phaserjs/template-nextjs (pattern only) | main @ 2026-10-31 | MIT | React ⇄ Phaser bus architecture | 5 | 2026-10-31 |
+| **Backend (PyPI) — Sprint 7** | | | | | |
+| mcp | 2.3.0 | MIT | Official MCP SDK (MCP Manager client) | 7 | 2026-11-01 |
+| mcp-types (via mcp) | 2.3.0 | MIT | MCP protocol types | 7 | 2026-11-01 |
+| httpx2 | 2.16.0 (now a direct dependency) | BSD-3-Clause | GitHub, web fetch, sandbox runner, Docker API clients | 7 | 2026-11-01 |
+| jsonschema | 4.26.0 (moved from dev to runtime) | MIT | Validating tool arguments | 7 | 2026-11-01 |
+| sse-starlette / python-multipart / pyjwt / opentelemetry-api (via mcp) | 3.6.0 / 0.0.33 / 2.15.1 / 1.45.2 | BSD-3-Clause / Apache-2.0 / MIT / Apache-2.0 | MCP SDK dependencies | 7 | 2026-11-01 |
+| **Optional, not bundled** | | | | | |
+| SearXNG (separate service, if the owner runs it) | — | AGPL-3.0 (service, not linked) | web_search back-end | 7 | 2026-11-01 |
 | **Container images** | | | | | |
 | postgres | 17.11-alpine | PostgreSQL License | Database | 1 | 2026-10-31 |
 | redis | 8.10.3-alpine | RSALv2 / SSPLv1 / AGPLv3 (we rely on AGPLv3) | Cache/queue/pub-sub | 1 | 2026-10-31 |

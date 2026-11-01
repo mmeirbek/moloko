@@ -61,11 +61,15 @@ const row = (r: number, cols: number[], facing: Spot["facing"] = "down"): Spot[]
 
 export const ZONES = {
   /** idle → resting on the sofa side of the lounge */
-  lounge: row(17, [2, 3, 4, 5, 6, 7, 8]),
+  lounge: [
+    ...row(17, [2, 3, 4, 5, 6, 7, 8]),
+    ...row(16, [2, 3, 4, 5, 6, 7, 8]),
+    ...row(15, [2, 3, 4, 5, 6, 7, 8, 9, 10]),
+  ],
   /** planning → in front of the task board */
   board: row(2, [17, 18, 19, 20, 21, 22], "up"),
   /** waiting → on the waiting bench */
-  waiting: row(17, [31, 32, 33, 34, 35, 36, 37]),
+  waiting: [...row(17, [31, 32, 33, 34, 35, 36, 37]), ...row(16, [31, 32, 33, 34, 36, 37])],
   /** reviewing → at the bookshelves */
   review: [...row(2, [7, 8, 9, 10], "up"), ...row(2, [28, 29, 30, 31], "up")],
   /** discussion room (orchestrator meetings) */

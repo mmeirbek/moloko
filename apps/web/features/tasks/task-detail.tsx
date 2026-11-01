@@ -7,6 +7,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { TaskToolActivity } from "@/features/tasks/tool-calls";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -16,11 +17,7 @@ import { useRealtimeStore } from "@/lib/realtime/store";
 
 const ACTIVE = new Set(["created", "queued", "running", "waiting", "waiting_approval"]);
 
-function describe(
-  e: EventOut,
-  t: ReturnType<typeof useTranslations<"tasks">>,
-  ts: (status: string) => string,
-): string {
+function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, ts: (status: string) => string): string {
   const p = e.payload as Record<string, unknown>;
   switch (e.type) {
     case "agent.status_changed":
@@ -38,7 +35,22 @@ function describe(
     case "agent.task_started":
       return t("ev.started");
     case "agent.message":
+      if (p.kind === "tool_call") return t("ev.tool", { tool: String(p.tool), status: String(p.status) });
+      if (p.kind === "plan") return t("ev.plan");
+      if (p.kind === "agent_to_agent") return t("ev.agentMessage");
       return t("ev.step", { step: Number(p.step ?? 0) });
+    case "agent.task_completed":
+      return t("ev.agentDone");
+    case "agent.task_failed":
+      return t("ev.agentFailed");
+    case "approval.required":
+      return t("ev.approvalRequired", {
+        tool: String((p.approval as { tool_name?: string } | undefined)?.tool_name ?? ""),
+      });
+    case "approval.resolved":
+      return t("ev.approvalResolved", {
+        status: String((p.approval as { status?: string } | undefined)?.status ?? ""),
+      });
     default:
       return e.type;
   }
@@ -106,12 +118,18 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             </Button>
           )}
         </div>
-        {error && <p role="alert" className="text-sm text-destructive">{toMessage(error).message}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {toMessage(error).message}
+          </p>
+        )}
       </div>
 
       {task.status === "running" && lastMessage?.text && (
         <section className="rounded-lg border bg-card p-4">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">{t("latestStep", { step: lastMessage.step })}</h2>
+          <h2 className="mb-2 text-sm font-medium text-muted-foreground">
+            {t("latestStep", { step: lastMessage.step })}
+          </h2>
           <MarkdownBody text={lastMessage.text} />
         </section>
       )}
@@ -135,13 +153,18 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </section>
       )}
 
+      <TaskToolActivity taskId={task.id} status={task.status} />
+
       {detail.data && detail.data.subtasks.length > 0 && (
         <section>
           <h2 className="mb-2 font-medium">{t("subtasks")}</h2>
           <ul className="divide-y rounded-lg border bg-card">
             {detail.data.subtasks.map((s) => (
               <li key={s.id}>
-                <Link href={`/tasks/${s.id}`} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-accent/60">
+                <Link
+                  href={`/tasks/${s.id}`}
+                  className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-accent/60"
+                >
                   <span className="truncate text-sm">{s.title}</span>
                   <StatusBadge status={s.status} />
                 </Link>

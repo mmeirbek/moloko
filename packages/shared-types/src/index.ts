@@ -71,3 +71,20 @@ export type MemoryUpdate = Schemas["MemoryUpdate"];
 export type MemoryRevisionOut = Schemas["MemoryRevisionOut"];
 export type MemoryContextOut = Schemas["MemoryContextOut"];
 export type SystemLimits = Schemas["SystemLimits"];
+
+// Sprint 7 — tools, approvals, integrations, workspaces, audit
+export type ToolOut = Schemas["ToolOut"];
+export type ToolUpdate = Schemas["ToolUpdate"];
+export type ApprovalOut = Schemas["ApprovalOut"];
+export type ToolCallOut = Schemas["ToolCallOut"];
+export type GitHubIntegrationOut = Schemas["GitHubIntegrationOut"];
+export type GitHubIntegrationUpdate = Schemas["GitHubIntegrationUpdate"];
+export type IntegrationsStatus = Schemas["IntegrationsStatus"];
+export type McpServerOut = Schemas["McpServerOut"];
+export type McpServerCreate = Schemas["McpServerCreate"];
+export type McpServerUpdate = Schemas["McpServerUpdate"];
+export type WorkspaceOut = Schemas["WorkspaceOut"];
+export type WorkspaceEntry = Schemas["WorkspaceEntry"];
+export type WorkspaceFileContent = Schemas["WorkspaceFileContent"];
+export type AuditOut = Schemas["AuditOut"];
+export type AuditPage = Schemas["AuditPage"];

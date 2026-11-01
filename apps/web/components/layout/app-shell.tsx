@@ -9,6 +9,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { ApprovalsBadge } from "@/features/approvals/approvals-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
 import { ThemeToggle } from "@/features/preferences/theme-toggle";
@@ -77,10 +78,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh">
       {/* Desktop / tablet sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
-        <div className="flex h-16 items-center px-4">
+        <div className="flex h-16 items-center justify-between gap-2 px-4">
           <Link href="/chat" aria-label="moloko">
             <Logo />
           </Link>
+          <ApprovalsBadge />
         </div>
         <nav aria-label={t("nav.label")} className="flex flex-1 flex-col gap-1 px-2 py-2">
           {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => (
@@ -133,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo className="[&_svg]:size-7 [&>span:last-child]:text-lg" />
           </Link>
           <div className="flex items-center gap-1">
+            <ApprovalsBadge />
             <ConnectionStatus />
             <LocaleSwitcher />
             <ThemeToggle />

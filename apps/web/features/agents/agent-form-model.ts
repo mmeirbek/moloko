@@ -17,7 +17,12 @@ export type AgentFormValues = {
   includeShared: boolean;
   projects: string;
   maxContextChars: string;
+  tools: string[];
+  overrides: Record<string, ToolOverride>;
+  workspaceId: string;
 };
+
+export type ToolOverride = "approve" | "deny";
 
 export type FieldError = "required" | "number" | "tooHigh" | "tooLow";
 export type FormErrors = Partial<Record<keyof AgentFormValues, { error: FieldError; limit?: number }>>;
@@ -47,7 +52,25 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
     includeShared: memory.include_shared ?? true,
     projects: (memory.projects ?? []).join(", "),
     maxContextChars: str(memory.max_context_chars),
+    tools: [...(agent?.allowed_tools ?? [])],
+    overrides: { ...(((agent?.permissions ?? {}) as { tools?: Record<string, ToolOverride> }).tools ?? {}) },
+    workspaceId: agent?.workspace_id ?? "",
   };
+}
+
+/** Allowing a tool or removing it; overrides only matter for allowed tools. */
+export function toggleTool(values: AgentFormValues, name: string, allowed: boolean): AgentFormValues {
+  const tools = allowed ? [...new Set([...values.tools, name])] : values.tools.filter((t) => t !== name);
+  const overrides = { ...values.overrides };
+  if (!allowed) delete overrides[name];
+  return { ...values, tools, overrides };
+}
+
+export function setOverride(values: AgentFormValues, name: string, value: ToolOverride | ""): AgentFormValues {
+  const overrides = { ...values.overrides };
+  if (value) overrides[name] = value;
+  else delete overrides[name];
+  return { ...values, overrides };
 }
 
 export function parseProjects(text: string): string[] {
@@ -88,7 +111,7 @@ export function validate(values: AgentFormValues, limits?: SystemLimits): FormEr
   return errors;
 }
 
-export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_type" | "allowed_tools"> {
+export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_type"> {
   const steps = whole(values.maxSteps);
   const minutes = whole(values.timeoutMinutes);
   const chars = whole(values.maxContextChars);
@@ -109,5 +132,10 @@ export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_typ
       projects: parseProjects(values.projects),
       max_context_chars: chars ?? null,
     },
+    allowed_tools: values.tools,
+    tool_overrides: Object.fromEntries(
+      Object.entries(values.overrides).filter(([name]) => values.tools.includes(name)),
+    ),
+    workspace_id: values.workspaceId || null,
   };
 }

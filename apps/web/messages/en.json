@@ -51,7 +51,11 @@
     "idempotency_key_reused": "This request was already sent with different content.",
     "invalid_memory": "This memory entry is not valid. Check its type, agent and project.",
     "memory_too_long": "This memory entry is too long.",
-    "limit_too_high": "An agent's limit can only be stricter than the global limit."
+    "limit_too_high": "An agent's limit can only be stricter than the global limit.",
+    "approval_not_pending": "This request was already answered or has expired.",
+    "unknown_tool": "There is no such tool.",
+    "invalid_path": "This path is not allowed.",
+    "category_fixed": "Built-in tools have a fixed category."
   },
   "preferences": {
     "theme": "Theme",
@@ -85,7 +89,9 @@
     },
     "settings": {
       "title": "Settings",
-      "description": "Account, appearance and system status."
+      "description": "Account, appearance and system status.",
+      "auditLink": "Audit log",
+      "integrationsLink": "Tools and integrations"
     }
   },
   "system": {
@@ -238,7 +244,14 @@
       "failed": "Task failed",
       "cancelled": "Task cancelled",
       "started": "Agent started",
-      "step": "Step {step} done"
+      "step": "Step {step} done",
+      "tool": "Tool {tool}: {status, select, succeeded {done} failed {failed} denied {denied} rejected {rejected} expired {approval expired} unknown {outcome unknown} other {{status}}}",
+      "plan": "The Orchestrator made a plan",
+      "agentMessage": "Message between agents",
+      "agentDone": "The agent finished the task",
+      "agentFailed": "The agent failed",
+      "approvalRequired": "Approval needed: {tool}",
+      "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}"
     }
   },
   "agents": {
@@ -312,7 +325,17 @@
         "number": "Enter a whole number.",
         "tooHigh": "At most {limit} (the global limit).",
         "tooLow": "At least {limit}."
-      }
+      },
+      "tools": "Tools",
+      "toolsHint": "The agent can use only the checked tools. The server checks every action against the autonomy level; here you can only make rules stricter.",
+      "overrideFor": "Rule for \"{name}\"",
+      "override": {
+        "default": "by autonomy level",
+        "approve": "always ask",
+        "deny": "block"
+      },
+      "workspace": "Workspace",
+      "workspacePerTask": "A new folder for every task"
     },
     "detail": {
       "back": "All agents",
@@ -422,5 +445,185 @@
       "show": "Show what the model sees",
       "disabled": "Memory is turned off for this agent."
     }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "description": "Important agent actions wait for your decision. An approval covers only that one action.",
+    "label": "Approval request: {action}",
+    "requestedBy": "Requested by {agent}",
+    "status": {
+      "pending": "waiting",
+      "approved": "approved",
+      "rejected": "rejected",
+      "expired": "expired",
+      "cancelled": "cancelled"
+    },
+    "tool": "Tool",
+    "resources": "Affects",
+    "consequences": "Consequences",
+    "why": "Why approval is needed",
+    "exactArgs": "Exact parameters",
+    "approve": "Approve",
+    "reject": "Reject",
+    "cancelTask": "Cancel task",
+    "cancelConfirm": "Cancel the whole task? The agent will stop.",
+    "expiresIn": "expires in {minutes} min",
+    "onlyThis": "The approval covers only this action with these parameters.",
+    "badge": "Waiting for approval: {count}",
+    "pending": "Waiting for you",
+    "none": "Nothing is waiting for approval.",
+    "answered": "Recent decisions"
+  },
+  "tools": {
+    "title": "Tools",
+    "description": "What agents can do at all. Each agent is allowed tools separately in its settings; every action is checked by the server.",
+    "categories": {
+      "read": "read",
+      "write": "write",
+      "sensitive": "sensitive"
+    },
+    "enable": "Enable \"{name}\"",
+    "category": "Category",
+    "notConfigured": "not configured",
+    "off": "off",
+    "groups": {
+      "files": "Files",
+      "terminal": "Terminal (sandbox)",
+      "web": "Web",
+      "github": "GitHub",
+      "memory": "Memory",
+      "mcp": "MCP"
+    },
+    "calls": {
+      "title": "Agent actions ({count})",
+      "details": "Parameters and result",
+      "workspace": "Task workspace",
+      "status": {
+        "pending": "pending",
+        "awaiting_approval": "waiting for approval",
+        "running": "running",
+        "succeeded": "done",
+        "failed": "failed",
+        "denied": "denied",
+        "rejected": "rejected",
+        "expired": "approval expired",
+        "unknown": "outcome unknown"
+      }
+    },
+    "names": {
+      "fs_list": "List files",
+      "fs_read": "Read a file",
+      "fs_write": "Write a file",
+      "fs_move": "Move or rename",
+      "fs_delete": "Delete a file",
+      "terminal_run": "Run a command",
+      "web_fetch": "Open a web page",
+      "web_search": "Search the web",
+      "github_list_repos": "List repositories",
+      "github_list_dir": "Repository folder",
+      "github_read_file": "Read a GitHub file",
+      "github_list_issues": "List issues",
+      "github_get_issue": "Read an issue",
+      "github_list_commits": "Commit history",
+      "github_create_branch": "Create a branch",
+      "github_write_file": "Commit a file",
+      "github_create_pull_request": "Open a pull request",
+      "memory_save": "Remember"
+    }
+  },
+  "integrations": {
+    "github": {
+      "description": "Agents read repositories, issues and history, create branches and commits. Committing to the default branch and pull requests need your approval.",
+      "error": "Connection error: {error}",
+      "connected": "Connected as {login} (token {hint}).",
+      "notConnected": "Not connected.",
+      "newToken": "New token (to replace it)",
+      "token": "Access token (fine-grained)",
+      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need. Stored encrypted, never sent back to the browser.",
+      "repos": "Allowed repositories",
+      "reposHint": "One owner/repo per line. Empty = everything the token can access.",
+      "save": "Save",
+      "test": "Test",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Remove the GitHub token?"
+    },
+    "sandbox": {
+      "title": "Sandbox and web",
+      "description": "Agent commands run in a separate container: no network, no root, limited, only the task's folder visible.",
+      "notConfigured": "The sandbox is not configured: no terminal.",
+      "ok": "The sandbox is running.",
+      "down": "The sandbox does not answer.",
+      "image": "Image",
+      "limits": "Limits",
+      "limitsValue": "CPU {cpus}, memory {memory} MB, processes {pids}, time {timeout} s",
+      "network": "Network",
+      "noNetwork": "none",
+      "commands": "Allowed programs",
+      "searchOn": "Web search: on (SearXNG).",
+      "searchOff": "Web search is off (SEARXNG_URL not set). Opening pages works."
+    },
+    "mcp": {
+      "title": "MCP servers",
+      "description": "Connect MCP servers over HTTP. New tools stay off until you check and enable them.",
+      "name": "Name",
+      "url": "Address (Streamable HTTP)",
+      "token": "Token (optional)",
+      "addHint": "The server's tools appear turned off, as \"sensitive\". MCP output is treated as untrusted.",
+      "add": "Connect",
+      "cancel": "Cancel",
+      "statusOk": "Working",
+      "statusError": "Unavailable: {error}",
+      "statusUnknown": "Not checked",
+      "enabled": "Enabled",
+      "refresh": "Refresh tools",
+      "remove": "Remove server",
+      "removeConfirm": "Remove the server \"{name}\" and its tools?",
+      "addServer": "Add server",
+      "empty": "No servers yet."
+    }
+  },
+  "workspaces": {
+    "title": "Workspaces",
+    "description": "Files agents create and change. A task's folder is deleted some days after the task ends; project folders stay.",
+    "up": "Up",
+    "refresh": "Refresh",
+    "empty": "Empty.",
+    "link": "link",
+    "close": "Close",
+    "truncated": "Showing the beginning of the file.",
+    "newProject": "New project folder",
+    "create": "Create",
+    "kinds": {
+      "task": "task",
+      "project": "project"
+    },
+    "cleaned": "files removed",
+    "none": "No workspaces yet."
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Who did what: sign-ins, settings changes, agent actions, approvals, file changes. Entries can't be changed or deleted.",
+    "area": "Area",
+    "areas": {
+      "all": "All events",
+      "auth": "Sign-in",
+      "agent": "Agents",
+      "tool": "Tools",
+      "approval": "Approvals",
+      "workspace": "Files",
+      "memory": "Memory",
+      "integration": "Integrations",
+      "mcp": "MCP",
+      "system": "System"
+    },
+    "outcome": "Outcome",
+    "outcomes": {
+      "all": "Any",
+      "success": "success",
+      "failure": "failure",
+      "denied": "denied"
+    },
+    "empty": "No entries.",
+    "more": "Show more"
   }
 }

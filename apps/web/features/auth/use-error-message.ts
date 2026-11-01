@@ -28,6 +28,10 @@ const KNOWN = new Set([
   "invalid_memory",
   "memory_too_long",
   "limit_too_high",
+  "approval_not_pending",
+  "unknown_tool",
+  "invalid_path",
+  "category_fixed",
   "server_error",
 ] as const);
 type KnownCode = typeof KNOWN extends Set<infer T> ? T : never;

@@ -97,3 +97,13 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - **`memory_revisions`** — one row per saved version: `memory_id (FK → memories, cascade), user_id, revision, memory_type, agent_id, project, title, content, pinned, changed_by, created_at`; unique `(memory_id, revision)`. Forgetting a memory deletes its revisions too.
 - `agents.memory_settings` is validated: `{enabled, include_shared, projects[], max_context_chars}` (defaults omitted).
 
+## Tables (revision 0006 — Sprint 7)
+
+- **`tools`** — `(user_id, name)` unique; `source (builtin|mcp), server_id?, remote_name?, description, category?, input_schema jsonb, enabled, available`.
+- **`mcp_servers`** — `(user_id, slug)` unique; `name, url, secret_encrypted?, enabled, status, last_error, last_checked_at, server_info jsonb`.
+- **`integrations`** — `(user_id, kind)` unique (`github`); `config jsonb (login, allowed_repos), secret_encrypted, secret_hint, enabled, status, last_error, last_checked_at`.
+- **`workspaces`** — `name, kind (task|project), task_id? (root task), cleaned_at?`; **`workspace_files`** — `(workspace_id, path)` unique; `size, sha256, deleted, last_task_id, last_agent_id, last_tool_call_id`.
+- **`tool_calls`** — `(run_id, call_id)` unique; `task_id, agent_id, step, tool_name, category, args jsonb, args_hash, decision, decision_reason, approval_id, status, result, is_error, duration_ms, started_at, finished_at`.
+- **`approvals`** — `agent_id, task_id, run_id, tool_call_id → tool_calls, tool_name, category, args (preview), args_hash, summary, resources jsonb, consequences, reason, status (pending|approved|rejected|expired|cancelled), expires_at, resolved_at, used_at`.
+- `agents.workspace_id` → `workspaces` (project workspace, SET NULL).
+

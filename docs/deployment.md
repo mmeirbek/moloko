@@ -37,7 +37,14 @@ docker compose up -d --build            # первая сборка займёт
 docker compose ps                       # все сервисы (включая worker) должны стать "healthy"
 ```
 
-`init-env.sh` не перезаписывает существующий `.env`. Сохраните копию `.env` в надёжном
+`init-env.sh` не перезаписывает существующий `.env`. Если вы обновляетесь с версии до
+спринта 7, добавьте новые ключи (токен песочницы и группу Docker) командой:
+
+```bash
+infrastructure/scripts/init-env.sh --add-missing
+```
+
+`init-env.sh` не трогает уже заданные значения. Сохраните копию `.env` в надёжном
 месте (например, в менеджере паролей): без `SECRET_KEY` и `APP_ENCRYPTION_KEY` нельзя
 будет расшифровать сохранённые ключи провайдеров (начиная со спринта 2).
 
@@ -110,7 +117,15 @@ curl -s http://127.0.0.1:8080/api/v1/health
 После перезагрузки сервера Docker сам поднимает все контейнеры (`restart: unless-stopped`).
 Бэкенд ждёт готовности PostgreSQL и применяет миграции.
 
-## 5. Резервная копия вручную
+## 5. Инструменты агентов (песочница, GitHub, MCP)
+
+- **Песочница.** Сервис `sandbox` — единственный, кому доступен Docker (`/var/run/docker.sock`). Команды агентов выполняются в отдельных контейнерах без сети и без root. Нужен Docker Engine 26 или новее: проверьте `docker version`. Первый запуск команды скачает образ `SANDBOX_IMAGE` (по умолчанию `python:3.12.16-slim`).
+- **GitHub.** Создайте fine-grained token на github.com → Settings → Developer settings → Personal access tokens. Выдайте доступ только к нужным репозиториям: Contents (чтение и запись), Pull requests, Issues (чтение). Затем вставьте токен в «Интеграции → GitHub». Токен хранится зашифрованным.
+- **Поиск в интернете** (необязательно). Запустите свой SearXNG и укажите `SEARXNG_URL` в `.env`. Без него агенты могут открывать страницы, но не искать.
+- **MCP-серверы.** Подключайте серверы с HTTP-транспортом в «Интеграции → MCP». Новые инструменты выключены, пока вы их не включите.
+- **Песочница на E2B** (на будущее) требует KVM. Проверить можно командой `ls -l /dev/kvm`.
+
+## 6. Резервная копия вручную
 
 Автоматические бэкапы появятся в спринте 8. До этого делайте копию вручную и храните
 её **не на диске сервера** (внешний диск, другой компьютер):
@@ -125,7 +140,7 @@ docker compose exec -T postgres pg_dump -U moloko -Fc moloko > moloko-$(date +%F
 docker compose exec -T postgres pg_restore -U moloko -d moloko --clean --if-exists < moloko-YYYY-MM-DD.dump
 ```
 
-## 6. Если что-то не работает
+## 7. Если что-то не работает
 
 | Симптом | Что проверить |
 |---|---|
@@ -133,6 +148,7 @@ docker compose exec -T postgres pg_restore -U moloko -d moloko --clean --if-exis
 | Сервис `unhealthy` | `docker compose logs <сервис>`. Ответ `/api/v1/health` показывает, что именно недоступно |
 | «Слишком много неудачных попыток» | Подождите 15 минут (`LOGIN_LOCKOUT_SECONDS`) |
 | Сразу выкидывает на страницу входа | Открывайте сайт по `https://`: cookie с флагом `Secure` по `http://` не сохраняются |
+| Терминал агента «не настроен» | `docker compose ps sandbox`; в `.env` задан `SANDBOX_RUNNER_TOKEN` (`init-env.sh --add-missing`) и верный `DOCKER_GID` (`stat -c %g /var/run/docker.sock`) |
 | Ошибка с «Кодом ошибки» | Найдите этот код в логах: `docker compose logs backend \| grep <код>` |
 
 Ограничение: ноутбук не работает круглосуточно. При отключении питания или интернета

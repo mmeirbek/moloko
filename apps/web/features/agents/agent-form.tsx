@@ -14,9 +14,11 @@ import { modelLabel } from "@/features/chat/model-picker";
 import { agentKeys, createAgent, systemLimits, systemLimitsKey, updateAgent } from "@/lib/api/agents";
 import { listPickerModels, modelKeys } from "@/lib/api/chat";
 import { memoryKeys } from "@/lib/api/memories";
+import { toolingKeys } from "@/lib/api/tooling";
 import { cn } from "@/lib/utils";
 
 import { AUTONOMY, fromAgent, toPayload, validate, type AgentFormValues, type FormErrors } from "./agent-form-model";
+import { AgentToolsField } from "./agent-tools-field";
 
 const textareaClass = "rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm";
 
@@ -78,6 +80,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: agentKeys.all });
       void queryClient.invalidateQueries({ queryKey: memoryKeys.all }); // memory settings change the preview
+      void queryClient.invalidateQueries({ queryKey: toolingKeys.tools });
       queryClient.setQueryData(agentKeys.detail(result.id), result);
       setValues(fromAgent(result));
       setTouched(false);
@@ -191,6 +194,16 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
           ))}
         </div>
         <p className="text-xs text-muted-foreground">{t("autonomyNote")}</p>
+      </Section>
+
+      <Section title={t("tools")}>
+        <AgentToolsField
+          values={values}
+          onChange={(next) => {
+            setValues(next);
+            setSaved(false);
+          }}
+        />
       </Section>
 
       <Section title={t("limits")}>

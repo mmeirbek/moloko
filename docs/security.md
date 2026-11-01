@@ -34,15 +34,26 @@ This file tracks what is implemented and what is still open.
 
 **Memory (Sprint 6)**: memory is injected into prompts only as fenced, labelled data (never as instructions); fence-like text inside entries is neutralised; per-entry and per-prompt size limits; subagents get no memory; the audit log records memory changes without their content; "forget" deletes the entry and its history.
 
+**Tools (Sprint 7)**
+- `authorize()` before every tool execution (enabled, allowed, schema, scope, category × autonomy); decisions and executions are audited with the argument hash, never the arguments' secrets. Model output cannot change a decision.
+- Approvals bind to one operation (tool + hash of exact args), expire, are single-use, and are re-checked together with the policy right before execution.
+- Workspaces: relative paths only, no `..`, no symlinks on the path; file deletes and overwrites need approval.
+- Sandbox: only the runner service holds the Docker socket; sandbox containers have no network, no root, no capabilities, a read-only root filesystem, CPU/RAM/pids/time limits, no Docker socket, no host environment, only their workspace. The runner accepts a single token-protected request type and has no app secrets.
+- `web_fetch`: SSRF guard (public addresses only, pinned connection, per-hop redirect checks, port and size limits).
+- GitHub token and MCP tokens are encrypted at rest and never returned to the browser; GitHub API host pinned.
+- MCP tools start disabled; MCP and every other tool output is fenced as untrusted data.
+- Residual risk: the runner's Docker socket is root-equivalent on the host — keep the runner minimal (it is), and never mount the socket anywhere else.
+
 ## Open items
 
 | Item | Planned |
 |---|---|
 | Content-Security-Policy with nonces | Sprint 8 security review |
-| Permission system, approvals, sandbox isolation | Sprint 7 |
-| UI for viewing the audit log | Sprint 7/8 |
+| Permission system, approvals, sandbox isolation | ✅ Sprint 7 |
+| UI for viewing the audit log | ✅ Sprint 7 (Settings → Audit log) |
 | Expired-session cleanup job | Sprint 3 (worker) |
-| Redis password | Revisit in Sprint 7 (sandbox containers) |
+| Redis password | Not needed for sandbox containers (they have no network); revisit if anything new joins the internal network |
+| Sandbox network egress (e.g. for `pip install`) | Later, only through an allow-listing proxy |
 | Automated backups off the primary disk | Sprint 8 |
 
 ## Reporting

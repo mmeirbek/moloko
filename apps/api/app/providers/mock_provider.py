@@ -15,6 +15,7 @@ handlers registered from the agent modules, so the mock never hardcodes their pr
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from collections.abc import AsyncIterator, Callable
 from typing import cast
@@ -27,12 +28,17 @@ from app.providers.base import (
     ErrorKind,
     ModelInfo,
     ProviderError,
+    ToolCall,
     Usage,
 )
 
 MOCK_MODELS = (ModelInfo("mock-fast", "Mock Fast"), ModelInfo("mock-smart", "Mock Smart"))
 _ERROR_RE = re.compile(r"\[\[mock:error:([a-z_]+)\]\]")
 _SLEEP_RE = re.compile(r"\[\[mock:sleep:(\d+(?:\.\d+)?)\]\]")
+# [[mock:tools]][["fs_write", {"path": "a", "content": "b"}], ["fs_read", {"path": "a"}]]
+#   [[/mock:tools]]
+# → one tool call per turn, then a final answer that quotes the last tool result.
+_TOOLS_RE = re.compile(r"\[\[mock:tools\]\](.*?)\[\[/mock:tools\]\]", re.DOTALL)
 
 # Handlers registered by other modules (e.g. the orchestrator) to script replies.
 ScriptedHandler = Callable[[ChatRequest], ChatResult | None]
@@ -53,6 +59,25 @@ def last_user_text(req: ChatRequest) -> str:
 
 def _count_words(text: str) -> int:
     return len(text.split())
+
+
+def _scripted_tools(req: ChatRequest) -> ChatResult | None:
+    first = next((m.content for m in req.messages if m.role == "user"), "")
+    match = _TOOLS_RE.search(first)
+    if not match:
+        return None
+    try:
+        steps = [(str(name), dict(args)) for name, args in json.loads(match.group(1))]
+    except (ValueError, TypeError):
+        return ChatResult(text="Mock: invalid [[mock:tools]] script.")
+    turn = sum(1 for m in req.messages if m.role == "assistant")
+    if turn < len(steps):
+        name, args = steps[turn]
+        return ChatResult(text="", tool_calls=(ToolCall(f"mock_{turn}", name, args),))
+    results = [m.content for m in req.messages if m.role == "tool"]
+    return ChatResult(
+        text="Mock done. Last tool result:\n" + (results[-1] if results else "(none)")
+    )
 
 
 class MockProvider:
@@ -79,6 +104,9 @@ class MockProvider:
             scripted = handler(req)
             if scripted is not None:
                 return scripted
+        tools = _scripted_tools(req)
+        if tools is not None:
+            return tools
         reply = f"Echo: {text.replace('[[mock:slow]]', '').strip()}"
         usage = Usage(
             input_tokens=sum(_count_words(m.content) for m in req.messages),

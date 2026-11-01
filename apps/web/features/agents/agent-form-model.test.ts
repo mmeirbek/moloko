@@ -1,7 +1,7 @@
 import type { AgentOut, SystemLimits } from "@moloko/shared-types";
 import { describe, expect, it } from "vitest";
 
-import { fromAgent, parseProjects, toPayload, validate } from "./agent-form-model";
+import { fromAgent, parseProjects, setOverride, toggleTool, toPayload, validate } from "./agent-form-model";
 
 const LIMITS: SystemLimits = {
   max_steps_per_run: 50,
@@ -30,6 +30,9 @@ describe("agent form", () => {
       autonomy_level: "balanced",
       limits: { max_steps: 10, run_timeout_seconds: 600 },
       memory_settings: { include_shared: false, projects: ["moloko"], max_context_chars: 2000 },
+      allowed_tools: ["fs_read", "fs_write"],
+      permissions: { tools: { fs_write: "approve" } },
+      workspace_id: "ws1",
     } as unknown as AgentOut;
     const payload = toPayload(fromAgent(agent));
     expect(payload).toEqual({
@@ -41,6 +44,9 @@ describe("agent form", () => {
       autonomy_level: "balanced",
       limits: { max_steps: 10, run_timeout_seconds: 600 },
       memory_settings: { enabled: true, include_shared: false, projects: ["moloko"], max_context_chars: 2000 },
+      allowed_tools: ["fs_read", "fs_write"],
+      tool_overrides: { fs_write: "approve" },
+      workspace_id: "ws1",
     });
   });
 
@@ -60,6 +66,16 @@ describe("agent form", () => {
     expect(validate({ ...v, maxSteps: "2.5", timeoutMinutes: "", maxContextChars: "" }, LIMITS)).toEqual({
       maxSteps: { error: "number" },
     });
+  });
+
+  it("removing a tool drops its override; overrides of unknown tools are not sent", () => {
+    let v = toggleTool({ ...fromAgent(), name: "A" }, "fs_delete", true);
+    v = setOverride(v, "fs_delete", "deny");
+    expect(toPayload(v).tool_overrides).toEqual({ fs_delete: "deny" });
+    v = toggleTool(v, "fs_delete", false);
+    expect(v.overrides).toEqual({});
+    expect(toPayload({ ...v, overrides: { ghost: "deny" } }).tool_overrides).toEqual({});
+    expect(setOverride(toggleTool(v, "x", true), "x", "").overrides).toEqual({});
   });
 
   it("splits projects", () => {

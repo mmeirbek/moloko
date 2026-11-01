@@ -9,6 +9,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
+import { ApprovalCard } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { modelLabel } from "@/features/chat/model-picker";
 import { agentAction, agentKeys, taskKeys } from "@/lib/api/agents";
@@ -42,6 +43,8 @@ export function AgentInspector({
   const queryClient = useQueryClient();
   const [showLogs, setShowLogs] = useState(false);
   const task = useRealtimeStore((s) => (agent.current_task_id ? s.tasks[agent.current_task_id] : undefined));
+  const allApprovals = useRealtimeStore((s) => s.approvals);
+  const approvals = Object.values(allApprovals).filter((a) => a.agent_id === agent.id && a.status === "pending");
   const models = useQuery({
     queryKey: modelKeys.picker,
     queryFn: ({ signal }) => listPickerModels(signal),
@@ -151,6 +154,9 @@ export function AgentInspector({
         </p>
       )}
 
+      {approvals.map((a) => (
+        <ApprovalCard key={a.id} approval={a} compact />
+      ))}
       {showLogs && (
         <ol className="flex flex-col gap-0.5 border-t pt-2 text-xs">
           {events.data?.map((e) => (

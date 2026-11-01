@@ -312,3 +312,20 @@ async def test_pending_approvals_are_in_the_realtime_snapshot(
         snap = await build_snapshot(db, user_id)
     assert [a["tool_name"] for a in snap["approvals"]] == ["fs_write"]
     assert snap["approvals"][0]["agent_name"] == "Helper"
+
+
+async def test_mock_tools_directive_drives_tool_calls_offline(tool_app: FastAPI) -> None:
+    """The offline mock model can call tools (used by browser tests without an API key)."""
+    script = (
+        '[[mock:tools]][["fs_write", {"path": "m.txt", "content": "mock"}],'
+        ' ["fs_read", {"path": "m.txt"}]][[/mock:tools]]'
+    )
+    async with logged_in_client(tool_app) as client:
+        agent = await tool_agent(client, tools=["fs_write", "fs_read"])
+        resp = await run_agent(client, agent["id"], "Mock tools", script)
+        task_id = resp.json()["task"]["id"]
+        await drain(tool_app, tool_app.state.queue)
+        detail = (await client.get(f"/api/v1/tasks/{task_id}")).json()
+    assert detail["task"]["status"] == "completed"
+    assert "mock" in detail["task"]["result"]
+    assert [c.status for c in await tool_calls(tool_app, task_id)] == ["succeeded", "succeeded"]

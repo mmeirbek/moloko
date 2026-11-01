@@ -30,6 +30,8 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 422 | `validation_error` | Body/params failed validation |
 | 422 | `limit_too_high` | A per-agent limit above the global one (`details: {field, max}`) |
 | 422 | `invalid_memory` / `memory_too_long` | Memory scope rules broken / entry longer than `MEMORY_ENTRY_MAX_CHARS` |
+| 409 | `approval_not_pending` | The approval was already answered or expired |
+| 422 | `unknown_tool` / `invalid_path` / `category_fixed` | Unknown tool name; workspace path outside the workspace; category of a built-in tool |
 | 429 | `too_many_attempts` | Login locked out; see `Retry-After` |
 | 500 | `internal_error` | Unexpected bug (details only in server log) |
 | 503 | `database_unavailable` / `redis_unavailable` | A dependency is down; see `Retry-After` |
@@ -139,4 +141,26 @@ Plan format and limits: see `docs/decisions.md` (Sprint 4). Subtasks are tasks w
 | GET / PATCH / DELETE | `/memories/{id}` | Read; edit (`title, content, project, pinned` — saves a new revision); forget (deletes the entry and its history) |
 | GET | `/memories/{id}/revisions` | Change history, newest first |
 | GET | `/tasks?agent_id={id}&status=all` | Per-agent task history (already available since Sprint 3) |
+
+## Endpoints — tools & integrations (Sprint 7)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/tools` | Built-in + MCP tools: `name, title, description, group, category, source, enabled, available, input_schema` |
+| PATCH | `/tools/{name}` | `{enabled?, category?}` (category only for MCP tools) |
+| GET | `/approvals?status&task_id&limit` · `/approvals/{id}` | Approval requests (pending ones are also in the WS snapshot) |
+| POST | `/approvals/{id}/approve` · `/reject` · `/cancel-task` | Decide ONE operation; cancel-task cancels the whole run |
+| GET | `/integrations/status` | Sandbox (configured, ok, image, limits, network, allowed commands), web search, GitHub |
+| GET / PUT | `/integrations/github` | `{token?, clear_token?, enabled?, allowed_repos?}` — the token is never returned (`token_hint` only) |
+| POST | `/integrations/github/test` | Checks the token (`login`) |
+| GET / POST | `/mcp-servers` | `{name, url, token?}`; tools are listed and start disabled |
+| PATCH / DELETE | `/mcp-servers/{id}` | Edit (new URL/token → tools off again) / remove with its tools |
+| POST | `/mcp-servers/{id}/refresh` | Reconnect and list tools |
+| GET / POST | `/workspaces?kind&limit` | Workspaces; POST `{name}` creates a project workspace |
+| GET | `/workspaces/{id}/files?path` · `/workspaces/{id}/file?path` | Read-only browsing (text up to 200 KB) |
+| GET | `/tasks/{id}/workspace` · `/tasks/{id}/tool-calls` | A task's workspace; its tool calls (decision, status, args preview, result) |
+| GET | `/audit?action&outcome&cursor&limit` | Audit journal, newest first (`action` is a prefix, e.g. `tool.`) |
+| POST / PATCH | `/agents` · `/agents/{id}` | now also `allowed_tools` (validated), `tool_overrides {name: approve\|deny}`, `workspace_id` |
+
+Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.message` with `kind: "tool_call"` for each finished call.
 

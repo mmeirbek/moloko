@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { MemorySection } from "@/features/settings/memory-section";
 import { ProvidersSection } from "@/features/settings/providers-section";
 import { KillSwitchCard } from "@/features/system/kill-switch";
@@ -25,6 +27,14 @@ export default async function SettingsPage() {
         </div>
         <ProvidersSection />
         <MemorySection />
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/settings/audit">{t("auditLink")}</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/integrations">{t("integrationsLink")}</Link>
+          </Button>
+        </div>
       </div>
     </>
   );

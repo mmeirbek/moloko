@@ -2,7 +2,7 @@
  * Realtime contracts (mirror of packages/agent-contracts/schemas/*.json).
  * Hand-written: WebSocket frames are not part of the OpenAPI schema.
  */
-import type { AgentOut, RunOut, TaskOut } from "./index";
+import type { AgentOut, ApprovalOut, RunOut, TaskOut } from "./index";
 
 export type EventType =
   | "agent.created"
@@ -41,7 +41,7 @@ export interface SnapshotFrame {
   agents: AgentOut[];
   tasks: TaskOut[];
   runs: RunOut[];
-  approvals: unknown[];
+  approvals: ApprovalOut[];
 }
 
 export interface EventFrame {
