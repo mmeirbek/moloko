@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query, Response, UploadFile, status
+from fastapi import APIRouter, Query, Request, Response, status
+from fastapi.responses import FileResponse
 
 from app.api.deps import ChatStreamsDep, CurrentAuth, DbSession, GatewayDep, QueueDep, SettingsDep
 from app.api.sse import queue_events, sse_event, sse_response
@@ -22,6 +24,7 @@ from app.schemas.chat import (
 from app.schemas.common import Page
 from app.schemas.tasks import HandoffRequest, RunOut, TaskOut
 from app.services.chat import ChatService
+from app.services.files import receive_upload
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -114,29 +117,53 @@ async def list_messages(
     return Page(items=items, next_cursor=next_cursor)
 
 
+UPLOAD_BODY: dict[str, Any] = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "title": "AttachmentUpload",
+                    "type": "object",
+                    "properties": {
+                        "file": {
+                            "title": "File",
+                            "type": "string",
+                            "contentMediaType": "application/octet-stream",
+                        }
+                    },
+                    "required": ["file"],
+                }
+            }
+        },
+    }
+}
+
+
 @router.post(
     "/{chat_id}/attachments",
     response_model=AttachmentOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload a file (text, picture or PDF) to attach to the next message",
+    summary="Upload a file of any type and size to attach to the next message",
+    openapi_extra=UPLOAD_BODY,
 )
 async def upload_attachment(
     chat_id: uuid.UUID,
+    request: Request,
     ctx: CurrentAuth,
     db: DbSession,
     settings: SettingsDep,
     gateway: GatewayDep,
-    file: UploadFile,
 ) -> AttachmentOut:
-    biggest = max(
-        settings.chat_attachment_max_bytes,
-        settings.chat_image_max_bytes,
-        settings.chat_pdf_max_bytes,
+    # The body is streamed to disk as it arrives (app/services/files.py), never into memory.
+    user_id = ctx.user.id
+    service = ChatService(db, settings, gateway)
+    await service.get(user_id, chat_id)
+    await db.commit()  # give the connection back: a big file may take minutes to arrive
+    received = await receive_upload(
+        request, service.store, settings, service.upload_folder(chat_id)
     )
-    data = await file.read(biggest + 1)
-    attachment = await ChatService(db, settings, gateway).upload(
-        ctx.user.id, chat_id, file.filename or "file.txt", file.content_type or "text/plain", data
-    )
+    attachment = await service.store_upload(user_id, chat_id, received)
     return AttachmentOut.model_validate(attachment)
 
 
@@ -156,26 +183,26 @@ async def attachment_content(
 ) -> Response:
     from urllib.parse import quote
 
-    attachment, data = await ChatService(db, settings, gateway).attachment_content(
+    attachment, content = await ChatService(db, settings, gateway).attachment_content(
         ctx.user.id, chat_id, attachment_id
     )
     inline = attachment.kind == "image"
-    media = (
-        attachment.content_type
-        if inline or attachment.kind == "pdf"
-        else "text/plain; charset=utf-8"
-    )
+    # Only types checked from the bytes are served as such; anything else is a download.
+    media = {
+        "image": attachment.content_type,
+        "pdf": attachment.content_type,
+        "text": "text/plain; charset=utf-8",
+    }.get(attachment.kind, "application/octet-stream")
     disposition = "inline" if inline else "attachment"
-    return Response(
-        content=data,
-        media_type=media,
-        headers={
-            "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(attachment.filename)}",
-            "Cache-Control": "private, max-age=86400",
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "default-src 'none'; sandbox",
-        },
-    )
+    headers = {
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(attachment.filename)}",
+        "Cache-Control": "private, max-age=86400",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    }
+    if isinstance(content, Path):  # streamed from disk (supports Range)
+        return FileResponse(content, media_type=media, headers=headers)
+    return Response(content=content, media_type=media, headers=headers)
 
 
 @router.post(

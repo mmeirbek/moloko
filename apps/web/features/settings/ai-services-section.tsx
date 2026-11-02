@@ -22,7 +22,36 @@ export function AiServicesSection() {
   return <AiServicesForm data={ai.data} title={t("title")} />;
 }
 
-function AiServicesForm({ data, title }: { data: NonNullable<Awaited<ReturnType<typeof getAiServices>>>; title: string }) {
+type AiServices = NonNullable<Awaited<ReturnType<typeof getAiServices>>>;
+
+/** Who turns speech into text: the local Whisper model on the server, the provider, or nobody. */
+function VoiceStatus({ data }: { data: AiServices }) {
+  const t = useTranslations("aiServices");
+  const local = data.local_stt_status;
+  const model = data.local_stt_model ?? "";
+  return (
+    <div className="flex flex-col gap-1 text-sm" data-testid="voice-engine">
+      <p>
+        {data.voice_engine === "local"
+          ? t("voiceLocal", { model: data.voice_model ?? model })
+          : data.voice_engine === "provider"
+            ? t("voiceProvider", { name: data.active_provider_name ?? "", model: data.voice_model ?? "" })
+            : t("voiceNone")}
+      </p>
+      {local !== "off" && local !== "ready" && (
+        <p className="text-xs text-muted-foreground">
+          {local === "missing"
+            ? t("localMissing", { model })
+            : local === "loading"
+              ? t("localLoading", { model })
+              : t("localDown", { model })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AiServicesForm({ data, title }: { data: AiServices; title: string }) {
   const t = useTranslations("aiServices");
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
@@ -57,6 +86,7 @@ function AiServicesForm({ data, title }: { data: NonNullable<Awaited<ReturnType<
             save.mutate();
           }}
         >
+          <VoiceStatus data={data} />
           <p className="text-sm">
             {data.available ? t("active", { name: data.active_provider_name ?? "" }) : t("unavailable")}
           </p>

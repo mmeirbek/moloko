@@ -1049,6 +1049,29 @@
             "title": "Embedding Model",
             "type": "string"
           },
+          "local_stt_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Stt Model"
+          },
+          "local_stt_status": {
+            "enum": [
+              "off",
+              "ready",
+              "loading",
+              "missing",
+              "error",
+              "unreachable"
+            ],
+            "title": "Local Stt Status",
+            "type": "string"
+          },
           "provider_id": {
             "anyOf": [
               {
@@ -1068,6 +1091,36 @@
           "transcription_model": {
             "title": "Transcription Model",
             "type": "string"
+          },
+          "voice_available": {
+            "title": "Voice Available",
+            "type": "boolean"
+          },
+          "voice_engine": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "provider"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Engine"
+          },
+          "voice_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Model"
           }
         },
         "required": [
@@ -1075,6 +1128,11 @@
           "active_provider_id",
           "active_provider_name",
           "available",
+          "voice_available",
+          "voice_engine",
+          "voice_model",
+          "local_stt_status",
+          "local_stt_model",
           "transcription_model",
           "embedding_model",
           "embedding_dimensions",
@@ -1497,20 +1555,6 @@
           "audio"
         ],
         "title": "Body_transcribe_api_v1_ai_transcribe_post",
-        "type": "object"
-      },
-      "Body_upload_attachment_api_v1_chats__chat_id__attachments_post": {
-        "properties": {
-          "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "title": "Body_upload_attachment_api_v1_chats__chat_id__attachments_post",
         "type": "object"
       },
       "BudgetIn": {
@@ -2849,7 +2893,6 @@
               "format": "uuid",
               "type": "string"
             },
-            "maxItems": 20,
             "title": "Attachment Ids",
             "type": "array"
           },
@@ -3235,6 +3278,19 @@
       "ModelParams": {
         "additionalProperties": false,
         "properties": {
+          "context_window": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 1000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Window"
+          },
           "max_tokens": {
             "anyOf": [
               {
@@ -8444,7 +8500,18 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_attachment_api_v1_chats__chat_id__attachments_post"
+                "properties": {
+                  "file": {
+                    "contentMediaType": "application/octet-stream",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "AttachmentUpload",
+                "type": "object"
               }
             }
           },
@@ -8472,7 +8539,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload a file (text, picture or PDF) to attach to the next message",
+        "summary": "Upload a file of any type and size to attach to the next message",
         "tags": [
           "chats"
         ]

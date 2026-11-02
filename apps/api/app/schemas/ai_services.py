@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -9,7 +10,15 @@ class AiServicesOut(BaseModel):
     provider_id: uuid.UUID | None  # the chosen provider (None = automatic)
     active_provider_id: uuid.UUID | None  # what is used right now
     active_provider_name: str | None
-    available: bool
+    available: bool  # semantic search (and provider voice) can use a provider
+    # Voice input: the local Whisper service first, else the provider.
+    voice_available: bool
+    voice_engine: Literal["local", "provider"] | None
+    voice_model: str | None  # the model that turns speech into text right now
+    # The local service: off (STT_URL empty) | ready | loading | missing (model not
+    # downloaded yet) | error | unreachable — and its model.
+    local_stt_status: Literal["off", "ready", "loading", "missing", "error", "unreachable"]
+    local_stt_model: str | None
     transcription_model: str
     embedding_model: str
     embedding_dimensions: int

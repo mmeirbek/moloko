@@ -55,13 +55,23 @@ x-backend-env: &backend-env
   WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-14}
   MEMORY_CONTEXT_MAX_CHARS: ${MEMORY_CONTEXT_MAX_CHARS:-8000}
   MEMORY_ENTRY_MAX_CHARS: ${MEMORY_ENTRY_MAX_CHARS:-4000}
-  CHAT_IMAGE_MAX_BYTES: ${CHAT_IMAGE_MAX_BYTES:-5000000}
-  CHAT_PDF_MAX_BYTES: ${CHAT_PDF_MAX_BYTES:-10000000}
+  # Chat files: any type/size/number (0 = no limit); stored in the `files` volume.
+  FILE_STORAGE_ROOT: /data/files
+  CHAT_ATTACHMENT_MAX_BYTES: ${CHAT_ATTACHMENT_MAX_BYTES:-0}
+  CHAT_ATTACHMENTS_PER_MESSAGE: ${CHAT_ATTACHMENTS_PER_MESSAGE:-0}
+  CHAT_UPLOAD_MIN_FREE_BYTES: ${CHAT_UPLOAD_MIN_FREE_BYTES:-1000000000}
+  CHAT_ATTACHMENT_PROMPT_MAX_CHARS: ${CHAT_ATTACHMENT_PROMPT_MAX_CHARS:-200000}
+  CHAT_IMAGE_MODEL_MAX_SIDE: ${CHAT_IMAGE_MODEL_MAX_SIDE:-1568}
+  CHAT_IMAGE_MODEL_MAX_BYTES: ${CHAT_IMAGE_MODEL_MAX_BYTES:-3500000}
   CHAT_CONTEXT_IMAGES: ${CHAT_CONTEXT_IMAGES:-4}
+  # Voice: the local Whisper service (`stt`), else the OpenAI provider.
+  STT_URL: ${STT_URL-http://stt:8000}  # empty in .env = no local speech model
+  STT_MODEL: ${STT_MODEL:-large-v3-turbo}
+  STT_TIMEOUT_SECONDS: ${STT_TIMEOUT_SECONDS:-900}
+  VOICE_UPLOAD_MAX_BYTES: ${VOICE_UPLOAD_MAX_BYTES:-200000000}
   TRANSCRIPTION_MODEL: ${TRANSCRIPTION_MODEL:-gpt-4o-mini-transcribe}
   EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
   EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
-  VOICE_MAX_BYTES: ${VOICE_MAX_BYTES:-10000000}
   SEARCH_CHUNK_CHARS: ${SEARCH_CHUNK_CHARS:-1200}
   SEARCH_MAX_RESULTS: ${SEARCH_MAX_RESULTS:-8}
   # Web Push (notifications while the app is closed) and the official GitHub MCP server
@@ -135,6 +145,7 @@ services:
       RUN_MIGRATIONS: "true"
     volumes:
       - workspaces:/data/workspaces  # read by the owner's workspace browser
+      - files:/data/files  # chat attachments (any size; streamed here, not into memory)
       - ${BACKUP_DIR:-./backups}:/backups:ro  # backup status for Settings → Backups
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
     networks: [internal, edge]
@@ -245,6 +256,71 @@ services:
       retries: 5
     logging: *logging
 
+  # Speech-to-text for voice input: Whisper (faster-whisper, int8) on this server's CPU,
+  # OpenAI-compatible API (apps/stt). Internal network only — no internet, no port.
+  stt:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/stt.Dockerfile
+    image: moloko-stt:local
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m  # a recording being decoded
+    cap_drop: [ALL]
+    environment:
+      STT_MODEL: ${STT_MODEL:-large-v3-turbo}
+      STT_CPU_THREADS: ${STT_CPU_THREADS:-6}
+      STT_LANGUAGES: ${STT_LANGUAGES-ru,en}
+      STT_BEAM_SIZE: ${STT_BEAM_SIZE:-1}
+      STT_MAX_BYTES: ${VOICE_UPLOAD_MAX_BYTES:-200000000}
+      HF_HUB_OFFLINE: "1"  # never tries the internet; the model comes from stt-models
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - stt-models:/models:ro
+    cpus: ${STT_CPUS:-6}  # of 12 threads on the server; must not exceed the machine
+    mem_limit: ${STT_MEMORY:-4g}
+    networks: [internal]
+    healthcheck:
+      # Healthy = the service answers; whether the model is loaded is in /health's
+      # "status" (the backend uses the provider until it is "ready").
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 20s
+    logging: *logging
+
+  # Downloads STT_MODEL once (pinned Hugging Face commit, SHA-256 checked) into the
+  # stt-models volume, then exits; later runs see it is there and exit at once. Its own
+  # network is the only one with internet access for this; stt itself has none.
+  stt-models:
+    image: moloko-stt:local
+    command: ["download"]
+    restart: "no"
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    environment:
+      STT_MODEL: ${STT_MODEL:-large-v3-turbo}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - stt-models:/models
+    networks: [stt-download]
+    healthcheck:
+      test: ["CMD", "true"]  # a one-off job: deploy.sh must not wait for the download
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
   # Image for the agents' browser (headless Chromium); not a running service.
   browser:
     profiles: ["browser"]
@@ -307,6 +383,7 @@ services:
       - backup-cache:/cache  # restic's cache + scratch space of the off-site restore drill
       - ${OFFSITE_DISK:-offsite-disk-unused}:/offsite  # the external disk, if OFFSITE_DISK is set
       - ${OFFSITE_SSH_DIR:-offsite-ssh-unused}:/root/.ssh:ro  # SFTP key + known_hosts, if set
+      - files:/data/files:ro
     # "internal" for PostgreSQL; "offsite" (its own network) to reach the cloud / SFTP host.
     networks: [internal, offsite]
     healthcheck:
@@ -366,10 +443,14 @@ networks:
     internal: true  # no route out except through the egress proxy
     name: ${BROWSER_NETWORK:-moloko_browser}
   offsite: {}  # the backup service's way out (off-site copies); no other service is on it
+  stt-download: {}  # only stt-models: fetches the speech model, nothing else lives here
 
 volumes:
   workspaces:
     name: ${WORKSPACES_VOLUME:-moloko_workspaces}  # fixed name: the sandbox runner mounts subpaths of it
+  files:
+    name: ${FILES_VOLUME:-moloko_files}  # fixed name: restore.sh mounts it
+  stt-models:  # re-downloadable, not backed up
   postgres-data:
   valkey-data:
   caddy-data:

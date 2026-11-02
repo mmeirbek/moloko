@@ -25,6 +25,7 @@ from app.events.bus import EventPublisher, set_publisher
 from app.events.ws import router as ws_router
 from app.providers.gateway import ModelGateway
 from app.services.chat_stream import ChatStreamManager, fail_orphaned_generations
+from app.services.stt import LocalStt
 from app.tasks.queue import TaskQueue
 
 logger = logging.getLogger("moloko.app")
@@ -51,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.redis = create_redis(settings.redis_url)
         app.state.redis_pubsub = create_redis(settings.redis_url, socket_timeout=None)
         app.state.gateway = ModelGateway(settings)
+        app.state.stt = LocalStt(settings)
         app.state.queue = TaskQueue(settings.redis_url)
         set_publisher(EventPublisher(app.state.redis))
         app.state.chat_streams = ChatStreamManager(app.state.db.sessionmaker, app.state.gateway)

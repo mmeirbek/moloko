@@ -86,6 +86,9 @@ class ModelParams(BaseModel):
 
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1, le=200_000)
+    # The model's context window in tokens (optional). Limits how much of attached files
+    # goes into one request (CHAT_ATTACHMENT_CONTEXT_SHARE of it).
+    context_window: int | None = Field(default=None, ge=1000, le=10_000_000)
 
 
 class ModelCreate(BaseModel):

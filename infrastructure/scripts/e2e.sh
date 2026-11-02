@@ -28,7 +28,9 @@ HTTP_PORT=$PORT
 COOKIE_SECURE=false
 ENABLE_MOCK_PROVIDER=true
 WORKSPACES_VOLUME=moloko_e2e_workspaces
+FILES_VOLUME=moloko_e2e_files
 BROWSER_NETWORK=moloko_e2e_browser
+STT_URL=
 BACKUP_DIR=$WORK/backups
 ENV
 mkdir -p "$WORK/backups"
@@ -37,7 +39,7 @@ compose() { docker compose -p "$PROJECT" --env-file "$ENV_FILE" "$@"; }
 cleanup() {
   if [[ "${KEEP:-0}" != "1" ]]; then
     compose down -v --remove-orphans >/dev/null 2>&1 || true
-    docker volume rm moloko_e2e_workspaces >/dev/null 2>&1 || true
+    docker volume rm moloko_e2e_workspaces moloko_e2e_files >/dev/null 2>&1 || true
     rm -rf "$WORK"
   else
     echo "Stack kept: http://127.0.0.1:$PORT (env: $ENV_FILE)"
@@ -45,7 +47,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ "${NO_BUILD:-0}" == "1" ]]; then compose up -d --no-build --wait; else compose up -d --build --wait; fi
+# No local speech model here (it is a 1.6 GB download): voice uses the mock provider.
+NO_STT=(--scale stt=0 --scale stt-models=0)
+if [[ "${NO_BUILD:-0}" == "1" ]]; then compose up -d --no-build --wait "${NO_STT[@]}"; else compose up -d --build --wait "${NO_STT[@]}"; fi
 export E2E_USERNAME=owner E2E_PASSWORD="e2e owner password 123"
 printf '%s\n' "$E2E_PASSWORD" | compose exec -T backend python -m app.cli create-owner \
   --username "$E2E_USERNAME" --display-name Owner --password-stdin

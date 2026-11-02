@@ -1,13 +1,19 @@
-"""Voice input and semantic search use the owner's own provider (official API key, spec
-13.5): an OpenAI-type provider chosen in Settings → Voice & search (or the first enabled
-one). Anthropic has no speech or embedding API, so it cannot serve these.
+"""Voice input and semantic search.
+
+Voice goes to the local Whisper service first (`stt` in docker-compose: no key, no cost,
+nothing leaves the server); when it is not configured or not ready, to the owner's own
+provider (official API key, spec 13.5). Semantic search always uses the provider: an
+OpenAI-type provider chosen in Settings → Voice & search (or the first enabled one).
+Anthropic has no speech or embedding API, so it cannot serve these.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from decimal import Decimal
+from typing import Any, Literal, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +25,9 @@ from app.models.system import SystemSetting
 from app.models.usage import UsageRecord
 from app.providers.gateway import ModelGateway
 from app.providers.registry import env_api_key
+from app.services.stt import AudioTooLarge, LocalStt, LocalSttFailed
+
+logger = logging.getLogger("moloko.voice")
 
 SETTINGS_KEY = "ai_services"
 CAPABLE_KINDS = ("openai", "mock")
@@ -28,6 +37,12 @@ class AiServiceUnavailable(AppError):
     status_code = 409
     code = "ai_service_unavailable"
     message = "Voice and smart search need an OpenAI provider (Settings → AI providers)."
+
+
+class VoiceUnavailable(AppError):
+    status_code = 503
+    code = "voice_unavailable"
+    message = "Speech recognition is not available right now. Try again in a minute."
 
 
 class AuxProvider(Protocol):
@@ -138,18 +153,83 @@ def ledger_row(
     )
 
 
+@dataclass(frozen=True)
+class VoiceEngine:
+    engine: Literal["local", "provider"] | None
+    model: str | None
+    local_status: str  # off | ready | loading | missing | error | unreachable
+
+
+async def voice_engine(
+    db: AsyncSession,
+    gateway: ModelGateway,
+    settings: Settings,
+    stt: LocalStt,
+    user_id: uuid.UUID,
+    target: AuxTarget | None = None,
+) -> VoiceEngine:
+    """Who turns speech into text right now: the local model, the provider, or nobody."""
+    local = await stt.status()
+    if local == "ready":
+        return VoiceEngine("local", stt.model, local)
+    if target is None:
+        try:
+            target = await resolve(db, gateway, settings, user_id)
+        except AiServiceUnavailable:
+            target = None
+    if target is not None:
+        return VoiceEngine("provider", target.transcription_model, local)
+    return VoiceEngine(None, None, local)
+
+
 async def transcribe(
     db: AsyncSession,
     gateway: ModelGateway,
     settings: Settings,
+    stt: LocalStt,
     user_id: uuid.UUID,
     audio: bytes,
     filename: str,
+    content_type: str | None,
     language: str | None,
 ) -> str:
+    """Speech → text. `language` is a hint ("ru", "en"); None = detect it."""
+    if await stt.status() == "ready":
+        try:
+            text = await stt.transcribe(audio, filename, content_type, language)
+        except LocalSttFailed as exc:
+            logger.warning("local speech recognition failed (%s); trying the provider", exc)
+        else:
+            # Free and private, still listed in Costs like every other model call.
+            db.add(
+                UsageRecord(
+                    user_id=user_id,
+                    source="voice",
+                    provider_kind="local",
+                    model=stt.model,
+                    input_tokens=0,
+                    output_tokens=0,
+                    cost_usd=Decimal(0),
+                )
+            )
+            await db.commit()
+            return text.strip()
+        local_failed = True
+    else:
+        local_failed = False
     from app.services.usage import ensure_within_budget
 
-    target = await resolve(db, gateway, settings, user_id)
+    try:
+        target = await resolve(db, gateway, settings, user_id)
+    except AiServiceUnavailable:
+        if local_failed or stt.configured:
+            raise VoiceUnavailable() from None
+        raise
+    if len(audio) > settings.transcription_provider_max_bytes:
+        raise AudioTooLarge(
+            "The recording is too long for the provider's speech API.",
+            details={"max_bytes": settings.transcription_provider_max_bytes},
+        )
     await ensure_within_budget(db, user_id)
     client = adapter(gateway, target)
     try:
