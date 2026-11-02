@@ -120,7 +120,20 @@ async def release_agent(
         # Persistent agents return to idle after a task (spec 8.5).
         agent.current_task_id = None
         await set_agent_status(db, agent, AgentStatus.IDLE, reason="task_finished")
-    agent.current_task_id = None
+    if agent.current_task_id is not None:
+        # The status event above still carried the task: tell the clients the agent is free,
+        # or they keep showing it busy (and "Start" disabled) until the next snapshot.
+        task_id = agent.current_task_id
+        agent.current_task_id = None
+        await emit(
+            db,
+            user_id=agent.user_id,
+            type="agent.updated",
+            agent_id=agent.id,
+            task_id=task_id,
+            run_id=agent.run_id,
+            payload={"changed": ["current_task_id"], "agent": agent_payload(agent)},
+        )
 
 
 _TASK_EVENT = {

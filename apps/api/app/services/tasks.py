@@ -382,6 +382,17 @@ async def prepare_start(
     agent.current_task_id = task.id
     if agent.agent_type == AgentType.ORCHESTRATOR.value:
         agent.run_id = run.id  # the root run of everything this orchestrator delegates
+    # Reserved but still idle until a worker picks the run up: clients must see it as busy now,
+    # or a second "Start" in that window is refused with "agent busy".
+    await bus.emit(
+        db,
+        user_id=agent.user_id,
+        type="agent.updated",
+        agent_id=agent.id,
+        task_id=task.id,
+        run_id=run.id,
+        payload={"changed": ["current_task_id"], "agent": agent_payload(agent)},
+    )
     await set_task_status(db, task, TaskStatus.QUEUED, reason="started", run=run)
     return run
 
