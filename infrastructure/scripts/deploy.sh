@@ -73,6 +73,12 @@ fi
 # --- 5. start -------------------------------------------------------------------------------
 say "Запуск"
 docker compose up -d --remove-orphans
+# Caddy reads its Caddyfile (a single-file mount, pinned to the old file after `git checkout`)
+# only at start, and compose does not recreate it for a changed file: recreate it here.
+if ! docker compose exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - infrastructure/caddy/Caddyfile; then
+  echo "Caddyfile изменился — перезапускаю caddy"
+  docker compose up -d --force-recreate --no-deps caddy
+fi
 
 say "Жду, пока все сервисы станут здоровыми"
 deadline=$((SECONDS + 420))
