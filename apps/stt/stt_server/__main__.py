@@ -46,6 +46,7 @@ def _bench(config: Config, files: list[str]) -> int:
         print(
             f"{path}\t{result.duration:.1f}s audio\t{took:.2f}s\t{result.language}\t{result.text}"
         )
+    print(f"encoder runs saved by reuse: {engine.encoder.hits}")
     return 0
 
 

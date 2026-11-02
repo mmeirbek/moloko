@@ -126,3 +126,25 @@ def test_detection_keeps_to_the_allowed_languages(
     probs: list[tuple[str, float]], allowed: tuple[str, ...], expected: str
 ) -> None:
     assert pick_language(probs, allowed)[0] == expected
+
+
+def test_the_encoder_runs_once_for_detection_and_decoding() -> None:
+    import numpy as np
+
+    from stt_server.engine import EncoderReuse
+
+    runs: list[int] = []
+
+    def encode(features: object) -> str:
+        runs.append(1)
+        return f"out{len(runs)}"
+
+    reuse = EncoderReuse(encode)
+    window = np.ones((80, 3000), dtype=np.float32)
+    assert reuse(window) == "out1"  # language detection
+    assert reuse(window.copy()) == "out1"  # the first decoding window: reused
+    assert reuse(window) == "out2"  # only once
+    assert reuse(np.zeros((80, 3000), dtype=np.float32)) == "out3"
+    reuse.forget()
+    assert reuse(np.zeros((80, 3000), dtype=np.float32)) == "out4"
+    assert reuse.hits == 1

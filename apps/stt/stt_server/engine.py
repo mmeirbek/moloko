@@ -3,7 +3,9 @@ and run in a worker thread (the API limits how many run at once)."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Any, BinaryIO, Protocol
 
@@ -67,6 +69,35 @@ def pick_language(
     return (allowed[0] if allowed else None), 0.0
 
 
+class EncoderReuse:
+    """Language detection and the first decoding window encode the same 30 seconds of
+    audio, and the encoder is most of the CPU time. This wraps `WhisperModel.encode` and
+    hands the last result back once when the same features come again, so a dictation
+    with automatic language detection runs the encoder once instead of twice."""
+
+    def __init__(self, encode: Any) -> None:
+        self._encode = encode
+        self._local = threading.local()
+        self.hits = 0
+
+    def forget(self) -> None:
+        self._local.cached = None
+
+    def __call__(self, features: Any) -> Any:
+        import numpy as np
+
+        data = np.ascontiguousarray(features)
+        key = (data.shape, hashlib.blake2b(data.tobytes(), digest_size=16).digest())
+        cached = getattr(self._local, "cached", None)
+        self._local.cached = None
+        if cached is not None and cached[0] == key:
+            self.hits += 1
+            return cached[1]
+        out = self._encode(features)
+        self._local.cached = (key, out)
+        return out
+
+
 class WhisperEngine:
     def __init__(self, config: Config) -> None:
         from faster_whisper import WhisperModel
@@ -80,6 +111,8 @@ class WhisperEngine:
             num_workers=config.concurrency,
             local_files_only=True,
         )
+        self.encoder = EncoderReuse(self.model.encode)
+        self.model.encode = self.encoder
 
     def _language(self, audio: Any, language: str | None) -> str | None:
         allowed = self.config.languages
@@ -89,29 +122,43 @@ class WhisperEngine:
             return allowed[0]
         if not allowed:
             return None  # Whisper's own detection over all languages
-        try:
-            _, _, probs = self.model.detect_language(
-                audio, vad_filter=self.config.vad, language_detection_segments=2
-            )
-        except ValueError:  # no speech found by the VAD
-            return allowed[0]
+        extractor = self.model.feature_extractor
+        # The first 30 s, cut exactly like transcribe() cuts its first window (it drops
+        # the last frame), so EncoderReuse hands that window's encoding back.
+        features = extractor(audio[: extractor.n_samples])[:, :-1]
+        _, _, probs = self.model.detect_language(features=features, language_detection_segments=1)
         code, prob = pick_language(list(probs), allowed)
         log.info("language %s (p=%.2f)", code, prob)
         return code
 
+    def _speech(self, samples: Any) -> Any:
+        """Only the parts with speech (Silero VAD): less to decode, fewer hallucinations."""
+        if not self.config.vad:
+            return samples
+        import numpy as np
+        from faster_whisper.vad import VadOptions, collect_chunks, get_speech_timestamps
+
+        chunks = get_speech_timestamps(samples, VadOptions())
+        if not chunks:
+            return samples[:0]
+        parts, _ = collect_chunks(samples, chunks)
+        return np.concatenate(parts)
+
     def transcribe(
         self, audio: BinaryIO, language: str | None, prompt: str | None
     ) -> Transcription:
+        self.encoder.forget()
         samples = decode_audio(audio)
-        duration = len(samples) / 16000
-        if duration < 0.2:
+        duration = len(samples) / SAMPLE_RATE
+        speech = self._speech(samples)
+        if len(speech) < 0.2 * SAMPLE_RATE:  # silence
             return Transcription("", language, duration)
-        lang = self._language(samples, language)
+        lang = self._language(speech, language)
         segments, info = self.model.transcribe(
-            samples,
+            speech,
             language=lang,
             beam_size=self.config.beam_size,
-            vad_filter=self.config.vad,
+            vad_filter=False,  # done above, once
             initial_prompt=prompt or None,
             # Dictation: each segment on its own — avoids Whisper's repetition loops.
             condition_on_previous_text=False,
