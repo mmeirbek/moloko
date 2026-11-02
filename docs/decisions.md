@@ -320,6 +320,14 @@ The owner asked: remove technical clutter; "the site looks too AI-made" → **pi
 | 2026-11-02 | **The island sits in the real notch**: centred on the notch itself (`auxiliaryTopLeftArea`/`auxiliaryTopRightArea`; it can be half a point off the screen centre — one visible pixel), notch height from `safeAreaInsets.top`. A "below the notch" display mode (e.g. 1512×945 instead of 1512×982) switches the notch strip off, so no app can draw there; the island then shows a context-menu item «Показать вырез» that switches the built-in display to the matching mode with the notch (same width and scale, kept like System Settings would). On the owner's Mac (Mac16,1) the display was in 1512×945; switched to 1512×982 @120 Hz with his consent. | Owner request ("a real notch on the Mac screen"). |
 | 2026-11-02 | **Tasks from the island**: a task row under the map — addressee (the Orchestrator, or a persistent agent; a click on a character on the map picks it), one line of text, voice, «Запустить». Uses the existing `POST /runs` and `POST /agents/{id}/run`; a busy addressee keeps the button disabled with a reason (the server's own busy rule); after sending, a link to the task. The panel grew to 820×640 so the office still fits at 100 %. The Mac app declares `NSMicrophoneUsageDescription` and grants the microphone only to the moloko page's main frame. | Owner request ("give tasks from the island"). |
 
+## Voice, files, schedules, templates, budgets, passkeys, Mac notifications, off-site backups (owner request, 2026-11-02, fourth pass)
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-11-02 | **Composer — files**: any number, size and type (owner: «никаких ограничений»). Each file uploads on its own through `api.upload` (XMLHttpRequest: upload progress and cancel; the same CSRF rules as `request`), three at a time; a failed one keeps its reason in the card (phones have no hover) with retry/remove; pictures show a local preview at once. Files can be dropped anywhere on the chat or pasted (screenshots). Sending waits for uploads in flight, so text and files always go together. | Owner request. |
+| 2026-11-02 | **Composer — voice**: the mic turns into a recording strip (timer, live level meter from Web Audio, «Отменить» / Escape, «Готово»); recordings up to 15 minutes; recognition language «Авто / RU / EN», auto by default (the owner speaks both; the form field `language` is empty for auto). The mic follows `voice_available` from `/ai/settings` (local speech engine or provider). | Owner request (voice in Russian and English). |
+| 2026-11-02 | Browser tests for voice use real speech: Chromium plays a WAV (macOS `say`, voices Milena and Samantha) as the microphone (`--use-file-for-fake-audio-capture`). | End-to-end proof that Russian and English dictation works. |
+
 ## Dependency register
 
 External repositories from `docs/external-repositories.md`: **none used in Sprint 1** (as instructed).
