@@ -13,6 +13,8 @@ For every call, in order:
    the policy is re-evaluated before anything runs.
 4. Execution has a timeout and an ``in_flight`` marker in the run checkpoint while a
    side-effecting tool runs. Output is capped and fenced as untrusted data.
+5. ``agent_ask`` suspends the run like an approval does (``AwaitingAgent``): the row stays
+   ``awaiting_agent`` until the other agent's answer is written into it.
 """
 
 from __future__ import annotations
@@ -38,7 +40,15 @@ from app.providers.base import ToolCall as ModelToolCall
 from app.runtimes.base import RunContext
 from app.services.audit import AuditService
 from app.services.workspaces import workspace_for_task
-from app.tools.base import ScopeError, ToolCategory, ToolContext, ToolFailed, ToolOutput, args_hash
+from app.tools.base import (
+    AwaitingAgent,
+    ScopeError,
+    ToolCategory,
+    ToolContext,
+    ToolFailed,
+    ToolOutput,
+    args_hash,
+)
 from app.tools.policy import CatalogEntry, Decision, Verdict, audit_decision, authorize
 from app.tools.registry import catalog
 
@@ -193,6 +203,8 @@ class ToolRunner:
                 "Check the current state before trying again.",
                 True,
             )
+        if row.status == "awaiting_agent":  # agent_ask: its question is still open
+            return await self._after_agent(row)
         entry = (await self.entries()).get(row.tool_name)
         tctx = self.tool_context(row.id)
         if row.status == "awaiting_approval":
@@ -259,6 +271,17 @@ class ToolRunner:
         if decision.verdict == Verdict.DENY or entry is None:
             return await self._finish(row, "denied", f"Denied: {decision.reason}", True)
         return await self._execute(row, entry, args, tctx, decision.category)
+
+    async def _after_agent(self, row: ToolCall) -> ToolCall:
+        """The answer of another agent arrives in this row (``app/agents/team.py``); until
+        then the run waits again without holding a worker."""
+        from app.agents.team import resume_call  # team → services → approvals → runner
+
+        await resume_call(self.ctx.sessionmaker, row)  # raises AwaitingAgent while open
+        async with self.ctx.sessionmaker() as db:
+            fresh = await db.get(ToolCall, row.id)
+            assert fresh is not None
+            return fresh
 
     async def _record_decision(self, row: ToolCall, decision: Decision) -> None:
         async with self.ctx.sessionmaker() as db:
@@ -372,6 +395,8 @@ class ToolRunner:
         started = time.monotonic()
         try:
             output = await asyncio.wait_for(entry.tool.run(tctx, args), timeout=timeout)
+        except AwaitingAgent:
+            raise  # agent_ask suspended the run in the same transaction that asked
         except ToolFailed as exc:
             output = ToolOutput(str(exc), is_error=True)
         except ScopeError as exc:

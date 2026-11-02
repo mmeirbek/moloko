@@ -72,6 +72,35 @@
         "title": "AgentBudgetOut",
         "type": "object"
       },
+      "AgentContacts": {
+        "additionalProperties": false,
+        "description": "Who a persistent agent may talk to directly (agent_ask / agent_tell). Both sides\nmust allow it. Subagents only talk to their siblings; the Orchestrator is no contact.",
+        "properties": {
+          "agent_ids": {
+            "description": "Used when mode = list.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Agent Ids",
+            "type": "array"
+          },
+          "mode": {
+            "default": "all",
+            "description": "all = every own agent, list = only agent_ids, none = nobody",
+            "enum": [
+              "all",
+              "list",
+              "none"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "AgentContacts",
+        "type": "object"
+      },
       "AgentCost": {
         "description": "One budget holder: an agent with its subagents' calls, or the chat.",
         "properties": {
@@ -174,6 +203,9 @@
           "autonomy_level": {
             "$ref": "#/components/schemas/AutonomyLevel",
             "default": "supervised"
+          },
+          "contacts": {
+            "$ref": "#/components/schemas/AgentContacts"
           },
           "description": {
             "default": "",
@@ -340,6 +372,178 @@
         "title": "AgentLimits",
         "type": "object"
       },
+      "AgentMessageItem": {
+        "description": "One message in an agent's correspondence (agent page → «Переписка»).",
+        "properties": {
+          "asker_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The asking agent's task.",
+            "title": "Asker Task Id"
+          },
+          "consult_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The receiver's task of a question.",
+            "title": "Consult Task Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "direction": {
+            "description": "Relative to the agent asked about.",
+            "enum": [
+              "in",
+              "out"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was refused (a reason code).",
+            "title": "Error"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message_type": {
+            "description": "request = agent_ask question, task_result = its answer, error = no answer (failed / cancelled / timed out), note = agent_tell, context = Orchestrator plan input",
+            "title": "Message Type",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "receiver_agent_id": {
+            "format": "uuid",
+            "title": "Receiver Agent Id",
+            "type": "string"
+          },
+          "receiver_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Name"
+          },
+          "sender_agent_id": {
+            "format": "uuid",
+            "title": "Sender Agent Id",
+            "type": "string"
+          },
+          "sender_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Name"
+          },
+          "status": {
+            "description": "delivered | refused",
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The full text; null when refused.",
+            "title": "Text"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "direction",
+          "sender_agent_id",
+          "sender_name",
+          "receiver_agent_id",
+          "receiver_name",
+          "message_type",
+          "status",
+          "error",
+          "summary",
+          "text",
+          "files",
+          "task_id",
+          "consult_task_id",
+          "asker_task_id",
+          "read_at"
+        ],
+        "title": "AgentMessageItem",
+        "type": "object"
+      },
       "AgentMessageOut": {
         "properties": {
           "content": {
@@ -439,6 +643,9 @@
           "config_version": {
             "title": "Config Version",
             "type": "integer"
+          },
+          "contacts": {
+            "$ref": "#/components/schemas/AgentContacts"
           },
           "created_at": {
             "format": "date-time",
@@ -612,6 +819,7 @@
           "config_version",
           "archived_at",
           "monthly_budget_usd",
+          "contacts",
           "created_at",
           "updated_at"
         ],
@@ -812,6 +1020,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/AutonomyLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contacts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentContacts"
               },
               {
                 "type": "null"
@@ -3751,6 +3969,33 @@
         "title": "OffsiteStatus",
         "type": "object"
       },
+      "Page_AgentMessageItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentMessageItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "Page[AgentMessageItem]",
+        "type": "object"
+      },
       "Page_ConversationOut_": {
         "properties": {
           "items": {
@@ -5833,6 +6078,18 @@
             "title": "Progress",
             "type": "integer"
           },
+          "requested_by_agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Agent Id"
+          },
           "result": {
             "anyOf": [
               {
@@ -6960,6 +7217,92 @@
           }
         },
         "summary": "Exactly what this agent's prompt receives from memory",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/messages": {
+      "get": {
+        "operationId": "agent_messages_api_v1_agents__agent_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "in",
+                "out"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AgentMessageItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correspondence with other agents: questions, answers, notes (newest first)",
         "tags": [
           "agents"
         ]

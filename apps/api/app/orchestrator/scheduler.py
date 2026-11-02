@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import agent_is_busy, lock_run, lock_task, set_task_status
@@ -46,6 +46,33 @@ async def tree_tasks(db: AsyncSession, root_run_id: uuid.UUID) -> list[Task]:
 
 
 DEFAULT_MAX_ACTIVE = 5
+
+
+async def consults_in_tree(db: AsyncSession, root_run_id: uuid.UUID) -> int:
+    """Questions (agent_ask) the tree's subagents are answering right now: they hold an
+    active slot like a subtask does."""
+    return int(
+        (
+            await db.execute(
+                select(func.count())
+                .select_from(Task)
+                .join(Agent, Agent.id == Task.agent_id)
+                .where(
+                    Agent.run_id == root_run_id,
+                    Agent.agent_type == AgentType.SUBAGENT.value,
+                    Task.task_type == TaskType.CONSULT.value,
+                    Task.status.in_(ACTIVE_SLOT),
+                )
+            )
+        ).scalar_one()
+    )
+
+
+async def active_in_tree(db: AsyncSession, root_run_id: uuid.UUID) -> int:
+    tasks = await tree_tasks(db, root_run_id)
+    return sum(1 for t in tasks if t.status in ACTIVE_SLOT) + await consults_in_tree(
+        db, root_run_id
+    )
 
 
 async def schedule_tree(
@@ -107,7 +134,9 @@ async def schedule_tree(
     # 4. Start ready subtasks within the active limit.
     orchestrator = await db.get(Agent, root_run.agent_id)
     paused = orchestrator is not None and orchestrator.status == AgentStatus.PAUSED.value
-    active = sum(1 for t in tasks if t.status in ACTIVE_SLOT)
+    active = sum(1 for t in tasks if t.status in ACTIVE_SLOT) + await consults_in_tree(
+        db, root_run_id
+    )
     max_active = int((root_run.state or {}).get("max_active_subagents", DEFAULT_MAX_ACTIVE))
     slots = max_active - active
     if not paused and slots > 0:
@@ -133,6 +162,8 @@ async def schedule_tree(
                     continue
                 if agent_is_busy(consumer):
                     continue
+            elif agent_is_busy(consumer):
+                continue  # a subagent answering a sibling's question (agent_ask): later
             await prepare_start(db, locked, parent_run_id=root_run_id)
             if assigned:  # its own runtime reads no inbox: the inputs go into the task text
                 locked.description = with_inputs(locked.description, deps, agents)

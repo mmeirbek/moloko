@@ -124,6 +124,14 @@ class Settings(BaseSettings):
     agent_budget_warn_percent: int = Field(80, ge=10, le=99)
     # How many own templates ("Save as template") the owner may keep.
     agent_templates_max: int = Field(50, ge=1, le=1000)
+    # Agents talking to each other directly (agent_ask / agent_tell, no Orchestrator):
+    # how long an asking agent waits for the answer, how deep a chain A→B→C… may go,
+    # how many questions one task may ask, and the size of one message and its files.
+    agent_ask_timeout_minutes: int = Field(30, ge=1, le=24 * 60)
+    agent_ask_max_hops: int = Field(3, ge=1, le=10)
+    agent_asks_per_task: int = Field(10, ge=1, le=100)
+    agent_message_max_chars: int = Field(20_000, ge=500, le=200_000)
+    agent_message_max_files: int = Field(10, ge=0, le=100)
 
     # --- Memory (spec 17) ---------------------------------------------------------
     # Max characters of saved memory put into one agent's prompt (per-agent may be lower).

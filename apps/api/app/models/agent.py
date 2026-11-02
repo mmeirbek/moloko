@@ -50,6 +50,10 @@ class Agent(UUIDPrimaryKey, Timestamps, Base):
     # Monthly limit in USD for this agent's model calls (its subagents included);
     # NULL = no limit of its own (the global budget still applies).
     monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # Who this persistent agent may talk to directly (agent_ask / agent_tell):
+    # {} = everyone (default), {"mode": "list", "agent_ids": [...]}, {"mode": "none"}.
+    # Both sides must allow it. Subagents only talk to their siblings (same run tree).
+    contacts: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
 
 
 class SavedAgentTemplate(UUIDPrimaryKey, Timestamps, Base):

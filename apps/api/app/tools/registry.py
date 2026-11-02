@@ -19,6 +19,7 @@ from app.tools.builtin.files import FILE_TOOLS
 from app.tools.builtin.github import GITHUB_TOOLS
 from app.tools.builtin.memory import MEMORY_TOOLS
 from app.tools.builtin.search import SEARCH_TOOLS
+from app.tools.builtin.team import TEAM_TOOLS
 from app.tools.builtin.terminal import TERMINAL_TOOLS
 from app.tools.builtin.web import WEB_TOOLS
 from app.tools.mcp import McpTool
@@ -34,6 +35,7 @@ BUILTIN: dict[str, BaseTool] = {
         *GITHUB_TOOLS,
         *MEMORY_TOOLS,
         *SEARCH_TOOLS,
+        *TEAM_TOOLS,
     )
 }
 

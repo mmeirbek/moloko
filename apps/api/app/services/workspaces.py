@@ -30,9 +30,11 @@ def workspace_dir(settings: Settings, workspace_id: uuid.UUID) -> Path:
 
 
 async def root_task(db: AsyncSession, task: Task) -> Task:
+    """The task that owns the workspace: the top of the tree, or a question one persistent
+    agent asked another (agent_ask) — the receiver answers in its own workspace."""
     current = task
     for _ in range(10):  # depth is limited (spec 7.2); guard against cycles anyway
-        if current.parent_task_id is None:
+        if current.parent_task_id is None or (current.extra or {}).get("own_workspace"):
             return current
         parent = await db.get(Task, current.parent_task_id)
         if parent is None:

@@ -11,7 +11,7 @@ import { listTools, toolingKeys, updateTool } from "@/lib/api/tooling";
 
 import { useToolHint, useToolTitle } from "./use-tool-title";
 
-export const GROUP_ORDER = ["files", "terminal", "web", "github", "memory", "mcp"] as const;
+export const GROUP_ORDER = ["files", "terminal", "web", "github", "memory", "team", "mcp"] as const;
 
 export function groupTools(tools: ToolOut[]): [string, ToolOut[]][] {
   const groups = new Map<string, ToolOut[]>();

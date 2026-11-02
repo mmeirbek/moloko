@@ -109,8 +109,12 @@ async def send_message(
 async def inbox(
     db: AsyncSession, agent: Agent, *, message_type: str | None = None
 ) -> list[AgentMessage]:
+    # Questions and answers between agents (agent_ask) are consumed at once (read_at set):
+    # they travel as a task and a tool result, never through the inbox.
     query = select(AgentMessage).where(
-        AgentMessage.receiver_agent_id == agent.id, AgentMessage.status == "delivered"
+        AgentMessage.receiver_agent_id == agent.id,
+        AgentMessage.status == "delivered",
+        AgentMessage.read_at.is_(None),
     )
     if message_type is not None:
         query = query.where(AgentMessage.message_type == message_type)
