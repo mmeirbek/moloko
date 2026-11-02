@@ -13,6 +13,16 @@ export function pushSupported(): boolean {
 }
 
 /** iPhone/iPad: Web Push works only for the app added to the Home Screen. */
+/**
+ * What this device can do: "yes" — Web Push works here; "homescreen" — an iPhone/iPad in a
+ * Safari tab: Safari hides push (and even `PushManager`) until moloko is added to the Home
+ * Screen and opened from there, so this is checked first; "no" — not supported.
+ */
+export function pushSupportState(): "yes" | "homescreen" | "no" {
+  if (needsHomeScreen()) return "homescreen";
+  return pushSupported() ? "yes" : "no";
+}
+
 export function needsHomeScreen(): boolean {
   if (typeof window === "undefined") return false;
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);

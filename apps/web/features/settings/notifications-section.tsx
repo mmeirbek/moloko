@@ -5,7 +5,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { disablePush, enablePush, needsHomeScreen, pushSupported, syncPush } from "@/lib/notifications/push";
+import { disablePush, enablePush, pushSupportState, syncPush } from "@/lib/notifications/push";
 import {
   DEFAULT_PREFS,
   prefsSnapshot,
@@ -16,7 +16,6 @@ import {
 
 const noop = () => () => {};
 const permissionNow = () => (typeof Notification === "undefined" ? "unsupported" : Notification.permission);
-const supportNow = () => (pushSupported() ? (needsHomeScreen() ? "homescreen" : "yes") : "no");
 
 export function NotificationsSection() {
   const t = useTranslations("notifications.settings");
@@ -25,7 +24,7 @@ export function NotificationsSection() {
   const [asked, setAsked] = useState<string | null>(null);
   const permission = asked ?? browserPermission;
   const locale = useLocale();
-  const pushSupport = useSyncExternalStore(noop, supportNow, () => "no");
+  const pushSupport = useSyncExternalStore(noop, pushSupportState, () => "no");
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(false);
   const update = (next: NotificationPrefs) => {
@@ -69,47 +68,60 @@ export function NotificationsSection() {
             {t(`kinds.${kind}`)}
           </label>
         ))}
-        <div className="flex flex-wrap items-center gap-2 border-t-2 pt-3">
-          {permission === "granted" ? (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={prefs.system}
-                onChange={(e) => update({ ...prefs, system: e.target.checked })}
-              />
-              {t("system")}
-            </label>
-          ) : permission === "unsupported" ? (
-            <p className="text-muted-foreground">{t("unsupported")}</p>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => void allowSystem()} disabled={permission === "denied"}>
-              {permission === "denied" ? t("blocked") : t("allow")}
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-col gap-1 border-t-2 pt-3" data-testid="push-settings">
-          {pushSupport === "yes" ? (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={prefs.push}
-                disabled={pushBusy || permission === "denied"}
-                onChange={(e) => void togglePush(e.target.checked)}
-              />
-              {t("push")}
-            </label>
-          ) : (
-            <p className="text-muted-foreground">
-              {pushSupport === "homescreen" ? t("pushHomeScreen") : t("pushUnsupported")}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">{t("pushNote")}</p>
-          {pushError && (
-            <p role="alert" className="text-xs text-destructive">
-              {t("pushError")}
-            </p>
-          )}
-        </div>
+        {pushSupport === "homescreen" ? (
+          // An iPhone in a Safari tab: nothing works until moloko is on the Home Screen.
+          <div className="flex flex-col gap-1.5 border-t-2 pt-3" data-testid="push-settings">
+            <p className="font-medium">{t("homeScreen.title")}</p>
+            <ol className="flex list-decimal flex-col gap-1 pl-5">
+              <li>{t("homeScreen.step1")}</li>
+              <li>{t("homeScreen.step2")}</li>
+              <li>{t("homeScreen.step3")}</li>
+            </ol>
+            <p className="text-xs text-muted-foreground">{t("pushNote")}</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2 border-t-2 pt-3">
+              {permission === "granted" ? (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={prefs.system}
+                    onChange={(e) => update({ ...prefs, system: e.target.checked })}
+                  />
+                  {t("system")}
+                </label>
+              ) : permission === "unsupported" ? (
+                <p className="text-muted-foreground">{t("unsupported")}</p>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => void allowSystem()} disabled={permission === "denied"}>
+                  {permission === "denied" ? t("blocked") : t("allow")}
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-col gap-1 border-t-2 pt-3" data-testid="push-settings">
+              {pushSupport === "yes" ? (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={prefs.push}
+                    disabled={pushBusy || permission === "denied"}
+                    onChange={(e) => void togglePush(e.target.checked)}
+                  />
+                  {t("push")}
+                </label>
+              ) : (
+                <p className="text-muted-foreground">{t("pushUnsupported")}</p>
+              )}
+              <p className="text-xs text-muted-foreground">{t("pushNote")}</p>
+              {pushError && (
+                <p role="alert" className="text-xs text-destructive">
+                  {t("pushError")}
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
