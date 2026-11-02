@@ -4,7 +4,9 @@ It runs as its own container with the Docker socket; the backend and worker neve
 the socket. It accepts one kind of request from the worker (token-protected): run this
 argv in that workspace. Everything else is fixed here, not by the caller:
 
-* image: ``SANDBOX_IMAGE``; no network (``NetworkMode: none``);
+* image: ``SANDBOX_IMAGE``; no network (``NetworkMode: none``) — or, when the caller asks
+  for ``network: "packages"``, the internal packages network whose only other member is
+  the ``egress-packages`` proxy (the npm / PyPI registries only, app/sandbox/egress.py);
 * non-root (uid 10001), read-only root filesystem, ``cap_drop: ALL``,
   ``no-new-privileges``, ``/tmp`` as a small tmpfs, pids / memory / CPU limits;
 * only the workspace is mounted (a named-volume subpath), never the Docker socket,
@@ -66,6 +68,10 @@ class RunnerSettings(BaseSettings):
     sandbox_browser_proxy: str = "http://egress:3128"
     sandbox_browser_memory_mb: int = Field(1024, ge=256, le=8192)
     sandbox_browser_timeout_seconds: int = Field(45, ge=5, le=300)
+    # Package downloads (terminal_run network "packages"): an internal network whose only
+    # exit is the allow-listing proxy `egress-packages` (registries only, HTTPS only).
+    sandbox_packages_network: str = "moloko_packages"
+    sandbox_packages_proxy: str = "http://egress-packages:3128"
 
 
 class RunRequest(BaseModel):
@@ -74,6 +80,7 @@ class RunRequest(BaseModel):
     workspace_id: uuid.UUID
     argv: list[Annotated[str, Field(max_length=8000)]] = Field(min_length=1, max_length=200)
     timeout_seconds: int = Field(ge=1, le=3600)
+    network: Literal["none", "packages"] = "none"
 
 
 # Where the browser may write inside the workspace (checked again here, not trusted).
@@ -177,8 +184,41 @@ class RunResponse(BaseModel):
     duration_ms: int
 
 
+# The same for every command: caches and per-user installs live in the workspace (they
+# survive the container; /tmp is small), no update checks or telemetry, and an identity for
+# local commits (``git commit`` in the workspace — publishing goes through github_* tools).
+COMMAND_ENV = (
+    "HOME=/tmp",
+    "LANG=C.UTF-8",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "PIP_NO_CACHE_DIR=1",
+    "PIP_DISABLE_PIP_VERSION_CHECK=1",
+    "PYTHONUSERBASE=/workspace/.cache/python",
+    "npm_config_cache=/workspace/.cache/npm",
+    "npm_config_update_notifier=false",
+    "npm_config_fund=false",
+    "npm_config_audit=false",
+    "NEXT_TELEMETRY_DISABLED=1",
+    "GIT_AUTHOR_NAME=moloko agent",
+    "GIT_AUTHOR_EMAIL=agent@moloko.invalid",
+    "GIT_COMMITTER_NAME=moloko agent",
+    "GIT_COMMITTER_EMAIL=agent@moloko.invalid",
+)
+PROXY_VARS = (
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "npm_config_proxy",
+    "npm_config_https_proxy",
+)
+
+
 def container_spec(
-    settings: RunnerSettings, workspace_id: uuid.UUID, argv: list[str]
+    settings: RunnerSettings,
+    workspace_id: uuid.UUID,
+    argv: list[str],
+    network: Literal["none", "packages"] = "none",
 ) -> dict[str, Any]:
     if settings.sandbox_workspaces_host_path:
         mount: dict[str, Any] = {
@@ -197,13 +237,13 @@ def container_spec(
             "VolumeOptions": {"Subpath": str(workspace_id), "NoCopy": True},
         }
     memory = settings.sandbox_memory_mb * 1024 * 1024
-    return {
+    spec: dict[str, Any] = {
         "Image": settings.sandbox_image,
         "Cmd": argv,
         "Entrypoint": [],
         "WorkingDir": "/workspace",
         "User": SANDBOX_UID,
-        "Env": ["HOME=/tmp", "PYTHONDONTWRITEBYTECODE=1", "PIP_NO_CACHE_DIR=1", "LANG=C.UTF-8"],
+        "Env": list(COMMAND_ENV),
         "NetworkDisabled": True,
         "AttachStdout": True,
         "AttachStderr": True,
@@ -226,6 +266,12 @@ def container_spec(
             "LogConfig": {"Type": "json-file", "Config": {"max-size": "1m"}},
         },
     }
+    if network == "packages":  # its only way out: the registries-only proxy
+        spec["NetworkDisabled"] = False
+        spec["HostConfig"]["NetworkMode"] = settings.sandbox_packages_network
+        spec["Env"] += [f"{name}={settings.sandbox_packages_proxy}" for name in PROXY_VARS]
+        spec["Labels"][f"{LABEL}.network"] = "packages"
+    return spec
 
 
 class Runner:
@@ -255,7 +301,7 @@ class Runner:
             await self._ensure_image()
             name = f"moloko-sbx-{str(req.workspace_id)[:8]}-{secrets.token_hex(4)}"
             cid = await self.docker.create(
-                name, container_spec(self.settings, req.workspace_id, req.argv)
+                name, container_spec(self.settings, req.workspace_id, req.argv, req.network)
             )
             started = time.monotonic()
             timed_out = False
@@ -362,6 +408,7 @@ def create_runner_app(
                 "timeout_seconds": settings.sandbox_timeout_seconds,
             },
             "network": "none",
+            "packages_network": settings.sandbox_packages_network,
         }
 
     @app.post("/v1/run", response_model=RunResponse, dependencies=[Depends(require_token)])

@@ -6,7 +6,9 @@ What "that kind" is depends on the tool:
 
 * ``terminal_run`` — the programs the command runs (``python3``, ``npm``, ``git``…). A later
   command is covered only if EVERY program in it is allowed; command substitution
-  (``$(…)``, backticks) and anything that cannot be parsed always ask again;
+  (``$(…)``, backticks) and anything that cannot be parsed always ask again. With package
+  downloads (``network: "packages"``) the scope is ``packages:<program>``: it also covers
+  that program without network, but an offline approval never covers downloads;
 * GitHub tools — the repository; ``browser_screenshot`` — the site; ``agent_ask`` /
   ``agent_tell`` — the colleague;
 * everything else — the tool itself (e.g. writing files in the agent's own workspace).
@@ -28,6 +30,9 @@ from urllib.parse import urlsplit
 from app.models.agent import Agent
 
 MAX_RULES = 200
+# terminal_run with network "packages": its scopes are "packages:<program>" (":" never
+# occurs in a program name), so allowing `npm` offline does not allow downloads.
+PACKAGES = "packages:"
 _PROGRAM = re.compile(r"^[A-Za-z0-9_.+-]{1,64}$")
 _OPERATOR = re.compile(r"^[;&|\n]+$")
 
@@ -63,7 +68,10 @@ def scopes(tool: str, args: dict[str, Any]) -> list[str] | None:
     None when it cannot be offered."""
     if tool == "terminal_run":
         found = programs(str(args.get("command", "")))
-        return list(dict.fromkeys(found)) if found else None
+        if not found:
+            return None
+        prefix = PACKAGES if args.get("network") == "packages" else ""
+        return list(dict.fromkeys(prefix + p for p in found))
     if tool.startswith("github_"):
         repo = str(args.get("repo", "")).strip().casefold()
         return [repo] if repo else None
@@ -92,9 +100,16 @@ def covering(agent: Agent, tool: str, args: dict[str, Any]) -> dict[str, Any] | 
     if not needed or needed == [""]:
         return None
     allowed = {str(r.get("scope", "")): r for r in own}
-    if all(s in allowed for s in needed):
-        return allowed[needed[0]]
-    return None
+
+    def rule_for(scope: str) -> dict[str, Any] | None:
+        # "npm with package downloads" also covers npm without network, never the reverse
+        found = allowed.get(scope)
+        if found is None and tool == "terminal_run" and not scope.startswith(PACKAGES):
+            found = allowed.get(PACKAGES + scope)
+        return found
+
+    found = [rule_for(s) for s in needed]
+    return found[0] if all(found) else None
 
 
 def add(

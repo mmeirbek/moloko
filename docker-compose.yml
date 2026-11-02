@@ -60,6 +60,8 @@ x-backend-env: &backend-env
   SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-}
   SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-600}
   SANDBOX_DEFAULT_TIMEOUT_SECONDS: ${SANDBOX_DEFAULT_TIMEOUT_SECONDS:-120}
+  # terminal_run with network "packages" reaches only these hosts (egress-packages gets the same list)
+  SANDBOX_PACKAGE_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org}
   SEARXNG_URL: ${SEARXNG_URL:-}
   WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-0}
   MEMORY_CONTEXT_MAX_CHARS: ${MEMORY_CONTEXT_MAX_CHARS:-8000}
@@ -243,6 +245,10 @@ services:
       SANDBOX_BROWSER_IMAGE: moloko-browser:local
       SANDBOX_BROWSER_NETWORK: ${BROWSER_NETWORK:-moloko_browser}
       SANDBOX_BROWSER_PROXY: http://egress:3128
+      # Package downloads (terminal_run network "packages"): their own internal network,
+      # whose only way out is egress-packages (the registries only).
+      SANDBOX_PACKAGES_NETWORK: ${PACKAGES_NETWORK:-moloko_packages}
+      SANDBOX_PACKAGES_PROXY: http://egress-packages:3128
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks: [internal]
@@ -272,6 +278,32 @@ services:
       EGRESS_PORT: "3128"
       EGRESS_MAX_BYTES: ${EGRESS_MAX_BYTES:-30000000}
     networks: [browser, edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+  # The only way out for agents' package downloads (terminal_run with network "packages"):
+  # HTTPS to SANDBOX_PACKAGE_HOSTS only (the TLS name must match), public addresses only
+  # (app/sandbox/egress.py). Its own internal network holds just this proxy and the sandbox
+  # containers that asked for packages. A larger per-connection limit: npm keeps
+  # connections open for many packages, and one package can be tens of MB.
+  egress-packages:
+    image: moloko-backend:local
+    entrypoint: []
+    command: ["python", "-m", "app.sandbox.egress"]
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    cap_drop: [ALL]
+    environment:
+      EGRESS_PORT: "3128"
+      EGRESS_ALLOWED_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org}
+      EGRESS_ALLOWED_PORTS: "443"
+      EGRESS_MAX_BYTES: ${PACKAGES_EGRESS_MAX_BYTES:-500000000}
+    networks: [packages, edge]
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 3).close()"]
       interval: 30s
@@ -477,6 +509,9 @@ networks:
   browser:
     internal: true  # no route out except through the egress proxy
     name: ${BROWSER_NETWORK:-moloko_browser}
+  packages:
+    internal: true  # no route out except through egress-packages (package registries only)
+    name: ${PACKAGES_NETWORK:-moloko_packages}
   offsite: {}  # the backup service's way out (off-site copies); no other service is on it
   stt-download: {}  # only stt-models: fetches the speech model, nothing else lives here
 

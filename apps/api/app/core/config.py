@@ -300,6 +300,11 @@ class Settings(BaseSettings):
             "npx",
         ]
     )
+    # `terminal_run` with network "packages" may reach only these hosts (HTTPS, through the
+    # `egress-packages` proxy, which gets the same list; public addresses only).
+    sandbox_package_hosts: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["registry.npmjs.org", "pypi.org", "files.pythonhosted.org"]
+    )
     # Runner side: how sandbox containers get the workspace (a named volume in compose,
     # or a host directory for development).
     sandbox_workspaces_volume: str | None = "moloko_workspaces"
@@ -384,6 +389,7 @@ class Settings(BaseSettings):
     @field_validator(
         "cors_allowed_origins",
         "sandbox_allowed_commands",
+        "sandbox_package_hosts",
         "workspace_untracked_dirs",
         "web_fetch_allowed_ports",
         "push_allowed_hosts",

@@ -42,11 +42,18 @@ class FakeSandbox:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.calls: list[list[str]] = []
+        self.networks: list[str] = []
 
     async def run(
-        self, workspace_id: uuid.UUID, argv: list[str], *, timeout_seconds: int
+        self,
+        workspace_id: uuid.UUID,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",
     ) -> SandboxResult:
         self.calls.append(argv)
+        self.networks.append(network)
         (self.root / str(workspace_id) / "out.txt").write_text("result")
         return SandboxResult(exit_code=0, stdout="hello\n", stderr="")
 

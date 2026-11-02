@@ -40,6 +40,7 @@ This file tracks what is implemented and what is still open.
 - Approvals bind to one operation (tool + hash of exact args), expire, are single-use, and are re-checked together with the policy right before execution.
 - Workspaces: relative paths only, no `..`, no symlinks on the path; file deletes and overwrites need approval.
 - Sandbox: only the runner service holds the Docker socket; sandbox containers have no network, no root, no capabilities, a read-only root filesystem, CPU/RAM/pids/time limits, no Docker socket, no host environment, only their workspace. The runner accepts a single token-protected request type and has no app secrets.
+- Package downloads (`terminal_run` with `network: "packages"`, 2026-11-02): **sensitive** (approval; never at the restricted level). The container joins the internal network `PACKAGES_NETWORK`; its only other member is `egress-packages`. That proxy allows only HTTPS `CONNECT` to `SANDBOX_PACKAGE_HOSTS` (npm + PyPI by default) at public addresses on port 443, and the TLS ClientHello must name the same host, so another site behind the registry's CDN address is cut off. There is no DNS on that network (checked: `getaddrinfo` fails), and a direct connection is unreachable. Nothing else about the container changes, and no token or secret ever enters it (GitHub goes through the server's `github_*` tools). It logs hosts and byte counts only. Residual risk: a malicious package runs its install script in the sandbox and can read the workspace. It can only talk to the registries, but a client that hides the real site inside TLS (Encrypted Client Hello, or a different `Host` inside the tunnel on a CDN that still allows domain fronting) is not visible to the proxy. That is why every such call needs the owner's approval.
 - `web_fetch`: SSRF guard (public addresses only, pinned connection, per-hop redirect checks, port and size limits).
 - GitHub token and MCP tokens are encrypted at rest and never returned to the browser; GitHub API host pinned.
 - MCP tools start disabled; MCP and every other tool output is fenced as untrusted data.
@@ -80,7 +81,7 @@ Residual risks (accepted, documented): the sandbox runner holds the Docker socke
 | UI for viewing the audit log | ✅ Sprint 7 (Settings → Audit log) |
 | Expired-session cleanup job | Sprint 3 (worker) |
 | Redis password | Not needed for sandbox containers (they have no network); revisit if anything new joins the internal network |
-| Sandbox network egress (e.g. for `pip install`) | Later, only through an allow-listing proxy |
+| Sandbox network egress (e.g. for `pip install`) | ✅ 2026-11-02: opt-in per command (`network: "packages"`, sensitive), only through the allow-listing proxy `egress-packages` (registries only, TLS name checked) |
 | Automated backups off the primary disk | ✅ Sprint 8 (BACKUP_DIR must be set to another disk by the owner) |
 | Web Push for notifications with the app closed | ✅ after Sprint 8 (owner approved; encrypted, allow-listed push hosts) |
 | Agents' browser | Sensitive tool (approval); own container on an internal network; the egress proxy allows only public addresses on 80/443; no host secrets; screenshot in the workspace, page text fenced as untrusted |

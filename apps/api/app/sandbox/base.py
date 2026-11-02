@@ -29,7 +29,12 @@ class SandboxUnavailable(Exception):
 
 class Sandbox(Protocol):
     async def run(
-        self, workspace_id: uuid.UUID, argv: list[str], *, timeout_seconds: int
+        self,
+        workspace_id: uuid.UUID,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",  # "packages": package registries only (through a proxy)
     ) -> SandboxResult: ...
 
     async def health(self) -> dict[str, object]: ...

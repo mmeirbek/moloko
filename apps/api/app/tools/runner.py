@@ -339,7 +339,7 @@ class ToolRunner:
     async def _request_approval(
         self, row: ToolCall, entry: CatalogEntry, args: dict[str, Any], decision: Decision
     ) -> None:
-        info = entry.tool.describe(args)
+        info = entry.tool.describe_for(self.ctx.settings, args)
         now = datetime.now(UTC)
         async with self.ctx.sessionmaker() as db:
             approval = Approval(

@@ -111,6 +111,11 @@ class BaseTool(ABC):
     def describe(self, args: dict[str, Any]) -> OperationInfo:
         return OperationInfo(summary=f"{self.title}: {json.dumps(args, ensure_ascii=False)[:300]}")
 
+    def describe_for(self, settings: Settings, args: dict[str, Any]) -> OperationInfo:
+        """``describe`` for an approval request, where texts may name configured values
+        (allowed hosts, limits). Defaults to ``describe``."""
+        return self.describe(args)
+
     @abstractmethod
     async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolOutput: ...
 

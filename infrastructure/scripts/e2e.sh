@@ -32,6 +32,7 @@ ENABLE_MOCK_PROVIDER=true
 WORKSPACES_VOLUME=moloko_e2e_workspaces
 FILES_VOLUME=moloko_e2e_files
 BROWSER_NETWORK=moloko_e2e_browser
+PACKAGES_NETWORK=moloko_e2e_packages
 STT_URL=$([[ "${E2E_STT:-0}" == "1" ]] && echo "http://stt:8000")
 STT_MODEL=${STT_MODEL:-large-v3-turbo}
 BACKUP_DIR=$WORK/backups

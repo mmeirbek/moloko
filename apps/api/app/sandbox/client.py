@@ -30,18 +30,23 @@ class RunnerSandbox:
         )
 
     async def run(
-        self, workspace_id: uuid.UUID, argv: list[str], *, timeout_seconds: int
+        self,
+        workspace_id: uuid.UUID,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",
     ) -> SandboxResult:
+        body: dict[str, object] = {
+            "workspace_id": str(workspace_id),
+            "argv": argv,
+            "timeout_seconds": timeout_seconds,
+        }
+        if network != "none":
+            body["network"] = network
         try:
             async with self._client(timeout_seconds + 30) as client:
-                resp = await client.post(
-                    "/v1/run",
-                    json={
-                        "workspace_id": str(workspace_id),
-                        "argv": argv,
-                        "timeout_seconds": timeout_seconds,
-                    },
-                )
+                resp = await client.post("/v1/run", json=body)
         except httpx2.HTTPError as exc:
             raise SandboxUnavailable("The sandbox service cannot be reached.") from exc
         if resp.status_code == 503:

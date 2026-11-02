@@ -180,7 +180,12 @@ class FakeBrowserSandbox:
         self.requests: list[dict[str, Any]] = []
 
     async def run(
-        self, workspace_id: uuid.UUID, argv: list[str], *, timeout_seconds: int
+        self,
+        workspace_id: uuid.UUID,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",
     ) -> SandboxResult:
         raise AssertionError("not used")
 
