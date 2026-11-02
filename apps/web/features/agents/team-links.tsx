@@ -42,10 +42,10 @@ export function TeamLine({ task, className }: { task: TaskLike; className?: stri
       <Network className="size-3 shrink-0 text-sky" aria-hidden />
       {waiting && (
         <>
-          <span>{t("waitingFor")}</span>
+          <span>{t("waitingFor")}</span>{" "}
           <Link href={`/office/agents/${waiting.agentId}`} className="underline-offset-2 hover:underline">
             {waiting.agentName}
-          </Link>
+          </Link>{" "}
           {waiting.taskId && (
             <Link href={`/tasks/${waiting.taskId}`} className="text-sky underline-offset-2 hover:underline">
               {t("openRequest")}
@@ -55,10 +55,10 @@ export function TeamLine({ task, className }: { task: TaskLike; className?: stri
       )}
       {asker && (
         <>
-          <span>{t("askedBy")}</span>
+          <span>{t("askedBy")}</span>{" "}
           <Link href={`/office/agents/${asker.agentId}`} className="underline-offset-2 hover:underline">
             {asker.agentName}
-          </Link>
+          </Link>{" "}
           {asker.taskId && (
             <Link href={`/tasks/${asker.taskId}`} className="text-sky underline-offset-2 hover:underline">
               {t("openAskerTask")}

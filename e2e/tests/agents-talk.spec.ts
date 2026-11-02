@@ -40,7 +40,9 @@ test("agents talk directly: A asks B without the Orchestrator, waits, and finish
 
   // The consult task says who asked.
   await box.locator("[data-message-type=request]").getByRole("link", { name: "Задача по вопросу" }).click();
-  await expect(page.getByTestId("team-line")).toContainText(`Спросил агент ${asker.name}`);
+  const line = page.getByTestId("team-line");
+  await expect(line).toContainText("Спросил агент");
+  await expect(line.getByRole("link", { name: asker.name })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
