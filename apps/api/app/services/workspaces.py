@@ -12,9 +12,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import ClassVar
 
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.agents.state import TERMINAL_TASK
 from app.core.config import Settings
@@ -43,6 +44,16 @@ async def root_task(db: AsyncSession, task: Task) -> Task:
     return current
 
 
+def workspace_owner_id(root: Task) -> uuid.UUID:
+    """The task whose workspace a root task works in: itself, or — for an attempt that
+    continues a stopped task — the first attempt (its files are part of where it stopped)."""
+    owner = (root.extra or {}).get("workspace_task_id")
+    try:
+        return uuid.UUID(str(owner)) if owner else root.id
+    except ValueError:
+        return root.id
+
+
 async def workspace_for_task(db: AsyncSession, settings: Settings, task_id: uuid.UUID) -> Workspace:
     """The workspace of a task: the root task's agent's project workspace, or one
     workspace per root task (shared by its subagents). Created on first use."""
@@ -56,13 +67,14 @@ async def workspace_for_task(db: AsyncSession, settings: Settings, task_id: uuid
         if ws is not None:
             workspace_dir(settings, ws.id).mkdir(parents=True, exist_ok=True)
             return ws
+    owner_id = workspace_owner_id(root)
     ws = (
         await db.execute(
-            select(Workspace).where(Workspace.kind == "task", Workspace.task_id == root.id)
+            select(Workspace).where(Workspace.kind == "task", Workspace.task_id == owner_id)
         )
     ).scalar_one_or_none()
     if ws is None:
-        ws = Workspace(user_id=root.user_id, name=root.title[:100], kind="task", task_id=root.id)
+        ws = Workspace(user_id=root.user_id, name=root.title[:100], kind="task", task_id=owner_id)
         db.add(ws)
         await db.flush()
     workspace_dir(settings, ws.id).mkdir(parents=True, exist_ok=True)
@@ -199,6 +211,17 @@ async def clean_task_workspaces(db: AsyncSession, settings: Settings) -> int:
     if settings.workspace_task_ttl_days <= 0:
         return 0
     cutoff = datetime.now(UTC) - timedelta(days=settings.workspace_task_ttl_days)
+    # An attempt that continues the task still works in its folder (or finished recently).
+    later = aliased(Task)
+    continuing = (
+        select(later.id)
+        .where(
+            later.user_id == Workspace.user_id,
+            later.extra["workspace_task_id"].astext == cast(Workspace.task_id, String),
+            or_(later.status.not_in([s.value for s in TERMINAL_TASK]), later.updated_at >= cutoff),
+        )
+        .exists()
+    )
     rows = (
         await db.execute(
             select(Workspace, Task)
@@ -208,6 +231,7 @@ async def clean_task_workspaces(db: AsyncSession, settings: Settings) -> int:
                 Workspace.cleaned_at.is_(None),
                 Task.status.in_([s.value for s in TERMINAL_TASK]),
                 Task.updated_at < cutoff,
+                ~continuing,
             )
             .limit(100)
         )
@@ -281,7 +305,9 @@ class WorkspaceService:
             return await self.db.get(Workspace, agent.workspace_id)
         return (
             await self.db.execute(
-                select(Workspace).where(Workspace.kind == "task", Workspace.task_id == root.id)
+                select(Workspace).where(
+                    Workspace.kind == "task", Workspace.task_id == workspace_owner_id(root)
+                )
             )
         ).scalar_one_or_none()
 

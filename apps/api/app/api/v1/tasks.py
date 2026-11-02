@@ -10,10 +10,12 @@ from app.schemas.common import Page
 from app.schemas.tasks import (
     EventOut,
     RunOut,
+    TaskContinue,
     TaskCreate,
     TaskDetail,
     TaskFilter,
     TaskOut,
+    TaskOwnerMessage,
     TaskUpdate,
 )
 from app.services.idempotency import idempotent
@@ -131,6 +133,50 @@ async def retry_task(
         body={},
         model=TaskOut,
         action=action,
+    )
+
+
+@router.post(
+    "/{task_id}/continue",
+    response_model=TaskOut,
+    summary="Continue a stopped task from where it stopped (a new attempt)",
+)
+async def continue_task(
+    task_id: uuid.UUID,
+    body: TaskContinue,
+    ctx: CurrentAuth,
+    db: DbSession,
+    queue: QueueDep,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> TaskOut:
+    async def action() -> TaskOut:
+        return TaskOut.model_validate(
+            await TaskService(db, queue).continue_from_stop(
+                ctx.user.id, task_id, (body.instruction or "").strip() or None
+            )
+        )
+
+    return await idempotent(
+        db,
+        user_id=ctx.user.id,
+        scope=f"POST /tasks/{task_id}/continue",
+        key=idempotency_key,
+        body=body.model_dump(mode="json"),
+        model=TaskOut,
+        action=action,
+    )
+
+
+@router.post(
+    "/{task_id}/message",
+    response_model=TaskOut,
+    summary="Write to the agent while it works (read before its next step)",
+)
+async def message_task_agent(
+    task_id: uuid.UUID, body: TaskOwnerMessage, ctx: CurrentAuth, db: DbSession, queue: QueueDep
+) -> TaskOut:
+    return TaskOut.model_validate(
+        await TaskService(db, queue).message_agent(ctx.user.id, task_id, body.text.strip())
     )
 
 

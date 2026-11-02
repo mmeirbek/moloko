@@ -6210,6 +6210,26 @@
         "title": "SystemState",
         "type": "object"
       },
+      "TaskContinue": {
+        "additionalProperties": false,
+        "description": "Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).",
+        "properties": {
+          "instruction": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction"
+          }
+        },
+        "title": "TaskContinue",
+        "type": "object"
+      },
       "TaskCreate": {
         "additionalProperties": false,
         "properties": {
@@ -6539,6 +6559,23 @@
           "completed_at"
         ],
         "title": "TaskOut",
+        "type": "object"
+      },
+      "TaskOwnerMessage": {
+        "additionalProperties": false,
+        "description": "A message from the owner to the agent while it works (POST /tasks/{id}/message).",
+        "properties": {
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TaskOwnerMessage",
         "type": "object"
       },
       "TaskUpdate": {
@@ -12060,6 +12097,75 @@
         ]
       }
     },
+    "/api/v1/tasks/{task_id}/continue": {
+      "post": {
+        "operationId": "continue_task_api_v1_tasks__task_id__continue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskContinue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue a stopped task from where it stopped (a new attempt)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/tasks/{task_id}/events": {
       "get": {
         "operationId": "task_events_api_v1_tasks__task_id__events_get",
@@ -12192,6 +12298,59 @@
           }
         },
         "summary": "Print the task's result to PDF (sandbox browser, no network)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/message": {
+      "post": {
+        "operationId": "message_task_agent_api_v1_tasks__task_id__message_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskOwnerMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write to the agent while it works (read before its next step)",
         "tags": [
           "tasks"
         ]

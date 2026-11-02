@@ -155,6 +155,61 @@ def system_prompt(agent: Agent, extra: str = "", memory: str = "", address: str 
     return "\n\n".join(p for p in parts if p)
 
 
+def owner_note(texts: list[str]) -> str:
+    """Messages the owner wrote while the agent worked. They come from the owner through the
+    authenticated API, so they are instructions (unlike tool, web or colleague text)."""
+    body = "\n\n---\n\n".join(t.strip() for t in texts if t.strip())
+    return (
+        "Message from the owner, written while you were working on this task. Take it into "
+        f"account from now on (it changes or adds to the task):\n\n{body}"
+    )
+
+
+def continuation_note(
+    status: str, error_code: str | None, error_message: str | None, instruction: str | None
+) -> str:
+    """Our own runtime notice at the start of a continued attempt (not data)."""
+    if status == TaskStatus.CANCELLED.value:
+        why = "it was cancelled"
+    else:
+        detail = (error_message or "").strip()[:300]
+        why = f"it failed ({error_code or 'error'}{': ' + detail if detail else ''})"
+    note = (
+        f"This task was stopped before it was finished: {why}. The owner asked you to continue "
+        "from where you stopped. Everything above is your earlier work on it, and the files "
+        "you wrote are still in the workspace. Check what is already done, do not redo "
+        "finished steps, and finish the task."
+    )
+    if instruction and instruction.strip():
+        note += f"\n\nThe owner's instruction for this attempt:\n{instruction.strip()}"
+    return note
+
+
+def continuation_messages(
+    raw: list[dict[str, Any]],
+    status: str,
+    error_code: str | None,
+    error_message: str | None,
+    instruction: str | None,
+    unread: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """The transcript a continued attempt starts from: the old one, minus a last reply that
+    was empty or whose tool calls never got results (the agent decides again), plus a note
+    on why it stopped, the owner's instruction and the owner's messages it never read."""
+    transcript = load_messages(raw)
+    while (
+        transcript
+        and transcript[-1].role == "assistant"
+        and (transcript[-1].tool_calls or not transcript[-1].content.strip())
+    ):
+        transcript.pop()
+    note = continuation_note(status, error_code, error_message, instruction)
+    if unread:
+        note += "\n\n" + owner_note(unread)
+    transcript.append(ChatMessage(role="user", content=note))
+    return dump_messages(transcript)
+
+
 def pending_tool_calls(transcript: list[ChatMessage]) -> tuple[ToolCall, ...]:
     """Tool calls of the last assistant message that have no results yet."""
     if transcript and transcript[-1].role == "assistant" and transcript[-1].tool_calls:
@@ -349,6 +404,9 @@ class NativeRuntime:
                 )
             await self._ensure_working(ctx)
             await self._budget_gate(ctx)
+            await self._take_owner_messages(
+                ctx, transcript, elapsed + time.monotonic() - segment_started
+            )
             request = ChatRequest(
                 model=target.model,
                 messages=tuple(transcript),
@@ -403,6 +461,37 @@ class NativeRuntime:
                 "messages": dump_messages(transcript),
                 "elapsed_seconds": elapsed,
             }
+            await bus.commit(db)
+
+    async def _take_owner_messages(
+        self, ctx: RunContext, transcript: list[ChatMessage], elapsed: float
+    ) -> None:
+        """Messages the owner wrote while the agent worked join the conversation before the
+        next model call — in the same transaction that saves it, so a restart neither loses
+        nor repeats them."""
+        async with ctx.sessionmaker() as db:
+            run = await lock_run(db, ctx.run_id)
+            inbox = list(run.state.get("owner_inbox") or [])
+            if not inbox:
+                return
+            transcript.append(
+                ChatMessage(role="user", content=owner_note([str(m["text"]) for m in inbox]))
+            )
+            run.state = {
+                **run.state,
+                "owner_inbox": [],
+                "messages": dump_messages(transcript),
+                "elapsed_seconds": elapsed,
+            }
+            await bus.emit(
+                db,
+                user_id=ctx.user_id,
+                type="task.owner_message_read",
+                agent_id=ctx.agent_id,
+                task_id=ctx.task_id,
+                run_id=ctx.run_id,
+                payload={"count": len(inbox)},
+            )
             await bus.commit(db)
 
     async def _ensure_working(self, ctx: RunContext) -> None:

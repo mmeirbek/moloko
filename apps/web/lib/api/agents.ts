@@ -119,6 +119,12 @@ export const taskEvents = (id: string, signal?: AbortSignal) =>
 export const createTask = (body: TaskCreate) => api.request<TaskOut>("/tasks", { method: "POST", body });
 export const cancelTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/cancel`, { method: "POST" });
 export const retryTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/retry`, { method: "POST" });
+/** A new attempt that starts from where the stopped task stopped (optional instruction from the owner). */
+export const continueTask = (id: string, instruction?: string) =>
+  api.request<TaskOut>(`/tasks/${id}/continue`, { method: "POST", body: { instruction: instruction || null } });
+/** Write to the agent while it works: it reads the message before its next step. */
+export const messageTaskAgent = (id: string, text: string) =>
+  api.request<TaskOut>(`/tasks/${id}/message`, { method: "POST", body: { text } });
 
 export const systemLimits = (signal?: AbortSignal) => api.request<SystemLimits>("/system/limits", { signal });
 export const systemStorage = (signal?: AbortSignal) => api.request<StorageStatus>("/system/storage", { signal });

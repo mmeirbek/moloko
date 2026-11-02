@@ -1495,6 +1495,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Continue a stopped task from where it stopped (a new attempt) */
+        post: operations["continue_task_api_v1_tasks__task_id__continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{task_id}/events": {
         parameters: {
             query?: never;
@@ -1540,6 +1557,23 @@ export interface paths {
         put?: never;
         /** Print the task's result to PDF (sandbox browser, no network) */
         post: operations["export_pdf_api_v1_tasks__task_id__export_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Write to the agent while it works (read before its next step) */
+        post: operations["message_task_agent_api_v1_tasks__task_id__message_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3815,6 +3849,14 @@ export interface components {
             /** Engine Stopped */
             engine_stopped: boolean;
         };
+        /**
+         * TaskContinue
+         * @description Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).
+         */
+        TaskContinue: {
+            /** Instruction */
+            instruction?: string | null;
+        };
         /** TaskCreate */
         TaskCreate: {
             /** Agent Id */
@@ -3911,6 +3953,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * TaskOwnerMessage
+         * @description A message from the owner to the agent while it works (POST /tasks/{id}/message).
+         */
+        TaskOwnerMessage: {
+            /** Text */
+            text: string;
         };
         /** TaskUpdate */
         TaskUpdate: {
@@ -7462,6 +7512,43 @@ export interface operations {
             };
         };
     };
+    continue_task_api_v1_tasks__task_id__continue_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskContinue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     task_events_api_v1_tasks__task_id__events_get: {
         parameters: {
             query?: {
@@ -7544,6 +7631,41 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    message_task_agent_api_v1_tasks__task_id__message_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskOwnerMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
                 };
             };
             /** @description Validation Error */

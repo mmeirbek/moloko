@@ -4,9 +4,8 @@ import type { EventOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
-import { ArrowLeft, CalendarDays, RotateCcw, Square } from "@/components/icons";
+import { ArrowLeft, CalendarDays, Square } from "@/components/icons";
 import { TaskToolActivity } from "@/features/tasks/tool-calls";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
@@ -14,14 +13,13 @@ import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ExportMenu } from "@/features/tasks/export-menu";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
-import { cancelTask, getTask, retryTask, taskEvents, taskKeys } from "@/lib/api/agents";
+import { cancelTask, getTask, taskEvents, taskKeys } from "@/lib/api/agents";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 import { useDocumentTitle } from "@/lib/hooks";
 import { TeamLine } from "@/features/agents/team-links";
 import { useTaskError } from "@/features/tasks/task-error";
-
-const ACTIVE = new Set(["created", "queued", "running", "waiting", "waiting_approval"]);
+import { ACTIVE_TASK, ContinueTask, MessageAgent } from "@/features/tasks/task-control";
 
 function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, ts: (status: string) => string): string {
   const p = e.payload as Record<string, unknown>;
@@ -57,6 +55,10 @@ function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, t
       return t("ev.approvalResolved", {
         status: String((p.approval as { status?: string } | undefined)?.status ?? ""),
       });
+    case "task.owner_message":
+      return t("ev.ownerMessage", { text: String(p.text ?? "") });
+    case "task.owner_message_read":
+      return t("ev.ownerMessageRead");
     case "schedule.fired":
       return p.trigger === "run_now" ? t("ev.scheduledNow") : t("ev.scheduled");
     default:
@@ -75,7 +77,6 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
     return tStatus.has(key) ? tStatus(key).toLowerCase() : status;
   };
   const format = useFormatter();
-  const router = useRouter();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const detail = useQuery({ queryKey: taskKeys.detail(taskId), queryFn: ({ signal }) => getTask(taskId, signal) });
@@ -88,14 +89,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: taskKeys.all });
   const cancel = useMutation({ mutationFn: () => cancelTask(taskId), onSuccess: invalidate });
-  const retry = useMutation({
-    mutationFn: () => retryTask(taskId),
-    onSuccess: (created) => {
-      invalidate();
-      router.push(`/tasks/${created.id}`);
-    },
-  });
-  const error = cancel.error ?? retry.error;
+  const continuedFrom = typeof task?.extra?.continued_from === "string" ? task.extra.continued_from : null;
 
   if (!task) return detail.isError ? <ErrorState error={detail.error} onRetry={() => detail.refetch()} /> : <LoadingState />;
   const run = detail.data?.run;
@@ -127,25 +121,29 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             <CalendarDays className="size-3" aria-hidden /> {tSchedules("fromSchedule")}
           </Link>
         )}
+        {continuedFrom && (
+          <Link href={`/tasks/${continuedFrom}`} className="self-start text-sm underline underline-offset-2">
+            {t("control.continuedFrom")}
+          </Link>
+        )}
         <TeamLine task={task} />
         {task.description && <p className="text-sm whitespace-pre-wrap">{task.description}</p>}
-        <div className="flex gap-2">
-          {ACTIVE.has(task.status) && (
+        {ACTIVE_TASK.has(task.status) && (
+          <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
               <Square /> {t("cancel")}
             </Button>
-          )}
-          {(task.status === "failed" || task.status === "cancelled") && !task.parent_task_id && (
-            <Button size="sm" onClick={() => retry.mutate()} disabled={retry.isPending}>
-              <RotateCcw /> {t("retry")}
-            </Button>
-          )}
-        </div>
-        {error && (
+          </div>
+        )}
+        {cancel.error && (
           <p role="alert" className="text-sm text-destructive">
-            {toMessage(error).message}
+            {toMessage(cancel.error).message}
           </p>
         )}
+        <div className="max-w-xl">
+          <MessageAgent task={task} />
+          <ContinueTask task={task} />
+        </div>
       </div>
 
       {task.status === "running" && lastMessage?.text && (

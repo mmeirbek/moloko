@@ -462,7 +462,9 @@
       "approvalRequired": "Approval needed: {tool}",
       "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}",
       "scheduled": "Started by its schedule",
-      "scheduledNow": "Started by hand from its schedule"
+      "scheduledNow": "Started by hand from its schedule",
+      "ownerMessage": "You wrote to the agent: “{text}”",
+      "ownerMessageRead": "The agent read your message"
     },
     "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
     "emptyFiltered": "Nothing found. Try another filter or search.",
@@ -479,6 +481,20 @@
       "budget_exceeded": "The monthly spending limit was reached.",
       "agent_budget_exceeded": "The agent used up its monthly budget.",
       "interrupted": "The task was interrupted by a server restart."
+    },
+    "control": {
+      "messageLabel": "Write to the agent — it reads this before its next step",
+      "messagePlaceholder": "E.g. do it in English, check the tests first…",
+      "send": "Send",
+      "messageSent": "Sent — the agent reads it before its next step",
+      "continue": "Continue from where it stopped",
+      "addInstruction": "+ Instruction",
+      "instructionLabel": "What to do differently (optional)",
+      "instructionPlaceholder": "E.g. write the file in parts, leave the tests alone…",
+      "startOver": "Start over",
+      "continueHint": "“Continue” — the agent keeps everything it already did and skips finished steps. “Start over” — from scratch.",
+      "lastStopped": "The last task stopped:",
+      "continuedFrom": "Continues a stopped task →"
     }
   },
   "agents": {

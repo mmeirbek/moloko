@@ -22,6 +22,7 @@ import { api } from "@/lib/api/client";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 import { TeamLine } from "@/features/agents/team-links";
+import { AgentTaskControl } from "@/features/tasks/task-control";
 
 const recentEvents = (agentId: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/events?agent_id=${agentId}&latest=true&limit=8`, {
@@ -129,6 +130,7 @@ export function AgentInspector({
 
       {task && <TeamLine task={task} className="text-xs" />}
       {task?.result && <p className="line-clamp-4 bg-muted p-2 text-xs">{task.result}</p>}
+      <AgentTaskControl agentId={agent.id} currentTaskId={agent.current_task_id ?? null} />
 
       {canTakeTask && (
         <form

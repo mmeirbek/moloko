@@ -12,6 +12,7 @@ from app.agents.engine import (
     agent_is_busy,
     agent_payload,
     lock_agent,
+    lock_run,
     lock_task,
     release_agent,
     set_agent_status,
@@ -20,6 +21,7 @@ from app.agents.engine import (
 )
 from app.agents.state import (
     ACTIVE_TASK,
+    TERMINAL_TASK,
     AgentStatus,
     AgentType,
     InvalidTransition,
@@ -285,7 +287,7 @@ class TaskService:
             ):
                 await archive_subagents(self.db, run.id)
 
-    async def retry(self, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
+    async def retry(self, user_id: uuid.UUID, task_id: uuid.UUID, *, start: bool = True) -> Task:
         """failed/cancelled → a NEW task (attempt + 1); the old one keeps its history."""
         old = await self.get(user_id, task_id)
         if TaskStatus(old.status) not in (TaskStatus.FAILED, TaskStatus.CANCELLED):
@@ -305,7 +307,12 @@ class TaskService:
             retry_of_id=old.id,
             created_by="user",
             depends_on=[],
-            extra=dict(old.extra or {}),
+            # "Start over" works from scratch: a fresh workspace, not the stopped attempt's.
+            extra={
+                k: v
+                for k, v in (old.extra or {}).items()
+                if k not in ("continued_from", "workspace_task_id")
+            },
         )
         self.db.add(task)
         await self.db.flush()
@@ -318,8 +325,93 @@ class TaskService:
             payload={"task": task_payload(task), "retry_of": str(old.id)},
         )
         await bus.commit(self.db)
-        if task.agent_id is not None:
+        if task.agent_id is not None and start:
             task, _ = await self.start(user_id, task.id)
+        return task
+
+    async def continue_from_stop(
+        self, user_id: uuid.UUID, task_id: uuid.UUID, instruction: str | None = None
+    ) -> Task:
+        """failed/cancelled → a NEW attempt that starts from the old run's saved progress
+        (its conversation with the model, tool results included) instead of from scratch.
+        Steps already done are not repeated; the agent is told why it stopped."""
+        from app.runtimes.native import continuation_messages  # runtime → tasks at import time
+
+        old = await self.get(user_id, task_id)
+        if TaskStatus(old.status) not in (TaskStatus.FAILED, TaskStatus.CANCELLED):
+            raise InvalidTransition("Only failed or cancelled tasks can be continued.")
+        if old.parent_task_id is not None:
+            raise InvalidTransition("Continue the parent task instead of a subtask.")
+        old_run = await self.db.get(AgentRun, old.run_id) if old.run_id else None
+        saved = (old_run.state or {}).get("messages") if old_run else None
+        if old_run is None or not saved or old.agent_id is None:  # nothing saved: a plain retry
+            return await self.retry(user_id, task_id)
+        task = await self.retry(user_id, task_id, start=False)
+        task.extra = {
+            **(task.extra or {}),
+            "continued_from": str(old.id),
+            # the files are part of where it stopped: keep working in the same folder
+            "workspace_task_id": str((old.extra or {}).get("workspace_task_id") or old.id),
+        }
+        task, run = await self.start(user_id, task.id, enqueue=False)
+        run.state = {
+            **(run.state or {}),
+            "messages": continuation_messages(
+                saved,
+                old.status,
+                old.error_code,
+                old.error_message,
+                instruction,
+                [str(m["text"]) for m in old_run.state.get("owner_inbox", [])],
+            ),
+            "continued_from_run": str(old_run.id),
+        }
+        await self.audit.record(
+            "task.continued",
+            "success",
+            actor_type="user",
+            actor_id=user_id,
+            user_id=user_id,
+            resource_type="task",
+            resource_id=str(task.id),
+            details={"from_task": str(old.id), "with_instruction": bool(instruction)},
+        )
+        await bus.commit(self.db)
+        if self.queue is not None:
+            await self.queue.enqueue_task(task.id)
+        return task
+
+    async def message_agent(self, user_id: uuid.UUID, task_id: uuid.UUID, text: str) -> Task:
+        """The owner writes to the agent while it works: the note waits in the run and the
+        agent reads it before its next step (also after a pause or an approval)."""
+        task = await lock_task(self.db, task_id)
+        if task.user_id != user_id:
+            raise NotFound("Task not found.")
+        if TaskStatus(task.status) in TERMINAL_TASK:
+            raise InvalidTransition("The task has finished — continue it instead.")
+        if task.run_id is None:
+            raise InvalidTransition("The task has not started yet — edit its description instead.")
+        agent = await self.db.get(Agent, task.agent_id) if task.agent_id else None
+        if agent is None or agent.agent_type == AgentType.ORCHESTRATOR.value:
+            raise InvalidTransition(
+                "The Orchestrator works through its plan — write to the agent doing the step."
+            )
+        if not text.strip():
+            raise InvalidTransition("The message is empty.")
+        run = await lock_run(self.db, task.run_id)
+        inbox = list((run.state or {}).get("owner_inbox", []))
+        inbox.append({"text": text, "at": datetime.now(UTC).isoformat()})
+        run.state = {**(run.state or {}), "owner_inbox": inbox}
+        await bus.emit(
+            self.db,
+            user_id=user_id,
+            type="task.owner_message",
+            task_id=task.id,
+            agent_id=task.agent_id,
+            run_id=run.id,
+            payload={"text": text, "delivered": False},
+        )
+        await bus.commit(self.db)
         return task
 
 

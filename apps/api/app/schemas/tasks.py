@@ -245,3 +245,20 @@ class HandoffRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str = Field(min_length=1, max_length=32_000)
+
+
+class TaskContinue(BaseModel):
+    """Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # What the owner wants done differently this time (optional; the owner's own words).
+    instruction: str | None = Field(default=None, max_length=4000)
+
+
+class TaskOwnerMessage(BaseModel):
+    """A message from the owner to the agent while it works (POST /tasks/{id}/message)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=4000)
