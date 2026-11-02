@@ -74,7 +74,7 @@ export function DynamicIsland() {
           )}
         </button>
         {open && (
-          <div id="island-panel" className="flex h-[min(37rem,calc(100dvh-5rem))] min-h-0 border-t-2 border-[#2a3460]">
+          <div id="island-panel" className="flex h-[min(40rem,calc(100dvh-5rem))] min-h-0 border-t-2 border-[#2a3460]">
             <IslandPanel className="w-full" onNavigate={() => setOpen(false)} />
           </div>
         )}

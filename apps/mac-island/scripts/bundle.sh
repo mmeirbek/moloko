@@ -52,6 +52,7 @@ cat > "$STAGED_APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key><true/>
   <key>NSHumanReadableCopyright</key><string>moloko</string>
   <key>NSLocalNetworkUsageDescription</key><string>Moloko Island подключается к вашему серверу moloko.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Чтобы диктовать задачи агентам голосом прямо в островке.</string>
   <key>NSAppTransportSecurity</key>
   <dict>
     <!-- the owner chooses the server; an http:// address on the home network must work -->

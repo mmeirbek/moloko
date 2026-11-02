@@ -9,7 +9,10 @@ import { ApprovalCard } from "@/features/approvals/approval-card";
 import { usePendingApprovals } from "@/features/approvals/approvals-view";
 import { AgentPalette } from "@/features/office/agent-palette";
 import { OfficeView, type OfficeMode } from "@/features/office/office-view";
+import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
+
+import { IslandTask, type TaskTarget } from "./island-task";
 
 /**
  * The island's content (site and Mac notch app): the office — agents' or subagents' — on a
@@ -18,10 +21,18 @@ import { cn } from "@/lib/utils";
 export function IslandPanel({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const t = useTranslations("island");
   const [mode, setMode] = useState<OfficeMode>("agents");
+  const [target, setTarget] = useState<TaskTarget>("orchestrator");
   const { pending } = usePendingApprovals();
+  const agents = useRealtimeStore((s) => s.agents);
+  // A click on a character on the map makes it the task's addressee (persistent agents and the Orchestrator).
+  const pick = (id: string | null) => {
+    const agent = id ? agents[id] : undefined;
+    if (agent?.agent_type === "autonomous") setTarget(agent.id);
+    else if (agent?.agent_type === "orchestrator") setTarget("orchestrator");
+  };
 
   return (
-    <div className={cn("flex min-h-0 flex-col gap-4 p-4", className)}>
+    <div className={cn("flex min-h-0 flex-col gap-3 p-3", className)}>
       <header className="flex items-center gap-3">
         <div role="group" aria-label={t("officeSwitch")} className="inline-flex gap-1">
           {(["agents", "subagents"] as const).map((m) => (
@@ -52,7 +63,7 @@ export function IslandPanel({ className, onNavigate }: { className?: string; onN
 
       {/* Approvals take a column only while something waits; otherwise the map has the whole width. */}
       <div className={cn("grid min-h-0 flex-1 grid-cols-1 gap-5", pending.length > 0 && "sm:grid-cols-[minmax(0,1fr)_15rem]")}>
-        <OfficeView compact initialMode="agents" mode={mode} onModeChange={setMode} />
+        <OfficeView compact initialMode="agents" mode={mode} onModeChange={setMode} onSelect={pick} />
         {pending.length > 0 && (
           <section aria-labelledby="island-approvals" className="flex min-h-0 flex-col gap-3">
             <h2 id="island-approvals" className="flex items-center gap-2 font-pixel text-lg">
@@ -68,6 +79,7 @@ export function IslandPanel({ className, onNavigate }: { className?: string; onN
         )}
       </div>
 
+      <IslandTask target={target} onTargetChange={setTarget} className="px-(--px)" />
       <AgentPalette variant="strip" onAdded={() => setMode("agents")} />
     </div>
   );

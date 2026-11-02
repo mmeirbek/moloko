@@ -16,7 +16,7 @@ enum IslandMode: String {
 struct IslandGeometry {
     static let earWidth: CGFloat = 38 // visible part of the pill on each side of the notch
     static let canvasMargin: CGFloat = 28
-    static let preferredExpanded = CGSize(width: 820, height: 600) // office map at 100% + header + agents row
+    static let preferredExpanded = CGSize(width: 820, height: 640) // office map at 100% + header + agents row
 
     let screenFrame: CGRect
     let hasNotch: Bool

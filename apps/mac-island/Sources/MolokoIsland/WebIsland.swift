@@ -300,6 +300,16 @@ final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMes
 
     // MARK: WKUIDelegate
 
+    /// Voice input in the island: the microphone only, and only for the moloko server's own page.
+    func webView(
+        _ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
+        decisionHandler: @escaping @MainActor (WKPermissionDecision) -> Void
+    ) {
+        let ours = frame.isMainFrame && origin.host == baseURL?.host
+        decisionHandler(ours && type == .microphone ? .grant : .deny)
+    }
+
     func webView(
         _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures

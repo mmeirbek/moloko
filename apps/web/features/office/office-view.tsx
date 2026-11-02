@@ -93,11 +93,14 @@ export function OfficeView({
   mode: controlledMode,
   onModeChange,
   compact = false,
+  onSelect,
 }: {
   initialMode: OfficeMode;
   mode?: OfficeMode;
   onModeChange?: (mode: OfficeMode) => void;
   compact?: boolean;
+  /** A character was clicked (the island gives that agent the next task). */
+  onSelect?: (agentId: string | null) => void;
 }) {
   const t = useTranslations("office");
   const toMessage = useErrorMessage();
@@ -112,6 +115,10 @@ export function OfficeView({
     onModeChange?.(m);
   };
   const [dropping, setDropping] = useState(false);
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
@@ -141,7 +148,10 @@ export function OfficeView({
     let game: { destroy: (removeCanvas: boolean) => void } | null = null;
     let cancelled = false;
     const offReady = bus.on("ready", () => setReady(true));
-    const offSelected = bus.on("selected", (id) => setSelected(id));
+    const offSelected = bus.on("selected", (id) => {
+      setSelected(id);
+      onSelectRef.current?.(id);
+    });
     const offMoo = bus.on("moo", () => {
       if (mascotSnapshot().sound) playMoo();
     });

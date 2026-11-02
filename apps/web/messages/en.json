@@ -1083,6 +1083,18 @@
     "quiet": "Agents are resting",
     "pendingCount": "{count, plural, one {# waits for you} other {# wait for you}}",
     "expand": "Open the island",
-    "collapse": "Fold the island"
+    "collapse": "Fold the island",
+    "task": {
+      "label": "Task",
+      "to": "To",
+      "orchestrator": "The Orchestrator",
+      "placeholder": "What needs doing?",
+      "placeholderAgent": "A task for {name}…",
+      "start": "Start",
+      "busy": "{name} is busy — you can start when it is free.",
+      "sent": "Sent: “{title}”.",
+      "open": "Open the task",
+      "pickHint": "Click an agent on the map to give the task to it."
+    }
   }
 }

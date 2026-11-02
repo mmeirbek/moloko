@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
-import { api, watchErrors } from "./helpers";
+import { api, newAgent, unique, watchErrors } from "./helpers";
 
 type Agent = { id: string; name: string; created_at: string };
 
@@ -42,5 +42,27 @@ test("island page (Mac notch app): an agent removed from the office is dragged b
   await card.dragTo(page.getByTestId("pixel-office"));
   await expect.poll(async () => (await researchers(request)).some((a) => a.id === agent.id)).toBe(true);
   await expect(card).toHaveCount(0); // no longer among the removed ones
+  expect(errors).toEqual([]);
+});
+
+test("island: a task to the Orchestrator, and to one agent picked in the list", async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const agent = await newAgent(request, { name: unique("Island") });
+  await page.goto("/island");
+  const form = page.getByTestId("island-task");
+  const input = form.getByLabel("Задача", { exact: true });
+
+  await input.fill(`What time zone is Almaty in? ${unique("island")}`);
+  await form.getByRole("button", { name: "Запустить" }).click();
+  await expect(form.getByText(/^Отправлено/)).toBeVisible();
+  await expect(input).toHaveValue("");
+
+  await form.getByLabel("Кому").selectOption({ label: agent.name });
+  await input.fill("Заметка из островка [[mock:sleep:1]]");
+  await form.getByRole("button", { name: "Запустить" }).click();
+  await expect(form.getByText(/^Отправлено/)).toBeVisible();
+  await expect
+    .poll(async () => (await api<{ items: { title: string }[] }>(request, "GET", `/tasks?agent_id=${agent.id}&status=all`)).items.length)
+    .toBe(1);
   expect(errors).toEqual([]);
 });
