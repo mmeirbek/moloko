@@ -22,7 +22,7 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
   await page.getByLabel("Инструкции").fill("Отвечай кратко и по делу.");
-  await page.getByRole("button", { name: "Сохранить" }).click();
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click(); // not «Сохранить как шаблон»
   await expect(page.getByRole("status").filter({ hasText: "Сохранено" })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Инструкции")).toHaveValue("Отвечай кратко и по делу.");
@@ -31,13 +31,13 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await page.getByRole("button", { name: "Добавить запись" }).click();
   await page.getByLabel("Заголовок").fill("Стиль");
   await page.getByLabel("Текст").fill("Пиши коротко.");
-  await page.getByRole("button", { name: "Сохранить" }).click();
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click(); // not «Сохранить как шаблон»
   const item = page.locator("[data-memory-id]").filter({ hasText: "Стиль" });
   await expect(item).toBeVisible();
   await expect(page.getByTestId("memory-context")).toContainText("В промпт агента");
   await item.getByRole("button", { name: "Изменить" }).click();
   await page.getByLabel("Текст").fill("Пиши очень коротко.");
-  await page.getByRole("button", { name: "Сохранить" }).click();
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click(); // not «Сохранить как шаблон»
   await expect(item).toContainText("версия 2");
 
   await page.getByLabel("Дайте задачу…").fill("Заметка [[mock:sleep:8]]");

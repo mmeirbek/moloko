@@ -13,6 +13,8 @@ export type AgentFormValues = {
   autonomy: Autonomy;
   maxSteps: string;
   timeoutMinutes: string;
+  /** Monthly budget in USD; "" = no limit of its own. */
+  monthlyBudget: string;
   memoryEnabled: boolean;
   includeShared: boolean;
   projects: string;
@@ -24,7 +26,10 @@ export type AgentFormValues = {
 
 export type ToolOverride = "approve" | "deny";
 
-export type FieldError = "required" | "number" | "tooHigh" | "tooLow";
+export type FieldError = "required" | "number" | "money" | "tooHigh" | "tooLow";
+
+/** Highest monthly budget the API accepts. */
+export const MAX_BUDGET_USD = 1_000_000;
 export type FormErrors = Partial<Record<keyof AgentFormValues, { error: FieldError; limit?: number }>>;
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
@@ -48,6 +53,7 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
       : "supervised",
     maxSteps: str(limits.max_steps),
     timeoutMinutes: limits.run_timeout_seconds ? str(Math.round(limits.run_timeout_seconds / 60)) : "",
+    monthlyBudget: str(agent?.monthly_budget_usd),
     memoryEnabled: memory.enabled ?? true,
     includeShared: memory.include_shared ?? true,
     projects: (memory.projects ?? []).join(", "),
@@ -90,6 +96,13 @@ function whole(text: string): number | null {
   return /^\d+$/.test(t) ? Number(t) : NaN;
 }
 
+/** Dollars with at most two decimals ("12", "12.5", "12,50" → "12.50"); null = empty; false = not a sum. */
+export function money(text: string): string | null | false {
+  const t = text.trim().replace(",", ".");
+  if (!t) return null;
+  return /^\d+(\.\d{1,2})?$/.test(t) ? Number(t).toFixed(2) : false;
+}
+
 /** Same rules as the API: per-agent limits may only be stricter than the global ones. */
 export function validate(values: AgentFormValues, limits?: SystemLimits): FormErrors {
   const errors: FormErrors = {};
@@ -108,6 +121,9 @@ export function validate(values: AgentFormValues, limits?: SystemLimits): FormEr
     limits ? Math.floor(limits.run_timeout_seconds / 60) : undefined,
   );
   check("maxContextChars", whole(values.maxContextChars), 200, limits?.memory_context_max_chars);
+  const budget = money(values.monthlyBudget);
+  if (budget === false || (budget !== null && (Number(budget) <= 0 || Number(budget) > MAX_BUDGET_USD)))
+    errors.monthlyBudget = { error: "money", limit: MAX_BUDGET_USD };
   return errors;
 }
 
@@ -137,5 +153,6 @@ export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_typ
       Object.entries(values.overrides).filter(([name]) => values.tools.includes(name)),
     ),
     workspace_id: values.workspaceId || null,
+    monthly_budget_usd: money(values.monthlyBudget) || null,
   };
 }

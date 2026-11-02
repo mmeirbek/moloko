@@ -152,6 +152,15 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
       )}
       {task.status === "failed" && (
         <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
+          {task.error_code === "agent_budget_exceeded" && task.agent_id ? (
+            // A readable reason in the owner's language, and where to raise the budget.
+            <p className="mb-1">
+              {t("agentBudgetExceeded")}{" "}
+              <Link href={`/office/agents/${task.agent_id}`} className="underline underline-offset-2">
+                {t("openAgent")}
+              </Link>
+            </p>
+          ) : null}
           <p>{task.error_message}</p>
           <p className="mt-1 font-mono text-xs text-muted-foreground">
             {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}

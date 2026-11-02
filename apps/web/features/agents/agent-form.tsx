@@ -238,6 +238,22 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
               aria-invalid={Boolean(errorText("timeoutMinutes"))}
             />
           </Field>
+          <Field
+            id={id("budget")}
+            label={t("monthlyBudget")}
+            hint={isOrchestrator ? t("monthlyBudgetHintOrchestrator") : t("monthlyBudgetHint")}
+            error={errorText("monthlyBudget")}
+          >
+            <Input
+              id={id("budget")}
+              inputMode="decimal"
+              value={values.monthlyBudget}
+              placeholder={t("monthlyBudgetPlaceholder")}
+              onChange={(e) => set("monthlyBudget", e.target.value)}
+              aria-invalid={Boolean(errorText("monthlyBudget"))}
+              data-testid="agent-budget-input"
+            />
+          </Field>
         </div>
       </Section>
 

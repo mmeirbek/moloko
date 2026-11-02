@@ -1,7 +1,79 @@
 {
   "components": {
     "schemas": {
+      "AgentBudgetOut": {
+        "description": "This month's spending against the budget that applies to an agent.",
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "budget_agent_id": {
+            "description": "Whose budget counts: the agent itself, or for a subagent the persistent agent / Orchestrator above it.",
+            "format": "uuid",
+            "title": "Budget Agent Id",
+            "type": "string"
+          },
+          "budget_agent_name": {
+            "title": "Budget Agent Name",
+            "type": "string"
+          },
+          "exceeded": {
+            "title": "Exceeded",
+            "type": "boolean"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "spent_usd": {
+            "title": "Spent Usd",
+            "type": "string"
+          },
+          "warn_percent": {
+            "title": "Warn Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id",
+          "budget_agent_id",
+          "budget_agent_name",
+          "month",
+          "spent_usd",
+          "monthly_budget_usd",
+          "warn_percent",
+          "percent",
+          "exceeded"
+        ],
+        "title": "AgentBudgetOut",
+        "type": "object"
+      },
       "AgentCost": {
+        "description": "One budget holder: an agent with its subagents' calls, or the chat.",
         "properties": {
           "agent_id": {
             "anyOf": [
@@ -27,6 +99,18 @@
             "title": "Input Tokens",
             "type": "integer"
           },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent's own limit (today's).",
+            "title": "Monthly Budget Usd"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -35,8 +119,25 @@
             "title": "Output Tokens",
             "type": "integer"
           },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of the agent's limit; current month only.",
+            "title": "Percent"
+          },
           "source": {
             "title": "Source",
+            "type": "string"
+          },
+          "subagents_cost_usd": {
+            "description": "Part of cost_usd spent by its subagents.",
+            "title": "Subagents Cost Usd",
             "type": "string"
           }
         },
@@ -47,7 +148,10 @@
           "cost_usd",
           "input_tokens",
           "output_tokens",
-          "calls"
+          "calls",
+          "subagents_cost_usd",
+          "monthly_budget_usd",
+          "percent"
         ],
         "title": "AgentCost",
         "type": "object"
@@ -94,6 +198,23 @@
               }
             ],
             "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.",
+            "title": "Monthly Budget Usd"
           },
           "name": {
             "maxLength": 100,
@@ -173,7 +294,8 @@
             "title": "Name"
           },
           "template": {
-            "maxLength": 32,
+            "description": "A key from GET /agents/templates (built-in key or own template id).",
+            "maxLength": 64,
             "minLength": 1,
             "title": "Template",
             "type": "string"
@@ -370,6 +492,17 @@
             ],
             "title": "Model Config Id"
           },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -478,6 +611,7 @@
           "workspace_id",
           "config_version",
           "archived_at",
+          "monthly_budget_usd",
           "created_at",
           "updated_at"
         ],
@@ -553,16 +687,77 @@
             "title": "Allowed Tools",
             "type": "array"
           },
+          "autonomy_level": {
+            "title": "Autonomy Level",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
           "description": {
             "title": "Description",
             "type": "string"
           },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Own templates only (DELETE /agents/templates/{id}).",
+            "title": "Id"
+          },
           "key": {
+            "description": "What POST /agents/from-template takes: a built-in key, or an own template's id.",
             "title": "Key",
             "type": "string"
           },
+          "model_config_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "builtin",
+              "own"
+            ],
+            "title": "Source",
             "type": "string"
           },
           "specialization": {
@@ -572,10 +767,16 @@
         },
         "required": [
           "key",
+          "source",
+          "id",
           "name",
           "description",
           "specialization",
-          "allowed_tools"
+          "allowed_tools",
+          "autonomy_level",
+          "model_config_id",
+          "monthly_budget_usd",
+          "created_at"
         ],
         "title": "AgentTemplateOut",
         "type": "object"
@@ -660,6 +861,23 @@
               }
             ],
             "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.",
+            "title": "Monthly Budget Usd"
           },
           "name": {
             "anyOf": [
@@ -1497,6 +1715,11 @@
       },
       "CostSummary": {
         "properties": {
+          "agent_warn_percent": {
+            "description": "Warning threshold of per-agent budgets.",
+            "title": "Agent Warn Percent",
+            "type": "integer"
+          },
           "budget": {
             "$ref": "#/components/schemas/BudgetOut"
           },
@@ -1554,6 +1777,7 @@
           "calls",
           "unpriced_calls",
           "budget",
+          "agent_warn_percent",
           "by_agent",
           "by_model",
           "by_day"
@@ -3761,6 +3985,28 @@
         "title": "SandboxStatus",
         "type": "object"
       },
+      "SaveAsTemplate": {
+        "additionalProperties": false,
+        "description": "Optional body of ``POST /agents/{id}/save-template``.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The template's name; by default the agent's name.",
+            "title": "Name"
+          }
+        },
+        "title": "SaveAsTemplate",
+        "type": "object"
+      },
       "SearchHitOut": {
         "properties": {
           "agent_id": {
@@ -5263,7 +5509,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Add a persistent agent from a template (it waits for a task)",
+        "summary": "Add a persistent agent from a template (built-in or own; it waits for a task)",
         "tags": [
           "agents"
         ]
@@ -5311,7 +5557,43 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Ready-made agents",
+        "summary": "Ready-made agents: the built-in templates, then the owner's own (newest first)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/templates/{template_id}": {
+      "delete": {
+        "operationId": "delete_template_api_v1_agents_templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete one of the owner's own templates (agents made from it stay)",
         "tags": [
           "agents"
         ]
@@ -5440,6 +5722,49 @@
           }
         },
         "summary": "Update Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/budget": {
+      "get": {
+        "operationId": "agent_budget_api_v1_agents__agent_id__budget_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentBudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "This month's spending against the agent's own budget (subagents: the one above)",
         "tags": [
           "agents"
         ]
@@ -5698,6 +6023,66 @@
           }
         },
         "summary": "Give the agent a task and start it",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/save-template": {
+      "post": {
+        "operationId": "save_as_template_api_v1_agents__agent_id__save_template_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SaveAsTemplate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save the agent's configuration as an own template (no memory or history)",
         "tags": [
           "agents"
         ]

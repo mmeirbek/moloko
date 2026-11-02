@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,6 +68,19 @@ class AgentNotRestorable(Conflict):
 class AgentNameTaken(Conflict):
     code = "agent_name_taken"
     message = "Another agent in the office already has this name. Choose another name."
+
+
+def budget_change(old: Decimal | None, agent: Agent) -> dict[str, dict[str, str | None]]:
+    """Audit details of a budget change (``{}`` when it did not change)."""
+    new = agent.monthly_budget_usd
+    if old == new:
+        return {}
+    return {
+        "monthly_budget_usd": {
+            "old": str(old) if old is not None else None,
+            "new": str(new) if new is not None else None,
+        }
+    }
 
 
 class AgentService:
@@ -160,15 +174,8 @@ class AgentService:
         if ws is None or ws.user_id != user_id or ws.kind != "project":
             raise NotFound("Project workspace not found.")
 
-    async def create_from_template(self, user_id: uuid.UUID, data: AgentFromTemplate) -> Agent:
-        """One click in the office: a persistent agent from a ready-made template. It stays
-        idle until it is given a task."""
-        from app.agents.templates import BY_KEY, localized
-
-        template = BY_KEY.get(data.template)
-        if template is None:
-            raise NotFound("Unknown agent template.")
-        base = (data.name or localized(template.names, data.locale)).strip()
+    async def _free_name(self, user_id: uuid.UUID, base: str) -> str:
+        """``base``, or ``base 2``, ``base 3``… when an agent in the office has that name."""
         taken = set(
             (
                 await self.db.execute(
@@ -178,11 +185,24 @@ class AgentService:
         )
         name, n = base, 2
         while name in taken:
-            name, n = f"{base} {n}", n + 1
+            name, n = f"{base[: 100 - len(str(n)) - 1]} {n}", n + 1
+        return name[:100]
+
+    async def create_from_template(self, user_id: uuid.UUID, data: AgentFromTemplate) -> Agent:
+        """One click in the office: a persistent agent from a ready-made template or from
+        one of the owner's own templates. It stays idle until it is given a task."""
+        from app.agents.templates import BY_KEY, localized
+
+        template = BY_KEY.get(data.template)
+        if template is None:
+            return await self._create_from_own_template(user_id, data)
+        name = await self._free_name(
+            user_id, (data.name or localized(template.names, data.locale)).strip()
+        )
         return await self.create(
             user_id,
             AgentCreate(
-                name=name[:100],
+                name=name,
                 description=localized(template.descriptions, data.locale),
                 agent_type=AgentType.AUTONOMOUS,
                 specialization=template.specialization,
@@ -190,9 +210,66 @@ class AgentService:
                 autonomy_level=AutonomyLevel.SUPERVISED,
                 allowed_tools=list(template.allowed_tools),
             ),
+            origin={"template": template.key, "template_source": "builtin"},
         )
 
-    async def create(self, user_id: uuid.UUID, data: AgentCreate) -> Agent:
+    async def _create_from_own_template(self, user_id: uuid.UUID, data: AgentFromTemplate) -> Agent:
+        """An agent with an own template's configuration. What changed since it was saved
+        is smoothed over instead of refusing the drop: tools that no longer exist are
+        left out and limits above today's global ones are lowered to them."""
+        from app.services.agent_templates import AgentTemplateService, parse_own_key
+
+        template_id = parse_own_key(data.template)
+        if template_id is None or self.settings is None:
+            raise NotFound("Unknown agent template.")
+        row = await AgentTemplateService(self.db, self.settings).get_own(user_id, template_id)
+        from app.services.tools import ToolsService
+
+        known = await ToolsService(self.db, self.settings).known_names(user_id)
+        tools = [t for t in dict.fromkeys(row.allowed_tools or []) if t in known]
+        overrides = {
+            name: rule
+            for name, rule in ((row.permissions or {}).get("tools") or {}).items()
+            if name in tools and rule in ("approve", "deny")
+        }
+        limits = AgentLimits(**(row.limits or {}))
+        memory = MemorySettings(**(row.memory_settings or {}))
+        caps = (
+            ("max_steps", self.settings.max_steps_per_run),
+            ("run_timeout_seconds", self.settings.run_timeout_seconds),
+        )
+        for field, cap in caps:
+            value = getattr(limits, field)
+            if value is not None and value > cap:
+                setattr(limits, field, cap)
+        if (
+            memory.max_context_chars is not None
+            and memory.max_context_chars > self.settings.memory_context_max_chars
+        ):
+            memory.max_context_chars = self.settings.memory_context_max_chars
+        name = await self._free_name(user_id, (data.name or row.name).strip())
+        return await self.create(
+            user_id,
+            AgentCreate(
+                name=name,
+                description=row.description,
+                agent_type=AgentType.AUTONOMOUS,
+                specialization=row.specialization,
+                model_config_id=row.model_config_id,
+                system_prompt=row.system_prompt,
+                autonomy_level=AutonomyLevel(row.autonomy_level),
+                allowed_tools=tools,
+                limits=limits,
+                memory_settings=memory,
+                tool_overrides=overrides,
+                monthly_budget_usd=row.monthly_budget_usd,
+            ),
+            origin={"template": str(row.id), "template_source": "own"},
+        )
+
+    async def create(
+        self, user_id: uuid.UUID, data: AgentCreate, *, origin: dict[str, str] | None = None
+    ) -> Agent:
         if data.agent_type == AgentType.SUBAGENT:
             raise InvalidTransition("Subagents are created by the Orchestrator, not by hand.")
         self._check_limits(data.limits, data.memory_settings)
@@ -214,6 +291,7 @@ class AgentService:
             status=AgentStatus.IDLE.value,
             limits=data.limits.model_dump(exclude_none=True),
             memory_settings=data.memory_settings.model_dump(exclude_defaults=True),
+            monthly_budget_usd=data.monthly_budget_usd,
         )
         self.db.add(agent)
         await self.db.flush()
@@ -237,6 +315,12 @@ class AgentService:
                 "name": agent.name,
                 "type": agent.agent_type,
                 "autonomy": agent.autonomy_level,
+                **(
+                    {"monthly_budget_usd": str(agent.monthly_budget_usd)}
+                    if agent.monthly_budget_usd is not None
+                    else {}
+                ),
+                **(origin or {}),
             },
         )
         await bus.commit(self.db)
@@ -290,6 +374,14 @@ class AgentService:
             if memory_settings != agent.memory_settings:
                 agent.memory_settings = memory_settings
                 changed.append("memory_settings")
+        old_budget = agent.monthly_budget_usd
+        if "monthly_budget_usd" in fields and data.monthly_budget_usd != old_budget:
+            if agent.agent_type == AgentType.SUBAGENT.value and data.monthly_budget_usd:
+                raise InvalidTransition(
+                    "A subagent counts against the budget of the agent above it."
+                )
+            agent.monthly_budget_usd = data.monthly_budget_usd
+            changed.append("monthly_budget_usd")
         if changed:
             agent.config_version += 1
             agent.updated_at = datetime.now(UTC)
@@ -308,8 +400,15 @@ class AgentService:
                 user_id=user_id,
                 resource_type="agent",
                 resource_id=str(agent.id),
-                details={"changed": changed},
+                details={"changed": changed, **budget_change(old_budget, agent)},
             )
+            if "monthly_budget_usd" in changed and self.settings is not None:
+                from app.services.usage import check_agent_budget
+
+                # a lower limit may already be crossed: warn now, not at the next call
+                await check_agent_budget(
+                    self.db, user_id, agent.id, self.settings.agent_budget_warn_percent
+                )
         await bus.commit(self.db)
         return agent
 

@@ -3,6 +3,7 @@
 import type { CostSummary, ModelOut } from "@moloko/shared-types";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { AlertTriangle, ChevronLeft, ChevronRight, OctagonAlert, Save } from "@/components/icons";
@@ -87,7 +88,17 @@ export function CostsView() {
             rows={data.by_agent.map((r) => ({
               key: `${r.agent_id ?? r.source}-${r.name}`,
               name: r.source === "chat" ? t("chat") : r.name,
-              hint: r.source === "orchestrator" ? t("orchestrator") : undefined,
+              href: r.agent_id && r.source !== "chat" ? `/office/agents/${r.agent_id}` : undefined,
+              hint:
+                [
+                  r.source === "orchestrator" ? t("orchestrator") : null,
+                  Number(r.subagents_cost_usd) > 0 ? t("withSubagents", { cost: usd(r.subagents_cost_usd, locale) }) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined,
+              budget: r.monthly_budget_usd
+                ? { limit: r.monthly_budget_usd, percent: isThisMonth ? r.percent : null, warn: data.agent_warn_percent }
+                : undefined,
               calls: r.calls,
               tokens: r.input_tokens + r.output_tokens,
               cost: r.cost_usd,
@@ -242,15 +253,49 @@ function DailyChart({ data, locale }: { data: CostSummary; locale: string }) {
   );
 }
 
-function BreakdownTable({
-  title,
-  rows,
-  locale,
-}: {
-  title: string;
-  rows: { key: string; name: string; hint?: string; calls: number; tokens: number; cost: string }[];
-  locale: string;
-}) {
+type BreakdownRow = {
+  key: string;
+  name: string;
+  href?: string;
+  hint?: string;
+  /** An agent's own monthly limit; `percent` only for the current month. */
+  budget?: { limit: string; percent: number | null; warn: number };
+  calls: number;
+  tokens: number;
+  cost: string;
+};
+
+/** An agent's own limit under its name: "45% of $10.00" with a small bar. */
+function RowBudget({ budget, locale }: { budget: NonNullable<BreakdownRow["budget"]>; locale: string }) {
+  const t = useTranslations("costs");
+  const limit = usd(budget.limit, locale);
+  if (budget.percent === null) return <span className="block text-xs text-muted-foreground">{t("agentLimit", { limit })}</span>;
+  const level = budgetLevel(budget.percent, budget.warn);
+  const percent = Math.round(budget.percent);
+  return (
+    <span className="flex max-w-56 items-center gap-2 text-xs text-muted-foreground" data-testid="agent-budget-row">
+      <span
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-label={t("agentLimitLine", { percent, limit })}
+        className="h-2 w-16 shrink-0 overflow-hidden bg-muted"
+      >
+        <span
+          className={cn(
+            "block h-full",
+            level === "over" ? "bg-destructive" : level === "warning" ? "bg-amber-500" : "bg-[var(--chart-bar)]",
+          )}
+          style={{ width: `${Math.min(100, budget.percent)}%` }}
+        />
+      </span>
+      <span className={cn("truncate", level === "over" && "text-destructive")}>{t("agentLimitLine", { percent, limit })}</span>
+    </span>
+  );
+}
+
+function BreakdownTable({ title, rows, locale }: { title: string; rows: BreakdownRow[]; locale: string }) {
   const t = useTranslations("costs");
   return (
     <Card>
@@ -271,8 +316,15 @@ function BreakdownTable({
             {rows.map((r) => (
               <tr key={r.key} className="border-t-2">
                 <td className="py-1.5">
-                  <span className="block max-w-56 truncate">{r.name}</span>
-                  {r.hint && <span className="text-xs text-muted-foreground">{r.hint}</span>}
+                  {r.href ? (
+                    <Link href={r.href} className="block max-w-56 truncate underline-offset-2 hover:underline">
+                      {r.name}
+                    </Link>
+                  ) : (
+                    <span className="block max-w-56 truncate">{r.name}</span>
+                  )}
+                  {r.hint && <span className="block text-xs text-muted-foreground">{r.hint}</span>}
+                  {r.budget && <RowBudget budget={r.budget} locale={locale} />}
                 </td>
                 <td className="py-1.5 text-right tabular-nums">{r.calls}</td>
                 <td className="py-1.5 text-right tabular-nums">{tokens(r.tokens, locale)}</td>
@@ -307,6 +359,7 @@ function BudgetCard({ data }: { data: CostSummary }) {
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
+        <CardDescription>{t("agentHint", { warn: data.agent_warn_percent })}</CardDescription>
       </CardHeader>
       <CardContent>
         <form

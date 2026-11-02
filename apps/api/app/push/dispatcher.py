@@ -36,12 +36,14 @@ TITLES = {
         "taskDone": "Задача выполнена",
         "taskFailed": "Задача не выполнена",
         "budget": "Расходы: {percent}% месячного лимита",
+        "agentBudget": "«{name}»: {percent}% бюджета агента на месяц",
     },
     "en": {
         "approval": "Your approval is needed",
         "taskDone": "Task done",
         "taskFailed": "Task failed",
         "budget": "Costs: {percent}% of the monthly limit",
+        "agentBudget": "{name}: {percent}% of the agent's monthly budget",
     },
 }
 
@@ -53,6 +55,8 @@ class Notice:
     subject: str
     url: str
     percent: int = 0
+    title: str = ""  # TITLES key when it differs from ``kind``
+    name: str = ""  # an agent's name (agent budgets)
 
 
 def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
@@ -69,6 +73,18 @@ def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
             f"{who}: {approval.get('summary', '')}" if who else str(approval.get("summary", ""))
         )
         return Notice("approval", f"approval:{approval['id']}", subject, "/approvals")
+    if event.type == "budget.warning" and payload.get("scope") == "agent":
+        percent = int(payload.get("percent", 0))
+        agent_id = str(payload.get("agent_id", ""))
+        return Notice(
+            "budget",
+            f"budget:{payload.get('month')}:{agent_id}:{percent}",
+            f"${payload.get('spent_usd')} / ${payload.get('limit_usd')}",
+            f"/office/agents/{agent_id}",
+            percent,
+            title="agentBudget",
+            name=str(payload.get("agent_name", ""))[:100],
+        )
     if event.type == "budget.warning":
         percent = int(payload.get("percent", 0))
         return Notice(
@@ -171,7 +187,9 @@ async def dispatch(sessionmaker: async_sessionmaker[AsyncSession], settings: Set
 async def _deliver(
     db: AsyncSession, sub: PushSubscription, notice: Notice, keys: Any, settings: Settings
 ) -> int:
-    title = TITLES.get(sub.locale, TITLES["ru"])[notice.kind].format(percent=notice.percent)
+    title = TITLES.get(sub.locale, TITLES["ru"])[notice.title or notice.kind].format(
+        percent=notice.percent, name=notice.name
+    )
     payload: dict[str, object] = {
         "title": title,
         "body": notice.subject[:300],

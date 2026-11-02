@@ -5,9 +5,9 @@ import uuid
 from fastapi import APIRouter, Header, Query, Response, status
 
 from app.agents.state import AgentType
-from app.agents.templates import TEMPLATES, localized
 from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
 from app.schemas.agents import (
+    AgentBudgetOut,
     AgentCreate,
     AgentFromTemplate,
     AgentOut,
@@ -15,13 +15,16 @@ from app.schemas.agents import (
     AgentRunRequest,
     AgentTemplateOut,
     AgentUpdate,
+    SaveAsTemplate,
     StartedRun,
 )
 from app.schemas.memories import MemoryContextOut
 from app.schemas.tasks import RunOut, TaskOut
+from app.services.agent_templates import AgentTemplateService, own_out
 from app.services.agents import AgentService
 from app.services.idempotency import idempotent
 from app.services.memories import MemoryService
+from app.services.usage import agent_budget_status, month_key
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -51,27 +54,37 @@ async def list_archived_agents(ctx: CurrentAuth, db: DbSession, queue: QueueDep)
     return [AgentOut.model_validate(a) for a in rows]
 
 
-@router.get("/templates", response_model=list[AgentTemplateOut], summary="Ready-made agents")
+@router.get(
+    "/templates",
+    response_model=list[AgentTemplateOut],
+    summary="Ready-made agents: the built-in templates, then the owner's own (newest first)",
+)
 async def list_templates(
-    ctx: CurrentAuth, locale: str = Query("ru", max_length=8)
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    locale: str = Query("ru", max_length=8),
 ) -> list[AgentTemplateOut]:
-    return [
-        AgentTemplateOut(
-            key=t.key,
-            name=localized(t.names, locale),
-            description=localized(t.descriptions, locale),
-            specialization=t.specialization,
-            allowed_tools=list(t.allowed_tools),
-        )
-        for t in TEMPLATES
-    ]
+    return await AgentTemplateService(db, settings).list(ctx.user.id, locale)
+
+
+@router.delete(
+    "/templates/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete one of the owner's own templates (agents made from it stay)",
+)
+async def delete_template(
+    template_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep
+) -> Response:
+    await AgentTemplateService(db, settings).delete(ctx.user.id, template_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
     "/from-template",
     response_model=AgentOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Add a persistent agent from a template (it waits for a task)",
+    summary="Add a persistent agent from a template (built-in or own; it waits for a task)",
 )
 async def create_from_template(
     body: AgentFromTemplate, ctx: CurrentAuth, db: DbSession, queue: QueueDep, settings: SettingsDep
@@ -106,6 +119,48 @@ async def update_agent(
 ) -> AgentOut:
     agent = await AgentService(db, queue, settings).update(ctx.user.id, agent_id, body)
     return AgentOut.model_validate(agent)
+
+
+@router.post(
+    "/{agent_id}/save-template",
+    response_model=AgentTemplateOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save the agent's configuration as an own template (no memory or history)",
+)
+async def save_as_template(
+    agent_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    body: SaveAsTemplate | None = None,
+) -> AgentTemplateOut:
+    row = await AgentTemplateService(db, settings).save_from_agent(
+        ctx.user.id, agent_id, body.name if body is not None else None
+    )
+    return own_out(row)
+
+
+@router.get(
+    "/{agent_id}/budget",
+    response_model=AgentBudgetOut,
+    summary="This month's spending against the agent's own budget (subagents: the one above)",
+)
+async def agent_budget(
+    agent_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, queue: QueueDep, settings: SettingsDep
+) -> AgentBudgetOut:
+    await AgentService(db, queue).get(ctx.user.id, agent_id)
+    budget = await agent_budget_status(db, agent_id)
+    return AgentBudgetOut(
+        agent_id=agent_id,
+        budget_agent_id=budget.agent_id,
+        budget_agent_name=budget.name,
+        month=month_key(),
+        spent_usd=budget.spent,
+        monthly_budget_usd=budget.limit,
+        warn_percent=settings.agent_budget_warn_percent,
+        percent=budget.percent,
+        exceeded=budget.exceeded,
+    )
 
 
 @router.get(

@@ -102,7 +102,11 @@
     "profile_text_too_long": "That is too long.",
     "agent_not_restorable": "This agent cannot be brought back.",
     "agent_not_archived": "The agent is already in the office.",
-    "agent_name_taken": "An agent with this name is already in the office."
+    "agent_name_taken": "An agent with this name is already in the office.",
+    "agent_budget_exceeded": "The agent's monthly budget is used up. Raise it on the agent's page (\"Monthly budget, $\").",
+    "template_name_taken": "You already have a template with this name. Choose another one.",
+    "template_limit_reached": "You have reached the limit of own templates. Delete one first.",
+    "agent_not_templatable": "Only your own persistent agents can be saved as a template — not the Orchestrator or a subagent."
   },
   "preferences": {
     "theme": "Theme",
@@ -377,7 +381,9 @@
       "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}"
     },
     "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
-    "emptyFiltered": "Nothing found. Try another filter or search."
+    "emptyFiltered": "Nothing found. Try another filter or search.",
+    "agentBudgetExceeded": "The agent's monthly budget is used up — the task was stopped.",
+    "openAgent": "Open the agent"
   },
   "agents": {
     "new": "New agent",
@@ -449,7 +455,8 @@
         "required": "Required.",
         "number": "Enter a whole number.",
         "tooHigh": "At most {limit} (the global limit).",
-        "tooLow": "At least {limit}."
+        "tooLow": "At least {limit}.",
+        "money": "Enter an amount in dollars above 0, like 5 or 12.50."
       },
       "tools": "Tools",
       "toolsHint": "The agent can use only the checked tools. The server checks every action against the autonomy level; here you can only make rules stricter.",
@@ -460,7 +467,11 @@
         "deny": "block"
       },
       "workspace": "Workspace",
-      "workspacePerTask": "A new folder for every task"
+      "workspacePerTask": "A new folder for every task",
+      "monthlyBudget": "Monthly budget, $",
+      "monthlyBudgetHint": "Empty — no limit of its own. When the budget runs out, the agent stops.",
+      "monthlyBudgetHintOrchestrator": "Empty — no limit of its own. Its subagents count here too.",
+      "monthlyBudgetPlaceholder": "e.g. 5"
     },
     "detail": {
       "back": "All agents",
@@ -490,9 +501,36 @@
       "close": "Close",
       "removed": "Removed from the office — can come back",
       "restore": "Bring back",
-      "dragHint": "Drag onto the office map"
+      "dragHint": "Drag onto the office map",
+      "own": "yours",
+      "ownHint": "Your template: the settings of a saved agent.",
+      "delete": "Delete",
+      "deleteLabel": "Delete template \"{name}\"",
+      "deleteConfirm": "Delete template \"{name}\"?",
+      "deleteHint": "Agents already made from it stay in the office."
     },
-    "confirmStop": "Stop {name} and cancel its task?"
+    "confirmStop": "Stop {name} and cancel its task?",
+    "saveTemplate": {
+      "button": "Save as template",
+      "title": "Save as template",
+      "description": "The template keeps the agent's settings: model, instructions, autonomy, tools, limits and budget. Memory and task history are not included.",
+      "name": "Template name",
+      "save": "Save",
+      "saved": "Template \"{name}\" saved — it is in the \"Add to office\" palette.",
+      "openOffice": "Open the office"
+    },
+    "budget": {
+      "title": "Monthly budget",
+      "spent": "Spent: {spent}",
+      "spentOf": "{spent} of {limit}",
+      "meter": "{percent}% of the agent's monthly budget",
+      "percent": "{percent}% of the budget",
+      "countsAgainst": "Subagent: its spending counts against the budget of",
+      "over": "Budget used up: the agent's new model calls are stopped. Raise the budget in the settings below.",
+      "near": "{percent}% used — close to the limit (warning from {warn}%).",
+      "ok": "{percent}% used. You are warned at {warn}%; at 100% the agent stops.",
+      "noLimit": "No limit of its own — set \"Monthly budget, $\" in the settings below."
+    }
   },
   "runs": {
     "newRun": "New task for the Orchestrator",
@@ -987,7 +1025,8 @@
       "warn": "Warn at, %",
       "hardStop": "Stop new model requests when the limit is used up",
       "save": "Save",
-      "saved": "Saved."
+      "saved": "Saved.",
+      "agentHint": "A single agent's limit is set in its settings (\"Monthly budget, $\"): you are warned at {warn}%, at 100% the agent stops."
     },
     "prices": {
       "title": "Model prices",
@@ -997,7 +1036,10 @@
       "save": "Save",
       "saved": "Saved",
       "none": "No enabled models."
-    }
+    },
+    "withSubagents": "incl. subagents: {cost}",
+    "agentLimit": "limit {limit}",
+    "agentLimitLine": "{percent}% of {limit}"
   },
   "voice": {
     "start": "Speak",

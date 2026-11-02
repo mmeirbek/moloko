@@ -23,6 +23,8 @@ class BudgetIn(BaseModel):
 
 
 class AgentCost(BaseModel):
+    """One budget holder: an agent with its subagents' calls, or the chat."""
+
     agent_id: uuid.UUID | None
     name: str
     source: str
@@ -30,6 +32,9 @@ class AgentCost(BaseModel):
     input_tokens: int
     output_tokens: int
     calls: int
+    subagents_cost_usd: Decimal = Field(description="Part of cost_usd spent by its subagents.")
+    monthly_budget_usd: Decimal | None = Field(description="The agent's own limit (today's).")
+    percent: float | None = Field(description="Of the agent's limit; current month only.")
 
 
 class ModelCost(BaseModel):
@@ -56,6 +61,7 @@ class CostSummary(BaseModel):
     calls: int
     unpriced_calls: int
     budget: BudgetOut
+    agent_warn_percent: int = Field(description="Warning threshold of per-agent budgets.")
     by_agent: list[AgentCost]
     by_model: list[ModelCost]
     by_day: list[DayCost]

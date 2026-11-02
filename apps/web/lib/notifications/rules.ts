@@ -73,6 +73,18 @@ export function noticeFor(event: EventEnvelope, now: number = Date.now()): Notic
     if (!a) return null;
     return { kind: "approval", key: `approval:${a.id}`, title: "approval", subject: a.summary, url: "/approvals" };
   }
+  if (event.type === "budget.warning" && p.scope === "agent") {
+    // One agent's own monthly budget (subagents count against it).
+    const percent = Number(p.percent ?? 0);
+    const agentId = String(p.agent_id ?? event.agent_id ?? "");
+    return {
+      kind: "budget",
+      key: `budget:${String(p.month)}:${agentId}:${percent}`,
+      title: "budget",
+      subject: `«${String(p.agent_name ?? "")}»: ${percent}% · $${String(p.spent_usd)} / $${String(p.limit_usd)}`,
+      url: `/office/agents/${agentId}`,
+    };
+  }
   if (event.type === "budget.warning") {
     const percent = Number(p.percent ?? 0);
     return {

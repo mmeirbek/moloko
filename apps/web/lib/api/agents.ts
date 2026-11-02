@@ -1,4 +1,5 @@
 import type {
+  AgentBudgetOut,
   AgentCreate,
   AgentFromTemplate,
   AgentOut,
@@ -7,6 +8,7 @@ import type {
   AgentRunRequest,
   AgentUpdate,
   EventOut,
+  SaveAsTemplate,
   StartedRun,
   StopAllResult,
   StorageStatus,
@@ -26,6 +28,7 @@ export const agentKeys = {
   tasks: (id: string) => ["tasks", "agent", id] as const,
   templates: (locale: string) => ["agents", "templates", locale] as const,
   archived: ["agents", "archived"] as const,
+  budget: (id: string) => ["agents", id, "budget"] as const,
 };
 export const taskKeys = {
   all: ["tasks"] as const,
@@ -44,6 +47,13 @@ export const listAgentTemplates = (locale: string, signal?: AbortSignal) =>
   api.request<AgentTemplateOut[]>(`/agents/templates?locale=${encodeURIComponent(locale)}`, { signal });
 export const createAgentFromTemplate = (body: AgentFromTemplate) =>
   api.request<AgentOut>("/agents/from-template", { method: "POST", body });
+/** Save the agent's configuration as an own template (no memory, no history). */
+export const saveAgentAsTemplate = (id: string, body: SaveAsTemplate = {}) =>
+  api.request<AgentTemplateOut>(`/agents/${id}/save-template`, { method: "POST", body });
+export const deleteAgentTemplate = (id: string) => api.request<void>(`/agents/templates/${id}`, { method: "DELETE" });
+/** This month's spending against the budget that applies to the agent (a subagent: the one above it). */
+export const getAgentBudget = (id: string, signal?: AbortSignal) =>
+  api.request<AgentBudgetOut>(`/agents/${id}/budget`, { signal });
 export const updateAgent = (id: string, body: AgentUpdate) =>
   api.request<AgentOut>(`/agents/${id}`, { method: "PATCH", body });
 export const deleteAgent = (id: string) => api.request<void>(`/agents/${id}`, { method: "DELETE" });

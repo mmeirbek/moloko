@@ -322,14 +322,22 @@ class NativeRuntime:
                 await bus.commit(db)
 
     async def _budget_gate(self, ctx: RunContext) -> None:
-        """Before every model call: stop if the owner set "stop at the monthly limit"."""
-        from app.services.usage import BudgetExceeded, ensure_within_budget
+        """Before every model call: stop if the owner set "stop at the monthly limit", and
+        always at the agent's own monthly budget (a subagent: the budget of the agent
+        above it)."""
+        from app.services.usage import (
+            AgentBudgetExceeded,
+            BudgetExceeded,
+            ensure_within_agent_budget,
+            ensure_within_budget,
+        )
 
         async with ctx.sessionmaker() as db:
             try:
                 await ensure_within_budget(db, ctx.user_id)
-            except BudgetExceeded as exc:
-                raise LimitExceeded("budget_exceeded", exc.message) from None
+                await ensure_within_agent_budget(db, ctx.agent_id)
+            except (BudgetExceeded, AgentBudgetExceeded) as exc:
+                raise LimitExceeded(exc.code, exc.message) from None
 
     async def _checkpoint(
         self,
@@ -368,6 +376,7 @@ class NativeRuntime:
                 agent_name=who[0] if who else None,
                 task_id=ctx.task_id,
                 run_id=ctx.run_id,
+                agent_warn_percent=ctx.settings.agent_budget_warn_percent,
             )
             run.steps = steps
             run.state = {

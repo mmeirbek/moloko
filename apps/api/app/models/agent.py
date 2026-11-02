@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, Timestamps, UUIDPrimaryKey
@@ -46,6 +47,36 @@ class Agent(UUIDPrimaryKey, Timestamps, Base):
     )
     config_version: Mapped[int] = mapped_column(Integer, server_default="1")
     archived_at: Mapped[datetime | None]
+    # Monthly limit in USD for this agent's model calls (its subagents included);
+    # NULL = no limit of its own (the global budget still applies).
+    monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+
+
+class SavedAgentTemplate(UUIDPrimaryKey, Timestamps, Base):
+    """The owner's own agent template ("Save as template"): an agent's reusable
+    configuration. Memory, history and the project workspace are not part of it."""
+
+    __tablename__ = "agent_templates"
+    __table_args__ = (UniqueConstraint("user_id", "name"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text, server_default="")
+    specialization: Mapped[str | None] = mapped_column(String(64))
+    model_config_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("model_configs.id", ondelete="SET NULL")
+    )
+    system_prompt: Mapped[str] = mapped_column(Text, server_default="")
+    autonomy_level: Mapped[str] = mapped_column(String(16), server_default="supervised")
+    allowed_tools: Mapped[list[str]] = mapped_column(server_default=text("'[]'::jsonb"))
+    permissions: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    limits: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    memory_settings: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # The agent it was saved from (provenance only; the template does not follow it).
+    source_agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agents.id", ondelete="SET NULL")
+    )
 
 
 class AgentRun(UUIDPrimaryKey, Timestamps, Base):

@@ -53,14 +53,18 @@ class ToolsService:
             out.append(tool_out(name, entry, server))
         return out
 
-    async def validate_names(self, user_id: uuid.UUID, names: list[str]) -> None:
-        known = set(BUILTIN) | set(
+    async def known_names(self, user_id: uuid.UUID) -> set[str]:
+        """Built-in tools and the owner's MCP tools."""
+        return set(BUILTIN) | set(
             (
                 await self.db.execute(
                     select(Tool.name).where(Tool.user_id == user_id, Tool.source == "mcp")
                 )
             ).scalars()
         )
+
+    async def validate_names(self, user_id: uuid.UUID, names: list[str]) -> None:
+        known = await self.known_names(user_id)
         unknown = list(dict.fromkeys(n for n in names if n not in known))
         if unknown:
             raise UnknownTool(

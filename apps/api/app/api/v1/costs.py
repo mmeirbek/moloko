@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from app.api.deps import CurrentAuth, DbSession
+from app.api.deps import CurrentAuth, DbSession, SettingsDep
 from app.schemas.usage import BudgetIn, BudgetOut, CostSummary
 from app.services.audit import AuditService
 from app.services.usage import Budget, check_budget, get_budget, set_budget, summary
@@ -12,9 +12,15 @@ router = APIRouter(prefix="/costs", tags=["costs"])
 
 @router.get("", response_model=CostSummary, summary="Tokens and approximate cost for a month")
 async def costs(
-    ctx: CurrentAuth, db: DbSession, month: str | None = Query(None, pattern=r"^\d{4}-\d{2}$")
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    month: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
 ) -> CostSummary:
-    return CostSummary.model_validate(await summary(db, ctx.user.id, month))
+    data = await summary(db, ctx.user.id, month)
+    return CostSummary.model_validate(
+        {**data, "agent_warn_percent": settings.agent_budget_warn_percent}
+    )
 
 
 @router.put("/budget", response_model=BudgetOut, summary="Monthly limit and warnings")

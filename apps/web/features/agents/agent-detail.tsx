@@ -20,8 +20,10 @@ import { cn } from "@/lib/utils";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 import { useDocumentTitle } from "@/lib/hooks";
 
+import { AgentBudget } from "./agent-budget";
 import { AgentControls, isAgentBusy } from "./agent-controls";
 import { AgentForm } from "./agent-form";
+import { SaveTemplateButton } from "./save-template";
 import { StatusBadge } from "./status-badge";
 
 const TABS = ["profile", "memory", "tasks"] as const;
@@ -184,6 +186,8 @@ export function AgentDetail({ agentId }: { agentId: string }) {
             {toMessage(run.error).message}
           </p>
         )}
+        <AgentBudget agentId={agentId} busy={busy} />
+        {live.agent_type === "autonomous" && <SaveTemplateButton agent={{ id: agentId, name: live.name ?? "" }} />}
       </div>
 
       <div role="tablist" aria-label={td("sections")} className="flex gap-1 border-b-2">

@@ -6,7 +6,10 @@ import type { DragEvent } from "react";
 
 import { agentKeys, createAgentFromTemplate, restoreAgent } from "@/lib/api/agents";
 
-/** What can be dropped into the office: a template (a new agent) or an agent removed earlier. */
+/**
+ * What can be dropped into the office: a template (a new agent; `key` is a built-in key or an own
+ * template's id, as `GET /agents/templates` lists them) or an agent removed earlier.
+ */
 export type OfficeDrop = { kind: "template"; key: string } | { kind: "archived"; id: string };
 
 /** The drag-and-drop data type; anything else dragged over the map is ignored. */

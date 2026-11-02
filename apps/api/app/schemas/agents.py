@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from app.agents.state import AgentType, AutonomyLevel
 from app.schemas.tasks import RunOut, TaskOut
@@ -35,9 +36,23 @@ class AgentOut(BaseModel):
     workspace_id: uuid.UUID | None
     config_version: int
     archived_at: datetime | None
+    monthly_budget_usd: Decimal | None
     created_at: datetime
     updated_at: datetime
 
+
+# Per-agent monthly budget in USD (None = no limit of its own; the global budget still applies).
+MonthlyBudget = Annotated[
+    Decimal | None,
+    Field(
+        gt=0,
+        le=1_000_000,
+        decimal_places=2,
+        description="Monthly limit in USD for this agent's model calls, subagents included; "
+        "null = no limit of its own.",
+    ),
+    AfterValidator(lambda v: v.quantize(Decimal("0.01")) if v is not None else None),
+]
 
 ToolOverride = Literal["approve", "deny"]
 
@@ -80,6 +95,7 @@ class AgentCreate(BaseModel):
     # Per-tool overrides; they can only be stricter than the autonomy level (spec 14.2).
     tool_overrides: dict[str, ToolOverride] = Field(default_factory=dict, max_length=100)
     workspace_id: uuid.UUID | None = None  # a project workspace; None = one per task
+    monthly_budget_usd: MonthlyBudget = None
 
 
 class AgentUpdate(BaseModel):
@@ -96,22 +112,66 @@ class AgentUpdate(BaseModel):
     memory_settings: MemorySettings | None = None
     tool_overrides: dict[str, ToolOverride] | None = Field(default=None, max_length=100)
     workspace_id: uuid.UUID | None = None
+    monthly_budget_usd: MonthlyBudget = None  # sent as null = remove the limit
 
 
 class AgentTemplateOut(BaseModel):
-    key: str
+    key: str = Field(
+        description="What POST /agents/from-template takes: a built-in key, or an own "
+        "template's id."
+    )
+    source: Literal["builtin", "own"]
+    id: uuid.UUID | None = Field(description="Own templates only (DELETE /agents/templates/{id}).")
     name: str
     description: str
     specialization: str
     allowed_tools: list[str]
+    autonomy_level: str
+    model_config_id: uuid.UUID | None
+    monthly_budget_usd: Decimal | None
+    created_at: datetime | None
 
 
 class AgentFromTemplate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    template: str = Field(min_length=1, max_length=32)
+    template: str = Field(
+        min_length=1,
+        max_length=64,
+        description="A key from GET /agents/templates (built-in key or own template id).",
+    )
     name: str | None = Field(default=None, min_length=1, max_length=100)
     locale: str = Field(default="ru", max_length=8)
+
+
+class SaveAsTemplate(BaseModel):
+    """Optional body of ``POST /agents/{id}/save-template``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="The template's name; by default the agent's name.",
+    )
+
+
+class AgentBudgetOut(BaseModel):
+    """This month's spending against the budget that applies to an agent."""
+
+    agent_id: uuid.UUID
+    budget_agent_id: uuid.UUID = Field(
+        description="Whose budget counts: the agent itself, or for a subagent the "
+        "persistent agent / Orchestrator above it."
+    )
+    budget_agent_name: str
+    month: str
+    spent_usd: Decimal
+    monthly_budget_usd: Decimal | None
+    warn_percent: int
+    percent: float | None
+    exceeded: bool
 
 
 class AgentRestore(BaseModel):

@@ -48,7 +48,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add a persistent agent from a template (it waits for a task) */
+        /** Add a persistent agent from a template (built-in or own; it waits for a task) */
         post: operations["create_from_template_api_v1_agents_from_template_post"];
         delete?: never;
         options?: never;
@@ -63,11 +63,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ready-made agents */
+        /** Ready-made agents: the built-in templates, then the owner's own (newest first) */
         get: operations["list_templates_api_v1_agents_templates_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of the owner's own templates (agents made from it stay) */
+        delete: operations["delete_template_api_v1_agents_templates__template_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -90,6 +107,23 @@ export interface paths {
         head?: never;
         /** Update Agent */
         patch: operations["update_agent_api_v1_agents__agent_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This month's spending against the agent's own budget (subagents: the one above) */
+        get: operations["agent_budget_api_v1_agents__agent_id__budget_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/agents/{agent_id}/memory-context": {
@@ -171,6 +205,23 @@ export interface paths {
         put?: never;
         /** Give the agent a task and start it */
         post: operations["run_agent_api_v1_agents__agent_id__run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/save-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save the agent's configuration as an own template (no memory or history) */
+        post: operations["save_as_template_api_v1_agents__agent_id__save_template_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1425,7 +1476,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AgentCost */
+        /**
+         * AgentBudgetOut
+         * @description This month's spending against the budget that applies to an agent.
+         */
+        AgentBudgetOut: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /**
+             * Budget Agent Id
+             * Format: uuid
+             * @description Whose budget counts: the agent itself, or for a subagent the persistent agent / Orchestrator above it.
+             */
+            budget_agent_id: string;
+            /** Budget Agent Name */
+            budget_agent_name: string;
+            /** Exceeded */
+            exceeded: boolean;
+            /** Month */
+            month: string;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string | null;
+            /** Percent */
+            percent: number | null;
+            /** Spent Usd */
+            spent_usd: string;
+            /** Warn Percent */
+            warn_percent: number;
+        };
+        /**
+         * AgentCost
+         * @description One budget holder: an agent with its subagents' calls, or the chat.
+         */
         AgentCost: {
             /** Agent Id */
             agent_id: string | null;
@@ -1435,12 +1520,27 @@ export interface components {
             cost_usd: string;
             /** Input Tokens */
             input_tokens: number;
+            /**
+             * Monthly Budget Usd
+             * @description The agent's own limit (today's).
+             */
+            monthly_budget_usd: string | null;
             /** Name */
             name: string;
             /** Output Tokens */
             output_tokens: number;
+            /**
+             * Percent
+             * @description Of the agent's limit; current month only.
+             */
+            percent: number | null;
             /** Source */
             source: string;
+            /**
+             * Subagents Cost Usd
+             * @description Part of cost_usd spent by its subagents.
+             */
+            subagents_cost_usd: string;
         };
         /** AgentCreate */
         AgentCreate: {
@@ -1459,6 +1559,11 @@ export interface components {
             memory_settings?: components["schemas"]["MemorySettings"];
             /** Model Config Id */
             model_config_id?: string | null;
+            /**
+             * Monthly Budget Usd
+             * @description Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.
+             */
+            monthly_budget_usd?: number | string | null;
             /** Name */
             name: string;
             /** Specialization */
@@ -1484,7 +1589,10 @@ export interface components {
             locale?: string;
             /** Name */
             name?: string | null;
-            /** Template */
+            /**
+             * Template
+             * @description A key from GET /agents/templates (built-in key or own template id).
+             */
             template: string;
         };
         /** AgentLimits */
@@ -1570,6 +1678,8 @@ export interface components {
             };
             /** Model Config Id */
             model_config_id: string | null;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string | null;
             /** Name */
             name: string;
             /** Parent Agent Id */
@@ -1625,12 +1735,33 @@ export interface components {
         AgentTemplateOut: {
             /** Allowed Tools */
             allowed_tools: string[];
+            /** Autonomy Level */
+            autonomy_level: string;
+            /** Created At */
+            created_at: string | null;
             /** Description */
             description: string;
-            /** Key */
+            /**
+             * Id
+             * @description Own templates only (DELETE /agents/templates/{id}).
+             */
+            id: string | null;
+            /**
+             * Key
+             * @description What POST /agents/from-template takes: a built-in key, or an own template's id.
+             */
             key: string;
+            /** Model Config Id */
+            model_config_id: string | null;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string | null;
             /** Name */
             name: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "builtin" | "own";
             /** Specialization */
             specialization: string;
         };
@@ -1650,6 +1781,11 @@ export interface components {
             memory_settings?: components["schemas"]["MemorySettings"] | null;
             /** Model Config Id */
             model_config_id?: string | null;
+            /**
+             * Monthly Budget Usd
+             * @description Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.
+             */
+            monthly_budget_usd?: number | string | null;
             /** Name */
             name?: string | null;
             /** Specialization */
@@ -1936,6 +2072,11 @@ export interface components {
         };
         /** CostSummary */
         CostSummary: {
+            /**
+             * Agent Warn Percent
+             * @description Warning threshold of per-agent budgets.
+             */
+            agent_warn_percent: number;
             budget: components["schemas"]["BudgetOut"];
             /** By Agent */
             by_agent: components["schemas"]["AgentCost"][];
@@ -2687,6 +2828,17 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /**
+         * SaveAsTemplate
+         * @description Optional body of ``POST /agents/{id}/save-template``.
+         */
+        SaveAsTemplate: {
+            /**
+             * Name
+             * @description The template's name; by default the agent's name.
+             */
+            name?: string | null;
+        };
         /** SearchHitOut */
         SearchHitOut: {
             /** Agent Id */
@@ -3313,6 +3465,35 @@ export interface operations {
             };
         };
     };
+    delete_template_api_v1_agents_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_agent_api_v1_agents__agent_id__get: {
         parameters: {
             query?: never;
@@ -3395,6 +3576,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    agent_budget_api_v1_agents__agent_id__budget_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBudgetOut"];
                 };
             };
             /** @description Validation Error */
@@ -3560,6 +3772,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StartedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    save_as_template_api_v1_agents__agent_id__save_template_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SaveAsTemplate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateOut"];
                 };
             };
             /** @description Validation Error */

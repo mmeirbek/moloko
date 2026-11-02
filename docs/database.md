@@ -125,3 +125,9 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - `attachments.kind` (`text|image|pdf`), `data bytea` (picture/PDF bytes, deferred), `pages` (PDF).
 - **`search_chunks`** (0011, pgvector) — derived, rebuilt from sources: `user_id, source_type (memory|file|attachment), source_id, agent_id?, memory_type?, project?, workspace_id?, conversation_id?, title, chunk_index, text, content_hash, model?, embedding vector?`; index `(user_id, source_type, source_id)`. Migration 0011 also creates the `vector` extension and re-indexes all tables once (Alpine → Debian image).
 
+## Tables (revision 0014c — own templates, per-agent budgets)
+
+- **`agent_templates`** — the owner's own templates ("Save as template"): `user_id → users (cascade), name (unique per user), description, specialization?, model_config_id? (SET NULL), system_prompt, autonomy_level, allowed_tools jsonb, permissions jsonb, limits jsonb, memory_settings jsonb, monthly_budget_usd numeric(12,2)?, source_agent_id? → agents (SET NULL), created_at, updated_at`. No memory, history or workspace.
+- `agents.monthly_budget_usd numeric(12,2)?` — the agent's own monthly limit (NULL = none).
+- `usage_records.budget_agent_id?` — whose budget a call counts against (the agent, or for a subagent the nearest non-subagent above it; NULL for chat); index `(budget_agent_id, created_at)`. Backfilled by the migration through the `parent_agent_id` chain. Sent per-agent alerts live in `system_settings` (`agent_budget_alerts:<agent id>` = `{month, limit_usd, sent[]}`).
+

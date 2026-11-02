@@ -97,6 +97,7 @@ TABLES = (
     "agent_events",
     "idempotency_keys",
     "system_settings",
+    "agent_templates",
     "tasks",
     "agent_runs",
     "agents",

@@ -16,12 +16,18 @@ class UsageRecord(UUIDPrimaryKey, Base):
     behind Settings → Costs and the monthly budget."""
 
     __tablename__ = "usage_records"
-    __table_args__ = (Index("ix_usage_records_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_usage_records_user_created", "user_id", "created_at"),
+        Index("ix_usage_records_budget_agent_created", "budget_agent_id", "created_at"),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     source: Mapped[str] = mapped_column(String(16))  # chat | agent | orchestrator
     agent_id: Mapped[uuid.UUID | None]
     agent_name: Mapped[str | None] = mapped_column(String(100))  # snapshot for history
+    # Whose monthly budget the call counts against: the agent itself, or for a subagent
+    # the nearest persistent agent / Orchestrator above it. NULL for chat.
+    budget_agent_id: Mapped[uuid.UUID | None]
     task_id: Mapped[uuid.UUID | None]
     run_id: Mapped[uuid.UUID | None]
     conversation_id: Mapped[uuid.UUID | None]

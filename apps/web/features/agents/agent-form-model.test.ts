@@ -1,7 +1,7 @@
 import type { AgentOut, SystemLimits } from "@moloko/shared-types";
 import { describe, expect, it } from "vitest";
 
-import { fromAgent, parseProjects, setOverride, toggleTool, toPayload, validate } from "./agent-form-model";
+import { fromAgent, money, parseProjects, setOverride, toggleTool, toPayload, validate } from "./agent-form-model";
 
 const LIMITS: SystemLimits = {
   max_steps_per_run: 50,
@@ -33,6 +33,7 @@ describe("agent form", () => {
       allowed_tools: ["fs_read", "fs_write"],
       permissions: { tools: { fs_write: "approve" } },
       workspace_id: "ws1",
+      monthly_budget_usd: "7.50",
     } as unknown as AgentOut;
     const payload = toPayload(fromAgent(agent));
     expect(payload).toEqual({
@@ -47,6 +48,7 @@ describe("agent form", () => {
       allowed_tools: ["fs_read", "fs_write"],
       tool_overrides: { fs_write: "approve" },
       workspace_id: "ws1",
+      monthly_budget_usd: "7.50",
     });
   });
 
@@ -54,6 +56,20 @@ describe("agent form", () => {
     const payload = toPayload({ ...fromAgent(), name: "A" });
     expect(payload.limits).toEqual({ max_steps: null, run_timeout_seconds: null });
     expect(payload.model_config_id).toBeNull();
+    expect(payload.monthly_budget_usd).toBeNull();
+  });
+
+  it("the monthly budget is dollars above zero with at most two decimals", () => {
+    expect(money("")).toBeNull();
+    expect(money(" 12 ")).toBe("12.00");
+    expect(money("12,5")).toBe("12.50");
+    expect(money("1.234")).toBe(false);
+    expect(money("ten")).toBe(false);
+    const v = { ...fromAgent(), name: "A" };
+    expect(validate({ ...v, monthlyBudget: "5" }, LIMITS)).toEqual({});
+    for (const bad of ["0", "-1", "1.234", "abc", "2000000"])
+      expect(validate({ ...v, monthlyBudget: bad }, LIMITS).monthlyBudget?.error).toBe("money");
+    expect(toPayload({ ...v, monthlyBudget: "3,5" }).monthly_budget_usd).toBe("3.50");
   });
 
   it("limits can only be stricter than the global ones", () => {

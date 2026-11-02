@@ -97,6 +97,11 @@ class Settings(BaseSettings):
     approval_ttl_minutes: int = Field(60, ge=1)
     max_subtasks_per_plan: int = Field(8, ge=1, le=50)
     agent_max_output_tokens: int = Field(4096, ge=1)
+    # Per-agent monthly budgets: the owner is warned when an agent (with its subagents)
+    # has spent this share of its own limit; at 100 % its new model calls are refused.
+    agent_budget_warn_percent: int = Field(80, ge=10, le=99)
+    # How many own templates ("Save as template") the owner may keep.
+    agent_templates_max: int = Field(50, ge=1, le=1000)
 
     # --- Memory (spec 17) ---------------------------------------------------------
     # Max characters of saved memory put into one agent's prompt (per-agent may be lower).

@@ -64,5 +64,35 @@ describe("budget notices", () => {
     };
     expect(noticeFor(event)).toMatchObject({ kind: "budget", key: "budget:2026-11:80", url: "/settings/costs" });
   });
+
+  it("announces an agent's own budget separately and links to the agent", async () => {
+    const { noticeFor } = await import("./rules");
+    const event = {
+      id: "e2",
+      seq: 2,
+      type: "budget.warning" as const,
+      version: 1,
+      timestamp: new Date().toISOString(),
+      agent_id: "a1",
+      task_id: null,
+      run_id: null,
+      payload: {
+        scope: "agent",
+        agent_id: "a1",
+        agent_name: "Researcher",
+        month: "2026-11",
+        percent: 100,
+        spent_usd: "5.02",
+        limit_usd: "5.00",
+      },
+    };
+    expect(noticeFor(event)).toEqual({
+      kind: "budget",
+      key: "budget:2026-11:a1:100",
+      title: "budget",
+      subject: "«Researcher»: 100% · $5.02 / $5.00",
+      url: "/office/agents/a1",
+    });
+  });
 });
 
