@@ -13,14 +13,6 @@ from typing import Protocol
 
 
 @dataclass(frozen=True)
-class SandboxLimits:
-    cpus: float
-    memory_mb: int
-    pids: int
-    timeout_seconds: int
-
-
-@dataclass(frozen=True)
 class SandboxResult:
     exit_code: int | None  # None: killed (timeout) or failed to start
     stdout: str
@@ -37,7 +29,16 @@ class SandboxUnavailable(Exception):
 
 class Sandbox(Protocol):
     async def run(
-        self, workspace_id: uuid.UUID, argv: list[str], *, timeout_seconds: int
+        self,
+        workspace_id: uuid.UUID,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",  # "packages": package registries only (through a proxy)
     ) -> SandboxResult: ...
 
     async def health(self) -> dict[str, object]: ...
+
+    async def browse(
+        self, workspace_id: uuid.UUID, request: dict[str, object]
+    ) -> SandboxResult: ...

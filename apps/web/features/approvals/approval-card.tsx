@@ -2,19 +2,21 @@
 
 import type { ApprovalOut } from "@moloko/shared-types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ban, Check, ShieldAlert, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Ban, Check, ShieldAlert, ShieldCheck, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, taskKeys } from "@/lib/api/agents";
-import { resolveApproval } from "@/lib/api/tooling";
+import { approveAlways, resolveApproval } from "@/lib/api/tooling";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
-import { opParams, reasonKey } from "./approval-text";
+import { opKey, opParams, reasonKey } from "./approval-text";
+import { useStandingWhat } from "./standing-text";
 import { minutesLeft } from "./time-left";
 
 const CATEGORY_TONE: Record<string, string> = {
@@ -26,7 +28,7 @@ const CATEGORY_TONE: Record<string, string> = {
 export function CategoryBadge({ category }: { category: string }) {
   const t = useTranslations("tools.categories");
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", CATEGORY_TONE[category])}>
+    <span className={cn("px-2 py-0.5 text-xs font-medium", CATEGORY_TONE[category])}>
       {t(category as "read")}
     </span>
   );
@@ -35,6 +37,7 @@ export function CategoryBadge({ category }: { category: string }) {
 /** Spec 15.4: who asks, for which task, exactly what, what it touches and what happens. */
 export function ApprovalCard({ approval, compact = false }: { approval: ApprovalOut; compact?: boolean }) {
   const t = useTranslations("approvals");
+  const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const task = useRealtimeStore((s) => s.tasks[approval.task_id]);
@@ -43,8 +46,10 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, []);
+  const standingWhat = useStandingWhat();
   const act = useMutation({
-    mutationFn: (action: "approve" | "reject" | "cancel-task") => resolveApproval(approval.id, action),
+    mutationFn: (action: "approve" | "always" | "reject" | "cancel-task") =>
+      action === "always" ? approveAlways(approval.id) : resolveApproval(approval.id, action),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["approvals"] });
       void queryClient.invalidateQueries({ queryKey: taskKeys.all });
@@ -54,19 +59,17 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
   const pending = approval.status === "pending";
   const left = minutesLeft(approval.expires_at, now);
   const params = opParams(approval);
-  const op = params
-    ? approval.tool_name === "fs_write" && params.mode === "append"
-      ? "fs_append"
-      : approval.tool_name
-    : null;
+  const op = params ? opKey(approval.tool_name, params) : null;
   const summary = op ? t(`ops.${op}.summary` as "ops.fs_write.summary", params!) : approval.summary;
   const consequences = op ? t(`ops.${op}.consequences` as "ops.fs_write.consequences") : approval.consequences;
   const why = reasonKey(approval);
+  // «Одобрить и больше не спрашивать»: what this agent could then do without asking.
+  const alwaysWhat = approval.always ? standingWhat(approval.tool_name, approval.always) : null;
   const reason = why ? t(`reasons.${why}`) : approval.reason;
 
   return (
     <article
-      className={cn("flex flex-col gap-3 rounded-lg border bg-card p-4", pending && "border-amber-400/60")}
+      className={cn("flex flex-col gap-3 bg-card p-4 pixel-frame", pending && "[--frame-color:var(--color-amber-400)]")}
       data-approval-id={approval.id}
       aria-label={t("label", { action: summary })}
     >
@@ -117,7 +120,7 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
       )}
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">{t("exactArgs")}</summary>
-        <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
+        <pre className="mt-2 max-h-64 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap break-all">
           {JSON.stringify(approval.args, null, 2)}
         </pre>
       </details>
@@ -126,6 +129,26 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
           <Button size="sm" onClick={() => act.mutate("approve")} disabled={act.isPending}>
             <Check /> {t("approve")}
           </Button>
+          {alwaysWhat && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={act.isPending}
+              onClick={async () => {
+                const agent = approval.agent_name ?? "—";
+                if (
+                  await confirm({
+                    title: t("always.confirm", { agent, what: alwaysWhat }),
+                    description: t("always.confirmHint"),
+                    confirmLabel: t("always.button"),
+                  })
+                )
+                  act.mutate("always");
+              }}
+            >
+              <ShieldCheck /> {t("always.button")}
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => act.mutate("reject")} disabled={act.isPending}>
             <X /> {t("reject")}
           </Button>
@@ -134,8 +157,9 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
             variant="ghost"
             className="text-destructive"
             disabled={act.isPending}
-            onClick={() => {
-              if (window.confirm(t("cancelConfirm"))) act.mutate("cancel-task");
+            onClick={async () => {
+              if (await confirm({ title: t("cancelConfirm"), confirmLabel: t("cancelTask"), destructive: true }))
+                act.mutate("cancel-task");
             }}
           >
             <Ban /> {t("cancelTask")}
@@ -143,7 +167,12 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
           <span className="ml-auto text-xs text-muted-foreground">{t("expiresIn", { minutes: left })}</span>
         </div>
       )}
-      {pending && <p className="text-xs text-muted-foreground">{t("onlyThis")}</p>}
+      {pending && (
+        <p className="text-xs text-muted-foreground">
+          {t("onlyThis")}
+          {alwaysWhat && ` ${t("always.hint", { what: alwaysWhat })}`}
+        </p>
+      )}
       {act.error && (
         <p role="alert" className="text-sm text-destructive">
           {toMessage(act.error).message}

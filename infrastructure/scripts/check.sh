@@ -8,6 +8,9 @@ cd "$ROOT"
 echo "=== backend ==="
 infrastructure/scripts/test-api.sh
 
+echo "=== speech-to-text service ==="
+infrastructure/scripts/test-stt.sh
+
 echo "=== shared types ==="
 npm ci --no-audit --no-fund
 npm run check:types

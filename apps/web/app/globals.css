@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* The desktop sidebar folded into its icon rail (components/layout/sidebar-prefs.ts). */
+@custom-variant sidebar-collapsed (&:where([data-sidebar="collapsed"] *));
 
 /*
  * Brand palette, taken from the moloko logo: night-navy background, milk-cream
@@ -18,14 +20,22 @@
   --primary-foreground: #f6efdc;
   --accent: #dcecf9;
   --accent-foreground: #10142b;
-  --sky: #3f9ddf;
-  --grass: #4f9e3a;
+  /* Sky and grass are also text colours (status badges, links, "saved"): darkened in the light
+     theme to WCAG AA — ≥4.5:1 on card, milk, muted and their own 15 % tint. */
+  --sky: #1c6aa3;
+  --grass: #357526;
+  --chart-bar: #2f86c6; /* validated: ≥3:1 on the card surface */
   --destructive: #c8372f;
   --destructive-foreground: #ffffff;
   --border: #e2dccb;
   --input: #d6cfbb;
-  --ring: #3f9ddf;
-  --radius: 0.375rem;
+  --ring: #1c6aa3; /* focus ring ≥3:1 on every light surface */
+  /* Pixel style: one art pixel of the interface, the frame around boxes and the bevel shade. */
+  --px: 3px;
+  --frame: #10142b;
+  --shade: rgb(16 20 43 / 0.22);
+  /* Desktop sidebar width; the owner drags it (sidebar-prefs.ts sets it on <html>). */
+  --sidebar-width: 256px;
 }
 
 .dark {
@@ -46,6 +56,9 @@
   --border: #262f57;
   --input: #2d3766;
   --ring: #5fb3ec;
+  --chart-bar: #3f9ddf;
+  --frame: #3a4680;
+  --shade: rgb(0 0 0 / 0.35);
 }
 
 @theme inline {
@@ -66,12 +79,73 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 2px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  /* Pixel style: square corners everywhere; boxes get notched pixel frames (pixel-frame). */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+  /* Shadows are hard pixel offsets, never blurred. */
+  --shadow-2xs: var(--px) var(--px) 0 0 var(--shade);
+  --shadow-xs: var(--px) var(--px) 0 0 var(--shade);
+  --shadow-sm: var(--px) var(--px) 0 0 var(--shade);
+  --shadow-md: calc(var(--px) * 2) calc(var(--px) * 2) 0 0 var(--shade);
+  --shadow-lg: calc(var(--px) * 2) calc(var(--px) * 2) 0 0 var(--shade);
+  --shadow-xl: calc(var(--px) * 3) calc(var(--px) * 3) 0 0 var(--shade);
+  --shadow-2xl: calc(var(--px) * 3) calc(var(--px) * 3) 0 0 var(--shade);
+  /* Text sizes that put every font pixel on whole screen pixels (Ark Pixel is drawn at 12 px:
+     12 = 1×, 18 = 1.5× — 3 device px on a retina screen —, 24 = 2×, 36 = 3×, 48 = 4×). In-between
+     sizes blur the letters and make them look bolder, so there are none. */
+  --text-xs: 12px;
+  --text-xs--line-height: 18px;
+  --text-sm: 18px;
+  --text-sm--line-height: 27px;
+  --text-base: 18px;
+  --text-base--line-height: 27px;
+  --text-lg: 24px;
+  --text-lg--line-height: 32px;
+  --text-xl: 24px;
+  --text-xl--line-height: 32px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  --text-3xl: 36px;
+  --text-3xl--line-height: 44px;
+  --text-4xl: 48px;
+  --text-4xl--line-height: 56px;
+  /* A pixel loader turns in quarter steps (a 45° pixel image is a blur). */
+  --animate-spin: spin 1s steps(4, end) infinite;
+  /* Ark Pixel (TakWolf, OFL — app/fonts, scripts/subset-ark.py) for text and code; Moloko Pixel
+     (our own, drawn after the logo — scripts/make-font.py) for headings and big numbers. */
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-code), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-pixel: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * A notched pixel frame, one --px thick, drawn outside the box with four offset copies of it (the
+ * corners stay empty). It lives in Tailwind's --tw-shadow, so focus rings and the bevels below
+ * stack with it. --frame-color recolours it (focus, selection, status).
+ */
+@utility pixel-frame {
+  --tw-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--frame-color, var(--frame)),
+    0 var(--px) 0 0 var(--frame-color, var(--frame)),
+    calc(-1 * var(--px)) 0 0 0 var(--frame-color, var(--frame)),
+    var(--px) 0 0 0 var(--frame-color, var(--frame));
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+/* Raised (buttons): shade on the inner right and bottom edges. */
+@utility pixel-raised {
+  --tw-inset-shadow: inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 0 var(--shade);
+}
+/* Sunken (fields): shade on the inner left and top edges. */
+@utility pixel-sunken {
+  --tw-inset-shadow: inset var(--px) var(--px) 0 0 var(--shade);
 }
 
 @layer base {
@@ -88,12 +162,111 @@
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
+    /* Pixel fonts at whole-pixel sizes: no smoothing, every pixel crisp (macOS). */
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+    /* The pixel fonts have one weight: never a smeared fake bold or italic. */
+    font-synthesis: none;
+    /* Long words, links and ids wrap instead of widening the page on phones. */
+    overflow-wrap: break-word;
   }
   /* Pixel art must never be smoothed. */
   .pixelated {
     image-rendering: pixelated;
   }
+  /* The logo's own "moloko" lettering (public/brand/wordmark-mask.png, 458×96), in the text colour. */
+  .wordmark {
+    display: inline-block;
+    aspect-ratio: 458 / 96;
+    background-color: currentColor;
+    -webkit-mask: url("/brand/wordmark-mask.png") center / contain no-repeat;
+    mask: url("/brand/wordmark-mask.png") center / contain no-repeat;
+  }
+  /* Page titles, the logo and big numbers: Moloko Pixel. */
+  h1,
+  .font-pixel {
+    font-family: var(--font-pixel);
+    /* The letters already stand 2 pixels apart, as in the logo; extra spacing would push them
+       off the pixel grid and blur their edges. */
+    letter-spacing: 0;
+  }
+  /* Bold, the pixel way: the letter doubled one font pixel (1/12 em) to the right. */
+  strong,
+  b,
+  .font-semibold,
+  .font-bold {
+    text-shadow: calc(1em / 12) 0 0 currentColor;
+  }
+  /* Moloko Pixel is already bold: no doubling (also beats .font-semibold on a heading). */
+  :is(h1, .font-pixel):is(.font-semibold, .font-bold, .font-medium),
+  :is(h1, .font-pixel) :is(strong, b, .font-semibold, .font-bold) {
+    text-shadow: none;
+  }
+  ::selection {
+    background: var(--color-sky);
+    color: #fff;
+  }
+  :focus-visible {
+    outline: var(--px) solid var(--color-ring);
+    outline-offset: var(--px);
+  }
+  /* Pixel checkboxes and radios: a framed square; checked = a filled square inside. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: none;
+    display: inline-grid;
+    place-content: center;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 3px;
+    background: var(--color-card);
+    box-shadow:
+      0 -3px 0 0 var(--frame), 0 3px 0 0 var(--frame), -3px 0 0 0 var(--frame), 3px 0 0 0 var(--frame),
+      inset 3px 3px 0 0 var(--shade);
+    cursor: pointer;
+  }
+  input[type="checkbox"]::before,
+  input[type="radio"]::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    background: var(--color-sky);
+    transform: scale(0);
+  }
+  input[type="radio"]::before {
+    width: 6px;
+    height: 6px;
+  }
+  input[type="checkbox"]:checked::before,
+  input[type="radio"]:checked::before {
+    transform: scale(1);
+  }
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  /* Square, quiet scrollbars. */
+  * {
+    scrollbar-color: var(--frame) transparent;
+  }
+}
+
+/* Milk bottles clink when a task is done (MilkBottle). */
+@keyframes clink-left {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(14deg) translateX(2px); }
+  60% { transform: rotate(10deg) translateX(1px); }
+}
+@keyframes clink-right {
+  0%, 100% { transform: scaleX(-1) rotate(0deg); }
+  45% { transform: scaleX(-1) rotate(14deg) translateX(2px); }
+  60% { transform: scaleX(-1) rotate(10deg) translateX(1px); }
+}
+@keyframes sparkle {
+  0%, 30%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 /* Chat Markdown (model output). */
@@ -103,17 +276,18 @@
 .markdown h1,
 .markdown h2,
 .markdown h3 {
-  font-weight: 600;
-  line-height: 1.3;
+  font-family: var(--font-pixel);
+  font-size: 24px;
+  line-height: 32px;
 }
-.markdown h1 {
-  font-size: 1.25em;
-}
-.markdown h2 {
-  font-size: 1.15em;
+.markdown h3 {
+  font-family: var(--font-sans);
+  text-shadow: calc(1em / 12) 0 0 currentColor;
+  font-size: 18px;
+  line-height: 27px;
 }
 .markdown ul {
-  list-style: disc;
+  list-style: square;
   padding-left: 1.5em;
 }
 .markdown ol {
@@ -125,7 +299,7 @@
   text-decoration: underline;
 }
 .markdown blockquote {
-  border-left: 3px solid var(--color-border);
+  border-left: var(--px) solid var(--frame);
   padding-left: 0.75em;
   color: var(--color-muted-foreground);
 }
@@ -136,25 +310,26 @@
 }
 .markdown th,
 .markdown td {
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   padding: 0.25em 0.6em;
 }
 .markdown :not(pre) > code {
   background: var(--color-muted);
-  border-radius: 4px;
-  padding: 0.1em 0.35em;
+  padding: 0 0.25em;
   font-family: var(--font-mono);
-  font-size: 0.9em;
 }
 .markdown pre {
   overflow-x: auto;
-  border-radius: 8px;
   background: #0c1024;
   color: #e8e3d3;
-  padding: 0.9em 1em;
+  padding: 12px 15px;
+  margin-inline: var(--px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--frame), 0 var(--px) 0 0 var(--frame),
+    calc(-1 * var(--px)) 0 0 0 var(--frame), var(--px) 0 0 0 var(--frame);
   font-family: var(--font-mono);
-  font-size: 0.85em;
-  line-height: 1.5;
+  font-size: 12px; /* Ark Pixel mono at 1× */
+  line-height: 18px;
 }
 /* highlight.js token colours (our own palette). */
 .hljs-keyword,
@@ -174,15 +349,37 @@
 .hljs-comment,
 .hljs-quote {
   color: #7d849f;
-  font-style: italic;
 }
 .hljs-title,
 .hljs-function,
 .hljs-section {
   color: #f6efdc;
-  font-weight: 600;
 }
 .hljs-variable,
 .hljs-params {
   color: #e9a5c4;
+}
+
+/* "Save as PDF" fallback: print only the result being exported. */
+@media print {
+  body:has(.print-area) * {
+    visibility: hidden;
+  }
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * {
+    visibility: visible;
+  }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    border: none;
+  }
+}
+
+/* While the sidebar edge is dragged: one cursor everywhere, no text selection. */
+html[data-resizing],
+html[data-resizing] * {
+  cursor: col-resize !important;
+  user-select: none;
 }

@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query, Response, UploadFile, status
+from fastapi import APIRouter, Query, Request, Response, status
+from fastapi.responses import FileResponse
 
 from app.api.deps import ChatStreamsDep, CurrentAuth, DbSession, GatewayDep, QueueDep, SettingsDep
 from app.api.sse import queue_events, sse_event, sse_response
+from app.core.config import Settings
+from app.models.chat import Conversation
 from app.orchestrator.service import hand_off_chat
 from app.schemas.agents import StartedRun
 from app.schemas.chat import (
@@ -15,6 +19,7 @@ from app.schemas.chat import (
     CancelResult,
     ConversationCreate,
     ConversationOut,
+    ConversationSummaryOut,
     ConversationUpdate,
     MessageCreate,
     MessageOut,
@@ -22,8 +27,17 @@ from app.schemas.chat import (
 from app.schemas.common import Page
 from app.schemas.tasks import HandoffRequest, RunOut, TaskOut
 from app.services.chat import ChatService
+from app.services.files import receive_upload
 
 router = APIRouter(prefix="/chats", tags=["chats"])
+
+
+def conversation_out(conv: Conversation, settings: Settings) -> ConversationOut:
+    out = ConversationOut.model_validate(conv)
+    if not settings.chat_summary_enabled:  # the model does not get it: don't claim it does
+        out = out.model_copy(update={"summary_updated_at": None, "summary_messages": 0})
+    return out
+
 
 SSE_DOC: dict[int | str, dict[str, Any]] = {
     200: {
@@ -46,7 +60,7 @@ async def list_chats(
     rows, next_cursor = await ChatService(db, settings, gateway).list_conversations(
         ctx.user.id, limit=limit, cursor=cursor
     )
-    return Page(items=[ConversationOut.model_validate(c) for c in rows], next_cursor=next_cursor)
+    return Page(items=[conversation_out(c, settings) for c in rows], next_cursor=next_cursor)
 
 
 @router.post("", response_model=ConversationOut, status_code=status.HTTP_201_CREATED)
@@ -57,8 +71,8 @@ async def create_chat(
     settings: SettingsDep,
     gateway: GatewayDep,
 ) -> ConversationOut:
-    return ConversationOut.model_validate(
-        await ChatService(db, settings, gateway).create(ctx.user.id, body)
+    return conversation_out(
+        await ChatService(db, settings, gateway).create(ctx.user.id, body), settings
     )
 
 
@@ -66,8 +80,26 @@ async def create_chat(
 async def get_chat(
     chat_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, gateway: GatewayDep
 ) -> ConversationOut:
-    return ConversationOut.model_validate(
-        await ChatService(db, settings, gateway).get(ctx.user.id, chat_id)
+    return conversation_out(
+        await ChatService(db, settings, gateway).get(ctx.user.id, chat_id), settings
+    )
+
+
+@router.get("/{chat_id}/summary", response_model=ConversationSummaryOut)
+async def get_chat_summary(
+    chat_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, gateway: GatewayDep
+) -> ConversationSummaryOut:
+    """The rolling summary of the chat's older messages — exactly what the model gets."""
+    conv = await ChatService(db, settings, gateway).get(ctx.user.id, chat_id)
+    if not settings.chat_summary_enabled:
+        return ConversationSummaryOut(
+            summary=None, summary_messages=0, summary_upto_at=None, summary_updated_at=None
+        )
+    return ConversationSummaryOut(
+        summary=conv.summary,
+        summary_messages=conv.summary_messages,
+        summary_upto_at=conv.summary_upto_at,
+        summary_updated_at=conv.summary_updated_at,
     )
 
 
@@ -81,7 +113,7 @@ async def update_chat(
     gateway: GatewayDep,
 ) -> ConversationOut:
     conv = await ChatService(db, settings, gateway).update(ctx.user.id, chat_id, body)
-    return ConversationOut.model_validate(conv)
+    return conversation_out(conv, settings)
 
 
 @router.delete("/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -114,25 +146,92 @@ async def list_messages(
     return Page(items=items, next_cursor=next_cursor)
 
 
+UPLOAD_BODY: dict[str, Any] = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "title": "AttachmentUpload",
+                    "type": "object",
+                    "properties": {
+                        "file": {
+                            "title": "File",
+                            "type": "string",
+                            "contentMediaType": "application/octet-stream",
+                        }
+                    },
+                    "required": ["file"],
+                }
+            }
+        },
+    }
+}
+
+
 @router.post(
     "/{chat_id}/attachments",
     response_model=AttachmentOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload a text file to attach to the next message",
+    summary="Upload a file of any type and size to attach to the next message",
+    openapi_extra=UPLOAD_BODY,
 )
 async def upload_attachment(
     chat_id: uuid.UUID,
+    request: Request,
     ctx: CurrentAuth,
     db: DbSession,
     settings: SettingsDep,
     gateway: GatewayDep,
-    file: UploadFile,
 ) -> AttachmentOut:
-    data = await file.read(settings.chat_attachment_max_bytes + 1)
-    attachment = await ChatService(db, settings, gateway).upload(
-        ctx.user.id, chat_id, file.filename or "file.txt", file.content_type or "text/plain", data
+    # The body is streamed to disk as it arrives (app/services/files.py), never into memory.
+    user_id = ctx.user.id
+    service = ChatService(db, settings, gateway)
+    await service.get(user_id, chat_id)
+    await db.commit()  # give the connection back: a big file may take minutes to arrive
+    received = await receive_upload(
+        request, service.store, settings, service.upload_folder(chat_id)
     )
+    attachment = await service.store_upload(user_id, chat_id, received)
     return AttachmentOut.model_validate(attachment)
+
+
+@router.get(
+    "/{chat_id}/attachments/{attachment_id}/content",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}}},
+    summary="Download an attached file (pictures are shown inline)",
+)
+async def attachment_content(
+    chat_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    gateway: GatewayDep,
+) -> Response:
+    from urllib.parse import quote
+
+    attachment, content = await ChatService(db, settings, gateway).attachment_content(
+        ctx.user.id, chat_id, attachment_id
+    )
+    inline = attachment.kind == "image"
+    # Only types checked from the bytes are served as such; anything else is a download.
+    media = {
+        "image": attachment.content_type,
+        "pdf": attachment.content_type,
+        "text": "text/plain; charset=utf-8",
+    }.get(attachment.kind, "application/octet-stream")
+    disposition = "inline" if inline else "attachment"
+    headers = {
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(attachment.filename)}",
+        "Cache-Control": "private, max-age=86400",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    }
+    if isinstance(content, Path):  # streamed from disk (supports Range)
+        return FileResponse(content, media_type=media, headers=headers)
+    return Response(content=content, media_type=media, headers=headers)
 
 
 @router.post(

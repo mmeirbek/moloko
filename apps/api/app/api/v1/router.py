@@ -15,14 +15,19 @@ from fastapi import APIRouter, Depends
 from app.api.deps import require_auth
 from app.api.v1 import (
     agents,
+    ai_services,
     auth,
     chats,
+    costs,
     events,
     health,
     memories,
+    passkeys,
     providers,
     push,
     runs,
+    schedules,
+    search,
     system,
     tasks,
     tooling,
@@ -31,9 +36,11 @@ from app.api.v1 import (
 public = APIRouter()
 public.include_router(health.router)
 public.include_router(auth.public_router)
+public.include_router(passkeys.public_router)
 
 protected = APIRouter(dependencies=[Depends(require_auth)])
 protected.include_router(auth.protected_router)
+protected.include_router(passkeys.protected_router)
 protected.include_router(providers.router)
 protected.include_router(chats.router)
 protected.include_router(agents.router)
@@ -41,8 +48,12 @@ protected.include_router(tasks.router)
 protected.include_router(events.router)
 protected.include_router(system.router)
 protected.include_router(runs.router)
+protected.include_router(schedules.router)
 protected.include_router(memories.router)
 protected.include_router(push.router)
+protected.include_router(costs.router)
+protected.include_router(ai_services.router)
+protected.include_router(search.router)
 protected.include_router(tooling.tools_router)
 protected.include_router(tooling.approvals_router)
 protected.include_router(tooling.integrations_router)
@@ -63,5 +74,9 @@ PUBLIC_ROUTES = frozenset(
         ("GET", "/api/v1/auth/csrf"),
         ("POST", "/api/v1/auth/login"),
         ("POST", "/api/v1/auth/logout"),
+        # Signing in with a passkey replaces the password login, so it must work without a
+        # session; adding, renaming and deleting passkeys stays protected.
+        ("POST", "/api/v1/auth/passkeys/login/options"),
+        ("POST", "/api/v1/auth/passkeys/login/verify"),
     }
 )

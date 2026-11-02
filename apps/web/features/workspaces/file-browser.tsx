@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, File, Folder, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ChevronLeft, File, Folder, RefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { toolingKeys, workspaceFile, workspaceFiles } from "@/lib/api/tooling";
+import { toolingKeys, workspaceFile, workspaceFiles, workspaceRawUrl } from "@/lib/api/tooling";
+import { ErrorState, LoadingState } from "@/features/system/query-state";
 
 export function parentOf(path: string): string {
   const parts = path.split("/").filter(Boolean);
@@ -18,6 +19,10 @@ export function parentOf(path: string): string {
 export function FileBrowser({ workspaceId }: { workspaceId: string }) {
   const t = useTranslations("workspaces");
   const format = useFormatter();
+  const fileSize = (bytes: number) => {
+    const [value, unit] = bytes < 1000 ? [bytes, "byte"] : bytes < 1_000_000 ? [bytes / 1000, "kilobyte"] : [bytes / 1_000_000, "megabyte"];
+    return format.number(value, { style: "unit", unit, unitDisplay: "short", maximumFractionDigits: 1 });
+  };
   const [path, setPath] = useState(".");
   const [open, setOpen] = useState<string | null>(null);
   const entries = useQuery({
@@ -43,7 +48,7 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
         </Button>
       </div>
       {entries.data?.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
-      <ul className="flex flex-col divide-y rounded-md border">
+      <ul className="flex flex-col divide-y-2 border-2">
         {entries.data?.map((e) => (
           <li key={e.path}>
             <button
@@ -53,12 +58,14 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
             >
               {e.type === "dir" ? <Folder className="size-4 shrink-0" /> : <File className="size-4 shrink-0" />}
               <span className="min-w-0 flex-1 truncate">{e.path.split("/").pop()}</span>
-              {e.type === "file" && <span className="text-xs text-muted-foreground">{format.number(e.size)} B</span>}
+              {e.type === "file" && <span className="text-xs text-muted-foreground">{fileSize(e.size)}</span>}
               {e.type === "link" && <span className="text-xs text-muted-foreground">{t("link")}</span>}
             </button>
           </li>
         ))}
       </ul>
+      {open && file.isPending && <LoadingState />}
+      {open && file.isError && <ErrorState error={file.error} onRetry={() => file.refetch()} />}
       {open && file.data && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
@@ -67,9 +74,24 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
               {t("close")}
             </Button>
           </div>
-          <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
-            {file.data.content}
-          </pre>
+          {/\.(png|jpe?g)$/i.test(file.data.path) ? (
+            <a href={workspaceRawUrl(workspaceId, file.data.path)} target="_blank" rel="noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
+              <img
+                src={workspaceRawUrl(workspaceId, file.data.path)}
+                alt={file.data.path}
+                className="max-h-96 border-2 object-contain"
+              />
+            </a>
+          ) : /\.pdf$/i.test(file.data.path) ? (
+            <a className="text-sm underline" href={workspaceRawUrl(workspaceId, file.data.path)} download>
+              {t("downloadPdf")}
+            </a>
+          ) : (
+            <pre className="max-h-96 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap break-all">
+              {file.data.content}
+            </pre>
+          )}
           {file.data.truncated && <p className="text-xs text-muted-foreground">{t("truncated")}</p>}
         </div>
       )}

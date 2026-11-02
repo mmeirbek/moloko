@@ -4,9 +4,9 @@
  *   single source of truth, a stale copy of state must not be shown as current.
  * - Opens the right page when a notification is clicked.
  */
-const VERSION = "moloko-v2";
+const VERSION = "moloko-v4"; // v4: icons from the owner's logo
 const OFFLINE_URL = "/offline.html";
-const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png"];
+const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png", "/icons/badge-96.png", "/icons/cow-sleep.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -64,13 +64,19 @@ self.addEventListener("push", (event) => {
     data = { title: "moloko", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
-      if (windows.some((w) => w.focused && w.visibilityState === "visible")) return undefined;
+    Promise.all([
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }),
+      self.registration.pushManager.getSubscription().catch(() => null),
+    ]).then(([windows, subscription]) => {
+      // Apple (iPhone, iPad, Safari) revokes the subscription when a push shows nothing,
+      // so there it is always shown; elsewhere an open, focused moloko shows its own toast.
+      const apple = Boolean(subscription && /push\.apple\.com/.test(subscription.endpoint));
+      if (!apple && windows.some((w) => w.focused && w.visibilityState === "visible")) return undefined;
       return self.registration.showNotification(data.title || "moloko", {
         body: data.body || "",
         tag: data.tag,
         icon: "/icons/icon-192.png",
-        badge: "/icons/icon-192.png",
+        badge: "/icons/badge-96.png",
         data: { url: data.url || "/" },
       });
     }),

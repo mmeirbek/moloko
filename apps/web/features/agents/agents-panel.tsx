@@ -2,20 +2,22 @@
 
 import type { AgentOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, Plus, Send, Settings2, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 
+import { Plus, Send, Settings2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useErrorMessage } from "@/features/auth/use-error-message";
-import { agentAction, agentKeys, listAgents, runAgent, taskKeys } from "@/lib/api/agents";
+import { agentKeys, listAgents, runAgent, taskKeys } from "@/lib/api/agents";
 import { useRealtimeStore } from "@/lib/realtime/store";
 
+import { AgentControls, isAgentBusy } from "./agent-controls";
+import { hasFullAccess } from "./agent-form-model";
+import { FullAccessBadge } from "./agent-full-access";
 import { StatusBadge } from "./status-badge";
-
-const ACTIVE = new Set(["planning", "working", "waiting", "reviewing"]);
+import { EmptyState } from "@/features/mascot/empty-state";
 
 function AgentCard({ agent }: { agent: AgentOut }) {
   const t = useTranslations("agents");
@@ -35,15 +37,10 @@ function AgentCard({ agent }: { agent: AgentOut }) {
       invalidate();
     },
   });
-  const action = useMutation({
-    mutationFn: (a: "pause" | "resume" | "stop") => agentAction(agent.id, a),
-    onSuccess: invalidate,
-  });
-  const error = run.error ?? action.error;
-  const busy = ACTIVE.has(live.status) || live.status === "paused" || Boolean(live.current_task_id);
+  const busy = isAgentBusy(live);
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border bg-card p-4" data-agent-id={agent.id}>
+    <li className="flex flex-col gap-3 bg-card p-4 pixel-frame" data-agent-id={agent.id}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link href={`/office/agents/${agent.id}`} className="block truncate font-medium hover:underline">
@@ -54,35 +51,23 @@ function AgentCard({ agent }: { agent: AgentOut }) {
             {live.specialization ? ` · ${live.specialization}` : ""}
           </p>
         </div>
-        <StatusBadge status={live.status} />
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={live.status} />
+          {hasFullAccess(live) && <FullAccessBadge />}
+        </div>
       </div>
       {task && (
         <Link href={`/tasks/${task.id}`} className="truncate text-sm underline-offset-2 hover:underline">
           {t("currentTask")}: {task.title}
         </Link>
       )}
-      <div className="flex flex-wrap gap-1">
-        {ACTIVE.has(live.status) && (
-          <Button size="sm" variant="outline" onClick={() => action.mutate("pause")}>
-            <Pause /> {t("pause")}
-          </Button>
-        )}
-        {(live.status === "paused" || task?.status === "waiting") && (
-          <Button size="sm" variant="outline" onClick={() => action.mutate("resume")}>
-            <Play /> {t("resume")}
-          </Button>
-        )}
-        {(busy || live.status === "failed") && (
-          <Button size="sm" variant="ghost" onClick={() => action.mutate("stop")}>
-            <Square /> {t("stop")}
-          </Button>
-        )}
+      <AgentControls agent={live}>
         <Button size="sm" variant="ghost" asChild className="ml-auto">
           <Link href={`/office/agents/${agent.id}`}>
             <Settings2 /> {t("configure")}
           </Link>
         </Button>
-      </div>
+      </AgentControls>
       {!busy && (
         <form
           className="flex gap-2"
@@ -102,13 +87,15 @@ function AgentCard({ agent }: { agent: AgentOut }) {
           </Button>
         </form>
       )}
-      {error && <p role="alert" className="text-sm text-destructive">{toMessage(error).message}</p>}
+      {run.error && <p role="alert" className="text-sm text-destructive">{toMessage(run.error).message}</p>}
     </li>
   );
 }
 
 export function AgentsPanel({ types }: { types?: string[] }) {
   const t = useTranslations("agents");
+  const tc = useTranslations("common");
+  const toMessage = useErrorMessage();
   const agents = useQuery({ queryKey: agentKeys.all, queryFn: ({ signal }) => listAgents(signal) });
   const shown = (agents.data ?? []).filter((a) => !types || types.includes(a.agent_type));
   return (
@@ -125,8 +112,17 @@ export function AgentsPanel({ types }: { types?: string[] }) {
           <AgentCard key={a.id} agent={a} />
         ))}
       </ul>
+      {agents.isPending && <p className="text-sm text-muted-foreground">{tc("loading")}</p>}
+      {agents.isError && !agents.data && (
+        <div role="alert" className="flex flex-col items-start gap-2 border-2 p-4 text-sm">
+          <p>{toMessage(agents.error).message}</p>
+          <Button variant="outline" size="sm" onClick={() => agents.refetch()}>
+            {tc("retry")}
+          </Button>
+        </div>
+      )}
       {agents.data && shown.length === 0 && (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{t("empty")}</p>
+        <EmptyState title={t("empty")} className="border-2 border-dashed" />
       )}
     </div>
   );

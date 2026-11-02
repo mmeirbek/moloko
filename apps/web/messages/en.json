@@ -1,20 +1,49 @@
 {
   "common": {
-    "appName": "moloko",
     "loading": "Loading…",
     "retry": "Try again",
-    "errorId": "Error ID: {id}"
+    "errorId": "Error ID: {id}",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "delete": "Delete"
   },
   "nav": {
     "label": "Main navigation",
     "chat": "Chat",
-    "subagentOffice": "Subagent Office",
-    "subagentOfficeShort": "Subagents",
     "agentOffice": "Agent Office",
     "agentOfficeShort": "Agents",
     "tasks": "Tasks",
+    "schedules": "Schedule",
     "integrations": "Integrations",
-    "settings": "Settings"
+    "settings": "Settings",
+    "search": "Search",
+    "approvals": "Approvals",
+    "more": "More",
+    "moreLabel": "Other sections",
+    "skipToContent": "Skip to content",
+    "pendingCount": "waiting for you: {count}",
+    "groups": {
+      "work": "Work",
+      "office": "Office",
+      "system": "System"
+    },
+    "hints": {
+      "chat": "Ask an AI model anything",
+      "tasks": "Everything agents do and have done",
+      "schedules": "Tasks the agents do on their own, on a schedule",
+      "approvals": "Agent actions waiting for your yes",
+      "search": "Find things in agent memory and files",
+      "agentOffice": "Your permanent agents at their desks",
+      "integrations": "GitHub, MCP servers and agent tools",
+      "settings": "AI providers, notifications, costs, backups"
+    },
+    "sidebar": "Sidebar",
+    "resize": "Sidebar width",
+    "resizeHint": "Drag to change the width. Double-click for the default width.",
+    "collapsed": "Folded",
+    "widthPx": "{px} pixels",
+    "collapse": "Fold the sidebar",
+    "expand": "Unfold the sidebar"
   },
   "auth": {
     "title": "Sign in",
@@ -24,7 +53,51 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "logout": "Sign out",
-    "signedInAs": "Signed in as {name}"
+    "signedInAs": "Signed in as {name}",
+    "or": "or",
+    "passkey": "Sign in with Face ID / Touch ID",
+    "passkeyPending": "Checking the passkey…",
+    "passkeyHint": "Needs a passkey added in Settings → System and data. Your password always works."
+  },
+  "passkeys": {
+    "title": "Passkeys",
+    "description": "Sign in with Face ID / Touch ID instead of the password. The key stays on the device or in iCloud Keychain, works only on this site and cannot be stolen from the server: it keeps only the public part. Your password stays as a fallback.",
+    "disabled": "Passkeys are turned off on the server.",
+    "disabledHint": "To turn them on, set WEBAUTHN_RP_ID and WEBAUTHN_ORIGINS on the server to moloko's Tailscale address (…ts.net) and restart moloko. See docs/deployment.md.",
+    "unsupported": "This browser does not support passkeys. Open moloko in Safari or Chrome at its …ts.net address.",
+    "empty": "No passkeys yet.",
+    "added": "Passkey “{name}” added. You can now sign in with Face ID / Touch ID.",
+    "limit": "You can add at most {max} passkeys.",
+    "add": "Add a passkey",
+    "addTitle": "New passkey",
+    "site": "Passkeys are bound to {site}.",
+    "name": "Name",
+    "nameHint": "To tell them apart: “iPhone”, “MacBook”.",
+    "saveName": "Save the name",
+    "synced": "synced",
+    "syncedHint": "Kept in iCloud Keychain (or another password manager), so it also works on your other devices.",
+    "createdAt": "Added {date}",
+    "lastUsed": "last used {date}",
+    "neverUsed": "not used yet",
+    "rename": "Rename “{name}”",
+    "delete": "Delete “{name}”",
+    "deleteTitle": "Delete the passkey “{name}”?",
+    "deleteDescription": "You will no longer be able to sign in with it. The device may keep it — you can remove it there too (Settings → Passwords).",
+    "deleteConfirm": "Delete passkey",
+    "password": "Your moloko password",
+    "passwordHint": "So that only the owner can add a passkey.",
+    "create": "Create passkey",
+    "creating": "Creating…",
+    "createAgain": "Create passkey (Face ID / Touch ID)",
+    "devicePrompt": "Confirm on your device: Face ID, Touch ID or passcode.",
+    "deviceRetry": "Password accepted. Press the button and your device will ask for Face ID / Touch ID.",
+    "errors": {
+      "cancelled": "The request was cancelled or not shown. Try again.",
+      "aborted": "The request was interrupted. Try again.",
+      "exists": "This device already has a passkey for moloko.",
+      "wrongSite": "Passkeys do not work at this address. Open moloko at its …ts.net address.",
+      "failed": "The device could not create or find a passkey."
+    }
   },
   "errors": {
     "invalid_credentials": "Wrong username or password.",
@@ -60,7 +133,38 @@
     "attachment_too_large": "The file is too large (up to 200 KB).",
     "github_not_connected": "Connect GitHub first (Integrations → GitHub).",
     "push_unavailable": "Push is unavailable: APP_ENCRYPTION_KEY is not set on the server.",
-    "invalid_subscription": "This push subscription cannot be saved."
+    "invalid_subscription": "This push subscription cannot be saved.",
+    "budget_exceeded": "The monthly budget is used up. Raise it in Settings → Costs.",
+    "ai_service_unavailable": "Voice and smart search need an OpenAI provider (Settings → AI providers).",
+    "audio_too_large": "The recording is too long.",
+    "pdf_unavailable": "PDF is not available on the server: build the sandbox browser. Printing opens instead — choose “Save as PDF”.",
+    "nothing_to_export": "This task has no result yet.",
+    "invalid_password": "That password is not right.",
+    "session_ttl_out_of_range": "This server does not allow that length.",
+    "invalid_profile_text": "No line breaks or control characters, please.",
+    "profile_text_too_long": "That is too long.",
+    "agent_not_restorable": "This agent cannot be brought back.",
+    "agent_not_archived": "The agent is already in the office.",
+    "agent_name_taken": "An agent with this name is already in the office.",
+    "invalid_contacts": "“Who it may talk to” can only list your own agents (not the Orchestrator).",
+    "agent_budget_exceeded": "The agent's monthly budget is used up. Raise it on the agent's page (\"Monthly budget, $\").",
+    "template_name_taken": "You already have a template with this name. Choose another one.",
+    "template_limit_reached": "You have reached the limit of own templates. Delete one first.",
+    "agent_not_templatable": "Only your own persistent agents can be saved as a template — not the Orchestrator.",
+    "invalid_recurrence": "The schedule is incomplete: check the time, the days and the date.",
+    "invalid_timezone": "Unknown time zone.",
+    "interval_too_short": "It cannot run that often.",
+    "schedule_in_past": "That moment has passed — pick one in the future.",
+    "invalid_schedule_target": "Choose the Orchestrator or one of your persistent agents.",
+    "too_many_schedules": "You have the maximum number of schedules. Delete one you no longer need.",
+    "passkeys_disabled": "Passkeys are turned off on the server.",
+    "passkey_rejected": "That passkey did not work. Try again or use your password.",
+    "passkey_expired": "The request timed out. Try again.",
+    "passkey_invalid": "The new passkey could not be checked. Try again.",
+    "passkey_limit_reached": "Too many passkeys. Delete one you no longer use first.",
+    "passkey_already_registered": "This passkey is already added.",
+    "full_access_not_allowed": "Only your own persistent agents can get full access — not the Orchestrator.",
+    "password_required": "Enter your moloko password to confirm."
   },
   "preferences": {
     "theme": "Theme",
@@ -68,17 +172,15 @@
     "themeDark": "Dark",
     "themeSystem": "System",
     "language": "Language",
-    "toggleTheme": "Switch theme"
+    "toggleTheme": "Switch theme",
+    "appearanceTitle": "Theme and language",
+    "appearanceHint": "Saved on this device.",
+    "themeSystemShort": "Auto"
   },
   "pages": {
-    "comingSoon": "This section arrives in Sprint {sprint}.",
     "chat": {
       "title": "Chat",
       "description": "Conversations with AI models, with streaming and history."
-    },
-    "subagentOffice": {
-      "title": "Subagent Office",
-      "description": "Temporary subagents the Orchestrator spawns for a task."
     },
     "agentOffice": {
       "title": "Agent Office",
@@ -88,15 +190,42 @@
       "title": "Tasks",
       "description": "Every task, its subtasks and its execution history."
     },
+    "schedules": {
+      "title": "Schedule",
+      "description": "Tasks that start on their own: every morning, on chosen weekdays, once a month, or once at the right moment."
+    },
     "integrations": {
       "title": "Integrations",
-      "description": "AI providers, MCP servers, GitHub, browser and file system."
+      "description": "What agents are connected to: GitHub, MCP servers, their tools, the sandbox and work folders. AI models are in Settings."
     },
     "settings": {
       "title": "Settings",
-      "description": "Account, appearance and system status.",
+      "description": "AI models, notifications, agents, appearance, backups and server health.",
       "auditLink": "Audit log",
-      "integrationsLink": "Tools and integrations"
+      "costsLink": "Costs",
+      "sectionsLabel": "Settings sections",
+      "sections": {
+        "ai": {
+          "title": "AI models",
+          "hint": "Connect at least one provider — chat and agents need it."
+        },
+        "notifications": {
+          "title": "Notifications",
+          "hint": "When and how moloko calls you: approvals, finished and failed tasks."
+        },
+        "agents": {
+          "title": "Agents",
+          "hint": "Emergency stop and the shared memory every agent can see."
+        },
+        "appearance": {
+          "title": "Appearance",
+          "hint": "Theme, language and the cow mascot."
+        },
+        "system": {
+          "title": "System and data",
+          "hint": "Server health, your sign-in and backups."
+        }
+      }
     }
   },
   "system": {
@@ -109,19 +238,18 @@
     "version": "Version {version}",
     "account": "Account",
     "sessionExpires": "Session valid until {date}",
-    "engine": "Agents",
     "engineRunning": "Running normally · {count} active tasks",
     "engineStopped": "Stopped by the kill switch. New runs are blocked.",
     "stopAll": "Stop all agents",
     "startEngine": "Allow agents to run again",
     "confirmStopAll": "Cancel every running task and block new ones?",
-    "stoppedCount": "{count} tasks stopped."
+    "stoppedCount": "{count} tasks stopped.",
+    "engineTitle": "Emergency stop"
   },
   "chat": {
     "newChat": "New chat",
     "history": "Chat history",
     "noChats": "No chats yet.",
-    "pick": "Pick a chat or start a new one.",
     "allChats": "All chats",
     "deleteChat": "Delete “{title}”",
     "confirmDelete": "Delete this chat and all its messages?",
@@ -133,9 +261,9 @@
     "tokens": "{count} tokens",
     "model": "Model",
     "defaultModel": "Default model",
-    "empty": "Ask anything. Answers stream in and are saved — you can close this tab.",
-    "noModels": "No AI model is set up yet.",
-    "openSettings": "Add a provider in Settings",
+    "empty": "Ask anything",
+    "noModels": "No AI model connected yet",
+    "openSettings": "Connect an AI model",
     "dismiss": "Dismiss",
     "errors": {
       "provider_auth_failed": "The provider rejected the API key. Check it in Settings.",
@@ -148,14 +276,57 @@
       "interrupted": "The answer was interrupted because the server restarted.",
       "internal_error": "Something went wrong while generating the answer."
     },
-    "agentsMode": "Agents: send to the Orchestrator instead of the chat model",
+    "agentsMode": "Hand to agents",
     "handOff": "Hand off to agents",
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
     "agentsWorking": "Agents are working on it…",
     "handedOff": "Done by agents — open the run",
-    "attach": "Attach a text file",
+    "attach": "Attach files — any kind, as many as you like",
     "attachments": "Attached files",
-    "removeAttachment": "Remove \"{name}\""
+    "removeAttachment": "Remove \"{name}\"",
+    "pages": "{count, plural, one {# page} other {# pages}}",
+    "emptyHint": "The answer is written as you watch and saved on the server — you can close the tab.",
+    "noModelsHint": "Add an OpenAI or Anthropic key in Settings — it takes a minute.",
+    "placeholderAgents": "Describe the job for the agents…",
+    "agentsModeHint": "The Orchestrator splits the job into steps for agents. For bigger work.",
+    "messages": "Messages",
+    "suggestions": {
+      "label": "Example questions",
+      "explain": "Explain in simple words how search by meaning works",
+      "plan": "Make a weekly plan: three workouts and an hour of reading a day",
+      "letter": "Help me write a polite email declining a meeting"
+    },
+    "recent": "Recent chats",
+    "greeting": "How can I help, {name}?",
+    "greetingNoName": "How can I help?",
+    "copy": "Copy the answer",
+    "scrollDown": "Jump to the latest messages",
+    "notSent": "The message did not reach the server. Please try again.",
+    "defaultModelNamed": "{name} · default",
+    "pastedFile": "Pasted file",
+    "uploading": "uploading {percent}%",
+    "uploadFailed": "upload failed",
+    "retryUpload": "Upload “{name}” again",
+    "dropFiles": "Drop — the files will be attached",
+    "someUploadsFailed": "{count, plural, one {# file failed to upload} other {# files failed to upload}} — retry or remove.",
+    "uploadingFiles": "Files are uploading — the message goes as soon as they are done.",
+    "memory": {
+      "summarised": "Earlier messages are condensed into a summary — the model remembers them ({count, plural, one {# message} other {# messages}})",
+      "showSummary": "Show summary",
+      "summaryTitle": "Summary of earlier messages",
+      "summaryHint": "This is how the model remembers the start of the chat: it gets this summary together with the latest messages. Stored on your server.",
+      "summaryMeta": "Covers {count, plural, one {# message} other {# messages}} · updated {when}",
+      "noSummary": "No summary yet.",
+      "loading": "Loading…",
+      "close": "Close",
+      "recalled": "Taken into account from the past:",
+      "kinds": {
+        "chat": "chat",
+        "task": "task",
+        "memory": "memory",
+        "other": "other"
+      }
+    }
   },
   "settings": {
     "providers": {
@@ -179,7 +350,9 @@
       "clearKey": "Remove key",
       "enabled": "Enabled",
       "testOk": "Works — {count} models available.",
-      "synced": "{added} new models imported."
+      "synced": "{added} new models imported.",
+      "mockKind": "Test model (offline)",
+      "clearKeyConfirm": "Delete the saved API key? This provider's models stop answering until you add a key again."
     },
     "models": {
       "title": "Models",
@@ -190,12 +363,33 @@
       "provider": "Provider",
       "modelId": "Model id",
       "add": "Add model"
+    },
+    "session": {
+      "title": "How long a sign-in lasts",
+      "description": "How long moloko remembers a sign-in on each device. Shorter is safer, longer means typing the password less often.",
+      "current": "Now: {duration}.",
+      "currentDefault": "Now: {duration} (the default).",
+      "expires": "This sign-in lasts until {date}.",
+      "duration": "Sign-in lasts",
+      "defaultOption": "Default — {duration}",
+      "custom": "Another length…",
+      "amount": "How long",
+      "unit": "Hours or days",
+      "hours": "hours",
+      "days": "days",
+      "range": "From {min} to {max}.",
+      "password": "Your moloko password",
+      "passwordHint": "So that nobody but you can change how long sign-ins last.",
+      "otherDevices": "The new length applies to this sign-in at once. On other devices a sign-in becomes no longer than the new length — it is never extended.",
+      "save": "Save",
+      "saved": "Saved. This sign-in now lasts until {date}."
     }
   },
   "realtime": {
     "online": "Live",
     "connecting": "Connecting…",
-    "offline": "Offline — reconnecting"
+    "offline": "Offline — reconnecting",
+    "banner": "No connection to the server — reconnecting. What you see may be out of date."
   },
   "status": {
     "idle": "Idle",
@@ -225,7 +419,7 @@
     "cancelForm": "Cancel",
     "filter": "Filter",
     "search": "Search tasks",
-    "empty": "No tasks here.",
+    "empty": "No tasks yet.",
     "filters": {
       "all": "All",
       "active": "Active",
@@ -253,13 +447,91 @@
       "cancelled": "Task cancelled",
       "started": "Agent started",
       "step": "Step {step} done",
-      "tool": "Tool {tool}: {status, select, succeeded {done} failed {failed} denied {denied} rejected {rejected} expired {approval expired} unknown {outcome unknown} other {{status}}}",
+      "tool": "Tool {tool}: {status, select, running {running} succeeded {done} failed {failed} denied {denied} rejected {rejected} expired {approval expired} unknown {outcome unknown} other {{status}}}",
       "plan": "The Orchestrator made a plan",
       "agentMessage": "Message between agents",
       "agentDone": "The agent finished the task",
       "agentFailed": "The agent failed",
       "approvalRequired": "Approval needed: {tool}",
-      "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}"
+      "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}",
+      "scheduled": "Started by its schedule",
+      "scheduledNow": "Started by hand from its schedule",
+      "ownerMessage": "You wrote to the agent: “{text}”",
+      "ownerMessageRead": "The agent read your message",
+      "agentCreated": "The Orchestrator created the agent “{name}” — none fitted"
+    },
+    "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
+    "emptyFiltered": "Nothing found. Try another filter or search.",
+    "agentBudgetExceeded": "The agent's monthly budget is used up — the task was stopped.",
+    "openAgent": "Open the agent",
+    "errors": {
+      "empty_result": "The agent finished without writing a result. Try again or say what result you need.",
+      "output_truncated": "The model's replies kept getting cut off by the length limit — the task was stopped. Split it into smaller parts.",
+      "max_steps_exceeded": "The agent used all its steps without finishing. Raise the step limit or split the task.",
+      "run_timeout": "The task ran past its time limit.",
+      "subtasks_failed": "None of the parts of the task finished.",
+      "internal_error": "The agent hit an internal error — it was logged.",
+      "invalid_plan": "The Orchestrator made an invalid plan.",
+      "budget_exceeded": "The monthly spending limit was reached.",
+      "agent_budget_exceeded": "The agent used up its monthly budget.",
+      "interrupted": "The task was interrupted by a server restart."
+    },
+    "control": {
+      "messageLabel": "Write to the agent — it reads this before its next step",
+      "messagePlaceholder": "E.g. do it in English, check the tests first…",
+      "send": "Send",
+      "messageSent": "Sent — the agent reads it before its next step",
+      "continue": "Continue from where it stopped",
+      "addInstruction": "+ Instruction",
+      "instructionLabel": "What to do differently (optional)",
+      "instructionPlaceholder": "E.g. write the file in parts, leave the tests alone…",
+      "startOver": "Start over",
+      "continueHint": "“Continue” — the agent keeps everything it already did and skips finished steps. “Start over” — from scratch.",
+      "lastStopped": "The last task stopped:",
+      "continuedFrom": "Continues a stopped task →"
+    },
+    "agentSteps": {
+      "title": "The agent's steps",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "owner": "You wrote: “{text}”",
+      "runningFor": "running for {seconds} s",
+      "thinking": "Thinking about the next step…",
+      "queued": "Queued — starts soon",
+      "args": "What it passed to the tool",
+      "output": "What came out",
+      "seconds": "s",
+      "tools": {
+        "fs_read": "Reads the file {file}",
+        "fs_write": "Writes the file {file}",
+        "fs_append": "Appends to the file {file}",
+        "fs_list": "Looks at the folder {path}",
+        "fs_move": "Moves {file} → {to}",
+        "fs_delete": "Deletes the file {file}",
+        "terminal_run": "Runs: {command}",
+        "github_read_file": "Reads {file} in {repo}",
+        "github_write_file": "Saves {file} to {repo}",
+        "github_list_dir": "Looks at {path} in {repo}",
+        "github_create_branch": "Creates the branch {branch} in {repo}",
+        "github_list_issues": "Looks at the issues of {repo}",
+        "github_get_issue": "Reads issue #{number} in {repo}",
+        "github_list_commits": "Looks at the commits of {repo}",
+        "github_create_pull_request": "Opens a pull request in {repo}",
+        "github_list_repos": "Looks at the repositories",
+        "web_search": "Searches the web: {query}",
+        "web_fetch": "Opens {host}",
+        "browser_screenshot": "Takes a screenshot of {host}",
+        "knowledge_search": "Searches memory: {query}",
+        "work_search": "Searches the work history: {query}",
+        "work_read": "Reads a work history entry",
+        "memory_save": "Remembers: {title}",
+        "agent_ask": "Asks the agent {agent}",
+        "agent_tell": "Messages the agent {agent}",
+        "agents_list": "Looks who is in the office",
+        "other": "Tool “{tool}”"
+      },
+      "plan": "Plan: {summary} — {count} parts",
+      "planDirect": "Decided to answer itself, no helpers"
     }
   },
   "agents": {
@@ -325,14 +597,15 @@
       "projectsHint": "Comma-separated: the agent sees the shared notes of these projects.",
       "maxContextChars": "Memory in the prompt, characters",
       "memoryNote": "Memory is given to the model as data, not as instructions.",
-      "orchestratorNote": "The Orchestrator also uses this model for its subagents.",
+      "orchestratorNote": "Agents the Orchestrator creates itself (when none fits) get this model too.",
       "save": "Save",
       "saved": "Saved",
       "errors": {
         "required": "Required.",
         "number": "Enter a whole number.",
         "tooHigh": "At most {limit} (the global limit).",
-        "tooLow": "At least {limit}."
+        "tooLow": "At least {limit}.",
+        "money": "Enter an amount in dollars above 0, like 5 or 12.50."
       },
       "tools": "Tools",
       "toolsHint": "The agent can use only the checked tools. The server checks every action against the autonomy level; here you can only make rules stricter.",
@@ -343,7 +616,32 @@
         "deny": "block"
       },
       "workspace": "Workspace",
-      "workspacePerTask": "A new folder for every task"
+      "workspacePerTask": "A new folder for every task",
+      "monthlyBudget": "Monthly budget, $",
+      "monthlyBudgetHint": "Empty — no limit of its own. When the budget runs out, the agent stops.",
+      "monthlyBudgetHintOrchestrator": "Empty — no limit of its own.",
+      "monthlyBudgetPlaceholder": "e.g. 5",
+      "contacts": {
+        "title": "Who it may talk to",
+        "modes": {
+          "all": {
+            "title": "Everyone",
+            "body": "Asks and messages any of your agents itself, without the Orchestrator."
+          },
+          "list": {
+            "title": "Chosen ones",
+            "body": "Only the agents ticked below."
+          },
+          "none": {
+            "title": "No one",
+            "body": "Works alone; colleagues cannot reach it either."
+          }
+        },
+        "pick": "Colleagues",
+        "noColleagues": "There are no other agents yet.",
+        "note": "The rule is mutual: two agents talk only if both allow each other. Each keeps its own approvals, tools and budget."
+      },
+      "alwaysAllowed": "Every agent has it: read-only look-ups of the work history. You can block it on the right."
     },
     "detail": {
       "back": "All agents",
@@ -353,49 +651,149 @@
       "tabs": {
         "profile": "Settings",
         "memory": "Memory",
-        "tasks": "Task history"
+        "tasks": "Task history",
+        "messages": "Messages"
       },
       "tasks": "The agent's tasks",
       "noTasks": "This agent has had no tasks yet.",
       "delete": "Delete",
       "deleteBusy": "Stop the agent first.",
       "deleteConfirm": "Delete the agent \"{name}\"? It leaves the office and the lists. Its task history and memory are kept.",
-      "subagentReadOnly": "A subagent is temporary: the Orchestrator creates and configures it for one subtask.",
+      "subagentReadOnly": "A temporary subagent from older runs (before 2 November 2026) — it cannot be changed.",
       "subagentNoMemory": "Subagents have no memory of their own: the Orchestrator passes them their context.",
-      "archived": "This agent was deleted. Its task history is kept."
+      "archived": "This agent was deleted. Its task history is kept.",
+      "dangerTitle": "Delete this agent",
+      "dangerHint": "The agent leaves the office. Its task history and memory are kept."
+    },
+    "templates": {
+      "title": "Add to the office",
+      "hint": "Drag a card onto the office map or press its button. The agent rests until it gets a task.",
+      "add": "Add",
+      "close": "Close",
+      "removed": "Removed from the office — can come back",
+      "restore": "Bring back",
+      "dragHint": "Drag onto the office map",
+      "own": "yours",
+      "ownHint": "Your template: the settings of a saved agent.",
+      "delete": "Delete",
+      "deleteLabel": "Delete template \"{name}\"",
+      "deleteConfirm": "Delete template \"{name}\"?",
+      "deleteHint": "Agents already made from it stay in the office."
+    },
+    "confirmStop": "Stop {name} and cancel its task?",
+    "saveTemplate": {
+      "button": "Save as template",
+      "title": "Save as template",
+      "description": "The template keeps the agent's settings: model, instructions, autonomy, tools, limits and budget. Memory and task history are not included.",
+      "name": "Template name",
+      "save": "Save",
+      "saved": "Template \"{name}\" saved — it is in the \"Add to office\" palette.",
+      "openOffice": "Open the office"
+    },
+    "budget": {
+      "title": "Monthly budget",
+      "spent": "Spent: {spent}",
+      "spentOf": "{spent} of {limit}",
+      "meter": "{percent}% of the agent's monthly budget",
+      "percent": "{percent}% of the budget",
+      "countsAgainst": "Subagent: its spending counts against the budget of",
+      "over": "Budget used up: the agent's new model calls are stopped. Raise the budget in the settings below.",
+      "near": "{percent}% used — close to the limit (warning from {warn}%).",
+      "ok": "{percent}% used. You are warned at {warn}%; at 100% the agent stops.",
+      "noLimit": "No limit of its own — set \"Monthly budget, $\" in the settings below."
+    },
+    "messages": {
+      "title": "Messages",
+      "filter": "Which messages to show",
+      "directions": {
+        "all": "All",
+        "in": "Received",
+        "out": "Sent"
+      },
+      "empty": "This agent has not talked to colleagues yet.",
+      "from": "from",
+      "to": "to",
+      "more": "Show more",
+      "types": {
+        "request": "Question",
+        "task_result": "Answer",
+        "error": "No answer",
+        "note": "Note",
+        "context": "From the Orchestrator"
+      },
+      "refused": "Not delivered: {reason}",
+      "refusals": {
+        "self": "cannot message itself",
+        "different_owner": "someone else's agent",
+        "agent_unavailable": "the agent is unavailable",
+        "orchestrator": "the Orchestrator cannot be messaged like this",
+        "different_run": "another run",
+        "not_a_colleague": "not a colleague",
+        "not_in_contacts": "not in the contacts",
+        "receiver_refuses": "the receiver does not accept messages",
+        "cycle": "the receiver is already in this chain of questions",
+        "too_many_hops": "the chain is too long",
+        "too_many_asks": "too many questions for one task",
+        "deadlock": "the agents would wait for each other",
+        "other": "refused"
+      },
+      "openConsult": "Task for the question",
+      "openSenderTask": "Sender's task",
+      "openAskerTask": "Asker's task",
+      "expand": "Show all",
+      "collapse": "Collapse"
+    },
+    "team": {
+      "waitingFor": "waiting for an answer from",
+      "askedBy": "Asked by agent",
+      "openRequest": "Question",
+      "openAskerTask": "Its task"
+    },
+    "fullAccess": {
+      "title": "Full access — permanent, no approvals",
+      "body": "The agent does everything itself, including deleting files, pushing to GitHub and running commands: it may use every enabled tool (also ones you add later) and needs no approvals. Everything is recorded in the audit log; you can switch it off at any time.",
+      "stillApplies": "Still in force: «Stop everything», budgets, step and time limits, the sandbox, tools you switched off and MCP tools you have not enabled.",
+      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Colleagues it asks for help and agents the Orchestrator creates do not get full access.",
+      "turnOn": "Turn on full access…",
+      "turnOff": "Turn off",
+      "on": "Full access is on.",
+      "onSince": "Full access is on since {date}.",
+      "dialogTitle": "Full access for «{name}»",
+      "password": "Your moloko password",
+      "passwordHint": "Needed to turn full access on. A wrong password counts as a failed sign-in.",
+      "confirm": "Turn on full access",
+      "badge": "Full access",
+      "badgeHint": "Does everything itself, without approvals; everything is recorded in the audit log.",
+      "levelPaused": "While full access is on, the level below does not apply. It comes back when you switch full access off.",
+      "afterCreate": "Full access (no approvals) can be turned on once the agent is created.",
+      "allTools": "All tools",
+      "allToolsHint": "Full access: the agent may use every enabled tool, including ones added later. On the right you can block a tool or always be asked before it.",
+      "overrideDefault": "on its own, no approval"
+    },
+    "standing": {
+      "title": "Allowed without asking",
+      "hint": "You chose “Approve and don't ask again” — the agent does these without your approval.",
+      "since": "since {date}",
+      "remove": "Remove",
+      "removeConfirm": "Ask again before it may {what}?"
     }
   },
-  "runs": {
-    "newRun": "New task for the Orchestrator",
-    "newRunHint": "Describe a complex task. Simple questions get a direct answer.",
-    "start": "Start",
-    "untitled": "Task",
-    "runs": "Runs",
-    "empty": "No runs yet.",
-    "openTask": "Open task",
-    "directAnswer": "Answered directly — no subagents needed.",
-    "plan": "Plan: {summary}",
-    "subagents": "Subagents ({count})",
-    "waitsFor": "waits for {count} other part(s)",
-    "result": "Result",
-    "messages": "Messages between agents",
-    "orchestrator": "Orchestrator",
-    "team": "Your agents on the team ({count})"
-  },
   "office": {
-    "mode": "Office view",
-    "modes": {
-      "subagents": "Subagents",
-      "agents": "Agents"
-    },
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "fit": "Fit to screen",
+    "zoom": "Zoom",
+    "zoomLevel": "Zoom {percent}%",
+    "mapRole": "office map",
+    "keysHint": "Keys: plus and minus zoom, 0 shows the whole office, arrows move the map. Ctrl or ⌘ with the mouse wheel zooms too.",
     "canvasLabel": "Pixel office with {count} agents",
     "list": "Agents in the office",
     "failed": "The office could not start (WebGL/Canvas unavailable). The list below shows the same state.",
     "emptyAgents": "No agents at their desks yet.",
-    "emptySubagents": "No subagents right now — start a run below.",
+    "hud": {
+      "step": "step {step}",
+      "approval": "needs approval"
+    },
     "inspector": {
       "label": "Agent {name}",
       "close": "Close",
@@ -410,14 +808,15 @@
       },
       "tools": "Tools",
       "noTools": "none",
-      "pause": "Pause",
-      "resume": "Resume",
-      "stop": "Stop",
-      "confirmStop": "Stop {name} and cancel its task?",
       "viewTask": "View task",
       "logs": "Logs",
-      "settings": "Settings"
-    }
+      "settings": "Settings",
+      "giveTask": "Give a task",
+      "giveTaskHint": "The agent is waiting for work. Describe a task and it starts.",
+      "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best"
+    },
+    "addAgent": "Add agent",
+    "dropHere": "Drop — the agent walks into the office"
   },
   "memory": {
     "sharedTitle": "Memory",
@@ -518,17 +917,70 @@
       "memory_save": {
         "summary": "Remember: {title}",
         "consequences": "The note is added to the agent's memory and used in its future tasks."
+      },
+      "browser_screenshot": {
+        "summary": "Open in the sandbox browser: {url}",
+        "consequences": "The site is loaded from the internet (it may run its scripts) in an isolated browser; a screenshot is saved in the workspace."
+      },
+      "agent_ask": {
+        "summary": "Ask agent {agent}: “{request}”",
+        "consequences": "Agent {agent} gets a task and spends its own steps and budget. Its own rules and approvals apply."
+      },
+      "agent_tell": {
+        "summary": "Message agent {agent}: “{message}”",
+        "consequences": "Agent {agent} receives the message (and files, if any) and reads it on its next run."
+      },
+      "terminal_run_packages": {
+        "summary": "Run with package downloads: {command}",
+        "consequences": "The command may download packages from the npm and PyPI registries only (the rest of the internet stays closed) and run their install scripts in the sandbox; it may create, change or delete files in the task folder."
+      },
+      "github_checkout": {
+        "summary": "Download {repo} ({ref, select, default {default branch} other {{ref}}}) into the folder {folder}/",
+        "consequences": "The repository's files are written into this new folder of the task. Nothing changes on GitHub."
+      },
+      "github_checkout_overwrite": {
+        "summary": "Download {repo} ({ref, select, default {default branch} other {{ref}}}) into {folder}/, replacing files",
+        "consequences": "Files in this folder with the same path are replaced by the repository's; their current content is lost. Other files stay. Nothing changes on GitHub."
+      },
+      "github_commit_files": {
+        "summary": "Commit to {repo}@{branch} (files: {count}): {message}",
+        "consequences": "One commit with these files is pushed to this branch (it is created if it does not exist) and is visible to everyone with access."
       }
     },
     "reasons": {
       "override": "You asked to approve every use of this tool.",
       "sensitive": "Sensitive actions always need approval.",
       "write": "Changes need approval at this agent's autonomy level."
+    },
+    "noneHint": "When an agent wants to do something important (delete a file, open a pull request), the request appears here and you get a notification.",
+    "always": {
+      "button": "Approve and don't ask again",
+      "hint": "“Don't ask again” — the agent may then {what} without asking.",
+      "confirm": "{agent} may {what} without your approval — from now on, for good?",
+      "confirmHint": "This also approves the current action. You can take it back on the agent's page, under “Allowed without asking”.",
+      "scope": {
+        "terminal_run": "run {scope}",
+        "fs_write": "write files in its folder",
+        "fs_move": "move files in its folder",
+        "fs_delete": "delete files in its folder",
+        "github_create_branch": "create branches in {scope}",
+        "github_write_file": "save files to {scope}",
+        "github_create_pull_request": "open pull requests in {scope}",
+        "memory_save": "save to memory",
+        "browser_screenshot": "open {scope}",
+        "agent_ask": "ask the agent {scope}",
+        "agent_tell": "message the agent {scope}",
+        "other": "use “{tool}”",
+        "otherIn": "use “{tool}” for {scope}",
+        "terminal_run_packages": "run {scope} with package downloads",
+        "github_checkout": "download {scope} into its folder",
+        "github_commit_files": "commit files to {scope}"
+      }
     }
   },
   "tools": {
     "title": "Tools",
-    "description": "What agents can do at all. Each agent is allowed tools separately in its settings; every action is checked by the server.",
+    "description": "Everything agents can do. A tool switched off here is off for everyone; a tool switched on works only for agents you allowed it to. Actions marked “change” and “important” may need your approval.",
     "categories": {
       "read": "read",
       "write": "write",
@@ -544,7 +996,9 @@
       "web": "Web",
       "github": "GitHub",
       "memory": "Memory",
-      "mcp": "MCP"
+      "team": "Team",
+      "mcp": "MCP",
+      "history": "Work history"
     },
     "calls": {
       "title": "Agent actions ({count})",
@@ -553,6 +1007,7 @@
       "status": {
         "pending": "pending",
         "awaiting_approval": "waiting for approval",
+        "awaiting_agent": "waiting for a colleague's answer",
         "running": "running",
         "succeeded": "done",
         "failed": "failed",
@@ -580,18 +1035,56 @@
       "github_create_branch": "Create a branch",
       "github_write_file": "Commit a file",
       "github_create_pull_request": "Open a pull request",
-      "memory_save": "Remember"
+      "memory_save": "Remember",
+      "browser_screenshot": "Open a website in the browser",
+      "knowledge_search": "Search memory and files",
+      "agents_list": "List colleagues",
+      "agent_ask": "Ask a colleague",
+      "agent_tell": "Message a colleague",
+      "work_search": "Search the work history",
+      "work_read": "Open a history record",
+      "github_checkout": "Download a repository",
+      "github_commit_files": "Commit several files"
+    },
+    "hints": {
+      "fs_list": "Sees which files are in the task's work folder.",
+      "fs_read": "Reads a text file from the work folder.",
+      "fs_write": "Creates or changes a text file in the work folder.",
+      "fs_move": "Moves or renames a file in the work folder.",
+      "fs_delete": "Deletes a file or folder — only with your approval.",
+      "terminal_run": "Runs one command (python, node, npm, git…) in a locked sandbox without internet; package downloads (npm, PyPI) only with your approval.",
+      "web_fetch": "Opens a public web page and reads its text.",
+      "web_search": "Searches the web through your SearXNG.",
+      "github_list_repos": "Sees the repositories the token can access.",
+      "github_list_dir": "Looks inside a folder of a repository.",
+      "github_read_file": "Reads a file from a repository.",
+      "github_list_issues": "Reads the issue list of a repository.",
+      "github_get_issue": "Reads one issue with its comments.",
+      "github_list_commits": "Looks at the latest commits of a branch.",
+      "github_create_branch": "Creates a new branch.",
+      "github_write_file": "Commits a file to a branch; to the default branch only with approval.",
+      "github_create_pull_request": "Opens a pull request — always with your approval.",
+      "memory_save": "Saves a short note to its own memory for later.",
+      "browser_screenshot": "Opens a site in a real browser and takes a screenshot — always with approval.",
+      "knowledge_search": "Searches its memory and task files by meaning.",
+      "agents_list": "Sees which agents it may contact and who is free right now.",
+      "agent_ask": "Asks another agent a question or hands it part of the work, and waits for the answer.",
+      "agent_tell": "Leaves another agent a note (and files); it reads it at the start of its next task.",
+      "work_search": "Searches finished tasks of all agents, their messages and your chats — to check what has been done.",
+      "work_read": "Reads one task in full (request, result, subtasks, actions, files), a message or a chat.",
+      "github_checkout": "Downloads a whole repository into the work folder in one step.",
+      "github_commit_files": "Commits many files to a branch as one commit — always with your approval."
     }
   },
   "integrations": {
     "github": {
-      "description": "Agents read repositories, issues and history, create branches and commits. Committing to the default branch and pull requests need your approval.",
+      "description": "Agents read repositories, issues and history, download a repository into their folder, create branches and commits. Commits of several files, commits to the default branch and pull requests need your approval.",
       "error": "Connection error: {error}",
       "connected": "Connected as {login} (token {hint}).",
       "notConnected": "Not connected.",
       "newToken": "New token (to replace it)",
       "token": "Access token (fine-grained)",
-      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need. Stored encrypted, never sent back to the browser.",
+      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need, with Contents and Pull requests: Read and write (with read-only access agents can read but not commit). Stored encrypted, never sent back to the browser.",
       "repos": "Allowed repositories",
       "reposHint": "One owner/repo per line. Empty = everything the token can access.",
       "save": "Save",
@@ -601,7 +1094,7 @@
     },
     "sandbox": {
       "title": "Sandbox and web",
-      "description": "Agent commands run in a separate container: no network, no root, limited, only the task's folder visible.",
+      "description": "Agent commands run in a separate container: no root, limited, only the task's folder visible. No network, except package downloads from npm and PyPI that you approve.",
       "notConfigured": "The sandbox is not configured: no terminal.",
       "ok": "The sandbox is running.",
       "down": "The sandbox does not answer.",
@@ -658,7 +1151,8 @@
       "project": "project"
     },
     "cleaned": "files removed",
-    "none": "No workspaces yet."
+    "none": "No workspaces yet.",
+    "downloadPdf": "Download PDF"
   },
   "audit": {
     "title": "Audit log",
@@ -684,13 +1178,20 @@
       "denied": "denied"
     },
     "empty": "No entries.",
-    "more": "Show more"
+    "more": "Show more",
+    "actors": {
+      "user": "you",
+      "agent": "agent",
+      "system": "system",
+      "anonymous": "not signed in"
+    }
   },
   "notifications": {
     "dismiss": "Dismiss notification",
     "approval": {
       "title": "Your approval is needed",
-      "body": "{subject}"
+      "body": "{subject}",
+      "titleNamed": "{name} needs your approval"
     },
     "taskDone": {
       "title": "Task done",
@@ -706,17 +1207,48 @@
       "kinds": {
         "approval": "An agent needs approval",
         "taskDone": "A task is done",
-        "taskFailed": "A task failed"
+        "taskFailed": "A task failed",
+        "budget": "Costs reached the threshold or the limit"
       },
       "system": "System notifications while moloko is in the background",
       "allow": "Allow system notifications",
       "blocked": "Notifications are blocked in the browser",
       "unsupported": "This browser does not support notifications.",
       "push": "Notifications while moloko is closed (Web Push)",
-      "pushHomeScreen": "On iPhone and iPad: first add moloko to the Home Screen (Share → Add to Home Screen) and open it from there.",
       "pushUnsupported": "This browser does not support Web Push.",
       "pushNote": "Messages travel encrypted through your browser's push service (Apple, Google, Mozilla); it only sees the device address.",
-      "pushError": "Could not turn it on: allow notifications in the browser settings and try again."
+      "pushError": "Could not turn it on: allow notifications in the browser settings and try again.",
+      "deviceTitle": "On this device",
+      "homeScreen": {
+        "title": "To get notifications on an iPhone or iPad:",
+        "step1": "Open this site in Safari.",
+        "step2": "Tap Share (the square with an arrow) → “Add to Home Screen” → “Add”.",
+        "step3": "Open moloko from the new Home Screen icon and come back here: a “Notifications while moloko is closed” switch appears — turn it on and allow notifications."
+      }
+    },
+    "budget": {
+      "title": "Costs near the limit",
+      "body": "{subject}"
+    },
+    "ops": {
+      "fs_write": "Write the file {file}",
+      "fs_append": "Append to the file {file}",
+      "fs_move": "Move the file {file}",
+      "fs_delete": "Delete the file {file}",
+      "terminal_run": "Run a {program} command",
+      "terminal_run_plain": "Run a command",
+      "github_create_branch": "Create the branch {branch} in {repo}",
+      "github_write_file": "Save {file} to GitHub ({repo})",
+      "github_create_pull_request": "Open a pull request in {repo}",
+      "memory_save": "Save to memory: {title}",
+      "browser_screenshot": "Open the page {host}",
+      "agent_ask": "Ask the agent {agent}",
+      "agent_tell": "Message the agent {agent}",
+      "other": "Action: {tool}",
+      "terminal_run_packages": "Run {program} with package downloads",
+      "terminal_run_packages_plain": "Run a command with package downloads",
+      "github_checkout": "Download {repo} into the work folder",
+      "github_commit_files": "Commit files to GitHub ({repo}, {branch})"
     }
   },
   "backups": {
@@ -738,8 +1270,402 @@
       "last_backup_failed": "The last backup failed. See docker compose logs backup.",
       "backup_too_old": "The last backup is older than a day and a half.",
       "restore_drill_failed": "The restore check failed — backups may be unusable.",
-      "same_disk": "Backups are on the same disk as the data. That is no protection: mount another disk (BACKUP_DIR).",
+      "same_disk": "Backups are on the same disk as the data and there is no off-site copy. That is no protection: set up copies off the laptop (below).",
       "low_disk": "Low free disk space."
+    },
+    "offsite": {
+      "title": "Copies off the laptop",
+      "description": "Every daily backup also leaves the laptop, encrypted (restic), for cloud storage or an external disk. Once a week the repository is checked and a test restore is made from it.",
+      "state": {
+        "protected": "Protected: a recent copy off the laptop",
+        "problem": "Off-site copies need attention",
+        "off": "Backups live on this laptop only"
+      },
+      "offExplain": "If the laptop breaks, is lost or its disk fails, every backup goes with it. Set up copies off the laptop — three steps:",
+      "steps": {
+        "storage": "Create a bucket in Backblaze B2 or Cloudflare R2 (or plug an external USB disk into the server).",
+        "env": "Put the storage address and keys (OFFSITE_*) into the .env file on the server.",
+        "init": "Run on the server:"
+      },
+      "docs": "Step by step, and restoring on a new computer: docs/deployment.md, section 6a.",
+      "where": "Where",
+      "kinds": {
+        "s3": "Cloud (S3: Backblaze B2, Cloudflare R2…)",
+        "b2": "Backblaze B2 cloud",
+        "sftp": "Server over SFTP",
+        "rest": "restic server (REST)",
+        "azure": "Azure cloud",
+        "gs": "Google Cloud Storage",
+        "swift": "OpenStack Swift cloud",
+        "disk": "External disk"
+      },
+      "lastCopy": "Last copy",
+      "noCopy": "none yet",
+      "snapshot": "snapshot {id}",
+      "stored": "In storage",
+      "copiesKept": "{count, plural, one {# copy} other {# copies}}",
+      "retention": "Kept",
+      "keep": "one per day — {daily}, per week — {weekly}, per month — {monthly}",
+      "check": "Repository check",
+      "checkOk": "no errors ({subset} of the data read)",
+      "drill": "Test restore",
+      "drillOk": "restore works",
+      "drillOkSame": "restore works, identical to the local copy",
+      "drillFailed": "failed",
+      "notYet": "not run yet (every {days} days)",
+      "howto": "Send a copy now and check it: infrastructure/scripts/backup-now.sh --offsite --check. List copies and restore: infrastructure/scripts/offsite-restore.sh.",
+      "warnings": {
+        "offsite_failed": "The last off-site copy failed.",
+        "offsite_no_copy_yet": "No off-site copy yet — the first one leaves after the next daily backup (or run offsite-init.sh).",
+        "offsite_too_old": "The last off-site copy is older than two days.",
+        "offsite_check_failed": "The repository check found errors — the off-site copies may be damaged.",
+        "offsite_drill_failed": "The test restore from the off-site copy failed."
+      },
+      "errors": {
+        "no_repository": "No repository there: run infrastructure/scripts/offsite-init.sh.",
+        "wrong_password": "OFFSITE_PASSWORD does not open the repository.",
+        "no_password": "OFFSITE_PASSWORD is not set: run infrastructure/scripts/offsite-init.sh.",
+        "disk_missing": "The external disk is not connected. Plug it in, then run docker compose restart backup.",
+        "bad_settings": "A mistake in the OFFSITE_* settings in .env.",
+        "locked": "Another restic run holds the repository — it is retried within the hour.",
+        "no_local_backup": "No good local backup — nothing to send.",
+        "incomplete": "Some files could not be read.",
+        "forget_failed": "The copy was sent, but old copies were not removed.",
+        "interrupted": "Interrupted (the service restarted) — it is retried within the hour.",
+        "corrupt": "The agents' files archive in the copy is damaged.",
+        "no_snapshot": "There are no copies in the repository yet.",
+        "failed": "Failed — details below and in docker compose logs backup. It is retried within the hour."
+      }
     }
+  },
+  "mascot": {
+    "moo": "Moo!",
+    "bottle": "{percent}% done",
+    "bottleDone": "Done!",
+    "settings": {
+      "title": "Mascot",
+      "description": "The moloko pixel cow lives in the office and the interface. These settings are for this device.",
+      "seasonal": "Seasonal outfits (New Year, Halloween, spring)",
+      "sound": "Sounds (\"Moo!\")",
+      "hint": "Sound is only turned on here, and only on this device."
+    }
+  },
+  "newTask": {
+    "button": "Task",
+    "title": "New task",
+    "hint": "Describe what needs to be done. The Orchestrator splits the work between agents.",
+    "placeholder": "For example: find three recent articles about pgvector and write a short overview",
+    "start": "Start",
+    "close": "Close",
+    "untitled": "New task",
+    "orchestratorBusy": "The Orchestrator is finishing the previous task — the button turns on as soon as it is free. You can type already."
+  },
+  "costs": {
+    "title": "Costs",
+    "description": "Tokens and money spent on agents and models. Money uses the prices you entered for each model.",
+    "loading": "Loading…",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "spent": "Spent this month",
+    "tokens": "Tokens",
+    "tokensSplit": "In {input} · out {output}",
+    "tokensShort": "tokens",
+    "calls": "Model calls",
+    "unpriced": "{count, plural, one {# call} other {# calls}} without a price — add prices below",
+    "allPriced": "All models have prices",
+    "ofLimit": "{percent}% of the monthly limit",
+    "limitLine": "{percent}% of {limit}",
+    "near": "Close to the limit.",
+    "over": "Over the limit.",
+    "noLimit": "No limit set — set one below.",
+    "pastMonth": "A past month",
+    "perDay": "Per day",
+    "perDayMax": "Most expensive day: {max}",
+    "perDayEmpty": "Nothing spent this month",
+    "empty": "Nothing spent yet",
+    "emptyHint": "Costs appear here once agents and chat start working.",
+    "byAgent": "By agent",
+    "byModel": "By model",
+    "chat": "Chat",
+    "orchestrator": "Orchestrator",
+    "noPrice": "no price",
+    "colName": "Who",
+    "colCalls": "Calls",
+    "colTokens": "Tokens",
+    "colCost": "Amount",
+    "budget": {
+      "title": "Monthly limit",
+      "description": "You get an in-app and push notification when costs reach the threshold and the limit.",
+      "limit": "Limit per month, $",
+      "limitPlaceholder": "e.g. 20",
+      "warn": "Warn at, %",
+      "hardStop": "Stop new model requests when the limit is used up",
+      "save": "Save",
+      "saved": "Saved.",
+      "agentHint": "A single agent's limit is set in its settings (\"Monthly budget, $\"): you are warned at {warn}%, at 100% the agent stops."
+    },
+    "prices": {
+      "title": "Model prices",
+      "description": "Price in dollars per 1M tokens (see your provider's website). Without a price, costs are counted in tokens only.",
+      "input": "Input, $/1M",
+      "output": "Output, $/1M",
+      "save": "Save",
+      "saved": "Saved",
+      "none": "No enabled models."
+    },
+    "withSubagents": "incl. old subagents: {cost}",
+    "agentLimit": "limit {limit}",
+    "agentLimitLine": "{percent}% of {limit}"
+  },
+  "voice": {
+    "start": "Speak",
+    "stop": "Stop recording",
+    "denied": "No microphone access: allow it in the browser settings.",
+    "nothing": "No speech recognised. Try again.",
+    "needsProvider": "Voice input is not set up yet: turn on speech recognition in the settings.",
+    "openSettings": "Open the settings",
+    "closeHint": "Close the hint",
+    "recording": "Recording",
+    "cancel": "Cancel the recording",
+    "done": "Done — turn it into text",
+    "transcribing": "Recognising speech…",
+    "language": "Speech language",
+    "langs": {
+      "auto": "Auto",
+      "ru": "RU",
+      "en": "EN"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "description": "Agents' memory, files, the agents' work and chats — by meaning, not only by words.",
+    "label": "What to find",
+    "placeholder": "For example: how much does milk cost at the farm",
+    "go": "Search",
+    "filters": "Where to look",
+    "types": {
+      "memory": "Memory",
+      "file": "Files",
+      "attachment": "Chat files",
+      "task": "Tasks",
+      "agent_message": "Agents' messages",
+      "chat_message": "Chats"
+    },
+    "searching": "Searching…",
+    "nothing": "Nothing found",
+    "nothingHint": "Try other words. New notes, files, tasks and messages reach the search within a minute.",
+    "bySense": "Found by meaning",
+    "byWords": "Found by words (search by meaning is off or not ready yet)",
+    "start": "What shall we look for?",
+    "startHint": "Ask in your own words: the cow finds related things even when the words differ.",
+    "from": "{from} → {to}",
+    "role": {
+      "user": "you",
+      "assistant": "reply"
+    }
+  },
+  "aiServices": {
+    "title": "Voice & search",
+    "description": "Speech is recognised by the Whisper model on your server, or by your OpenAI provider when there is none. Search by meaning uses the provider.",
+    "voiceLocal": "Voice: the local Whisper model {model} on your server — free, the recording stays there.",
+    "voiceProvider": "Voice: {name} ({model}) — the recording is sent to the provider.",
+    "voiceNone": "Voice is unavailable: no local model and no suitable provider.",
+    "localMissing": "The Whisper model {model} is still downloading to the server — until then voice goes through the provider.",
+    "localLoading": "The Whisper model {model} is loading — in a minute speech will be recognised on the server.",
+    "localDown": "The local Whisper model {model} is not answering (see the stt service log).",
+    "active": "Search by meaning: {name}.",
+    "unavailable": "Search by meaning is unavailable: add OpenAI in AI providers. Search by words works without it.",
+    "provider": "Provider",
+    "auto": "Automatic",
+    "voiceModel": "Provider's speech-to-text model",
+    "embedModel": "Search (embedding) model",
+    "semantic": "Search by meaning (texts are sent to the provider for embeddings)",
+    "index": "In the index: {sources} sources, {chunks} chunks, {vectors} by meaning.",
+    "save": "Save",
+    "saved": "Saved"
+  },
+  "export": {
+    "link": "Link",
+    "copied": "Copied",
+    "copyFailed": "Could not copy the link."
+  },
+  "start": {
+    "title": "Getting started",
+    "progress": "{done} of {total} done",
+    "hide": "Hide this guide",
+    "stepDone": "done",
+    "stepTodo": "not done yet",
+    "model": {
+      "title": "Connect an AI model",
+      "hint": "Paste an OpenAI or Anthropic API key — the brain of moloko.",
+      "action": "Connect"
+    },
+    "chat": {
+      "title": "Ask your first question",
+      "hint": "A plain conversation with the model. History is saved.",
+      "action": "New chat"
+    },
+    "task": {
+      "title": "Give the Orchestrator a task",
+      "hint": "It splits bigger work into steps and hands them to agents.",
+      "action": "Give a task"
+    },
+    "agent": {
+      "title": "Hire a permanent agent",
+      "hint": "Researcher, programmer, reviewer or translator — from a ready template.",
+      "action": "To the office"
+    }
+  },
+  "profile": {
+    "addressAs": "How moloko addresses you",
+    "addressAsPlaceholder": "For example: Dr. Smith",
+    "addressAsHint": "The chat and every agent use it. Empty — no special form of address.",
+    "save": "Save",
+    "saved": "Saved."
+  },
+  "island": {
+    "title": "Island",
+    "agents": "Agents",
+    "openOffice": "Open the office",
+    "approvals": "Approvals",
+    "noApprovals": "Nothing to approve",
+    "working": "{count, plural, one {# agent working} other {# agents working}}",
+    "quiet": "Agents are resting",
+    "pendingCount": "{count, plural, one {# waits for you} other {# wait for you}}",
+    "task": {
+      "label": "Task",
+      "to": "To",
+      "orchestrator": "The Orchestrator",
+      "placeholder": "What needs doing?",
+      "placeholderAgent": "A task for {name}…",
+      "start": "Start",
+      "busy": "{name} is busy — you can start when it is free.",
+      "sent": "Sent: “{title}”.",
+      "open": "Open the task",
+      "pickHint": "Click an agent on the map to give the task to it."
+    }
+  },
+  "schedules": {
+    "new": "New schedule",
+    "empty": "No schedules yet",
+    "emptyHint": "For example: every morning at 8:00 — a news summary; Mondays at 9:00 — a spending report.",
+    "limit": "At most {max} schedules.",
+    "listLabel": "Schedules",
+    "orchestrator": "Orchestrator",
+    "doneBy": "Done by: {name}",
+    "unknownAgent": "agent deleted",
+    "next": "Next run {when}",
+    "off": "Off",
+    "done": "Done",
+    "waiting": "Waiting for the agent to be free",
+    "last": "Last time {when}",
+    "lastTask": "task",
+    "skipped": "Skipped: {reason}",
+    "failed": "Did not start: {reason}",
+    "reasons": {
+      "agent_busy": "the agent was busy",
+      "engine_stopped": "the agents were stopped",
+      "budget_exceeded": "the monthly spending limit was used up",
+      "agent_archived": "the agent was deleted, the schedule is off",
+      "start_failed": "a server error",
+      "invalid_timezone": "unknown time zone, the schedule is off",
+      "other": "reason “{code}”"
+    },
+    "toggle": "Schedule “{title}” on",
+    "runNow": "Run now",
+    "started": "Started.",
+    "openTask": "Open the task",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the schedule “{title}”?",
+    "deleteHint": "Tasks it already started stay.",
+    "fromSchedule": "Started by a schedule",
+    "openSchedule": "Schedule",
+    "form": {
+      "titleNew": "New schedule",
+      "titleEdit": "Edit schedule",
+      "title": "Name",
+      "titlePlaceholder": "News summary",
+      "description": "What to do",
+      "descriptionPlaceholder": "Collect the main news of the night and summarise them briefly.",
+      "target": "Who does it",
+      "targetOrchestrator": "Orchestrator (splits the task between agents itself)",
+      "repeat": "When",
+      "kinds": {
+        "once": "Once",
+        "hourly": "Every N hours",
+        "daily": "Every day",
+        "weekly": "On weekdays",
+        "monthly": "Once a month"
+      },
+      "date": "Date",
+      "time": "Time",
+      "startingAt": "Starting at",
+      "every": "How often",
+      "hours": "{n, plural, one {every hour} other {every # hours}}",
+      "days": "Days of the week",
+      "presetWorkdays": "Weekdays",
+      "presetWeekend": "Weekend",
+      "presetAll": "Every day",
+      "dayOfMonth": "Day",
+      "shortMonthHint": "Months without that day use their last day.",
+      "zone": "Times are in the {zone} time zone.",
+      "previewLoading": "Working out the next run…",
+      "create": "Create",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "rule": {
+      "once": "Once, {when}",
+      "hourly": "{n, plural, one {Every hour} other {Every # hours}}, starting at {time}",
+      "daily": "Every day at {time}",
+      "workdays": "Every weekday at {time}",
+      "weekend": "On weekends at {time}",
+      "oneDay": "{day} at {time}",
+      "someDays": "On {days} at {time}",
+      "monthly": "Every month on day {day} at {time}"
+    },
+    "everyDay": {
+      "1": "Every Monday",
+      "2": "Every Tuesday",
+      "3": "Every Wednesday",
+      "4": "Every Thursday",
+      "5": "Every Friday",
+      "6": "Every Saturday",
+      "7": "Every Sunday"
+    },
+    "onDays": {
+      "1": "Mondays",
+      "2": "Tuesdays",
+      "3": "Wednesdays",
+      "4": "Thursdays",
+      "5": "Fridays",
+      "6": "Saturdays",
+      "7": "Sundays"
+    },
+    "dayShort": {
+      "1": "Mo",
+      "2": "Tu",
+      "3": "We",
+      "4": "Th",
+      "5": "Fr",
+      "6": "Sa",
+      "7": "Su"
+    },
+    "dayName": {
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    },
+    "when": {
+      "today": "today at {time}",
+      "tomorrow": "tomorrow at {time}",
+      "date": "{date} at {time}"
+    },
+    "preview": "{rule} · next run {when}"
   }
 }

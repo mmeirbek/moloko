@@ -1,13 +1,14 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { X } from "@/components/icons";
 import { syncPush } from "@/lib/notifications/push";
 import { loadPrefs, noticeFor, type Notice } from "@/lib/notifications/rules";
 import { useRealtimeClient } from "@/lib/realtime/provider";
+import { useRealtimeStore } from "@/lib/realtime/store";
 
 type Toast = Notice & { text: string; heading: string };
 
@@ -33,8 +34,12 @@ export function Notifier() {
       const prefs = loadPrefs();
       if (!prefs[notice.kind]) return;
       seen.current.add(notice.key);
-      const heading = t(`${notice.kind}.title`);
-      const text = t(`${notice.kind}.body`, { subject: notice.subject });
+      // Who, and what in plain words (never a raw command or path).
+      const name = notice.agentName || (notice.agentId ? useRealtimeStore.getState().agents[notice.agentId]?.name : undefined);
+      const heading =
+        notice.kind === "approval" && name ? t("approval.titleNamed", { name }) : t(`${notice.kind}.title`);
+      const subject = notice.op ? t(`ops.${notice.op.key}` as "ops.other", notice.op.params) : notice.subject;
+      const text = name && notice.kind !== "approval" ? `${name}: ${subject}` : subject;
       setToasts((list) => [...list.slice(-3), { ...notice, heading, text }]);
       window.setTimeout(() => setToasts((list) => list.filter((x) => x.key !== notice.key)), 10_000);
       if (
@@ -44,7 +49,7 @@ export function Notifier() {
         Notification.permission === "granted" &&
         document.visibilityState === "hidden"
       ) {
-        const options = { body: text, tag: notice.key, icon: "/icons/icon-192.png", data: { url: notice.url } };
+        const options = { body: text, tag: notice.tag ?? notice.key, icon: "/icons/icon-192.png", badge: "/icons/badge-96.png", data: { url: notice.url } };
         void navigator.serviceWorker?.ready
           .then((reg) => reg.showNotification(heading, options))
           .catch(() => new Notification(heading, options));
@@ -52,17 +57,17 @@ export function Notifier() {
     });
   }, [client, t]);
 
-  if (toasts.length === 0) return null;
+  // The live region is always mounted, so screen readers announce the first toast too.
   return (
     <div
-      className="fixed inset-x-4 bottom-24 z-30 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
+      className="pointer-events-none fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
       role="status"
       aria-live="polite"
     >
       {toasts.map((toast) => (
         <div
           key={toast.key}
-          className="flex items-start gap-3 rounded-lg border bg-card p-3 shadow-lg"
+          className="pointer-events-auto flex items-start gap-3 bg-card p-3 pixel-frame"
           data-toast={toast.kind}
         >
           <Link
@@ -76,7 +81,7 @@ export function Notifier() {
           <button
             type="button"
             aria-label={t("dismiss")}
-            className="text-muted-foreground hover:text-foreground"
+            className="-m-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
             onClick={() => setToasts((l) => l.filter((x) => x.key !== toast.key))}
           >
             <X className="size-4" />

@@ -2,7 +2,8 @@
 
     authorize(agent, tool, args, context) -> ALLOW | REQUIRE_APPROVAL | DENY (+ reason)
 
-1. The tool exists, is enabled and available, and is in ``agent.allowed_tools``.
+1. The tool exists, is enabled and available, and is in ``agent.allowed_tools`` (or is
+   one of the read-only ``ALWAYS_ALLOWED`` history tools, or the agent has full access).
 2. The arguments match the tool's schema and stay inside the allowed scope.
 3. Category (possibly narrowed by the arguments) + autonomy level (spec 14.2):
 
@@ -15,9 +16,20 @@
    ============  ======  =================  =================
 
    Per-tool overrides in ``agent.permissions["tools"]`` can only be stricter
-   (``"approve"`` or ``"deny"``).
-4. ``sensitive`` always needs approval (or is denied).
+   (``"approve"`` or ``"deny"``). A standing approval the owner gave this agent
+   («Одобрить и больше не спрашивать», ``app/tools/standing.py``) turns "approval" into
+   "allow" for what it covers — never "deny", never past an "approve" override.
+4. ``sensitive`` always needs approval (or is denied) — except under full access.
 5. The decision and its reason are written to ``audit_logs``.
+
+Full access («Полный доступ», the owner's decision — it deliberately changes spec 14.2 for
+the persistent agents the owner picks, see docs/decisions.md): every tool that is enabled
+and available may be used (no ``allowed_tools`` list), and read / write / sensitive are all
+allowed without approval. Everything else above still applies: a missing, switched-off or
+unavailable tool (MCP tools stay off until the owner enables them), the schema and scope
+checks, and the owner's per-tool overrides for that agent ("deny" blocks, "approve" asks).
+Only ``Agent.full_access`` grants it — it is never inherited by subagents or by agents
+that are asked for help (they act under their own settings).
 
 Model output never changes this result: the model only proposes calls.
 """
@@ -34,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.state import AutonomyLevel
 from app.models.agent import Agent
 from app.services.audit import AuditService
+from app.tools import standing
 from app.tools.base import BaseTool, ScopeError, ToolCategory, ToolContext
 
 
@@ -48,6 +61,7 @@ class Decision:
     verdict: Verdict
     reason: str
     category: ToolCategory | None = None
+    standing_rule: str | None = None  # the standing approval that allowed it
 
 
 @dataclass(frozen=True)
@@ -55,6 +69,18 @@ class CatalogEntry:
     tool: BaseTool
     enabled: bool
     available: bool
+
+
+# Read-only look-ups of the office's own history (owner request: agents can always check
+# what was done). Every agent may use them without listing them in ``allowed_tools``; the
+# owner can still switch them off for everyone, or block them for one agent ("deny").
+ALWAYS_ALLOWED: tuple[str, ...] = ("work_search", "work_read")
+
+OVERRIDE_REASON = "The owner wants to approve every use of this tool."
+
+
+def may_use(agent: Agent, name: str) -> bool:
+    return agent.full_access or name in (agent.allowed_tools or []) or name in ALWAYS_ALLOWED
 
 
 def tool_override(agent: Agent, name: str) -> str | None:
@@ -107,7 +133,7 @@ async def authorize(
         return Decision(Verdict.DENY, "This tool is turned off.")
     if not entry.available:
         return Decision(Verdict.DENY, "This tool is not available right now (not configured).")
-    if name not in (agent.allowed_tools or []):
+    if not may_use(agent, name):
         return Decision(Verdict.DENY, "This agent is not allowed to use this tool.")
     # 2. arguments + scope
     if not isinstance(args, dict):
@@ -124,12 +150,30 @@ async def authorize(
     override = tool_override(agent, name)
     if override == "deny":
         return Decision(Verdict.DENY, "The owner blocked this tool for this agent.", category)
-    decision = _by_autonomy(agent.autonomy_level, category)
-    if override == "approve" and decision.verdict == Verdict.ALLOW:
+    if agent.full_access:
         decision = Decision(
-            Verdict.REQUIRE_APPROVAL, "The owner wants to approve every use of this tool.", category
+            Verdict.ALLOW, f"Full access: {category.value} action allowed by the owner.", category
         )
+    else:
+        decision = _by_autonomy(agent.autonomy_level, category)
+    if decision.verdict == Verdict.REQUIRE_APPROVAL and override != "approve":
+        rule = standing.covering(agent, name, args)
+        if rule is not None:
+            decision = Decision(
+                Verdict.ALLOW,
+                "Allowed by the owner's standing approval for this agent "
+                f"(since {str(rule.get('since', ''))[:10]}).",
+                category,
+                standing_rule=str(rule.get("id")),
+            )
+    if override == "approve" and decision.verdict == Verdict.ALLOW:
+        decision = Decision(Verdict.REQUIRE_APPROVAL, OVERRIDE_REASON, category)
     return decision
+
+
+def full_access_mark(agent: Agent) -> dict[str, bool]:
+    """Audit details of a tool decision / execution under full access: ``{"full_access": true}``."""
+    return {"full_access": True} if agent.full_access else {}
 
 
 async def audit_decision(
@@ -156,6 +200,8 @@ async def audit_decision(
             "reason": decision.reason,
             "category": decision.category.value if decision.category else None,
             "autonomy": agent.autonomy_level,
+            **full_access_mark(agent),
+            **({"standing_approval": decision.standing_rule} if decision.standing_rule else {}),
             "args_hash": args_digest,
             "task_id": str(task_id),
             "run_id": str(run_id),

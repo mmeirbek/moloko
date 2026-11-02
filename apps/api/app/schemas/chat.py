@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ConversationOut(BaseModel):
@@ -16,6 +17,19 @@ class ConversationOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_message_at: datetime
+    # Set when older messages are condensed into a summary the model gets (the text itself:
+    # GET /chats/{id}/summary). NULL = no summary (or summaries are turned off).
+    summary_updated_at: datetime | None = None
+    summary_messages: int = 0
+
+
+class ConversationSummaryOut(BaseModel):
+    """The rolling summary of a chat's older messages, as the model gets it."""
+
+    summary: str | None
+    summary_messages: int
+    summary_upto_at: datetime | None
+    summary_updated_at: datetime | None
 
 
 class ConversationCreate(BaseModel):
@@ -39,7 +53,20 @@ class AttachmentOut(BaseModel):
     filename: str
     content_type: str
     size: int
+    kind: str = "text"  # text | image | pdf | file (any other type: stored, described)
+    pages: int | None = None
     created_at: datetime
+
+
+class RecalledSourceOut(BaseModel):
+    """An earlier chat, task or memory that recall gave the model for this answer."""
+
+    type: str  # a search source type: memory | attachment | task | conversation | …
+    id: uuid.UUID
+    title: str
+    date: datetime | None = None
+    conversation_id: uuid.UUID | None = None
+    agent_id: uuid.UUID | None = None
 
 
 class MessageOut(BaseModel):
@@ -63,6 +90,12 @@ class MessageOut(BaseModel):
     created_at: datetime
     completed_at: datetime | None
     attachments: list[AttachmentOut] = Field(default_factory=list)
+    recalled_sources: list[RecalledSourceOut] = Field(default_factory=list)
+
+    @field_validator("recalled_sources", mode="before")
+    @classmethod
+    def _none_is_empty(cls, value: Any) -> Any:
+        return [] if value is None else value
 
 
 class MessageCreate(BaseModel):
@@ -70,8 +103,9 @@ class MessageCreate(BaseModel):
 
     content: str = Field(min_length=1, max_length=32_000)
     model_config_id: uuid.UUID | None = None
-    # Uploaded first via POST /chats/{id}/attachments; at most CHAT_ATTACHMENTS_PER_MESSAGE.
-    attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
+    # Uploaded first via POST /chats/{id}/attachments. Any number (CHAT_ATTACHMENTS_PER_MESSAGE
+    # may set a limit; 0 = none).
+    attachment_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
 class CancelResult(BaseModel):

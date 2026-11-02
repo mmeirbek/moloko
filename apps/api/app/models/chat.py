@@ -3,8 +3,20 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    Numeric,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, Timestamps, UUIDPrimaryKey
@@ -20,6 +32,14 @@ class Conversation(UUIDPrimaryKey, Timestamps, Base):
         ForeignKey("model_configs.id", ondelete="SET NULL")
     )
     last_message_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Rolling summary of the messages that no longer fit into the model's context
+    # (services/chat_memory.py). It covers every completed message up to and including
+    # `summary_upto_message_id` (created at `summary_upto_at`); the model gets it as data.
+    summary: Mapped[str | None] = mapped_column(Text)
+    summary_upto_message_id: Mapped[uuid.UUID | None]
+    summary_upto_at: Mapped[datetime | None]
+    summary_messages: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    summary_updated_at: Mapped[datetime | None]
 
 
 class Message(UUIDPrimaryKey, Timestamps, Base):
@@ -48,13 +68,18 @@ class Message(UUIDPrimaryKey, Timestamps, Base):
     error_message: Mapped[str | None] = mapped_column(String(500))
     error_id: Mapped[str | None] = mapped_column(String(64))
     agent_run_id: Mapped[uuid.UUID | None]  # set when the message hands off to agents (Sprint 4)
+    # Assistant answers: which earlier chats / tasks / memories recall gave the model
+    # (list of {type, id, title, date, conversation_id, agent_id}); NULL = none.
+    recalled_sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     completed_at: Mapped[datetime | None]
 
 
 class Attachment(UUIDPrimaryKey, Timestamps, Base):
-    """A text file attached to a chat message (spec 19). The text itself is stored here, in
-    PostgreSQL (small files only), so backups and the source of truth stay in one place.
-    It is given to the model fenced as untrusted data."""
+    """A file attached to a chat message (spec 19): any type, any size. The original is on
+    disk under FILE_STORAGE_ROOT (``storage_path``; backed up with the workspaces); this
+    row is the source of truth for it and keeps the text the model and search use.
+    Rows from before 0014a keep their bytes in ``data``. Everything from a file is given
+    to the model fenced as untrusted data."""
 
     __tablename__ = "attachments"
     __table_args__ = (Index("ix_attachments_conversation", "conversation_id", "created_at"),)
@@ -68,6 +93,14 @@ class Attachment(UUIDPrimaryKey, Timestamps, Base):
     )  # NULL until sent with a message
     filename: Mapped[str] = mapped_column(String(200))
     content_type: Mapped[str] = mapped_column(String(100))
-    size: Mapped[int] = mapped_column(Integer)
+    size: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64))
-    text: Mapped[str] = mapped_column(Text)
+    # Decoded text / PDF text, at most CHAT_ATTACHMENT_TEXT_MAX_CHARS (image, other: "").
+    text: Mapped[str] = mapped_column(Text, deferred=True)
+    kind: Mapped[str] = mapped_column(String(8), server_default="text")  # text|image|pdf|file
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)  # before 0014a
+    pages: Mapped[int | None] = mapped_column(Integer)  # PDF page count
+    storage_path: Mapped[str | None] = mapped_column(String(255))  # relative to the root
+    model_path: Mapped[str | None] = mapped_column(String(255))  # picture shown to the model
+    text_chars: Mapped[int | None] = mapped_column(BigInteger)  # the whole text's length
+    note: Mapped[str | None] = mapped_column(String(300))  # e.g. "pages 1-40 of 300 read"

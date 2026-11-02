@@ -207,3 +207,42 @@ async def test_chat_answers_are_in_the_event_log(app: FastAPI, owner: User) -> N
     assert len(completed) == 1
     assert completed[0].payload["message"]["content"] == "Echo: hi"
     assert not any(e.type == "chat.message_delta" for e in events)  # deltas are stream-only
+
+
+async def test_agent_templates_add_idle_agents_that_wait_for_a_task(
+    app: FastAPI, owner: User, queue: RecordingQueue
+) -> None:
+    async with logged_in_client(app) as client:
+        templates = (await client.get("/api/v1/agents/templates?locale=ru")).json()
+        assert [t["key"] for t in templates] == [
+            "researcher",
+            "programmer",
+            "reviewer",
+            "translator",
+        ]
+        assert templates[0]["name"] == "Исследователь"
+        english = (await client.get("/api/v1/agents/templates?locale=en")).json()
+        assert english[3]["name"] == "Translator"
+
+        headers = await csrf_headers(client)
+        first = await client.post(
+            "/api/v1/agents/from-template", json={"template": "researcher"}, headers=headers
+        )
+        assert first.status_code == 201, first.text
+        agent = first.json()
+        assert agent["name"] == "Исследователь" and agent["status"] == "idle"
+        assert agent["agent_type"] == "autonomous" and agent["autonomy_level"] == "supervised"
+        assert "web_search" in agent["allowed_tools"]
+        second = await client.post(
+            "/api/v1/agents/from-template", json={"template": "researcher"}, headers=headers
+        )
+        assert second.json()["name"] == "Исследователь 2"  # names stay unique
+
+        unknown = await client.post(
+            "/api/v1/agents/from-template", json={"template": "astronaut"}, headers=headers
+        )
+        assert unknown.status_code == 404
+        # nothing runs until the owner gives the agent a task
+        assert queue.enqueued == []
+        tasks = (await client.get(f"/api/v1/tasks?agent_id={agent['id']}&status=all")).json()
+        assert tasks["items"] == []

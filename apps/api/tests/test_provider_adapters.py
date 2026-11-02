@@ -380,3 +380,27 @@ async def test_anthropic_errors_are_normalised(status: int, kind: str) -> None:
         await provider.complete(ChatRequest(model="m", messages=(ChatMessage("user", "hi"),)))
     await provider.aclose()
     assert info.value.kind == kind
+
+
+def test_pictures_become_image_blocks_for_both_providers() -> None:
+    from app.providers import anthropic_provider, openai_provider
+    from app.providers.base import ChatMessage, ChatRequest, ImagePart
+
+    req = ChatRequest(
+        model="m",
+        messages=(
+            ChatMessage(
+                role="user", content="What is this?", images=(ImagePart("image/png", "AAAA"),)
+            ),
+        ),
+    )
+    openai_msg = openai_provider._messages(req)[-1]
+    assert openai_msg["content"][0] == {"type": "text", "text": "What is this?"}
+    assert openai_msg["content"][1]["image_url"]["url"] == "data:image/png;base64,AAAA"
+    anthropic_msg = anthropic_provider._messages(req)[-1]
+    assert anthropic_msg["content"][0]["source"] == {
+        "type": "base64",
+        "media_type": "image/png",
+        "data": "AAAA",
+    }
+    assert anthropic_msg["content"][-1] == {"type": "text", "text": "What is this?"}

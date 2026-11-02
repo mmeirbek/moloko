@@ -16,7 +16,7 @@ export default async function AgentOfficePage() {
     <>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="mb-8">
-        <OfficeView initialMode="agents" />
+        <OfficeView />
       </div>
       <AgentsPanel types={["autonomous", "orchestrator"]} />
     </>

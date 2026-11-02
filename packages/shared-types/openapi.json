@@ -1,6 +1,190 @@
 {
   "components": {
     "schemas": {
+      "AgentBudgetOut": {
+        "description": "This month's spending against the budget that applies to an agent.",
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "budget_agent_id": {
+            "description": "Whose budget counts: the agent itself, or for a subagent the persistent agent / Orchestrator above it.",
+            "format": "uuid",
+            "title": "Budget Agent Id",
+            "type": "string"
+          },
+          "budget_agent_name": {
+            "title": "Budget Agent Name",
+            "type": "string"
+          },
+          "exceeded": {
+            "title": "Exceeded",
+            "type": "boolean"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "spent_usd": {
+            "title": "Spent Usd",
+            "type": "string"
+          },
+          "warn_percent": {
+            "title": "Warn Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id",
+          "budget_agent_id",
+          "budget_agent_name",
+          "month",
+          "spent_usd",
+          "monthly_budget_usd",
+          "warn_percent",
+          "percent",
+          "exceeded"
+        ],
+        "title": "AgentBudgetOut",
+        "type": "object"
+      },
+      "AgentContacts": {
+        "additionalProperties": false,
+        "description": "Who a persistent agent may talk to directly (agent_ask / agent_tell). Both sides\nmust allow it. Subagents only talk to their siblings; the Orchestrator is no contact.",
+        "properties": {
+          "agent_ids": {
+            "description": "Used when mode = list.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Agent Ids",
+            "type": "array"
+          },
+          "mode": {
+            "default": "all",
+            "description": "all = every own agent, list = only agent_ids, none = nobody",
+            "enum": [
+              "all",
+              "list",
+              "none"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "AgentContacts",
+        "type": "object"
+      },
+      "AgentCost": {
+        "description": "One budget holder: an agent with its subagents' calls, or the chat.",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent's own limit (today's).",
+            "title": "Monthly Budget Usd"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of the agent's limit; current month only.",
+            "title": "Percent"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "subagents_cost_usd": {
+            "description": "Part of cost_usd spent by its subagents.",
+            "title": "Subagents Cost Usd",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "name",
+          "source",
+          "cost_usd",
+          "input_tokens",
+          "output_tokens",
+          "calls",
+          "subagents_cost_usd",
+          "monthly_budget_usd",
+          "percent"
+        ],
+        "title": "AgentCost",
+        "type": "object"
+      },
       "AgentCreate": {
         "additionalProperties": false,
         "properties": {
@@ -19,6 +203,9 @@
           "autonomy_level": {
             "$ref": "#/components/schemas/AutonomyLevel",
             "default": "supervised"
+          },
+          "contacts": {
+            "$ref": "#/components/schemas/AgentContacts"
           },
           "description": {
             "default": "",
@@ -43,6 +230,23 @@
               }
             ],
             "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.",
+            "title": "Monthly Budget Usd"
           },
           "name": {
             "maxLength": 100,
@@ -99,6 +303,71 @@
         "title": "AgentCreate",
         "type": "object"
       },
+      "AgentFromTemplate": {
+        "additionalProperties": false,
+        "properties": {
+          "locale": {
+            "default": "ru",
+            "maxLength": 8,
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "template": {
+            "description": "A key from GET /agents/templates (built-in key or own template id).",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template"
+        ],
+        "title": "AgentFromTemplate",
+        "type": "object"
+      },
+      "AgentFullAccessUpdate": {
+        "additionalProperties": false,
+        "description": "Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password\n(wrong ones count toward the login lockout); turning it off does not.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when enabled.",
+            "title": "Password"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AgentFullAccessUpdate",
+        "type": "object"
+      },
       "AgentLimits": {
         "additionalProperties": false,
         "properties": {
@@ -130,6 +399,178 @@
           }
         },
         "title": "AgentLimits",
+        "type": "object"
+      },
+      "AgentMessageItem": {
+        "description": "One message in an agent's correspondence (agent page → «Переписка»).",
+        "properties": {
+          "asker_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The asking agent's task.",
+            "title": "Asker Task Id"
+          },
+          "consult_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The receiver's task of a question.",
+            "title": "Consult Task Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "direction": {
+            "description": "Relative to the agent asked about.",
+            "enum": [
+              "in",
+              "out"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was refused (a reason code).",
+            "title": "Error"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message_type": {
+            "description": "request = agent_ask question, task_result = its answer, error = no answer (failed / cancelled / timed out), note = agent_tell, context = Orchestrator plan input",
+            "title": "Message Type",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "receiver_agent_id": {
+            "format": "uuid",
+            "title": "Receiver Agent Id",
+            "type": "string"
+          },
+          "receiver_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Name"
+          },
+          "sender_agent_id": {
+            "format": "uuid",
+            "title": "Sender Agent Id",
+            "type": "string"
+          },
+          "sender_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Name"
+          },
+          "status": {
+            "description": "delivered | refused",
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The full text; null when refused.",
+            "title": "Text"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "direction",
+          "sender_agent_id",
+          "sender_name",
+          "receiver_agent_id",
+          "receiver_name",
+          "message_type",
+          "status",
+          "error",
+          "summary",
+          "text",
+          "files",
+          "task_id",
+          "consult_task_id",
+          "asker_task_id",
+          "read_at"
+        ],
+        "title": "AgentMessageItem",
         "type": "object"
       },
       "AgentMessageOut": {
@@ -232,6 +673,9 @@
             "title": "Config Version",
             "type": "integer"
           },
+          "contacts": {
+            "$ref": "#/components/schemas/AgentContacts"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -256,6 +700,24 @@
           "description": {
             "title": "Description",
             "type": "string"
+          },
+          "full_access": {
+            "description": "«Полный доступ»: every enabled tool, no approvals (the owner's decision; changed only through PUT /agents/{id}/full-access).",
+            "title": "Full Access",
+            "type": "boolean"
+          },
+          "full_access_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When full access was turned on.",
+            "title": "Full Access Since"
           },
           "id": {
             "format": "uuid",
@@ -283,6 +745,17 @@
               }
             ],
             "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
           },
           "name": {
             "title": "Name",
@@ -392,10 +865,36 @@
           "workspace_id",
           "config_version",
           "archived_at",
+          "monthly_budget_usd",
+          "contacts",
+          "full_access",
+          "full_access_since",
           "created_at",
           "updated_at"
         ],
         "title": "AgentOut",
+        "type": "object"
+      },
+      "AgentRestore": {
+        "additionalProperties": false,
+        "description": "Optional body of ``POST /agents/{id}/restore``.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Come back under this name (when another agent took the old one).",
+            "title": "Name"
+          }
+        },
+        "title": "AgentRestore",
         "type": "object"
       },
       "AgentRunRequest": {
@@ -436,6 +935,109 @@
         "title": "AgentRunRequest",
         "type": "object"
       },
+      "AgentTemplateOut": {
+        "properties": {
+          "allowed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Tools",
+            "type": "array"
+          },
+          "autonomy_level": {
+            "title": "Autonomy Level",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Own templates only (DELETE /agents/templates/{id}).",
+            "title": "Id"
+          },
+          "key": {
+            "description": "What POST /agents/from-template takes: a built-in key, or an own template's id.",
+            "title": "Key",
+            "type": "string"
+          },
+          "model_config_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "builtin",
+              "own"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "specialization": {
+            "title": "Specialization",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "source",
+          "id",
+          "name",
+          "description",
+          "specialization",
+          "allowed_tools",
+          "autonomy_level",
+          "model_config_id",
+          "monthly_budget_usd",
+          "created_at"
+        ],
+        "title": "AgentTemplateOut",
+        "type": "object"
+      },
       "AgentType": {
         "enum": [
           "orchestrator",
@@ -467,6 +1069,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/AutonomyLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contacts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentContacts"
               },
               {
                 "type": "null"
@@ -516,6 +1128,23 @@
               }
             ],
             "title": "Model Config Id"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.",
+            "title": "Monthly Budget Usd"
           },
           "name": {
             "anyOf": [
@@ -589,6 +1218,208 @@
         "title": "AgentUpdate",
         "type": "object"
       },
+      "AiServicesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "embedding_dimensions": {
+            "anyOf": [
+              {
+                "maximum": 4096.0,
+                "minimum": 64.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Dimensions"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Model"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "semantic_search": {
+            "default": true,
+            "title": "Semantic Search",
+            "type": "boolean"
+          },
+          "transcription_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcription Model"
+          }
+        },
+        "title": "AiServicesIn",
+        "type": "object"
+      },
+      "AiServicesOut": {
+        "properties": {
+          "active_provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Provider Id"
+          },
+          "active_provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Provider Name"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "embedding_dimensions": {
+            "title": "Embedding Dimensions",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "local_stt_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Stt Model"
+          },
+          "local_stt_status": {
+            "enum": [
+              "off",
+              "ready",
+              "loading",
+              "missing",
+              "error",
+              "unreachable"
+            ],
+            "title": "Local Stt Status",
+            "type": "string"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "semantic_search": {
+            "title": "Semantic Search",
+            "type": "boolean"
+          },
+          "transcription_model": {
+            "title": "Transcription Model",
+            "type": "string"
+          },
+          "voice_available": {
+            "title": "Voice Available",
+            "type": "boolean"
+          },
+          "voice_engine": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "provider"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Engine"
+          },
+          "voice_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Model"
+          }
+        },
+        "required": [
+          "provider_id",
+          "active_provider_id",
+          "active_provider_name",
+          "available",
+          "voice_available",
+          "voice_engine",
+          "voice_model",
+          "local_stt_status",
+          "local_stt_model",
+          "transcription_model",
+          "embedding_model",
+          "embedding_dimensions",
+          "semantic_search"
+        ],
+        "title": "AiServicesOut",
+        "type": "object"
+      },
+      "ApprovalDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "always": {
+            "default": false,
+            "title": "Always",
+            "type": "boolean"
+          }
+        },
+        "title": "ApprovalDecision",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "agent_id": {
@@ -606,6 +1437,20 @@
               }
             ],
             "title": "Agent Name"
+          },
+          "always": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Always"
           },
           "args": {
             "additionalProperties": true,
@@ -728,6 +1573,22 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "kind": {
+            "default": "text",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
           },
           "size": {
             "title": "Size",
@@ -936,6 +1797,9 @@
             ],
             "title": "Last"
           },
+          "offsite": {
+            "$ref": "#/components/schemas/OffsiteStatus"
+          },
           "same_disk_as_data": {
             "anyOf": [
               {
@@ -954,23 +1818,113 @@
           "age_hours",
           "drill",
           "files",
-          "same_disk_as_data"
+          "same_disk_as_data",
+          "offsite"
         ],
         "title": "BackupsStatus",
         "type": "object"
       },
-      "Body_upload_attachment_api_v1_chats__chat_id__attachments_post": {
+      "Body_transcribe_api_v1_ai_transcribe_post": {
         "properties": {
-          "file": {
+          "audio": {
             "contentMediaType": "application/octet-stream",
-            "title": "File",
+            "title": "Audio",
             "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
           }
         },
         "required": [
-          "file"
+          "audio"
         ],
-        "title": "Body_upload_attachment_api_v1_chats__chat_id__attachments_post",
+        "title": "Body_transcribe_api_v1_ai_transcribe_post",
+        "type": "object"
+      },
+      "BudgetIn": {
+        "additionalProperties": false,
+        "properties": {
+          "hard_stop": {
+            "default": false,
+            "title": "Hard Stop",
+            "type": "boolean"
+          },
+          "monthly_limit_usd": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Limit Usd"
+          },
+          "warn_percent": {
+            "default": 80,
+            "maximum": 99.0,
+            "minimum": 10.0,
+            "title": "Warn Percent",
+            "type": "integer"
+          }
+        },
+        "title": "BudgetIn",
+        "type": "object"
+      },
+      "BudgetOut": {
+        "properties": {
+          "hard_stop": {
+            "title": "Hard Stop",
+            "type": "boolean"
+          },
+          "monthly_limit_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Limit Usd"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "warn_percent": {
+            "title": "Warn Percent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "monthly_limit_usd",
+          "warn_percent",
+          "hard_stop",
+          "percent"
+        ],
+        "title": "BudgetOut",
         "type": "object"
       },
       "CancelResult": {
@@ -1047,6 +2001,23 @@
             ],
             "title": "Model Config Id"
           },
+          "summary_messages": {
+            "default": 0,
+            "title": "Summary Messages",
+            "type": "integer"
+          },
+          "summary_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Updated At"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -1066,6 +2037,58 @@
           "last_message_at"
         ],
         "title": "ConversationOut",
+        "type": "object"
+      },
+      "ConversationSummaryOut": {
+        "description": "The rolling summary of a chat's older messages, as the model gets it.",
+        "properties": {
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "summary_messages": {
+            "title": "Summary Messages",
+            "type": "integer"
+          },
+          "summary_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Updated At"
+          },
+          "summary_upto_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Upto At"
+          }
+        },
+        "required": [
+          "summary",
+          "summary_messages",
+          "summary_upto_at",
+          "summary_updated_at"
+        ],
+        "title": "ConversationSummaryOut",
         "type": "object"
       },
       "ConversationUpdate": {
@@ -1100,6 +2123,78 @@
         "title": "ConversationUpdate",
         "type": "object"
       },
+      "CostSummary": {
+        "properties": {
+          "agent_warn_percent": {
+            "description": "Warning threshold of per-agent budgets.",
+            "title": "Agent Warn Percent",
+            "type": "integer"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/BudgetOut"
+          },
+          "by_agent": {
+            "items": {
+              "$ref": "#/components/schemas/AgentCost"
+            },
+            "title": "By Agent",
+            "type": "array"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/DayCost"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCost"
+            },
+            "title": "By Model",
+            "type": "array"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "spent_usd": {
+            "title": "Spent Usd",
+            "type": "string"
+          },
+          "unpriced_calls": {
+            "title": "Unpriced Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "spent_usd",
+          "input_tokens",
+          "output_tokens",
+          "calls",
+          "unpriced_calls",
+          "budget",
+          "agent_warn_percent",
+          "by_agent",
+          "by_model",
+          "by_day"
+        ],
+        "title": "CostSummary",
+        "type": "object"
+      },
       "CsrfResponse": {
         "properties": {
           "csrf_token": {
@@ -1111,6 +2206,30 @@
           "csrf_token"
         ],
         "title": "CsrfResponse",
+        "type": "object"
+      },
+      "DayCost": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "cost_usd",
+          "tokens"
+        ],
+        "title": "DayCost",
         "type": "object"
       },
       "DiskStatus": {
@@ -2136,7 +3255,6 @@
               "format": "uuid",
               "type": "string"
             },
-            "maxItems": 20,
             "title": "Attachment Ids",
             "type": "array"
           },
@@ -2317,6 +3435,13 @@
             ],
             "title": "Provider Kind"
           },
+          "recalled_sources": {
+            "items": {
+              "$ref": "#/components/schemas/RecalledSourceOut"
+            },
+            "title": "Recalled Sources",
+            "type": "array"
+          },
           "role": {
             "title": "Role",
             "type": "string"
@@ -2346,6 +3471,56 @@
           "completed_at"
         ],
         "title": "MessageOut",
+        "type": "object"
+      },
+      "ModelCost": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "provider_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Kind"
+          },
+          "unpriced_calls": {
+            "title": "Unpriced Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_kind",
+          "model",
+          "cost_usd",
+          "input_tokens",
+          "output_tokens",
+          "calls",
+          "unpriced_calls"
+        ],
+        "title": "ModelCost",
         "type": "object"
       },
       "ModelCreate": {
@@ -2472,6 +3647,19 @@
       "ModelParams": {
         "additionalProperties": false,
         "properties": {
+          "context_window": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 1000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Window"
+          },
           "max_tokens": {
             "anyOf": [
               {
@@ -2583,6 +3771,438 @@
         "title": "ModelUpdate",
         "type": "object"
       },
+      "OffsiteAttempt": {
+        "description": "The last try to send a backup off-site (infrastructure/backup/offsite.sh).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OffsiteAttempt",
+        "type": "object"
+      },
+      "OffsiteCheck": {
+        "description": "The last `restic check --read-data-subset`.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "subset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subset"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OffsiteCheck",
+        "type": "object"
+      },
+      "OffsiteCopy": {
+        "description": "The last good off-site copy: one restic snapshot of one local backup set.",
+        "properties": {
+          "added_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added Bytes"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes"
+          },
+          "snapshot": {
+            "title": "Snapshot",
+            "type": "string"
+          },
+          "snapshots": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshots"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "source_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source At"
+          },
+          "stored_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stored Bytes"
+          }
+        },
+        "required": [
+          "at",
+          "snapshot"
+        ],
+        "title": "OffsiteCopy",
+        "type": "object"
+      },
+      "OffsiteDrill": {
+        "description": "The last restore drill from the off-site copy into a scratch database.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "same_as_local": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Same As Local"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OffsiteDrill",
+        "type": "object"
+      },
+      "OffsiteStatus": {
+        "properties": {
+          "age_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Hours"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "check_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Days"
+          },
+          "drill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteDrill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drill_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drill Days"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "keep_daily": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep Daily"
+          },
+          "keep_monthly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep Monthly"
+          },
+          "keep_weekly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep Weekly"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "last_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteAttempt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_copy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteCopy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "OffsiteStatus",
+        "type": "object"
+      },
+      "Page_AgentMessageItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentMessageItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "Page[AgentMessageItem]",
+        "type": "object"
+      },
       "Page_ConversationOut_": {
         "properties": {
           "items": {
@@ -2662,6 +4282,225 @@
           "items"
         ],
         "title": "Page[TaskOut]",
+        "type": "object"
+      },
+      "PasskeyListOut": {
+        "properties": {
+          "enabled": {
+            "description": "False until WEBAUTHN_RP_ID and WEBAUTHN_ORIGINS are set on the server.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_passkeys": {
+            "title": "Max Passkeys",
+            "type": "integer"
+          },
+          "passkeys": {
+            "items": {
+              "$ref": "#/components/schemas/PasskeyOut"
+            },
+            "title": "Passkeys",
+            "type": "array"
+          },
+          "rp_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The domain passkeys are bound to.",
+            "title": "Rp Id"
+          }
+        },
+        "required": [
+          "enabled",
+          "rp_id",
+          "max_passkeys",
+          "passkeys"
+        ],
+        "title": "PasskeyListOut",
+        "type": "object"
+      },
+      "PasskeyLoginVerify": {
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "description": "AuthenticationResponseJSON: the result of navigator.credentials.get().",
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "PasskeyLoginVerify",
+        "type": "object"
+      },
+      "PasskeyOptionsOut": {
+        "properties": {
+          "expires_in_seconds": {
+            "description": "The challenge is single-use and dies after this.",
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "options": {
+            "additionalProperties": true,
+            "description": "WebAuthn options for navigator.credentials.create()/get() in their JSON form (PublicKeyCredentialCreationOptionsJSON / PublicKeyCredentialRequestOptionsJSON; binary values base64url).",
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "options",
+          "expires_in_seconds"
+        ],
+        "title": "PasskeyOptionsOut",
+        "type": "object"
+      },
+      "PasskeyOut": {
+        "properties": {
+          "backed_up": {
+            "description": "A synced passkey (e.g. iCloud Keychain): works on the owner's other devices.",
+            "title": "Backed Up",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "transports": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Transports",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "last_used_at",
+          "backed_up",
+          "transports"
+        ],
+        "title": "PasskeyOut",
+        "type": "object"
+      },
+      "PasskeyRegisterVerify": {
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "description": "RegistrationResponseJSON: the result of navigator.credentials.create().",
+            "title": "Credential",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential",
+          "name"
+        ],
+        "title": "PasskeyRegisterVerify",
+        "type": "object"
+      },
+      "PasskeyRename": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PasskeyRename",
+        "type": "object"
+      },
+      "PasswordConfirm": {
+        "additionalProperties": false,
+        "description": "The current password, for adding or deleting a passkey (wrong ones count toward the\nlogin lockout).",
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "PasswordConfirm",
+        "type": "object"
+      },
+      "ProfileUpdate": {
+        "additionalProperties": false,
+        "description": "Only the fields sent are changed. Text is trimmed and whitespace collapsed; line\nbreaks and other control characters are refused (422 invalid_profile_text); blank or\nnull clears the field.",
+        "properties": {
+          "address_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Form of address, e.g. «Мейрбек Максатович»; at most ADDRESS_AS_MAX_CHARS.",
+            "title": "Address As"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "At most 128 characters.",
+            "title": "Display Name"
+          }
+        },
+        "title": "ProfileUpdate",
         "type": "object"
       },
       "ProviderCreate": {
@@ -2907,6 +4746,226 @@
         "title": "PushKey",
         "type": "object"
       },
+      "RecalledSourceOut": {
+        "description": "An earlier chat, task or memory that recall gave the model for this answer.",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "title"
+        ],
+        "title": "RecalledSourceOut",
+        "type": "object"
+      },
+      "RecurrenceIn": {
+        "additionalProperties": false,
+        "description": "When to run, in the schedule's time zone. Which fields count depends on ``kind``:\n\n* ``once`` — ``run_at`` (a local date-time without offset is read in the schedule's zone);\n* ``hourly`` — every ``interval_hours`` (1, 2, 3, 4, 6, 8, 12) from ``time`` (default 00:00);\n* ``daily`` — ``time``;\n* ``weekly`` — ``weekdays`` (1 = Monday … 7 = Sunday) and ``time``;\n* ``monthly`` — ``day_of_month`` (1-31; shorter months use their last day) and ``time``.",
+        "properties": {
+          "day_of_month": {
+            "anyOf": [
+              {
+                "maximum": 31.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "maximum": 24.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Hours"
+          },
+          "kind": {
+            "enum": [
+              "once",
+              "hourly",
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run At"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "weekdays": {
+            "items": {
+              "maximum": 7.0,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "maxItems": 7,
+            "title": "Weekdays",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "RecurrenceIn",
+        "type": "object"
+      },
+      "RecurrenceOut": {
+        "properties": {
+          "day_of_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Hours"
+          },
+          "kind": {
+            "enum": [
+              "once",
+              "hourly",
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run At"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "weekdays": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Weekdays",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "time",
+          "weekdays",
+          "day_of_month",
+          "interval_hours",
+          "run_at"
+        ],
+        "title": "RecurrenceOut",
+        "type": "object"
+      },
       "RunCreate": {
         "additionalProperties": false,
         "properties": {
@@ -3114,11 +5173,6 @@
           "run": {
             "$ref": "#/components/schemas/RunOut"
           },
-          "subagents": {
-            "items": {},
-            "title": "Subagents",
-            "type": "array"
-          },
           "subtasks": {
             "items": {
               "$ref": "#/components/schemas/TaskOut"
@@ -3138,7 +5192,6 @@
         "required": [
           "run",
           "task",
-          "subagents",
           "subtasks",
           "messages"
         ],
@@ -3194,6 +5247,647 @@
         "title": "SandboxStatus",
         "type": "object"
       },
+      "SaveAsTemplate": {
+        "additionalProperties": false,
+        "description": "Optional body of ``POST /agents/{id}/save-template``.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The template's name; by default the agent's name.",
+            "title": "Name"
+          }
+        },
+        "title": "SaveAsTemplate",
+        "type": "object"
+      },
+      "ScheduleCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 50000,
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/RecurrenceIn"
+          },
+          "target": {
+            "default": "orchestrator",
+            "enum": [
+              "orchestrator",
+              "agent"
+            ],
+            "title": "Target",
+            "type": "string"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "recurrence",
+          "timezone"
+        ],
+        "title": "ScheduleCreate",
+        "type": "object"
+      },
+      "ScheduleList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "max_schedules": {
+            "title": "Max Schedules",
+            "type": "integer"
+          },
+          "min_interval_minutes": {
+            "title": "Min Interval Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "max_schedules",
+          "min_interval_minutes"
+        ],
+        "title": "ScheduleList",
+        "type": "object"
+      },
+      "ScheduleOut": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "busy_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Busy Since"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Outcome"
+          },
+          "last_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reason"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Task Id"
+          },
+          "last_task_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Task Status"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/RecurrenceOut"
+          },
+          "target": {
+            "enum": [
+              "orchestrator",
+              "agent"
+            ],
+            "title": "Target",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "target",
+          "agent_id",
+          "recurrence",
+          "timezone",
+          "enabled",
+          "next_run_at",
+          "busy_since",
+          "last_run_at",
+          "last_task_id",
+          "last_task_status",
+          "last_outcome",
+          "last_reason",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ScheduleOut",
+        "type": "object"
+      },
+      "SchedulePreview": {
+        "description": "The next few runs (UTC) of a rule, exactly as the worker will compute them.",
+        "properties": {
+          "next_runs": {
+            "items": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "title": "Next Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "next_runs"
+        ],
+        "title": "SchedulePreview",
+        "type": "object"
+      },
+      "SchedulePreviewIn": {
+        "additionalProperties": false,
+        "properties": {
+          "recurrence": {
+            "$ref": "#/components/schemas/RecurrenceIn"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recurrence",
+          "timezone"
+        ],
+        "title": "SchedulePreviewIn",
+        "type": "object"
+      },
+      "ScheduleStarted": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunOut"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleOut"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskOut"
+          }
+        },
+        "required": [
+          "schedule",
+          "task",
+          "run"
+        ],
+        "title": "ScheduleStarted",
+        "type": "object"
+      },
+      "ScheduleUpdate": {
+        "additionalProperties": false,
+        "description": "Only the fields sent change; ``recurrence`` is replaced as a whole.",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "recurrence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecurrenceIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "enum": [
+                  "orchestrator",
+                  "agent"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "ScheduleUpdate",
+        "type": "object"
+      },
+      "SearchHitOut": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "message_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Type"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "peer_agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Agent Id"
+          },
+          "peer_agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Agent Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          },
+          "source_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source At"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_id",
+          "title",
+          "snippet",
+          "score",
+          "mode"
+        ],
+        "title": "SearchHitOut",
+        "type": "object"
+      },
+      "SearchOut": {
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHitOut"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "hits"
+        ],
+        "title": "SearchOut",
+        "type": "object"
+      },
+      "SearchStatus": {
+        "properties": {
+          "chunks": {
+            "title": "Chunks",
+            "type": "integer"
+          },
+          "sources": {
+            "title": "Sources",
+            "type": "integer"
+          },
+          "with_vectors": {
+            "title": "With Vectors",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "chunks",
+          "with_vectors",
+          "sources"
+        ],
+        "title": "SearchStatus",
+        "type": "object"
+      },
       "SessionOut": {
         "properties": {
           "created_at": {
@@ -3218,6 +5912,78 @@
           "expires_at"
         ],
         "title": "SessionOut",
+        "type": "object"
+      },
+      "SessionSettingsOut": {
+        "description": "How long sign-ins last. Bounds and default come from the server's settings.",
+        "properties": {
+          "current_session_expires_at": {
+            "format": "date-time",
+            "title": "Current Session Expires At",
+            "type": "string"
+          },
+          "default_ttl_hours": {
+            "description": "SESSION_TTL_HOURS: used when no own choice.",
+            "title": "Default Ttl Hours",
+            "type": "integer"
+          },
+          "max_hours": {
+            "title": "Max Hours",
+            "type": "integer"
+          },
+          "min_hours": {
+            "title": "Min Hours",
+            "type": "integer"
+          },
+          "ttl_hours": {
+            "description": "Effective lifetime of new sign-ins, in hours.",
+            "title": "Ttl Hours",
+            "type": "integer"
+          },
+          "uses_default": {
+            "description": "True when no own choice is stored.",
+            "title": "Uses Default",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ttl_hours",
+          "default_ttl_hours",
+          "min_hours",
+          "max_hours",
+          "uses_default",
+          "current_session_expires_at"
+        ],
+        "title": "SessionSettingsOut",
+        "type": "object"
+      },
+      "SessionSettingsUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "ttl_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hours between min_hours and max_hours; null = back to the default.",
+            "title": "Ttl Hours"
+          }
+        },
+        "required": [
+          "ttl_hours",
+          "password"
+        ],
+        "title": "SessionSettingsUpdate",
         "type": "object"
       },
       "StartedRun": {
@@ -3410,16 +6176,12 @@
       },
       "SystemLimits": {
         "properties": {
-          "max_active_subagents_per_run": {
-            "title": "Max Active Subagents Per Run",
+          "max_active_parts_per_run": {
+            "title": "Max Active Parts Per Run",
             "type": "integer"
           },
           "max_steps_per_run": {
             "title": "Max Steps Per Run",
-            "type": "integer"
-          },
-          "max_subagent_depth": {
-            "title": "Max Subagent Depth",
             "type": "integer"
           },
           "memory_context_max_chars": {
@@ -3430,6 +6192,10 @@
             "title": "Memory Entry Max Chars",
             "type": "integer"
           },
+          "orchestrator_max_new_agents": {
+            "title": "Orchestrator Max New Agents",
+            "type": "integer"
+          },
           "run_timeout_seconds": {
             "title": "Run Timeout Seconds",
             "type": "integer"
@@ -3438,8 +6204,8 @@
         "required": [
           "max_steps_per_run",
           "run_timeout_seconds",
-          "max_active_subagents_per_run",
-          "max_subagent_depth",
+          "max_active_parts_per_run",
+          "orchestrator_max_new_agents",
           "memory_context_max_chars",
           "memory_entry_max_chars"
         ],
@@ -3462,6 +6228,26 @@
           "active_tasks"
         ],
         "title": "SystemState",
+        "type": "object"
+      },
+      "TaskContinue": {
+        "additionalProperties": false,
+        "description": "Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).",
+        "properties": {
+          "instruction": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction"
+          }
+        },
+        "title": "TaskContinue",
         "type": "object"
       },
       "TaskCreate": {
@@ -3677,6 +6463,18 @@
             "title": "Progress",
             "type": "integer"
           },
+          "requested_by_agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Agent Id"
+          },
           "result": {
             "anyOf": [
               {
@@ -3781,6 +6579,23 @@
           "completed_at"
         ],
         "title": "TaskOut",
+        "type": "object"
+      },
+      "TaskOwnerMessage": {
+        "additionalProperties": false,
+        "description": "A message from the owner to the agent while it works (POST /tasks/{id}/message).",
+        "properties": {
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TaskOwnerMessage",
         "type": "object"
       },
       "TaskUpdate": {
@@ -4020,6 +6835,11 @@
       },
       "ToolOut": {
         "properties": {
+          "always_allowed": {
+            "default": false,
+            "title": "Always Allowed",
+            "type": "boolean"
+          },
           "available": {
             "title": "Available",
             "type": "boolean"
@@ -4127,8 +6947,33 @@
         "title": "ToolUpdate",
         "type": "object"
       },
+      "Transcript": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Transcript",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
+          "address_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How moloko addresses the owner in every answer; null = no particular form.",
+            "title": "Address As"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -4153,7 +6998,8 @@
         "required": [
           "id",
           "username",
-          "display_name"
+          "display_name",
+          "address_as"
         ],
         "title": "UserOut",
         "type": "object"
@@ -4419,6 +7265,156 @@
         ]
       }
     },
+    "/api/v1/agents/archived": {
+      "get": {
+        "operationId": "list_archived_agents_api_v1_agents_archived_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentOut"
+                  },
+                  "title": "Response List Archived Agents Api V1 Agents Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Agents removed from the office that can be brought back (newest first)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/from-template": {
+      "post": {
+        "operationId": "create_from_template_api_v1_agents_from_template_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFromTemplate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add a persistent agent from a template (built-in or own; it waits for a task)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/templates": {
+      "get": {
+        "operationId": "list_templates_api_v1_agents_templates_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "default": "ru",
+              "maxLength": 8,
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentTemplateOut"
+                  },
+                  "title": "Response List Templates Api V1 Agents Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ready-made agents: the built-in templates, then the owner's own (newest first)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/templates/{template_id}": {
+      "delete": {
+        "operationId": "delete_template_api_v1_agents_templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete one of the owner's own templates (agents made from it stay)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/agents/{agent_id}": {
       "delete": {
         "operationId": "delete_agent_api_v1_agents__agent_id__delete",
@@ -4547,6 +7543,102 @@
         ]
       }
     },
+    "/api/v1/agents/{agent_id}/budget": {
+      "get": {
+        "operationId": "agent_budget_api_v1_agents__agent_id__budget_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentBudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "This month's spending against the agent's own budget (subagents: the one above)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/full-access": {
+      "put": {
+        "operationId": "set_full_access_api_v1_agents__agent_id__full_access_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFullAccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Turn «Полный доступ» on (confirmed with the password) or off for a persistent agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/agents/{agent_id}/memory-context": {
       "get": {
         "operationId": "agent_memory_context_api_v1_agents__agent_id__memory_context_get",
@@ -4590,6 +7682,92 @@
         ]
       }
     },
+    "/api/v1/agents/{agent_id}/messages": {
+      "get": {
+        "operationId": "agent_messages_api_v1_agents__agent_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "in",
+                "out"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AgentMessageItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correspondence with other agents: questions, answers, notes (newest first)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/agents/{agent_id}/pause": {
       "post": {
         "operationId": "pause_agent_api_v1_agents__agent_id__pause_post",
@@ -4628,6 +7806,66 @@
           }
         },
         "summary": "Pause Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/restore": {
+      "post": {
+        "operationId": "restore_agent_api_v1_agents__agent_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AgentRestore"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bring an archived agent back into the office (idle, no task)",
         "tags": [
           "agents"
         ]
@@ -4745,6 +7983,118 @@
         ]
       }
     },
+    "/api/v1/agents/{agent_id}/save-template": {
+      "post": {
+        "operationId": "save_as_template_api_v1_agents__agent_id__save_template_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SaveAsTemplate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save the agent's configuration as an own template (no memory or history)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/standing-approvals/{rule_id}": {
+      "delete": {
+        "operationId": "remove_standing_approval_api_v1_agents__agent_id__standing_approvals__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Take back a «больше не спрашивать»: this kind of action needs approval again",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/agents/{agent_id}/stop": {
       "post": {
         "operationId": "stop_agent_api_v1_agents__agent_id__stop_post",
@@ -4785,6 +8135,107 @@
         "summary": "Stop Agent",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/api/v1/ai/settings": {
+      "get": {
+        "operationId": "get_settings_api_v1_ai_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiServicesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Voice input and semantic search",
+        "tags": [
+          "voice & search"
+        ]
+      },
+      "put": {
+        "operationId": "put_settings_api_v1_ai_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiServicesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiServicesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Settings",
+        "tags": [
+          "voice & search"
+        ]
+      }
+    },
+    "/api/v1/ai/transcribe": {
+      "post": {
+        "operationId": "transcribe_api_v1_ai_transcribe_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_transcribe_api_v1_ai_transcribe_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speech to text (voice input)",
+        "tags": [
+          "voice & search"
         ]
       }
     },
@@ -4916,6 +8367,7 @@
     },
     "/api/v1/approvals/{approval_id}/approve": {
       "post": {
+        "description": "With ``{\"always\": true}``: approve and don't ask again — this agent may do this kind\nof action from now on (see ``always`` on the approval for what it covers).",
         "operationId": "approve_api_v1_approvals__approval_id__approve_post",
         "parameters": [
           {
@@ -4929,6 +8381,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApprovalDecision"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -5238,6 +8707,369 @@
         ]
       }
     },
+    "/api/v1/auth/passkeys": {
+      "get": {
+        "operationId": "list_passkeys_api_v1_auth_passkeys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The owner's passkeys",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/passkeys/login/options": {
+      "post": {
+        "operationId": "login_options_api_v1_auth_passkeys_login_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start signing in with a passkey (no username needed)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/passkeys/login/verify": {
+      "post": {
+        "operationId": "login_verify_api_v1_auth_passkeys_login_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign in with a passkey (creates a session exactly like the password login)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/passkeys/register/options": {
+      "post": {
+        "operationId": "registration_options_api_v1_auth_passkeys_register_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start adding a passkey (confirmed with the password)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/passkeys/register/verify": {
+      "post": {
+        "operationId": "register_api_v1_auth_passkeys_register_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegisterVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish adding a passkey (the browser's answer to register/options)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/passkeys/{passkey_id}": {
+      "delete": {
+        "operationId": "delete_passkey_api_v1_auth_passkeys__passkey_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "passkey_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Passkey Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete a passkey (confirmed with the password)",
+        "tags": [
+          "auth"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_passkey_api_v1_auth_passkeys__passkey_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "passkey_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Passkey Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename a passkey",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/profile": {
+      "patch": {
+        "operationId": "update_profile_api_v1_auth_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change the owner's profile (form of address, display name)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/session-settings": {
+      "get": {
+        "operationId": "get_session_settings_api_v1_auth_session_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "How long sign-ins last",
+        "tags": [
+          "auth"
+        ]
+      },
+      "put": {
+        "operationId": "update_session_settings_api_v1_auth_session_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change how long sign-ins last (confirmed with the password)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/chats": {
       "get": {
         "operationId": "list_chats_api_v1_chats_get",
@@ -5485,7 +9317,18 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_attachment_api_v1_chats__chat_id__attachments_post"
+                "properties": {
+                  "file": {
+                    "contentMediaType": "application/octet-stream",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "AttachmentUpload",
+                "type": "object"
               }
             }
           },
@@ -5513,7 +9356,56 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload a text file to attach to the next message",
+        "summary": "Upload a file of any type and size to attach to the next message",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/chats/{chat_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "operationId": "attachment_content_api_v1_chats__chat_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Chat Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download an attached file (pictures are shown inline)",
         "tags": [
           "chats"
         ]
@@ -5795,6 +9687,141 @@
         "summary": "Re-attach to an answer that is still being generated",
         "tags": [
           "chats"
+        ]
+      }
+    },
+    "/api/v1/chats/{chat_id}/summary": {
+      "get": {
+        "description": "The rolling summary of the chat's older messages — exactly what the model gets.",
+        "operationId": "get_chat_summary_api_v1_chats__chat_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Chat Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Chat Summary",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/costs": {
+      "get": {
+        "operationId": "costs_api_v1_costs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tokens and approximate cost for a month",
+        "tags": [
+          "costs"
+        ]
+      }
+    },
+    "/api/v1/costs/budget": {
+      "put": {
+        "operationId": "update_budget_api_v1_costs_budget_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Monthly limit and warnings",
+        "tags": [
+          "costs"
         ]
       }
     },
@@ -7240,7 +11267,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Orchestrated runs (Subagent Office)",
+        "summary": "Orchestrated runs",
         "tags": [
           "runs"
         ]
@@ -7340,9 +11367,385 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Plan, subagents, subtasks and messages",
+        "summary": "Plan, parts, the agents and messages",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/schedules": {
+      "get": {
+        "operationId": "list_schedules_api_v1_schedules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Scheduled tasks (oldest first)",
+        "tags": [
+          "schedules"
+        ]
+      },
+      "post": {
+        "operationId": "create_schedule_api_v1_schedules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add a scheduled task (next_run_at is computed)",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/schedules/preview": {
+      "post": {
+        "operationId": "preview_schedule_api_v1_schedules_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "The next runs of a rule, without saving anything",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/schedules/{schedule_id}": {
+      "delete": {
+        "operationId": "delete_schedule_api_v1_schedules__schedule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete the schedule (tasks it started stay)",
+        "tags": [
+          "schedules"
+        ]
+      },
+      "get": {
+        "operationId": "get_schedule_api_v1_schedules__schedule_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Schedule",
+        "tags": [
+          "schedules"
+        ]
+      },
+      "patch": {
+        "operationId": "update_schedule_api_v1_schedules__schedule_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Schedule",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/schedules/{schedule_id}/run-now": {
+      "post": {
+        "operationId": "run_schedule_now_api_v1_schedules__schedule_id__run_now_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start the scheduled task now (the plan stays as it is)",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "run_search_api_v1_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "default": "memory,file,attachment",
+              "maxLength": 200,
+              "title": "Types",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search memories, files, chat files and the work history (finished tasks, agent messages, chat messages)",
+        "tags": [
+          "voice & search"
+        ]
+      }
+    },
+    "/api/v1/search/status": {
+      "get": {
+        "operationId": "status_api_v1_search_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "What the search index holds",
+        "tags": [
+          "voice & search"
         ]
       }
     },
@@ -7784,6 +12187,75 @@
         ]
       }
     },
+    "/api/v1/tasks/{task_id}/continue": {
+      "post": {
+        "operationId": "continue_task_api_v1_tasks__task_id__continue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskContinue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue a stopped task from where it stopped (a new attempt)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/tasks/{task_id}/events": {
       "get": {
         "operationId": "task_events_api_v1_tasks__task_id__events_get",
@@ -7838,6 +12310,137 @@
           }
         },
         "summary": "Execution history",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/export.md": {
+      "get": {
+        "operationId": "export_markdown_api_v1_tasks__task_id__export_md_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/markdown": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "The task and its result as a Markdown file",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/export.pdf": {
+      "post": {
+        "operationId": "export_pdf_api_v1_tasks__task_id__export_pdf_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Print the task's result to PDF (sandbox browser, no network)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/message": {
+      "post": {
+        "operationId": "message_task_agent_api_v1_tasks__task_id__message_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskOwnerMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write to the agent while it works (read before its next step)",
         "tags": [
           "tasks"
         ]
@@ -8288,6 +12891,56 @@
           }
         },
         "summary": "Workspace Files",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/raw": {
+      "get": {
+        "operationId": "workspace_raw_api_v1_workspaces__workspace_id__raw_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "maxLength": 512,
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {},
+              "image/png": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "A screenshot or PDF from the workspace",
         "tags": [
           "workspaces"
         ]

@@ -9,9 +9,9 @@ import { CategoryBadge } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { listTools, toolingKeys, updateTool } from "@/lib/api/tooling";
 
-import { useToolTitle } from "./use-tool-title";
+import { useToolHint, useToolTitle } from "./use-tool-title";
 
-export const GROUP_ORDER = ["files", "terminal", "web", "github", "memory", "mcp"] as const;
+export const GROUP_ORDER = ["files", "terminal", "web", "github", "memory", "history", "team", "mcp"] as const;
 
 export function groupTools(tools: ToolOut[]): [string, ToolOut[]][] {
   const groups = new Map<string, ToolOut[]>();
@@ -26,6 +26,7 @@ export function groupTools(tools: ToolOut[]): [string, ToolOut[]][] {
 export function ToolRow({ tool }: { tool: ToolOut }) {
   const t = useTranslations("tools");
   const title = useToolTitle()(tool);
+  const hint = useToolHint()(tool);
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const update = useMutation({
@@ -40,7 +41,7 @@ export function ToolRow({ tool }: { tool: ToolOut }) {
       <label className="flex min-w-0 flex-1 items-start gap-2 text-sm">
         <input
           type="checkbox"
-          className="mt-1"
+          className="mt-0.5 size-4 shrink-0"
           checked={tool.enabled}
           disabled={update.isPending}
           onChange={(e) => update.mutate({ enabled: e.target.checked })}
@@ -48,8 +49,9 @@ export function ToolRow({ tool }: { tool: ToolOut }) {
         />
         <span className="min-w-0">
           <span className="font-medium">{title}</span>{" "}
-          <span className="font-mono text-xs text-muted-foreground">{tool.name}</span>
-          <span className="block text-xs text-muted-foreground">{tool.description}</span>
+          {/* The technical id helps when reading logs; phones skip it. */}
+          <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{tool.name}</span>
+          <span className="block text-xs text-muted-foreground">{hint}</span>
         </span>
       </label>
       {tool.source === "mcp" ? (
@@ -57,7 +59,7 @@ export function ToolRow({ tool }: { tool: ToolOut }) {
           aria-label={t("category")}
           value={tool.category}
           onChange={(e) => update.mutate({ category: e.target.value as "read" })}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          className="h-8 bg-background px-2 text-xs pixel-frame pixel-sunken"
         >
           {(["read", "write", "sensitive"] as const).map((c) => (
             <option key={c} value={c}>
@@ -88,7 +90,7 @@ export function ToolsSection() {
         {groups.map(([group, items]) => (
           <section key={group} aria-label={t(`groups.${group as "files"}`)}>
             <h3 className="text-sm font-semibold">{t(`groups.${group as "files"}`)}</h3>
-            <ul className="divide-y">
+            <ul className="divide-y-2">
               {items.map((tool) => (
                 <ToolRow key={tool.name} tool={tool} />
               ))}

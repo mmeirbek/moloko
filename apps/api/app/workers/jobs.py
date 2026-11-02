@@ -6,6 +6,7 @@ import logging
 import uuid
 from typing import Any
 
+from app.agents import team
 from app.agents.executor import Executor
 from app.core.config import Settings
 from app.core.db import Database
@@ -13,7 +14,7 @@ from app.core.logging import configure_logging
 from app.core.redis import create_redis
 from app.events.bus import EventPublisher, set_publisher
 from app.orchestrator import mock_script  # noqa: F401 — registers offline mock replies
-from app.orchestrator.runtime import OrchestratorRuntime, SubagentRuntime
+from app.orchestrator.runtime import OrchestratorRuntime
 from app.orchestrator.scheduler import after_task as scheduler_after_task
 from app.providers.gateway import ModelGateway
 from app.push.dispatcher import dispatch as dispatch_push
@@ -21,6 +22,7 @@ from app.runtimes.native import NativeRuntime
 from app.sandbox.base import Sandbox
 from app.sandbox.client import RunnerSandbox
 from app.services.approvals import expire_due
+from app.services.schedules import run_due as run_due_schedules
 from app.services.workspaces import clean_task_workspaces
 from app.tasks.queue import TaskEnqueuer, TaskQueue
 from app.workers.recovery import recover, sweep_queued
@@ -43,16 +45,24 @@ def build_executor(
     sandbox: Sandbox | None = None,
 ) -> Executor:
     """Executor with every runtime this server supports."""
+
+    async def after_task(task_id: uuid.UUID) -> None:
+        # Each hook on its own: a failing one must not stop the other.
+        for hook in (scheduler_after_task, team.after_task):
+            try:
+                await hook(db.sessionmaker, task_id, queue)
+            except Exception:
+                logger.exception("after_task_hook_failed", extra={"task_id": str(task_id)})
+
     return Executor(
         db.sessionmaker,
         gateway,
         settings,
         runtimes={
             "native": NativeRuntime(),
-            "subagent": SubagentRuntime(),
             "orchestrator": OrchestratorRuntime(),
         },
-        after_task=lambda task_id: scheduler_after_task(db.sessionmaker, task_id, queue),
+        after_task=after_task,
         sandbox=sandbox if sandbox is not None else make_sandbox(settings),
     )
 
@@ -98,6 +108,17 @@ async def sweep(ctx: dict[str, Any]) -> None:
     expired = await expire_due(ctx["db"].sessionmaker, ctx["queue"])
     if expired:
         logger.info("approvals_expired", extra={"count": expired})
+    # Agents asking agents: late questions withdrawn, answers delivered, waiting ones started.
+    moved = await team.sweep(ctx["db"].sessionmaker, ctx["queue"])
+    if moved:
+        logger.info("agent_questions_moved", extra={"count": moved})
+
+
+async def schedules(ctx: dict[str, Any]) -> None:
+    """Every minute: start the scheduled tasks that are due (row-locked, see services/schedules)."""
+    started = await run_due_schedules(ctx["db"].sessionmaker, ctx["queue"], ctx["settings"])
+    if started:
+        logger.info("schedules_started", extra={"count": started})
 
 
 async def push_notifications(ctx: dict[str, Any]) -> None:
@@ -105,6 +126,16 @@ async def push_notifications(ctx: dict[str, Any]) -> None:
     sent = await dispatch_push(ctx["db"].sessionmaker, ctx["settings"])
     if sent:
         logger.info("push_sent", extra={"count": sent})
+
+
+async def search_index(ctx: dict[str, Any]) -> None:
+    """Every half minute: bring the search index up to date with memories, files and the
+    work history (finished tasks, agent messages, chat messages)."""
+    from app.search.index import index_all
+
+    done = await index_all(ctx["db"].sessionmaker, ctx["gateway"], ctx["settings"])
+    if done:
+        logger.info("search_indexed", extra={"count": done})
 
 
 async def housekeeping(ctx: dict[str, Any]) -> None:

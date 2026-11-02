@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -27,3 +27,8 @@ class UserRepository:
         self.db.add(user)
         await self.db.flush()
         return user
+
+    async def set_session_ttl_hours(self, user_id: uuid.UUID, hours: int | None) -> None:
+        await self.db.execute(
+            update(User).where(User.id == user_id).values(session_ttl_hours=hours)
+        )

@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:17.11-alpine
+        image: pgvector/pgvector:0.8.1-pg17-trixie  # PostgreSQL 17 + pgvector, as in production
         env:
           POSTGRES_USER: moloko
           POSTGRES_PASSWORD: moloko
@@ -27,10 +27,10 @@ jobs:
           --health-cmd "pg_isready -U moloko -d moloko_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:8.10.3-alpine
+        image: valkey/valkey:9.1.3-alpine
         ports: ["6379:6379"]
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "valkey-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql+asyncpg://moloko:moloko@127.0.0.1:5432/moloko_test
@@ -41,8 +41,22 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/0.11.32/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Sandbox command image (the real-Docker sandbox tests run in it)
+        run: docker build -f infrastructure/docker/sandbox-runner.Dockerfile -t moloko-sandbox:local infrastructure/docker
       - name: Backend checks
         run: infrastructure/scripts/test-api.sh
+
+  stt:
+    name: Speech-to-text service (lint, types, tests)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/0.11.32/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: STT checks
+        run: infrastructure/scripts/test-stt.sh
 
   web:
     name: Frontend (lint, types, tests, build)
@@ -74,3 +88,9 @@ jobs:
         run: |
           docker build -f infrastructure/docker/api.Dockerfile -t moloko-backend:ci .
           docker build -f infrastructure/docker/web.Dockerfile -t moloko-frontend:ci .
+          docker build -f infrastructure/docker/stt.Dockerfile -t moloko-stt:ci .
+          docker build -f infrastructure/docker/sandbox-runner.Dockerfile -t moloko-sandbox:ci infrastructure/docker
+      - name: Sandbox image has Python, Node.js and git (as the sandbox user, no network)
+        run: >-
+          docker run --rm --network none --read-only --user 10001:10001 moloko-sandbox:ci
+          sh -c 'python --version && node --version && npm --version && git --version'

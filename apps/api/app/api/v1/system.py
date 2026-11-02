@@ -31,8 +31,8 @@ async def system_limits(ctx: CurrentAuth, settings: SettingsDep) -> SystemLimits
     return SystemLimits(
         max_steps_per_run=settings.max_steps_per_run,
         run_timeout_seconds=settings.run_timeout_seconds,
-        max_active_subagents_per_run=settings.max_active_subagents_per_run,
-        max_subagent_depth=settings.max_subagent_depth,
+        max_active_parts_per_run=settings.max_active_parts_per_run,
+        orchestrator_max_new_agents=settings.orchestrator_max_new_agents,
         memory_context_max_chars=settings.memory_context_max_chars,
         memory_entry_max_chars=settings.memory_entry_max_chars,
     )

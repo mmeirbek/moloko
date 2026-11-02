@@ -30,22 +30,54 @@ class RunnerSandbox:
         )
 
     async def run(
-        self, workspace_id: uuid.UUID, argv: list[str], *, timeout_seconds: int
+        self,
+        workspace_id: uuid.UUID,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",
     ) -> SandboxResult:
+        body: dict[str, object] = {
+            "workspace_id": str(workspace_id),
+            "argv": argv,
+            "timeout_seconds": timeout_seconds,
+        }
+        if network != "none":
+            body["network"] = network
         try:
             async with self._client(timeout_seconds + 30) as client:
+                resp = await client.post("/v1/run", json=body)
+        except httpx2.HTTPError as exc:
+            raise SandboxUnavailable("The sandbox service cannot be reached.") from exc
+        if resp.status_code == 503:
+            raise SandboxUnavailable(
+                "The sandbox's command image is not installed on the server yet "
+                "(infrastructure/scripts/deploy.sh builds it)."
+            )
+        if resp.status_code != 200:
+            raise SandboxUnavailable(f"The sandbox refused the command (HTTP {resp.status_code}).")
+        data = resp.json()
+        return SandboxResult(
+            exit_code=data.get("exit_code"),
+            stdout=data.get("stdout", ""),
+            stderr=data.get("stderr", ""),
+            timed_out=bool(data.get("timed_out")),
+            oom_killed=bool(data.get("oom_killed")),
+            truncated=bool(data.get("truncated")),
+            duration_ms=int(data.get("duration_ms", 0)),
+        )
+
+    async def browse(self, workspace_id: uuid.UUID, request: dict[str, object]) -> SandboxResult:
+        """Headless browser in the sandbox: a screenshot of a public page, or HTML → PDF."""
+        try:
+            async with self._client(120) as client:
                 resp = await client.post(
-                    "/v1/run",
-                    json={
-                        "workspace_id": str(workspace_id),
-                        "argv": argv,
-                        "timeout_seconds": timeout_seconds,
-                    },
+                    "/v1/browse", json={"workspace_id": str(workspace_id), **request}
                 )
         except httpx2.HTTPError as exc:
             raise SandboxUnavailable("The sandbox service cannot be reached.") from exc
         if resp.status_code != 200:
-            raise SandboxUnavailable(f"The sandbox refused the command (HTTP {resp.status_code}).")
+            raise SandboxUnavailable(f"The browser could not run (HTTP {resp.status_code}).")
         data = resp.json()
         return SandboxResult(
             exit_code=data.get("exit_code"),

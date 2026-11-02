@@ -8,19 +8,23 @@ dependencies = [
     "anthropic>=2.3.0",
     "argon2-cffi>=25.1.0",
     "arq>=0.28.0",
+    "av==19.0.2",
     "asyncpg>=0.32.0",
     "cryptography>=50.0.2",
     "fastapi>=0.162.0",
     "httpx2>=2.16.0",
     "jsonschema>=4.26.0",
+    "markdown-it-py==4.2.0",
     "mcp>=2.3.0",
     "openai>=3.42.0",
     "pydantic>=2.14.2",
     "pydantic-settings>=2.16.2",
+    "pypdf==6.21.4",
     "python-multipart>=0.0.33",
     "redis>=5.2,<6",
     "sqlalchemy[asyncio]>=2.1.6",
     "uvicorn[standard]>=0.54.0",
+    "webauthn==3.0.1",
 ]
 
 [dependency-groups]
@@ -43,6 +47,7 @@ ignore = ["S101"]  # assert is fine in tests
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106"]  # test passwords
 "migrations/**" = ["E501"]
+"app/agents/templates.py" = ["RUF001"]  # Russian names and descriptions
 
 [tool.mypy]
 python_version = "3.12"

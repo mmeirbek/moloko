@@ -23,7 +23,13 @@ x-backend-env: &backend-env
   SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
   APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
   SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+  SESSION_TTL_MIN_HOURS: ${SESSION_TTL_MIN_HOURS:-1}
+  SESSION_TTL_MAX_HOURS: ${SESSION_TTL_MAX_HOURS:-2160}
   COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  # Passkeys (Face ID / Touch ID): the site's ts.net name and origin; empty = off.
+  WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-}
+  WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:-}
+  ADDRESS_AS_MAX_CHARS: ${ADDRESS_AS_MAX_CHARS:-80}
   CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
   # Optional fallback API keys (official keys only). Usually set per provider in Settings.
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -32,25 +38,77 @@ x-backend-env: &backend-env
   PROVIDER_MAX_RETRIES: ${PROVIDER_MAX_RETRIES:-2}
   ENABLE_MOCK_PROVIDER: ${ENABLE_MOCK_PROVIDER:-false}
   # Agent execution limits (spec 7.2)
-  MAX_ACTIVE_SUBAGENTS_PER_RUN: ${MAX_ACTIVE_SUBAGENTS_PER_RUN:-5}
-  MAX_SUBAGENT_DEPTH: ${MAX_SUBAGENT_DEPTH:-2}
+  MAX_ACTIVE_PARTS_PER_RUN: ${MAX_ACTIVE_PARTS_PER_RUN:-5}
+  ORCHESTRATOR_MAX_NEW_AGENTS: ${ORCHESTRATOR_MAX_NEW_AGENTS:-3}
   MAX_STEPS_PER_RUN: ${MAX_STEPS_PER_RUN:-50}
   RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-1800}
   MAX_RETRIES_PER_STEP: ${MAX_RETRIES_PER_STEP:-2}
   MAX_PARALLEL_TOOL_CALLS: ${MAX_PARALLEL_TOOL_CALLS:-3}
   APPROVAL_TTL_MINUTES: ${APPROVAL_TTL_MINUTES:-60}
+  AGENT_BUDGET_WARN_PERCENT: ${AGENT_BUDGET_WARN_PERCENT:-80}
+  AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-16000}
+  AGENT_MAX_CUT_OFFS: ${AGENT_MAX_CUT_OFFS:-3}
+  AGENT_TEMPLATES_MAX: ${AGENT_TEMPLATES_MAX:-50}
+  # Agents talking to each other directly (agent_ask / agent_tell)
+  AGENT_ASK_TIMEOUT_MINUTES: ${AGENT_ASK_TIMEOUT_MINUTES:-30}
+  AGENT_ASK_MAX_HOPS: ${AGENT_ASK_MAX_HOPS:-3}
+  AGENT_ASKS_PER_TASK: ${AGENT_ASKS_PER_TASK:-10}
+  AGENT_MESSAGE_MAX_CHARS: ${AGENT_MESSAGE_MAX_CHARS:-20000}
+  AGENT_MESSAGE_MAX_FILES: ${AGENT_MESSAGE_MAX_FILES:-10}
   # Tools (spec 15/16). The worker reaches the sandbox runner on the internal network.
   SANDBOX_URL: http://sandbox:8090
   SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-}
-  SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-60}
+  SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-600}
+  SANDBOX_DEFAULT_TIMEOUT_SECONDS: ${SANDBOX_DEFAULT_TIMEOUT_SECONDS:-120}
+  # terminal_run with network "packages" reaches only these hosts (egress-packages gets the same list)
+  SANDBOX_PACKAGE_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org}
   SEARXNG_URL: ${SEARXNG_URL:-}
-  WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-14}
+  WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-0}
   MEMORY_CONTEXT_MAX_CHARS: ${MEMORY_CONTEXT_MAX_CHARS:-8000}
   MEMORY_ENTRY_MAX_CHARS: ${MEMORY_ENTRY_MAX_CHARS:-4000}
+  # Chat files: any type/size/number (0 = no limit); stored in the `files` volume.
+  FILE_STORAGE_ROOT: /data/files
+  CHAT_ATTACHMENT_MAX_BYTES: ${CHAT_ATTACHMENT_MAX_BYTES:-0}
+  CHAT_ATTACHMENTS_PER_MESSAGE: ${CHAT_ATTACHMENTS_PER_MESSAGE:-0}
+  CHAT_UPLOAD_MIN_FREE_BYTES: ${CHAT_UPLOAD_MIN_FREE_BYTES:-1000000000}
+  CHAT_ATTACHMENT_PROMPT_MAX_CHARS: ${CHAT_ATTACHMENT_PROMPT_MAX_CHARS:-200000}
+  CHAT_IMAGE_MODEL_MAX_SIDE: ${CHAT_IMAGE_MODEL_MAX_SIDE:-1568}
+  CHAT_IMAGE_MODEL_MAX_BYTES: ${CHAT_IMAGE_MODEL_MAX_BYTES:-3500000}
+  WORK_HISTORY_ITEMS: ${WORK_HISTORY_ITEMS:-10}
+  WORK_HISTORY_CONTEXT_CHARS: ${WORK_HISTORY_CONTEXT_CHARS:-4000}
+  CHAT_CONTEXT_IMAGES: ${CHAT_CONTEXT_IMAGES:-4}
+  # Voice: the local Whisper service (`stt`), else the OpenAI provider.
+  STT_URL: ${STT_URL-http://stt:8000}  # empty in .env = no local speech model
+  STT_MODEL: ${STT_MODEL:-large-v3-turbo}
+  STT_TIMEOUT_SECONDS: ${STT_TIMEOUT_SECONDS:-900}
+  VOICE_UPLOAD_MAX_BYTES: ${VOICE_UPLOAD_MAX_BYTES:-200000000}
+  CHAT_SUMMARY_ENABLED: ${CHAT_SUMMARY_ENABLED:-true}
+  CHAT_SUMMARY_MAX_CHARS: ${CHAT_SUMMARY_MAX_CHARS:-4000}
+  CHAT_SUMMARY_MODEL: ${CHAT_SUMMARY_MODEL:-}
+  CHAT_SUMMARY_INPUT_MAX_CHARS: ${CHAT_SUMMARY_INPUT_MAX_CHARS:-30000}
+  CHAT_RECALL_ENABLED: ${CHAT_RECALL_ENABLED:-true}
+  CHAT_RECALL_TOP_K: ${CHAT_RECALL_TOP_K:-5}
+  CHAT_RECALL_MAX_CHARS: ${CHAT_RECALL_MAX_CHARS:-3000}
+  CHAT_RECALL_TIMEOUT_SECONDS: ${CHAT_RECALL_TIMEOUT_SECONDS:-2}
+  CHAT_RECALL_TYPES: ${CHAT_RECALL_TYPES:-memory,attachment,task,chat_message,agent_message}
+  TRANSCRIPTION_MODEL: ${TRANSCRIPTION_MODEL:-gpt-4o-mini-transcribe}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+  EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+  SEARCH_CHUNK_CHARS: ${SEARCH_CHUNK_CHARS:-1200}
+  SEARCH_MAX_RESULTS: ${SEARCH_MAX_RESULTS:-8}
+  WORK_INDEX_BATCH: ${WORK_INDEX_BATCH:-100}
+  WORK_INDEX_MAX_CHUNKS: ${WORK_INDEX_MAX_CHUNKS:-20}
   # Web Push (notifications while the app is closed) and the official GitHub MCP server
   PUSH_CONTACT: ${PUSH_CONTACT:-mailto:owner@moloko.invalid}
   PUSH_TTL_SECONDS: ${PUSH_TTL_SECONDS:-86400}
   GITHUB_MCP_URL: ${GITHUB_MCP_URL:-https://api.githubcopilot.com/mcp/}
+  # GitHub ↔ workspace: github_checkout and github_commit_files limits
+  GITHUB_CHECKOUT_MAX_BYTES: ${GITHUB_CHECKOUT_MAX_BYTES:-300000000}
+  GITHUB_CHECKOUT_MAX_FILES: ${GITHUB_CHECKOUT_MAX_FILES:-10000}
+  GITHUB_COMMIT_MAX_FILES: ${GITHUB_COMMIT_MAX_FILES:-300}
+  GITHUB_COMMIT_MAX_BYTES: ${GITHUB_COMMIT_MAX_BYTES:-20000000}
+  GITHUB_TRANSFER_TIMEOUT_SECONDS: ${GITHUB_TRANSFER_TIMEOUT_SECONDS:-300}
+  WORKSPACE_MAX_FILES: ${WORKSPACE_MAX_FILES:-20000}
   # The backend is reachable only from Caddy on the Docker network.
   FORWARDED_ALLOW_IPS: "*"
 
@@ -60,7 +118,11 @@ x-hardening: &hardening
 
 services:
   postgres:
-    image: postgres:17.11-alpine
+    # PostgreSQL 17.11 + pgvector (semantic search): infrastructure/docker/postgres.Dockerfile
+    build:
+      context: infrastructure/docker
+      dockerfile: postgres.Dockerfile
+    image: moloko-postgres:local
     restart: unless-stopped
     <<: *hardening
     environment:
@@ -79,15 +141,15 @@ services:
     logging: *logging
 
   redis:
-    image: redis:8.10.3-alpine
+    image: valkey/valkey:9.1.3-alpine
     restart: unless-stopped
     <<: *hardening
-    # Redis holds no durable state (spec invariant 2); snapshots only speed up restarts.
+    # Valkey (Redis-compatible, BSD-3) holds no durable state (spec invariant 2); snapshots only speed up restarts.
     volumes:
-      - redis-data:/data
+      - valkey-data:/data
     networks: [internal]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -114,6 +176,7 @@ services:
       RUN_MIGRATIONS: "true"
     volumes:
       - workspaces:/data/workspaces  # read by the owner's workspace browser
+      - files:/data/files  # chat attachments (any size; streamed here, not into memory)
       - ${BACKUP_DIR:-./backups}:/backups:ro  # backup status for Settings → Backups
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
     networks: [internal, edge]
@@ -164,6 +227,7 @@ services:
   # The ONLY service with the Docker socket. It runs each agent command in a fresh,
   # locked-down container (no network, non-root, read-only root, limits) with just that
   # task's workspace mounted (docs/security.md). It has no database or app secrets.
+  # Commands run in moloko-sandbox:local (Python + Node.js + git; deploy.sh builds it).
   sandbox:
     image: moloko-backend:local  # same image, different program
     entrypoint: []
@@ -178,12 +242,20 @@ services:
     group_add: ["${DOCKER_GID:-999}"]  # the host's docker group (init-env.sh detects it)
     environment:
       SANDBOX_RUNNER_TOKEN: ${SANDBOX_RUNNER_TOKEN:-}
-      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-python:3.12.16-slim}
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-moloko-sandbox:local}
       SANDBOX_CPUS: ${SANDBOX_CPUS:-1}
-      SANDBOX_MEMORY_MB: ${SANDBOX_MEMORY_MB:-512}
-      SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-128}
-      SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-60}
+      SANDBOX_MEMORY_MB: ${SANDBOX_MEMORY_MB:-2048}
+      SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-512}
+      SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-600}
       SANDBOX_WORKSPACES_VOLUME: ${WORKSPACES_VOLUME:-moloko_workspaces}
+      # The agents' browser (built with: docker compose --profile browser build browser)
+      SANDBOX_BROWSER_IMAGE: moloko-browser:local
+      SANDBOX_BROWSER_NETWORK: ${BROWSER_NETWORK:-moloko_browser}
+      SANDBOX_BROWSER_PROXY: http://egress:3128
+      # Package downloads (terminal_run network "packages"): their own internal network,
+      # whose only way out is egress-packages (the registries only).
+      SANDBOX_PACKAGES_NETWORK: ${PACKAGES_NETWORK:-moloko_packages}
+      SANDBOX_PACKAGES_PROXY: http://egress-packages:3128
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks: [internal]
@@ -199,10 +271,151 @@ services:
       start_period: 15s
     logging: *logging
 
+  # The only way out for the agents' browser: public addresses on ports 80/443 only
+  # (app/sandbox/egress.py). Its own network holds just this proxy and browser containers.
+  egress:
+    image: moloko-backend:local
+    entrypoint: []
+    command: ["python", "-m", "app.sandbox.egress"]
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    cap_drop: [ALL]
+    environment:
+      EGRESS_PORT: "3128"
+      EGRESS_MAX_BYTES: ${EGRESS_MAX_BYTES:-30000000}
+    networks: [browser, edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+  # The only way out for agents' package downloads (terminal_run with network "packages"):
+  # HTTPS to SANDBOX_PACKAGE_HOSTS only (the TLS name must match), public addresses only
+  # (app/sandbox/egress.py). Its own internal network holds just this proxy and the sandbox
+  # containers that asked for packages. A larger per-connection limit: npm keeps
+  # connections open for many packages, and one package can be tens of MB.
+  egress-packages:
+    image: moloko-backend:local
+    entrypoint: []
+    command: ["python", "-m", "app.sandbox.egress"]
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    cap_drop: [ALL]
+    environment:
+      EGRESS_PORT: "3128"
+      EGRESS_ALLOWED_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org}
+      EGRESS_ALLOWED_PORTS: "443"
+      EGRESS_MAX_BYTES: ${PACKAGES_EGRESS_MAX_BYTES:-500000000}
+    networks: [packages, edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+  # Speech-to-text for voice input: Whisper (faster-whisper, int8) on this server's CPU,
+  # OpenAI-compatible API (apps/stt). Internal network only — no internet, no port.
+  stt:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/stt.Dockerfile
+    image: moloko-stt:local
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m  # a recording being decoded
+    cap_drop: [ALL]
+    environment:
+      STT_MODEL: ${STT_MODEL:-large-v3-turbo}
+      STT_CPU_THREADS: ${STT_CPU_THREADS:-6}
+      STT_LANGUAGES: ${STT_LANGUAGES-ru,en}
+      STT_BEAM_SIZE: ${STT_BEAM_SIZE:-1}
+      STT_MAX_BYTES: ${VOICE_UPLOAD_MAX_BYTES:-200000000}
+      HF_HUB_OFFLINE: "1"  # never tries the internet; the model comes from stt-models
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - stt-models:/models:ro
+    cpus: ${STT_CPUS:-6}  # of 12 threads on the server; must not exceed the machine
+    mem_limit: ${STT_MEMORY:-4g}
+    networks: [internal]
+    healthcheck:
+      # Healthy = the service answers; whether the model is loaded is in /health's
+      # "status" (the backend uses the provider until it is "ready").
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 20s
+    logging: *logging
+
+  # Downloads STT_MODEL once (pinned Hugging Face commit, SHA-256 checked) into the
+  # stt-models volume, then exits; later runs see it is there and exit at once. Its own
+  # network is the only one with internet access for this; stt itself has none.
+  stt-models:
+    image: moloko-stt:local
+    command: ["download"]
+    restart: "no"
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    environment:
+      STT_MODEL: ${STT_MODEL:-large-v3-turbo}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - stt-models:/models
+    networks: [stt-download]
+    healthcheck:
+      test: ["CMD", "true"]  # a one-off job: deploy.sh must not wait for the download
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+  # Image of the agents' commands (Python 3.12 + Node.js 22 + git); not a running service.
+  # deploy.sh and e2e.sh build it: docker compose --profile sandbox-image build sandbox-image
+  sandbox-image:
+    profiles: ["sandbox-image"]
+    build:
+      context: infrastructure/docker
+      dockerfile: sandbox-runner.Dockerfile
+    image: moloko-sandbox:local
+    command: ["true"]
+    restart: "no"
+    network_mode: none
+
+  # Image for the agents' browser (headless Chromium); not a running service.
+  browser:
+    profiles: ["browser"]
+    build:
+      context: infrastructure/docker
+      dockerfile: browser.Dockerfile
+    image: moloko-browser:local
+    command: ["true"]
+    restart: "no"
+    network_mode: none
+
   # Daily PostgreSQL dump + workspace archive, verified and rotated; weekly restore drill.
-  # BACKUP_DIR must be on ANOTHER disk (infrastructure/backup/README.md).
+  # BACKUP_DIR must be on ANOTHER disk (infrastructure/backup/README.md). With OFFSITE_* set
+  # it also sends every backup, encrypted by restic, off the laptop — cloud storage
+  # (Backblaze B2, Cloudflare R2, any S3), an SFTP host or an external disk — and checks and
+  # test-restores that copy (infrastructure/backup/offsite.sh, docs/deployment.md 6a).
   backup:
-    image: postgres:17.11-alpine
+    build:
+      context: infrastructure/backup  # postgres:17.11-alpine + restic (pinned by digest)
+    image: moloko-backup:local
+    hostname: moloko-backup  # stable, so restic recognises its own stale locks
     entrypoint: []
     command: ["sh", "/scripts/loop.sh"]
     restart: unless-stopped
@@ -223,11 +436,30 @@ services:
       BACKUP_HOUR: ${BACKUP_HOUR:-3}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
       BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      # Off-site copies (empty repository and disk = off). Secrets stay in .env only.
+      OFFSITE_REPOSITORY: ${OFFSITE_REPOSITORY:-}
+      OFFSITE_DISK: ${OFFSITE_DISK:-}
+      OFFSITE_PASSWORD: ${OFFSITE_PASSWORD:-}
+      OFFSITE_S3_ACCESS_KEY_ID: ${OFFSITE_S3_ACCESS_KEY_ID:-}
+      OFFSITE_S3_SECRET_ACCESS_KEY: ${OFFSITE_S3_SECRET_ACCESS_KEY:-}
+      OFFSITE_S3_REGION: ${OFFSITE_S3_REGION:-}
+      OFFSITE_KEEP_DAILY: ${OFFSITE_KEEP_DAILY:-7}
+      OFFSITE_KEEP_WEEKLY: ${OFFSITE_KEEP_WEEKLY:-4}
+      OFFSITE_KEEP_MONTHLY: ${OFFSITE_KEEP_MONTHLY:-6}
+      OFFSITE_CHECK_DAYS: ${OFFSITE_CHECK_DAYS:-7}
+      OFFSITE_CHECK_SUBSET: ${OFFSITE_CHECK_SUBSET:-10%}
+      OFFSITE_DRILL_DAYS: ${OFFSITE_DRILL_DAYS:-7}
+      OFFSITE_UPLOAD_LIMIT_KIB: ${OFFSITE_UPLOAD_LIMIT_KIB:-0}
     volumes:
       - ./infrastructure/backup:/scripts:ro
       - ${BACKUP_DIR:-./backups}:/backups
       - workspaces:/data/workspaces:ro
-    networks: [internal]
+      - backup-cache:/cache  # restic's cache + scratch space of the off-site restore drill
+      - ${OFFSITE_DISK:-offsite-disk-unused}:/offsite  # the external disk, if OFFSITE_DISK is set
+      - ${OFFSITE_SSH_DIR:-offsite-ssh-unused}:/root/.ssh:ro  # SFTP key + known_hosts, if set
+      - files:/data/files:ro
+    # "internal" for PostgreSQL; "offsite" (its own network) to reach the cloud / SFTP host.
+    networks: [internal, offsite]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h postgres -U \"$${PGUSER}\""]
       interval: 60s
@@ -281,11 +513,25 @@ networks:
   internal:
     internal: true
   edge: {}
+  browser:
+    internal: true  # no route out except through the egress proxy
+    name: ${BROWSER_NETWORK:-moloko_browser}
+  packages:
+    internal: true  # no route out except through egress-packages (package registries only)
+    name: ${PACKAGES_NETWORK:-moloko_packages}
+  offsite: {}  # the backup service's way out (off-site copies); no other service is on it
+  stt-download: {}  # only stt-models: fetches the speech model, nothing else lives here
 
 volumes:
   workspaces:
     name: ${WORKSPACES_VOLUME:-moloko_workspaces}  # fixed name: the sandbox runner mounts subpaths of it
+  files:
+    name: ${FILES_VOLUME:-moloko_files}  # fixed name: restore.sh mounts it
+  stt-models:  # re-downloadable, not backed up
   postgres-data:
-  redis-data:
+  valkey-data:
   caddy-data:
   caddy-config:
+  backup-cache:
+  offsite-disk-unused:  # stand-ins when OFFSITE_DISK / OFFSITE_SSH_DIR are not set (stay empty)
+  offsite-ssh-unused:

@@ -1,8 +1,8 @@
 #!/bin/sh
-# One backup run (spec 21.3): PostgreSQL dump + workspace files, checksums, integrity
+# One backup run (spec 21.3): PostgreSQL dump + workspace and chat files, checksums, integrity
 # check, rotation, status file. Runs inside the `backup` service (postgres image).
 #   /backups/daily/moloko-YYYYmmdd-HHMMSS.dump(.sha256)   pg_dump custom format
-#   /backups/daily/workspaces-YYYYmmdd-HHMMSS.tar.gz(.sha256)
+#   /backups/daily/workspaces-YYYYmmdd-HHMMSS.tar.gz(.sha256)  workspaces/ + files/ (chat files)
 #   /backups/weekly/…                                      copies made on Sundays
 #   /backups/status.json                                   last run, read by the app
 set -eu
@@ -29,9 +29,13 @@ pg_restore --list "$DUMP.tmp" > /dev/null || fail "the dump cannot be read back"
 mv "$DUMP.tmp" "$DUMP"
 (cd "$ROOT/daily" && sha256sum "$(basename "$DUMP")" > "$(basename "$DUMP").sha256")
 
+# Workspaces and chat attachments (the `files` volume) in one archive.
 FILES="$ROOT/daily/workspaces-$TS.tar.gz"
-if [ -d /data/workspaces ]; then
-  tar -czf "$FILES.tmp" -C /data workspaces || fail "workspace archive failed"
+DIRS=""
+for dir in workspaces files; do [ -d "/data/$dir" ] && DIRS="$DIRS $dir"; done
+if [ -n "$DIRS" ]; then
+  # shellcheck disable=SC2086  # DIRS is a list of plain directory names
+  tar -czf "$FILES.tmp" -C /data $DIRS || fail "workspace archive failed"
   gzip -t "$FILES.tmp" || fail "the workspace archive is corrupt"
   mv "$FILES.tmp" "$FILES"
   (cd "$ROOT/daily" && sha256sum "$(basename "$FILES")" > "$(basename "$FILES").sha256")

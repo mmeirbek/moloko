@@ -14,6 +14,7 @@ from app.models.task import Task
 from app.models.tooling import ToolCall
 from app.repositories.audit_logs import AuditLogRepository
 from app.schemas.tooling import (
+    ApprovalDecision,
     ApprovalOut,
     AuditOut,
     AuditPage,
@@ -110,10 +111,21 @@ async def get_approval(
     "/{approval_id}/approve", response_model=ApprovalOut, summary="Approve this ONE operation"
 )
 async def approve(
-    approval_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, queue: QueueDep
+    approval_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    queue: QueueDep,
+    body: ApprovalDecision | None = None,
 ) -> ApprovalOut:
+    """With ``{"always": true}``: approve and don't ask again — this agent may do this kind
+    of action from now on (see ``always`` on the approval for what it covers)."""
+    always = bool(body and body.always)
     return await _one(
-        db, await ApprovalService(db, settings, queue).decide(ctx.user.id, approval_id, True)
+        db,
+        await ApprovalService(db, settings, queue).decide(
+            ctx.user.id, approval_id, True, always=always
+        ),
     )
 
 
@@ -286,6 +298,42 @@ async def workspace_file(
         return WorkspaceFileContent.model_validate(service.read(ws, path))
     except ScopeError as exc:
         raise InvalidPath(str(exc)) from None
+
+
+@workspaces_router.get(
+    "/{workspace_id}/raw",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}, "application/pdf": {}}}},
+    summary="A screenshot or PDF from the workspace",
+)
+async def workspace_raw(
+    workspace_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    path: str = Query(..., max_length=512),
+) -> Response:
+    from urllib.parse import quote
+
+    service = WorkspaceService(db, settings)
+    ws = await service.get(ctx.user.id, workspace_id)
+    try:
+        name, data, media = service.raw(ws, path)
+    except ScopeError as exc:
+        raise InvalidPath(str(exc)) from None
+    inline = media.startswith("image/")
+    return Response(
+        content=data,
+        media_type=media,
+        headers={
+            "Content-Disposition": (
+                f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(name)}"
+            ),
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
 
 
 @task_tools_router.get("/{task_id}/workspace", response_model=WorkspaceOut | None)

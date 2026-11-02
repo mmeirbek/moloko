@@ -3,6 +3,9 @@
 python -m app.cli create-owner --username me
 python -m app.cli reset-password --username me
 python -m app.cli wait-for-db --timeout 60
+python -m app.cli has-owner              # exit 0 if the owner account exists (deploy script)
+python -m app.cli set-address --username me --address "Мейрбек Максатович"
+python -m app.cli set-address --username me --clear
 """
 
 from __future__ import annotations
@@ -44,6 +47,22 @@ async def _create_owner(args: argparse.Namespace) -> None:
         await db.dispose()
 
 
+async def _has_owner(args: argparse.Namespace) -> None:
+    from sqlalchemy import func, select
+
+    from app.models.user import User
+
+    db = Database(get_settings())
+    try:
+        async with db.sessionmaker() as session:
+            count = (await session.execute(select(func.count()).select_from(User))).scalar()
+    finally:
+        await db.dispose()
+    print("yes" if count else "no")
+    if not count:
+        raise SystemExit(1)
+
+
 async def _reset_password(args: argparse.Namespace) -> None:
     password = _read_password(args.password_stdin)
     db = Database(get_settings())
@@ -53,6 +72,24 @@ async def _reset_password(args: argparse.Namespace) -> None:
         print(f"Password for '{user.username}' changed; all sessions were signed out.")
     finally:
         await db.dispose()
+
+
+async def _set_address(args: argparse.Namespace) -> None:
+    settings = get_settings()
+    db = Database(settings)
+    try:
+        async with db.sessionmaker() as session:
+            user = await UserService(session).set_address_as(
+                args.username,
+                None if args.clear else args.address,
+                address_as_max_chars=settings.address_as_max_chars,
+            )
+    finally:
+        await db.dispose()
+    if user.address_as is None:
+        print(f"moloko no longer uses a particular form of address for '{user.username}'.")
+    else:
+        print(f"moloko now addresses '{user.username}' as «{user.address_as}».")
 
 
 async def _wait_for_db(args: argparse.Namespace) -> None:
@@ -120,6 +157,16 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--username", required=True)
     p.add_argument("--password-stdin", action="store_true")
     p.set_defaults(func=_reset_password)
+
+    p = sub.add_parser("set-address", help="Set how moloko addresses the user in every answer")
+    p.add_argument("--username", required=True)
+    what = p.add_mutually_exclusive_group(required=True)
+    what.add_argument("--address", help='The form of address, e.g. "Мейрбек Максатович"')
+    what.add_argument("--clear", action="store_true", help="No particular form of address")
+    p.set_defaults(func=_set_address)
+
+    p = sub.add_parser("has-owner", help="Exit 0 if the owner account exists, 1 if not")
+    p.set_defaults(func=_has_owner)
 
     p = sub.add_parser("wait-for-db", help="Block until PostgreSQL accepts connections")
     p.add_argument("--timeout", type=float, default=60)

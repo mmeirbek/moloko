@@ -21,7 +21,7 @@ export default async function LoginPage() {
         <LocaleSwitcher />
         <ThemeToggle />
       </div>
-      <Logo className="[&_svg]:size-12 [&>span:last-child]:text-3xl" />
+      <Logo size="lg" />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{t("title")}</CardTitle>

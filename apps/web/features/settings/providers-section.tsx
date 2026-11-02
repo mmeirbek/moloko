@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/confirm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -24,7 +25,13 @@ import {
   updateProvider,
 } from "@/lib/api/providers";
 
-const KIND_LABEL: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic", mock: "Mock (offline)" };
+// Brand names stay as they are; the offline test provider gets a translated name.
+const KIND_LABEL: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic" };
+
+function useKindLabel(): (kind: string) => string {
+  const t = useTranslations("settings.providers");
+  return (kind) => (kind === "mock" ? t("mockKind") : (KIND_LABEL[kind] ?? kind));
+}
 
 function useInvalidateAll() {
   const queryClient = useQueryClient();
@@ -37,6 +44,7 @@ function useInvalidateAll() {
 
 function AddProviderForm({ kinds }: { kinds: string[] }) {
   const t = useTranslations("settings.providers");
+  const kindLabel = useKindLabel();
   const toMessage = useErrorMessage();
   const invalidate = useInvalidateAll();
   const [kind, setKind] = useState(kinds[0] ?? "openai");
@@ -46,7 +54,7 @@ function AddProviderForm({ kinds }: { kinds: string[] }) {
     mutationFn: async () => {
       const provider = await createProvider({
         kind: kind as "openai" | "anthropic" | "mock",
-        name: name.trim() || KIND_LABEL[kind] || kind,
+        name: name.trim() || kindLabel(kind),
         api_key: apiKey || null,
       });
       // Import the provider's model list right away when possible.
@@ -66,25 +74,25 @@ function AddProviderForm({ kinds }: { kinds: string[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 rounded-md border p-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
+    <form onSubmit={onSubmit} className="grid gap-3 border-2 p-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="provider-kind">{t("kind")}</Label>
         <select
           id="provider-kind"
           value={kind}
           onChange={(e) => setKind(e.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
         >
           {kinds.map((k) => (
             <option key={k} value={k}>
-              {KIND_LABEL[k] ?? k}
+              {kindLabel(k)}
             </option>
           ))}
         </select>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="provider-name">{t("name")}</Label>
-        <Input id="provider-name" value={name} placeholder={KIND_LABEL[kind]} onChange={(e) => setName(e.target.value)} />
+        <Input id="provider-name" value={name} placeholder={kindLabel(kind)} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="provider-key">{t("apiKey")}</Label>
@@ -113,6 +121,8 @@ function AddProviderForm({ kinds }: { kinds: string[] }) {
 
 function ProviderRow({ provider }: { provider: ProviderOut }) {
   const t = useTranslations("settings.providers");
+  const kindLabel = useKindLabel();
+  const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const invalidate = useInvalidateAll();
   const [result, setResult] = useState<ProviderTestResult | null>(null);
@@ -144,7 +154,7 @@ function ProviderRow({ provider }: { provider: ProviderOut }) {
         <div className="min-w-0">
           <p className="font-medium">
             {provider.name}{" "}
-            <span className="text-xs font-normal text-muted-foreground">{KIND_LABEL[provider.kind] ?? provider.kind}</span>
+            <span className="text-xs font-normal text-muted-foreground">{kindLabel(provider.kind)}</span>
           </p>
           <p className="text-xs text-muted-foreground">{keyText}</p>
         </div>
@@ -190,7 +200,16 @@ function ProviderRow({ provider }: { provider: ProviderOut }) {
             {t("saveKey")}
           </Button>
           {provider.api_key_source === "stored" && (
-            <Button size="sm" variant="ghost" type="button" onClick={() => update.mutate({ clear_api_key: true })}>
+            <Button
+              size="sm"
+              variant="ghost"
+              type="button"
+              disabled={update.isPending}
+              onClick={async () => {
+                if (await confirm({ title: t("clearKeyConfirm"), confirmLabel: t("clearKey"), destructive: true }))
+                  update.mutate({ clear_api_key: true });
+              }}
+            >
               {t("clearKey")}
             </Button>
           )}
@@ -213,6 +232,7 @@ function ProviderRow({ provider }: { provider: ProviderOut }) {
 
 function ModelRow({ model }: { model: ModelOut }) {
   const t = useTranslations("settings.models");
+  const toMessage = useErrorMessage();
   const invalidate = useInvalidateAll();
   const update = useMutation({
     mutationFn: (body: Parameters<typeof updateModel>[1]) => updateModel(model.id, body),
@@ -226,7 +246,12 @@ function ModelRow({ model }: { model: ModelOut }) {
       </div>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1.5">
-          <input type="checkbox" checked={model.enabled} onChange={(e) => update.mutate({ enabled: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={model.enabled}
+            disabled={update.isPending}
+            onChange={(e) => update.mutate({ enabled: e.target.checked })}
+          />
           {t("enabled")}
         </label>
         <label className="flex items-center gap-1.5">
@@ -234,11 +259,17 @@ function ModelRow({ model }: { model: ModelOut }) {
             type="radio"
             name="default-model"
             checked={model.is_default}
+            disabled={update.isPending}
             onChange={() => update.mutate({ is_default: true })}
           />
           {t("default")}
         </label>
       </div>
+      {update.error && (
+        <p role="alert" className="w-full text-xs text-destructive">
+          {toMessage(update.error).message}
+        </p>
+      )}
     </li>
   );
 }
@@ -247,10 +278,11 @@ function AddModelForm({ providers }: { providers: ProviderOut[] }) {
   const t = useTranslations("settings.models");
   const toMessage = useErrorMessage();
   const invalidate = useInvalidateAll();
-  const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
+  const [chosenProvider, setProviderId] = useState("");
+  const providerId = providers.some((p) => p.id === chosenProvider) ? chosenProvider : (providers[0]?.id ?? "");
   const [model, setModel] = useState("");
   const add = useMutation({
-    mutationFn: () => createModel({ provider_id: providerId, model }),
+    mutationFn: () => createModel({ provider_id: providerId, model: model.trim() }),
     onSuccess: () => {
       setModel("");
       invalidate();
@@ -269,7 +301,7 @@ function AddModelForm({ providers }: { providers: ProviderOut[] }) {
         aria-label={t("provider")}
         value={providerId}
         onChange={(e) => setProviderId(e.target.value)}
-        className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+        className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
       >
         {providers.map((p) => (
           <option key={p.id} value={p.id}>
@@ -287,7 +319,11 @@ function AddModelForm({ providers }: { providers: ProviderOut[] }) {
       <Button type="submit" variant="outline" disabled={add.isPending}>
         {t("add")}
       </Button>
-      {add.error && <p className="w-full text-sm text-destructive">{toMessage(add.error).message}</p>}
+      {add.error && (
+        <p role="alert" className="w-full text-sm text-destructive">
+          {toMessage(add.error).message}
+        </p>
+      )}
     </form>
   );
 }
@@ -307,7 +343,7 @@ export function ProvidersSection() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {kinds.data && <AddProviderForm kinds={kinds.data} />}
-          <ul className="divide-y">
+          <ul className="divide-y-2">
             {providers.data?.map((p) => <ProviderRow key={p.id} provider={p} />)}
           </ul>
           {providers.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("providers.none")}</p>}
@@ -319,7 +355,7 @@ export function ProvidersSection() {
           <CardDescription>{t("models.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ul className="max-h-96 divide-y overflow-y-auto">
+          <ul className="max-h-96 divide-y-2 overflow-y-auto">
             {models.data?.map((m) => <ModelRow key={m.id} model={m} />)}
           </ul>
           {models.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("models.none")}</p>}

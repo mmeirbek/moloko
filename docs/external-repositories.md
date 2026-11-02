@@ -50,8 +50,28 @@ You are the implementing coding agent for the project "shvluup". The full specif
 - USE selectively: `modelcontextprotocol/servers` reference servers (Filesystem, Git, Fetch, Memory, Time) as optional MCP servers. The repo says they are educational reference implementations, not production-ready. So run them in an isolated config, keep newly discovered tools disabled by default, treat their output as untrusted, and apply our permission system (spec 15.5).
 - Many servers there (GitHub, PostgreSQL, Slack, Google Drive and others) were moved to an archive. Do not use the archived ones. For the GitHub integration, find the currently maintained official GitHub MCP server, verify its license and maintenance, and confirm with the owner before adding it.
 
+### Pixel-style interface (owner request, 2026-11-02: "pixel style everywhere", "use ready repos for reference or copying")
+- USE (copied, with notice): `halfmage/pixelarticons` (MIT) — the SVG paths of the app's icons, generated into `apps/web/components/icons.tsx` at a pinned commit; replaces `lucide-react`.
+- USE (font files, with notice): `TakWolf/ark-pixel-font` (fonts SIL OFL 1.1) — Ark Pixel 12px proportional and monospaced, subset to Latin + Cyrillic, for text and code.
+- REFERENCE: `TheOrcDev/8bitcn-ui` (MIT) — retro shadcn-style components; read for the look (notched pixel borders, bevels, press-down buttons). Re-implemented in CSS (`pixel-frame`, `pixel-raised`, `pixel-sunken` in `globals.css`) instead of its extra decorative `<span>` elements; no code copied.
+- REFERENCE: `nostalgic-css/NES.css` (MIT) — the box-shadow pixel-border technique; idea only.
+
 ### Not yet verified (check before use)
 - Official Claude Agent SDK and OpenAI Agents SDK for the `AgentRuntime` adapters. Find the official repositories, check license and docs, and use API-key auth only. Do not use these SDKs with consumer-subscription logins.
+
+### Mac island (`apps/mac-island`, added 2026-11-02)
+> Added after the MVP sprints for the owner's "Dynamic Island" request; not part of the original list above.
+- Dependencies: **none**. The app uses only Apple system frameworks (AppKit, SwiftUI, WebKit, ServiceManagement) and builds with the Command Line Tools (`swift build`).
+- REFERENCE: `Lakr233/NotchDrop` (MIT; last push 2026-05-18). Read only for the notch-geometry idea: notch height = `NSScreen.safeAreaInsets.top`, notch width = screen width − `auxiliaryTopLeftArea` − `auxiliaryTopRightArea`. Re-implemented in `IslandGeometry.swift`; no code copied.
+- REFERENCE (evaluated, not used): `mrkai77/DynamicNotchKit` (MIT; v1.1.0, 2026-04-05). A SwiftUI library for notch pop-overs that creates/closes its window on expand/hide. The island must keep one `WKWebView` alive while collapsed and needs its own hit-testing and keyboard handling, so our own native panel fits better than a dependency.
+- AVOID copying: `TheBoredTeam/boring.notch` (GPL-3.0). Ideas only; never copy code or assets. It was not used for this app.
+
+### Speech-to-text on the server (`apps/stt`, added 2026-11-02)
+> Added after the MVP sprints: the owner wants voice input without an OpenAI key, Russian first, English too.
+- USE (dependency): `SYSTRAN/faster-whisper` (MIT; v1.2.1, last push 2026-10-31) — Whisper on CTranslate2, int8 on the CPU. Wrapped in our own ~200-line FastAPI service (`apps/stt`) with an OpenAI-compatible `POST /v1/audio/transcriptions`; pinned in `apps/stt/uv.lock`. Its dependencies: `ctranslate2` 4.8.4 (MIT), `onnxruntime` 1.31.1 (MIT, Silero VAD), `tokenizers` (Apache-2.0), `huggingface-hub` 2.4.0 (Apache-2.0, download step only), `av` 19.0.2 (PyAV, BSD-3-Clause — **its binary wheel bundles FFmpeg (LGPL-3.0+) and codec libraries including libx264/libx265 (GPL-2.0+)**; used unmodified as shared libraries, inside our own containers, not redistributed), `tqdm` (MPL-2.0 AND MIT).
+- USE (model weights, downloaded at run time, not in the repo): CTranslate2 conversions of OpenAI Whisper (MIT) at pinned Hugging Face commits with a SHA-256 check (`apps/stt/stt_server/catalog.py`): `dropbox-dash/faster-whisper-large-v3-turbo` (formerly `mobiuslabsgmbh/…`, the name faster-whisper itself uses), `Systran/faster-whisper-small|medium|large-v3`.
+- EVALUATED, not used: `speaches-ai/speaches` (MIT) — the same engine plus TTS, realtime API and UI; last release v0.9.0-rc.3 (2025-12-27, still a release candidate), last commit 2026-04-18 — a much larger surface for one endpoint. `ggml-org/whisper.cpp` (MIT, very active, v1.9.5; multi-arch image `ghcr.io/ggml-org/whisper.cpp:main`, a moving tag) — about as fast on a CPU (faster-whisper's published benchmark, small model: 2m05s vs 1m42s for int8), but its server speaks `/inference`, not the OpenAI path, needs ffmpeg in the image for webm/mp4 (`--convert`) and separate GGML model files. Vosk / `alphacep/vosk-server` (Apache-2.0; server last pushed 2025-07) — fast but clearly weaker on free Russian dictation (no punctuation, small vocabulary models).
+- The backend also uses PyAV (same pinned version) to make smaller copies of big pictures for vision models (`app/services/images.py`, in a child process). Pillow was not used: its license (MIT-CMU) is not marked OSI-approved by SPDX, so it would need the owner's approval first.
 
 ## What to do now
 1. Read `shvluup-spec.md` fully.

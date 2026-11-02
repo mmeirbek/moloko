@@ -14,16 +14,31 @@ from app.models.agent import Agent
 from app.models.tooling import McpServer, Tool
 from app.providers.base import ToolSpec
 from app.tools.base import BaseTool
+from app.tools.builtin.browser import BROWSER_TOOLS
 from app.tools.builtin.files import FILE_TOOLS
 from app.tools.builtin.github import GITHUB_TOOLS
 from app.tools.builtin.memory import MEMORY_TOOLS
+from app.tools.builtin.search import SEARCH_TOOLS
+from app.tools.builtin.team import TEAM_TOOLS
 from app.tools.builtin.terminal import TERMINAL_TOOLS
 from app.tools.builtin.web import WEB_TOOLS
+from app.tools.builtin.work import WORK_TOOLS
 from app.tools.mcp import McpTool
-from app.tools.policy import CatalogEntry
+from app.tools.policy import ALWAYS_ALLOWED, CatalogEntry, tool_override
 
 BUILTIN: dict[str, BaseTool] = {
-    t.name: t for t in (*FILE_TOOLS, *TERMINAL_TOOLS, *WEB_TOOLS, *GITHUB_TOOLS, *MEMORY_TOOLS)
+    t.name: t
+    for t in (
+        *FILE_TOOLS,
+        *TERMINAL_TOOLS,
+        *WEB_TOOLS,
+        *BROWSER_TOOLS,
+        *GITHUB_TOOLS,
+        *MEMORY_TOOLS,
+        *SEARCH_TOOLS,
+        *WORK_TOOLS,
+        *TEAM_TOOLS,
+    )
 }
 
 
@@ -60,10 +75,15 @@ async def catalog(
 
 
 def specs_for(agent: Agent, entries: dict[str, CatalogEntry]) -> tuple[ToolSpec, ...]:
-    """What the model is told it can call: allowed, enabled and available tools only.
-    (Every call is still authorized again before it runs.)"""
+    """What the model is told it can call: allowed (or always allowed), enabled and
+    available tools only — under full access every such tool except those the owner blocked
+    for this agent. (Every call is still authorized again before it runs.)"""
     specs = []
-    for name in agent.allowed_tools or []:
+    if agent.full_access:
+        names = dict.fromkeys(n for n in entries if tool_override(agent, n) != "deny")
+    else:
+        names = dict.fromkeys([*(agent.allowed_tools or []), *ALWAYS_ALLOWED])
+    for name in names:
         entry = entries.get(name)
         if entry is not None and entry.enabled and entry.available:
             specs.append(

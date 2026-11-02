@@ -100,4 +100,49 @@ describe("localized approval texts", () => {
     );
     expect(reasonKey({ reason: "x", category: "read" } as never)).toBeNull();
   });
+
+  it("describes repository downloads, multi-file commits and package downloads in both languages", async () => {
+    const { createTranslator } = await import("next-intl");
+    const { opKey, opParams } = await import("./approval-text");
+    const en = (await import("@/messages/en.json")).default;
+    const ru = (await import("@/messages/ru.json")).default;
+    const cases: [string, Record<string, unknown>, string, string][] = [
+      ["github_checkout", { repo: "me/app" }, "github_checkout", "Download me/app (default branch) into the folder app/"],
+      [
+        "github_checkout",
+        { repo: "me/app", ref: "dev", folder: "code/", overwrite: true },
+        "github_checkout_overwrite",
+        "Download me/app (dev) into code/, replacing files",
+      ],
+      [
+        "github_commit_files",
+        { repo: "me/app", branch: "ui", message: "Header", paths: ["a.ts", "b.ts"], delete: ["c.ts"] },
+        "github_commit_files",
+        "Commit to me/app@ui (files: 3): Header",
+      ],
+      ["terminal_run", { command: "npm ci", network: "packages" }, "terminal_run_packages", "Run with package downloads: npm ci"],
+      ["terminal_run", { command: "npm test" }, "terminal_run", "Run: npm test"],
+    ];
+    for (const [tool, args, key, english] of cases) {
+      const params = opParams({ tool_name: tool, args } as never)!;
+      expect(opKey(tool, params)).toBe(key);
+      const tEn = createTranslator({ locale: "en", messages: en, namespace: "approvals" });
+      const tRu = createTranslator({ locale: "ru", messages: ru, namespace: "approvals" });
+      expect(tEn(`ops.${key}.summary` as "ops.fs_write.summary", params)).toBe(english);
+      expect(tRu(`ops.${key}.summary` as "ops.fs_write.summary", params)).not.toContain("{");
+      expect(tRu(`ops.${key}.consequences` as "ops.fs_write.consequences")).toBeTruthy();
+    }
+    const tRu = createTranslator({ locale: "ru", messages: ru, namespace: "approvals" });
+    expect(tRu("ops.github_checkout.summary", opParams({ tool_name: "github_checkout", args: { repo: "me/app" } } as never)!)).toBe(
+      "Скачать me/app (ветка по умолчанию) в папку app/",
+    );
+  });
+
+  it("says what a standing approval of package downloads allows", async () => {
+    const { standingWhat } = await import("./standing-text");
+    const t = (key: string, values?: Record<string, string>) => `${key}(${values?.scope ?? ""})`;
+    expect(standingWhat(t, "terminal_run", ["packages:npm"])).toBe("terminal_run_packages(npm)");
+    expect(standingWhat(t, "terminal_run", ["npm", "node"])).toBe("terminal_run(npm, node)");
+    expect(standingWhat(t, "github_commit_files", ["me/app"])).toBe("github_commit_files(me/app)");
+  });
 });

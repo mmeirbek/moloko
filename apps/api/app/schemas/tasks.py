@@ -52,6 +52,8 @@ class TaskOut(BaseModel):
     error_message: str | None
     error_id: str | None
     created_by: str
+    # A "consult" task (agent_ask): the agent that asked; parent_task_id is its task.
+    requested_by_agent_id: uuid.UUID | None = None
     extra: dict[str, Any]
     created_at: datetime
     updated_at: datetime
@@ -108,6 +110,65 @@ class BackupFile(BaseModel):
     at: datetime
 
 
+class OffsiteAttempt(BaseModel):
+    """The last try to send a backup off-site (infrastructure/backup/offsite.sh)."""
+
+    ok: bool
+    at: datetime | None = None
+    error_code: str | None = None  # no_repository, wrong_password, disk_missing, failed, …
+    error: str | None = None  # restic's last message (English, no secrets)
+
+
+class OffsiteCopy(BaseModel):
+    """The last good off-site copy: one restic snapshot of one local backup set."""
+
+    at: datetime
+    snapshot: str
+    source: str | None = None  # the local dump it holds
+    source_at: datetime | None = None
+    bytes: int | None = None  # size of the backup set
+    added_bytes: int | None = None  # new data uploaded (after deduplication + compression)
+    stored_bytes: int | None = None  # the whole repository
+    snapshots: int | None = None  # copies kept
+
+
+class OffsiteCheck(BaseModel):
+    """The last `restic check --read-data-subset`."""
+
+    ok: bool
+    at: datetime | None = None
+    subset: str | None = None
+    error_code: str | None = None
+    detail: str | None = None
+
+
+class OffsiteDrill(BaseModel):
+    """The last restore drill from the off-site copy into a scratch database."""
+
+    ok: bool
+    at: datetime | None = None
+    snapshot: str | None = None
+    same_as_local: bool | None = None  # the restored dump equals the local one
+    error_code: str | None = None
+    detail: str | None = None
+
+
+class OffsiteStatus(BaseModel):
+    enabled: bool
+    kind: str | None = None  # s3, sftp, rest, disk, …
+    repository: str | None = None  # where to (never with credentials)
+    keep_daily: int | None = None
+    keep_weekly: int | None = None
+    keep_monthly: int | None = None
+    check_days: int | None = None
+    drill_days: int | None = None
+    last_attempt: OffsiteAttempt | None = None
+    last_copy: OffsiteCopy | None = None
+    age_hours: float | None = None  # since the last good copy
+    check: OffsiteCheck | None = None
+    drill: OffsiteDrill | None = None
+
+
 class BackupsStatus(BaseModel):
     configured: bool
     last: dict[str, Any] | None
@@ -115,6 +176,7 @@ class BackupsStatus(BaseModel):
     drill: dict[str, Any] | None
     files: list[BackupFile]
     same_disk_as_data: bool | None
+    offsite: OffsiteStatus
 
 
 class DiskStatus(BaseModel):
@@ -134,8 +196,8 @@ class StorageStatus(BaseModel):
 class SystemLimits(BaseModel):
     max_steps_per_run: int
     run_timeout_seconds: int
-    max_active_subagents_per_run: int
-    max_subagent_depth: int
+    max_active_parts_per_run: int
+    orchestrator_max_new_agents: int
     memory_context_max_chars: int
     memory_entry_max_chars: int
 
@@ -173,8 +235,7 @@ class RunCreate(BaseModel):
 class RunTree(BaseModel):
     run: RunOut
     task: TaskOut
-    subagents: list[Any]  # AgentOut
-    team: list[Any] = Field(default_factory=list)  # the owner's own agents that took parts
+    team: list[Any] = Field(default_factory=list)  # AgentOut: the agents doing the parts
     subtasks: list[TaskOut]
     messages: list[AgentMessageOut]
 
@@ -183,3 +244,20 @@ class HandoffRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str = Field(min_length=1, max_length=32_000)
+
+
+class TaskContinue(BaseModel):
+    """Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # What the owner wants done differently this time (optional; the owner's own words).
+    instruction: str | None = Field(default=None, max_length=4000)
+
+
+class TaskOwnerMessage(BaseModel):
+    """A message from the owner to the agent while it works (POST /tasks/{id}/message)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=4000)

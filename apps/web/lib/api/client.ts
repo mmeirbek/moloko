@@ -15,6 +15,12 @@ export interface RequestOptions {
   raw?: boolean;
 }
 
+export interface UploadOptions {
+  signal?: AbortSignal;
+  /** 0…1 as the body goes out (fetch cannot report upload progress, XMLHttpRequest can). */
+  onProgress?: (fraction: number) => void;
+}
+
 export interface ClientDeps {
   fetch: typeof fetch;
   readCookie: (name: string) => string | null;
@@ -103,12 +109,47 @@ export function createApiClient(deps: ClientDeps) {
     }
   }
 
+  /** A file upload (multipart POST) with progress and cancel; same CSRF rules as request(). */
+  async function upload<T>(path: string, form: FormData, opts: UploadOptions = {}): Promise<T> {
+    const attempt = async (token: string) =>
+      new Promise<T>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API_BASE}${path}`);
+        xhr.setRequestHeader("Accept", "application/json");
+        xhr.setRequestHeader(CSRF_HEADER, token);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && e.total > 0) opts.onProgress?.(e.loaded / e.total);
+        };
+        xhr.onload = () => {
+          let body: unknown = null;
+          try {
+            body = JSON.parse(xhr.responseText);
+          } catch {
+            body = null;
+          }
+          if (xhr.status >= 200 && xhr.status < 300) resolve(body as T);
+          else reject(ApiError.fromBody(xhr.status, body));
+        };
+        xhr.onerror = () => reject(ApiError.network(new Error("upload failed")));
+        xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
+        if (opts.signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+        opts.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+        xhr.send(form);
+      });
+    try {
+      return await attempt(deps.readCookie(CSRF_COOKIE) ?? (await fetchCsrf()));
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "csrf_failed") return attempt(await fetchCsrf());
+      throw err;
+    }
+  }
+
   /** Like request(), but resolves to the streaming Response once headers arrive. */
   function stream(path: string, opts: Omit<RequestOptions, "raw"> = {}): Promise<Response> {
     return request<Response>(path, { ...opts, raw: true });
   }
 
-  return { request, stream };
+  return { request, stream, upload };
 }
 
 export const api = createApiClient({

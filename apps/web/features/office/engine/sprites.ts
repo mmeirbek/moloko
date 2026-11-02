@@ -3,6 +3,8 @@
  * Characters are 16×16 frames described as character maps; palettes vary per agent.
  */
 import { hash } from "./assign";
+import type { Indicator } from "./behavior";
+import type { AgentHud } from "./bus";
 
 export const FRAME = 16;
 
@@ -178,10 +180,19 @@ export function paletteFor(id: string, kind: string): Palette {
   };
 }
 
-/** Paint all frames of one palette side by side onto a 2D canvas context. */
+/** Paint all frames of one palette side by side, each with a 1 px navy outline (readability). */
 export function paintSheet(ctx: CanvasRenderingContext2D, palette: Palette): void {
   FRAME_ORDER.forEach((name, i) => {
     const grid = FRAMES[name]!;
+    const filled = (x: number, y: number) =>
+      x >= 0 && y >= 0 && x < FRAME && y < FRAME && grid[y]![x] !== "." && grid[y]![x] !== undefined;
+    ctx.fillStyle = OUTLINE;
+    for (let y = 0; y < FRAME; y++) {
+      for (let x = 0; x < FRAME; x++) {
+        if (filled(x, y)) continue;
+        if (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1)) ctx.fillRect(i * FRAME + x, y, 1, 1);
+      }
+    }
     for (let y = 0; y < FRAME; y++) {
       const line = grid[y]!;
       for (let x = 0; x < FRAME; x++) {
@@ -194,31 +205,129 @@ export function paintSheet(ctx: CanvasRenderingContext2D, palette: Palette): voi
   });
 }
 
-/** 8×8 status icons above heads (spec 18.4 indicators). */
-export const ICONS: Record<string, string[]> = {
-  thinking: ["........", ".wwwwww.", "wwwwwwww", "wkwkwkww", "wwwwwwww", ".wwwwww.", "..ww....", ".w......"],
-  hourglass: ["kkkkkkkk", ".kyyyyk.", "..kyyk..", "...kk...", "...kk...", "..kyyk..", ".kyyyyk.", "kkkkkkkk"],
-  document: [".kkkkk..", ".kwwwkk.", ".kwkkwk.", ".kwwwwk.", ".kwkkwk.", ".kwwwwk.", ".kkkkkk.", "........"],
-  pause: ["........", ".kk..kk.", ".kk..kk.", ".kk..kk.", ".kk..kk.", ".kk..kk.", ".kk..kk.", "........"],
-  check: ["........", "......gg", ".....gg.", "gg..gg..", ".gggg...", "..gg....", "........", "........"],
-  alert: ["...rr...", "...rr...", "...rr...", "...rr...", "...rr...", "........", "...rr...", "...rr..."],
-  envelope: ["........", "wwwwwwww", "wkwwwwkw", "wwkwwkww", "wwwkkwww", "wwwwwwww", "........", "........"],
-};
-export const ICON_COLORS: Record<string, string> = {
-  w: "#ffffff",
-  k: "#1b1b2e",
-  y: "#f0b43c",
-  g: "#5bbf4a",
-  r: "#e5534b",
+const OUTLINE = "rgba(16,20,43,0.9)";
+
+/**
+ * 8×8 glyphs for the status badges above heads (spec 18.4 indicators); 'x' = the glyph colour.
+ * Each badge has its own colour, so a status reads at a glance even when the glyph is tiny.
+ */
+export const ICONS: Record<Exclude<Indicator, "none">, string[]> = {
+  thinking: ["........", "........", "........", "xx.xx.xx", "xx.xx.xx", "........", "........", "........"],
+  hourglass: ["xxxxxxxx", ".x....x.", "..x..x..", "...xx...", "...xx...", "..x..x..", ".xxxxxx.", "xxxxxxxx"],
+  document: [".xxxxx..", ".x...xx.", ".x...xxx", ".x.....x", ".x.xxx.x", ".x.....x", ".x.xxx.x", ".xxxxxxx"],
+  pause: ["........", ".xx..xx.", ".xx..xx.", ".xx..xx.", ".xx..xx.", ".xx..xx.", ".xx..xx.", "........"],
+  check: ["........", "......xx", ".....xx.", "xx..xx..", ".xxxx...", "..xx....", "........", "........"],
+  alert: ["...xx...", "...xx...", "...xx...", "...xx...", "...xx...", "........", "...xx...", "...xx..."],
 };
 
-export function paintIcon(ctx: CanvasRenderingContext2D, rows: string[], ox: number): void {
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const key = rows[y]![x]!;
+/** Badge colours per indicator: fill and glyph. */
+export const BADGES: Record<Exclude<Indicator, "none">, { fill: string; glyph: string }> = {
+  thinking: { fill: "#6ec3f5", glyph: "#10142b" },
+  hourglass: { fill: "#f0b43c", glyph: "#10142b" },
+  document: { fill: "#f5ecd6", glyph: "#2a3566" },
+  pause: { fill: "#8a8fa8", glyph: "#ffffff" },
+  check: { fill: "#5bbf4a", glyph: "#ffffff" },
+  alert: { fill: "#e5534b", glyph: "#ffffff" },
+};
+
+/** A 12×14 badge: rounded square with a tail pointing down at the head. */
+const BADGE = [
+  ".oooooooooo.",
+  "ohFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  "oFFFFFFFFFFo",
+  ".oooooooooo.",
+  "....oFFo....",
+  ".....oo.....",
+];
+export const BADGE_W = BADGE[0]!.length;
+export const BADGE_H = BADGE.length;
+
+export function paintBadge(ctx: CanvasRenderingContext2D, indicator: Exclude<Indicator, "none">): void {
+  const { fill, glyph } = BADGES[indicator];
+  BADGE.forEach((line, y) => {
+    for (let x = 0; x < line.length; x++) {
+      const key = line[x]!;
       if (key === ".") continue;
-      ctx.fillStyle = ICON_COLORS[key] ?? "#ff00ff";
-      ctx.fillRect(ox + x, y, 1, 1);
+      ctx.fillStyle = key === "o" ? "#10142b" : key === "h" ? "rgba(255,255,255,0.6)" : fill;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  });
+  ctx.fillStyle = glyph;
+  ICONS[indicator].forEach((line, y) => {
+    for (let x = 0; x < 8; x++) if (line[x] === "x") ctx.fillRect(2 + x, 2 + y, 1, 1);
+  });
+}
+
+// --- progress over the head (engine/hud.ts) ---------------------------------------------------
+
+/** A 16×4 bar (as wide as a character): navy frame with cut corners and a two-tone track. */
+export const HUD_BAR = [
+  ".oooooooooooooo.",
+  "otttttttttttttto",
+  "obbbbbbbbbbbbbbo",
+  ".oooooooooooooo.",
+];
+export const HUD_BAR_W = HUD_BAR[0]!.length;
+export const HUD_BAR_H = HUD_BAR.length;
+export const HUD_BAR_COLORS: Record<string, string> = { o: "#10142b", t: "#2a3566", b: "#1d2447" };
+/** Frames of the "busy" stripes (progress unknown); they run along the bar. */
+export const HUD_BUSY_FRAMES = 4;
+
+/** Fill colours: green while working, amber while it waits for the owner, grey when paused. */
+export const HUD_TONES: Record<AgentHud["tone"], { light: string; base: string }> = {
+  work: { light: "#a6e08a", base: "#5bbf4a" },
+  approval: { light: "#f9d77a", base: "#f0b43c" },
+  paused: { light: "#c3c6d4", base: "#8a8fa8" },
+};
+
+/** One filled column of the bar (1×2), stretched to the filled width. */
+export function paintHudFill(ctx: CanvasRenderingContext2D, tone: AgentHud["tone"]): void {
+  ctx.fillStyle = HUD_TONES[tone].light;
+  ctx.fillRect(0, 0, 1, 1);
+  ctx.fillStyle = HUD_TONES[tone].base;
+  ctx.fillRect(0, 1, 1, 1);
+}
+
+/** Pixels lit in a "busy" frame: diagonal stripes, period 4, one pixel further each frame. Pure. */
+export function busyLit(x: number, y: number, frame: number): boolean {
+  return (x - frame + y + 64) % 4 < 2;
+}
+
+/** All "busy" frames side by side (each `inner`×2; the track shows between the stripes). */
+export function paintHudBusy(ctx: CanvasRenderingContext2D, tone: AgentHud["tone"], inner: number): void {
+  for (let f = 0; f < HUD_BUSY_FRAMES; f++) {
+    for (let y = 0; y < 2; y++) {
+      ctx.fillStyle = y === 0 ? HUD_TONES[tone].light : HUD_TONES[tone].base;
+      for (let x = 0; x < inner; x++) if (busyLit(x, y, f)) ctx.fillRect(f * inner + x, y, 1, 1);
     }
   }
+}
+
+/** The frame around a desk whose agent waits for the owner's approval (navy + amber, cut corners). */
+export const DESK_MARK_W = 38;
+export const DESK_MARK_H = 39;
+
+export function paintDeskMark(ctx: CanvasRenderingContext2D): void {
+  const w = DESK_MARK_W;
+  const h = DESK_MARK_H;
+  ctx.fillStyle = "rgba(240,180,60,0.18)";
+  ctx.fillRect(3, 3, w - 6, h - 6);
+  // rings from the outside in: navy, amber, amber, soft navy (outer corners cut)
+  const rings = ["#10142b", "#f0b43c", "#f0b43c", "rgba(16,20,43,0.55)"];
+  rings.forEach((color, i) => {
+    ctx.fillStyle = color;
+    const cut = Math.max(0, 2 - i);
+    ctx.fillRect(i + cut, i, w - 2 * (i + cut), 1);
+    ctx.fillRect(i + cut, h - 1 - i, w - 2 * (i + cut), 1);
+    ctx.fillRect(i, i + cut, 1, h - 2 * (i + cut));
+    ctx.fillRect(w - 1 - i, i + cut, 1, h - 2 * (i + cut));
+  });
 }

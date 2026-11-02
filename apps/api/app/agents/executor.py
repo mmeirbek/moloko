@@ -48,8 +48,6 @@ class Executor:
         native = self.runtimes["native"]
         if agent.agent_type == "orchestrator" or agent.runtime == "orchestrator":
             return self.runtimes.get("orchestrator", native)
-        if agent.agent_type == "subagent":
-            return self.runtimes.get("subagent", native)
         return self.runtimes.get(agent.runtime, native)
 
     async def _claim(self, task_id: uuid.UUID) -> tuple[RunContext, AgentRuntime] | None:
@@ -71,7 +69,11 @@ class Executor:
                 return None
             agent = await lock_agent(db, task.agent_id)
             run = await lock_run(db, task.run_id)
-            fresh = not run.state.get("messages") and run.steps == 0 and not run.plan
+            fresh = (
+                (not run.state.get("messages") or run.state.get("continued_from_run") is not None)
+                and run.steps == 0
+                and not run.plan
+            )
             await set_task_status(
                 db, task, TaskStatus.RUNNING, reason="resumed" if not fresh else None, run=run
             )

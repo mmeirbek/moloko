@@ -15,9 +15,20 @@ export type ErrorBody = Schemas["ErrorBody"];
 export type UserOut = Schemas["UserOut"];
 export type SessionOut = Schemas["SessionOut"];
 export type MeResponse = Schemas["MeResponse"];
+export type ProfileUpdate = Schemas["ProfileUpdate"];
+export type SessionSettingsOut = Schemas["SessionSettingsOut"];
+export type SessionSettingsUpdate = Schemas["SessionSettingsUpdate"];
 export type LoginRequest = Schemas["LoginRequest"];
 export type CsrfResponse = Schemas["CsrfResponse"];
 export type HealthResponse = Schemas["HealthResponse"];
+// Passkeys (sign in with Face ID / Touch ID)
+export type PasskeyOut = Schemas["PasskeyOut"];
+export type PasskeyListOut = Schemas["PasskeyListOut"];
+export type PasskeyOptionsOut = Schemas["PasskeyOptionsOut"];
+export type PasskeyRegisterVerify = Schemas["PasskeyRegisterVerify"];
+export type PasskeyRename = Schemas["PasskeyRename"];
+export type PasskeyLoginVerify = Schemas["PasskeyLoginVerify"];
+export type PasswordConfirm = Schemas["PasswordConfirm"];
 
 // Sprint 2 — chat, providers, models
 export type ConversationOut = Schemas["ConversationOut"];
@@ -27,6 +38,9 @@ export type MessageOut = Schemas["MessageOut"];
 export type MessageCreate = Schemas["MessageCreate"];
 export type CancelResult = Schemas["CancelResult"];
 export type ConversationPage = Schemas["Page_ConversationOut_"];
+// Chats never forget: the summary of older messages, recall from earlier chats and work
+export type ConversationSummaryOut = Schemas["ConversationSummaryOut"];
+export type RecalledSourceOut = Schemas["RecalledSourceOut"];
 export type MessagePage = Schemas["Page_MessageOut_"];
 export type ProviderOut = Schemas["ProviderOut"];
 export type ProviderCreate = Schemas["ProviderCreate"];
@@ -39,6 +53,12 @@ export type ModelUpdate = Schemas["ModelUpdate"];
 
 // Sprint 3 — agents, tasks, runs, events
 export type AgentOut = Schemas["AgentOut"];
+export type AgentTemplateOut = Schemas["AgentTemplateOut"];
+export type AgentFromTemplate = Schemas["AgentFromTemplate"];
+export type AgentRestore = Schemas["AgentRestore"];
+export type AgentFullAccessUpdate = Schemas["AgentFullAccessUpdate"];
+export type SaveAsTemplate = Schemas["SaveAsTemplate"];
+export type AgentBudgetOut = Schemas["AgentBudgetOut"];
 export type AgentCreate = Schemas["AgentCreate"];
 export type AgentUpdate = Schemas["AgentUpdate"];
 export type AgentRunRequest = Schemas["AgentRunRequest"];
@@ -59,6 +79,10 @@ export type * from "./events";
 export type RunCreate = Schemas["RunCreate"];
 export type RunTree = Schemas["RunTree"];
 export type AgentMessageOut = Schemas["AgentMessageOut"];
+// Agents talking directly (agent_ask / agent_tell): contacts and the agent's correspondence
+export type AgentContacts = Schemas["AgentContacts"];
+export type AgentMessageItem = Schemas["AgentMessageItem"];
+export type AgentMessagePage = Schemas["Page_AgentMessageItem_"];
 export type HandoffRequest = Schemas["HandoffRequest"];
 
 // Sprint 6 — autonomous agents, memory
@@ -92,3 +116,22 @@ export type AuditPage = Schemas["AuditPage"];
 // Sprint 8 — chat attachments
 export type AttachmentOut = Schemas["AttachmentOut"];
 export type StorageStatus = Schemas["StorageStatus"];
+export type CostSummary = Schemas["CostSummary"];
+export type BudgetIn = Schemas["BudgetIn"];
+export type BudgetOut = Schemas["BudgetOut"];
+export type SearchOut = Schemas["SearchOut"];
+export type SearchHitOut = Schemas["SearchHitOut"];
+export type SearchStatus = Schemas["SearchStatus"];
+export type AiServicesOut = Schemas["AiServicesOut"];
+export type AiServicesIn = Schemas["AiServicesIn"];
+
+// Scheduled tasks (owner request)
+export type ScheduleOut = Schemas["ScheduleOut"];
+export type ScheduleList = Schemas["ScheduleList"];
+export type ScheduleCreate = Schemas["ScheduleCreate"];
+export type ScheduleUpdate = Schemas["ScheduleUpdate"];
+export type ScheduleStarted = Schemas["ScheduleStarted"];
+export type SchedulePreview = Schemas["SchedulePreview"];
+export type SchedulePreviewIn = Schemas["SchedulePreviewIn"];
+export type RecurrenceIn = Schemas["RecurrenceIn"];
+export type RecurrenceOut = Schemas["RecurrenceOut"];

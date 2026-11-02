@@ -1,7 +1,7 @@
-import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
+import { ArrowLeft } from "@/components/icons";
 import { ChatThread } from "@/features/chat/chat-thread";
 
 export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {

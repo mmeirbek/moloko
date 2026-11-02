@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { AgentForm } from "@/features/agents/agent-form";
 
@@ -12,9 +13,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NewAgentPage() {
   const t = await getTranslations("agents");
   return (
-    <>
+    <Page>
       <PageHeader title={t("new")} description={t("form.newDescription")} />
       <AgentForm />
-    </>
+    </Page>
   );
 }

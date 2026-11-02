@@ -27,7 +27,7 @@ class SubscriptionIn(BaseModel):
     endpoint: str = Field(min_length=10, max_length=1000)
     keys: SubscriptionKeys
     kinds: list[str] = Field(
-        default_factory=lambda: ["approval", "taskDone", "taskFailed"], max_length=10
+        default_factory=lambda: ["approval", "taskDone", "taskFailed", "budget"], max_length=10
     )
     locale: str = Field(default="ru", max_length=8)
     label: str = Field(default="", max_length=200)

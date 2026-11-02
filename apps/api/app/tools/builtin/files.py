@@ -252,7 +252,8 @@ class FsDelete(BaseTool):
     name = "fs_delete"
     title = "Delete a file"
     description = (
-        "Delete a file or folder in the task workspace. Always needs the owner's approval."
+        "Delete a file or folder in the task workspace. Needs the owner's approval "
+        "(unless the owner gave this agent full access)."
     )
     group = "files"
     category = ToolCategory.SENSITIVE

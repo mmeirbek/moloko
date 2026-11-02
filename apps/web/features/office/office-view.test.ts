@@ -1,7 +1,7 @@
 import type { AgentOut } from "@moloko/shared-types";
 import { describe, expect, it } from "vitest";
 
-import { agentsForMode } from "./office-view";
+import { officeAgents } from "./office-view";
 
 const agent = (id: string, agent_type: string, archived = false) =>
   ({
@@ -10,15 +10,14 @@ const agent = (id: string, agent_type: string, archived = false) =>
     archived_at: archived ? "2026-01-01" : null,
   }) as unknown as AgentOut;
 
-describe("office modes", () => {
-  it("agents mode shows persistent agents, subagents mode shows the run crews", () => {
+describe("the office", () => {
+  it("shows the Orchestrator and the owner's agents — never old subagents or removed agents", () => {
     const all = [
       agent("o", "orchestrator"),
       agent("a", "autonomous"),
+      agent("gone", "autonomous", true),
       agent("s", "subagent"),
-      agent("x", "subagent", true),
     ];
-    expect(agentsForMode(all, "agents").map((a) => a.id)).toEqual(["o", "a"]);
-    expect(agentsForMode(all, "subagents").map((a) => a.id)).toEqual(["o", "s"]);
+    expect(officeAgents(all).map((a) => a.id)).toEqual(["o", "a"]);
   });
 });

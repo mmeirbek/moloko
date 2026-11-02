@@ -20,7 +20,8 @@ Phone / laptops ──(tailnet, HTTPS)──► Tailscale Serve on the server
 ```
 
 - Only Caddy publishes a port, bound to loopback. TLS is Tailscale's.
-- `internal` Docker network (`internal: true`): PostgreSQL, Redis, backend. No route to the outside.
+- `internal` Docker network (`internal: true`): PostgreSQL, Valkey (Redis-compatible; `REDIS_URL`), backend. No route to the outside.
+- `browser` Docker network (`internal: true`, name `BROWSER_NETWORK`): the `egress` proxy and the short-lived browser containers the sandbox runner starts. The proxy (also on `edge`) is the browser's only way out: public addresses, ports 80/443.
 - `edge` network: Caddy, frontend, backend (backend needs egress for AI providers from Sprint 2).
 - One origin: the browser never talks cross-origin, so cookies are first-party and CORS stays off.
 - The ARQ **worker** (same image, `arq app.workers.main.WorkerSettings`) executes agent runs; it is on `internal` + `edge`.
@@ -119,6 +120,8 @@ realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► Offic
 ## Autonomous agents & memory (Sprint 6)
 
 `app/memory/context.py` builds the memory block for one agent (scope, order, size budget, data fence); `app/services/memories.py` is CRUD + history + scope rules; `NativeRuntime.setup` adds the block to the system prompt (`RunSetup.memory`), and the Orchestrator adds it to its planning and synthesis prompts. Subagents get none.
+
+`app/services/addressing.py` holds the owner's form of address (`users.address_as`): `normalize_profile_text` (one line, no control/invisible characters, at most `ADDRESS_AS_MAX_CHARS`) for the API and CLI, and `address_instruction`, the one quoted line put into the *instruction* part of the chat system prompt (`services/chat.py`), agent runs (`runtimes/native.py`, before inputs and memory) and the Orchestrator's planning/synthesis prompts (before memory). It is the owner's own setting, so it may be an instruction; memory and tool/web text never are.
 Frontend: `features/agents/agent-form.tsx` (+ `agent-form-model.ts`, pure and unit-tested), `features/agents/agent-detail.tsx` (`/office/agents/[id]`), `features/memory/memory-panel.tsx` (agent memory with a "what the model sees" preview; shared memory in Settings).
 
 ## Tools, approvals, sandbox (Sprint 7)
@@ -129,9 +132,12 @@ model → tool call → ToolRunner ─ authorize() ─┬─ DENY ────�
                                               │                      approval.required → owner decides → re-queue
                                               └─ ALLOW ─► tool.run() ─► fenced result → model
 terminal_run ─► RunnerSandbox (worker) ─HTTP+token─► sandbox runner ─docker.sock─► fresh locked-down container
+                                                                    (moloko-sandbox:local: Python, Node.js, git)
+  network "packages" (sensitive) ─► container on PACKAGES_NETWORK ─► egress-packages ─► npm / PyPI only
+github_checkout / github_commit_files ─► worker (owner's token) ─► GitHub API ⇄ workspace folder (no token in a container)
 ```
 
-`app/tools/`: `base.py` (tool contract, categories, `args_hash`), `policy.py` (`authorize`), `registry.py` (catalog), `runner.py` (`ToolRunner`: records, approvals, execution, fencing), `mcp.py`, `builtin/` (files, terminal, web, github, memory). `app/sandbox/`: `base.py` (`Sandbox` interface), `client.py` (worker side), `runner.py` + `docker_api.py` (runner service). `app/workspaces/paths.py` (safe paths), `app/services/{approvals,tools,integrations,mcp,workspaces}.py`.
+`app/tools/`: `base.py` (tool contract, categories, `args_hash`), `policy.py` (`authorize`), `registry.py` (catalog), `runner.py` (`ToolRunner`: records, approvals, execution, fencing), `mcp.py`, `builtin/` (files, terminal, web, github, memory). `app/sandbox/`: `base.py` (`Sandbox` interface), `client.py` (worker side), `runner.py` + `docker_api.py` (runner service), `egress.py` (the browser's and the package downloads' egress proxies). `app/workspaces/paths.py` (safe paths), `app/workspaces/archive.py` (safe unpacking of a repository archive), `app/services/{approvals,tools,integrations,mcp,workspaces}.py`.
 Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (tools, sandbox, GitHub, MCP, workspaces), `features/tasks/tool-calls.tsx` (actions + workspace files on the task page), `features/agents/agent-tools-field.tsx`, `features/settings/audit-log.tsx`. The realtime store keeps approvals from the snapshot and `approval.*` events.
 
 ## Stabilization (Sprint 8)
@@ -139,4 +145,16 @@ Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (t
 - `apps/web/proxy.ts` — CSP nonce per request; `app/manifest.ts`, `public/sw.js`, `public/offline.html`, `public/icons/` — PWA; `features/notifications/` + `lib/notifications/rules.ts` — which events notify.
 - `backup` service: `infrastructure/backup/{loop,backup,restore-check}.sh`; `app/services/storage.py` reads its status (`/system/storage`) for Settings → Backups.
 - `e2e/` — Playwright suite; `infrastructure/scripts/e2e.sh` — throwaway stack (`-p moloko-e2e`, own port and volumes) + owner + tests.
+
+## Owner requests after the MVP (2026-11-01)
+
+- **Search** (`app/search/`): `index.py` keeps `search_chunks` in step with memories, workspace files and chat files (worker cron); `query.py` searches by meaning (pgvector) or by words. Agents use the `knowledge_search` tool within their own scope.
+- **Work memory** (owner request): every agent's prompt ends with "Your recent work" (its last `WORK_HISTORY_ITEMS` finished tasks; a part of a plan also sees the other parts' outcomes) built in `app/memory/context.py`, fenced as data, at most `WORK_HISTORY_CONTEXT_CHARS`. Finished tasks, agent↔agent messages and chat messages are indexed for search too; every agent has the read-only `work_search` / `work_read` tools (`ALWAYS_ALLOWED` in `app/tools/policy.py`, records read by `app/memory/work.py`).
+- **Costs** (`app/services/usage.py`): every model call writes a `usage_records` row; the monthly budget emits `budget.warning` and can stop new model calls.
+- **Voice & search provider** (`app/services/ai_services.py`): speech-to-text and embeddings through the owner's OpenAI-type provider.
+- **Local speech-to-text** (`apps/stt`, compose services `stt` + `stt-models`): Whisper (faster-whisper, int8, CPU) behind an OpenAI-compatible API on the internal network; the backend's `app/services/stt.py` uses it first and falls back to the provider. `stt-models` downloads the pinned model once into a volume over its own network; `stt` has no internet.
+- **Chat files** (`app/services/files.py`, `attachments.py`, `images.py`): uploads are parsed as they stream in and written straight to `FILE_STORAGE_ROOT` (`files` volume, backed up with the workspaces); the row keeps metadata and the text for prompts and search. Prompts get text within a character budget (newest message first, cut text marked), pictures within a picture budget (big ones as a downscaled copy made by PyAV in a child process), other files as a one-line description.
+- **Browser** (`app/sandbox/runner.py` `/v1/browse`, `app/sandbox/egress.py`, `app/tools/builtin/browser.py`) and **export** (`app/services/export.py`).
+- **Mascot** (`apps/web/features/mascot/`): one art file (`cow-art.json`) for the UI, the office (`engine/cow.ts`) and the icons.
+- **Scheduled tasks** (`app/schedules/recurrence.py` rules → next run, `app/services/schedules.py`): the worker's `schedules` cron (every minute and at start-up) locks due rows (`FOR UPDATE SKIP LOCKED`) and starts each occurrence in one transaction through `prepare_start`, like a manual start; missed runs collapse into one catch-up run.
 

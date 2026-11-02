@@ -15,11 +15,19 @@ from typing import Any
 import httpx2
 import pytest
 
+from app.sandbox.docker_api import DockerApi
 from app.sandbox.runner import RunnerSettings, create_runner_app
 
-SOCKET = "/var/run/docker.sock"
+SOCKET = os.environ.get("DOCKER_SOCKET", "/var/run/docker.sock")
 pytestmark = pytest.mark.skipif(not os.path.exists(SOCKET), reason="needs a Docker daemon")
 TOKEN = "s" * 40
+
+
+@pytest.fixture(autouse=True)
+async def command_image() -> None:
+    image = RunnerSettings().sandbox_image
+    if not await DockerApi(SOCKET).image_exists(image):
+        pytest.skip(f"{image} is not built (infrastructure/docker/sandbox-runner.Dockerfile)")
 
 
 @pytest.fixture
@@ -82,6 +90,22 @@ async def test_sandbox_isolation(workspaces: Path) -> None:
     assert "caps 0000000000000000" in out  # no capabilities
     assert "files ['probe.py']" in out  # only its own workspace is visible
     assert (workspaces / str(ws) / "made.txt").read_text() == "ok"
+
+
+async def test_node_npm_and_git_run_in_the_sandbox(workspaces: Path) -> None:
+    ws = new_ws(workspaces)
+    (workspaces / str(ws) / "a.js").write_text(
+        "require('fs').writeFileSync('out.txt', process.version); console.log('node ok')"
+    )
+    for argv, expect in (
+        (["node", "a.js"], "node ok"),
+        (["npm", "--version"], "."),
+        (["git", "--version"], "git version"),
+        (["python", "--version"], "Python 3.12"),
+    ):
+        resp = (await run(workspaces, ws, argv)).json()
+        assert resp["exit_code"] == 0 and expect in resp["stdout"], (argv, resp)
+    assert (workspaces / str(ws) / "out.txt").read_text().startswith("v22.")
 
 
 async def test_sandbox_limits(workspaces: Path) -> None:

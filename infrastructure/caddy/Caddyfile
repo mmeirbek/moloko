@@ -36,7 +36,7 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "same-origin"
 		Cross-Origin-Opener-Policy "same-origin"
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Permissions-Policy "camera=(), microphone=(self), geolocation=(), payment=(), usb=()"
 		Cross-Origin-Resource-Policy "same-origin"
 		# Browsers only honour this over HTTPS (Tailscale Serve); harmless on plain HTTP.
 		Strict-Transport-Security "max-age=31536000"
@@ -47,6 +47,9 @@
 		respond "ok" 200
 	}
 
+	# No request_body max_size and Caddy's defaults (no read_body / write timeout, request
+	# bodies streamed, not buffered): multi-GB chat files and 15-minute voice
+	# transcriptions pass. Keep it that way — the backend enforces its own limits.
 	handle /api/* {
 		reverse_proxy backend:8000
 	}

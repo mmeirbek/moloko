@@ -14,7 +14,7 @@ from app.models.tooling import McpServer, Tool
 from app.schemas.tooling import ToolOut, ToolUpdate
 from app.services.audit import AuditService
 from app.tools.mcp import McpTool
-from app.tools.policy import CatalogEntry
+from app.tools.policy import ALWAYS_ALLOWED, CatalogEntry
 from app.tools.registry import BUILTIN, catalog
 
 
@@ -38,6 +38,7 @@ def tool_out(name: str, entry: CatalogEntry, server: McpServer | None = None) ->
         enabled=entry.enabled,
         available=entry.available,
         input_schema=tool.input_schema,
+        always_allowed=name in ALWAYS_ALLOWED,
     )
 
 
@@ -53,14 +54,18 @@ class ToolsService:
             out.append(tool_out(name, entry, server))
         return out
 
-    async def validate_names(self, user_id: uuid.UUID, names: list[str]) -> None:
-        known = set(BUILTIN) | set(
+    async def known_names(self, user_id: uuid.UUID) -> set[str]:
+        """Built-in tools and the owner's MCP tools."""
+        return set(BUILTIN) | set(
             (
                 await self.db.execute(
                     select(Tool.name).where(Tool.user_id == user_id, Tool.source == "mcp")
                 )
             ).scalars()
         )
+
+    async def validate_names(self, user_id: uuid.UUID, names: list[str]) -> None:
+        known = await self.known_names(user_id)
         unknown = list(dict.fromkeys(n for n in names if n not in known))
         if unknown:
             raise UnknownTool(

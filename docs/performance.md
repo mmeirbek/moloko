@@ -9,7 +9,7 @@ network — a lower bound; over Tailscale add the network round trip (usually te
 | Open a saved chat | ≤ 2 s | 0.69 s |
 | Realtime event shown (REST change → WebSocket → UI) | ≤ 1 s | 0.29 s |
 | Switch sections (no full reload) | — | 0.49 s |
-| Concurrent subagents | ≤ 5 | limit enforced in code (`MAX_ACTIVE_SUBAGENTS_PER_RUN`), tested |
+| Concurrent parts of one plan | ≤ 5 | limit enforced in code (`MAX_ACTIVE_PARTS_PER_RUN`; was `MAX_ACTIVE_SUBAGENTS_PER_RUN`), tested |
 | Concurrent devices | ≥ 3 | independent sessions + WebSocket per device; tested with 2 in E2E, no shared per-device state on the server |
 
 Notes: static assets are hashed and cached immutably; Caddy compresses text (not

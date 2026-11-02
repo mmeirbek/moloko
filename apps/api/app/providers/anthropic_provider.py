@@ -47,6 +47,21 @@ def _content(m: ChatMessage) -> list[dict[str, Any]] | str:
             for tc in m.tool_calls
         ]
         return blocks
+    if m.role == "user" and m.images:
+        return [
+            *(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": img.media_type,
+                        "data": img.data_b64,
+                    },
+                }
+                for img in m.images
+            ),
+            {"type": "text", "text": m.content},
+        ]
     return m.content
 
 

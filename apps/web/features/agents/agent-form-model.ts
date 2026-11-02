@@ -1,4 +1,4 @@
-import type { AgentCreate, AgentOut, SystemLimits } from "@moloko/shared-types";
+import type { AgentCreate, AgentFullAccessUpdate, AgentOut, SystemLimits } from "@moloko/shared-types";
 
 export const AUTONOMY = ["supervised", "balanced", "restricted"] as const;
 export type Autonomy = (typeof AUTONOMY)[number];
@@ -13,6 +13,8 @@ export type AgentFormValues = {
   autonomy: Autonomy;
   maxSteps: string;
   timeoutMinutes: string;
+  /** Monthly budget in USD; "" = no limit of its own. */
+  monthlyBudget: string;
   memoryEnabled: boolean;
   includeShared: boolean;
   projects: string;
@@ -20,11 +22,53 @@ export type AgentFormValues = {
   tools: string[];
   overrides: Record<string, ToolOverride>;
   workspaceId: string;
+  contactMode: ContactMode;
+  contactIds: string[];
+  /**
+   * «Полный доступ» is on (read-only here: it is switched with the password through its own
+   * endpoint, never sent with a normal save). Every enabled tool is then allowed.
+   */
+  fullAccess: boolean;
 };
 
 export type ToolOverride = "approve" | "deny";
 
-export type FieldError = "required" | "number" | "tooHigh" | "tooLow";
+/** Full access is something only the owner's persistent agents can have. */
+export function canHaveFullAccess(agent?: Pick<AgentOut, "agent_type">): boolean {
+  return agent?.agent_type === "autonomous";
+}
+
+export function hasFullAccess(agent?: Pick<AgentOut, "agent_type" | "full_access">): boolean {
+  return canHaveFullAccess(agent) && agent?.full_access === true;
+}
+
+/** The body of PUT /agents/{id}/full-access: the password only when turning it on. */
+export function fullAccessBody(enabled: boolean, password = ""): AgentFullAccessUpdate {
+  return enabled ? { enabled, password } : { enabled };
+}
+
+/** Whether the agent may use a tool, as the form shows it. */
+export function toolAllowed(values: AgentFormValues, tool: { name: string; always_allowed?: boolean }): boolean {
+  return values.fullAccess || tool.always_allowed === true || values.tools.includes(tool.name);
+}
+
+/** Which colleagues an agent may talk to directly (agents_list / agent_ask / agent_tell). */
+export const CONTACT_MODES = ["all", "list", "none"] as const;
+export type ContactMode = (typeof CONTACT_MODES)[number];
+export type AgentContacts = { mode: ContactMode; agent_ids: string[] };
+const DEFAULT_CONTACTS: AgentContacts = { mode: "all", agent_ids: [] };
+
+/** The agent's `contacts` from the API (missing or unknown → everyone, the server default). */
+export function contactsOf(agent?: AgentOut): AgentContacts {
+  const c = (agent as { contacts?: Partial<AgentContacts> } | undefined)?.contacts;
+  const mode = (CONTACT_MODES as readonly string[]).includes(c?.mode ?? "") ? (c!.mode as ContactMode) : "all";
+  return { mode, agent_ids: mode === "list" ? [...(c?.agent_ids ?? [])] : [] };
+}
+
+export type FieldError = "required" | "number" | "money" | "tooHigh" | "tooLow";
+
+/** Highest monthly budget the API accepts. */
+export const MAX_BUDGET_USD = 1_000_000;
 export type FormErrors = Partial<Record<keyof AgentFormValues, { error: FieldError; limit?: number }>>;
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
@@ -48,6 +92,7 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
       : "supervised",
     maxSteps: str(limits.max_steps),
     timeoutMinutes: limits.run_timeout_seconds ? str(Math.round(limits.run_timeout_seconds / 60)) : "",
+    monthlyBudget: str(agent?.monthly_budget_usd),
     memoryEnabled: memory.enabled ?? true,
     includeShared: memory.include_shared ?? true,
     projects: (memory.projects ?? []).join(", "),
@@ -55,11 +100,21 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
     tools: [...(agent?.allowed_tools ?? [])],
     overrides: { ...(((agent?.permissions ?? {}) as { tools?: Record<string, ToolOverride> }).tools ?? {}) },
     workspaceId: agent?.workspace_id ?? "",
+    contactMode: contactsOf(agent).mode,
+    contactIds: contactsOf(agent).agent_ids,
+    fullAccess: hasFullAccess(agent),
   };
 }
 
-/** Allowing a tool or removing it; overrides only matter for allowed tools. */
+export function toggleContact(values: AgentFormValues, id: string, on: boolean): AgentFormValues {
+  const contactIds = on ? [...new Set([...values.contactIds, id])] : values.contactIds.filter((x) => x !== id);
+  return { ...values, contactIds };
+}
+
+/** Allowing a tool or removing it; overrides only matter for allowed tools (under full access
+ * every tool is allowed, so the list stays as it is for when full access is switched off). */
 export function toggleTool(values: AgentFormValues, name: string, allowed: boolean): AgentFormValues {
+  if (values.fullAccess) return values;
   const tools = allowed ? [...new Set([...values.tools, name])] : values.tools.filter((t) => t !== name);
   const overrides = { ...values.overrides };
   if (!allowed) delete overrides[name];
@@ -90,6 +145,13 @@ function whole(text: string): number | null {
   return /^\d+$/.test(t) ? Number(t) : NaN;
 }
 
+/** Dollars with at most two decimals ("12", "12.5", "12,50" → "12.50"); null = empty; false = not a sum. */
+export function money(text: string): string | null | false {
+  const t = text.trim().replace(",", ".");
+  if (!t) return null;
+  return /^\d+(\.\d{1,2})?$/.test(t) ? Number(t).toFixed(2) : false;
+}
+
 /** Same rules as the API: per-agent limits may only be stricter than the global ones. */
 export function validate(values: AgentFormValues, limits?: SystemLimits): FormErrors {
   const errors: FormErrors = {};
@@ -108,10 +170,13 @@ export function validate(values: AgentFormValues, limits?: SystemLimits): FormEr
     limits ? Math.floor(limits.run_timeout_seconds / 60) : undefined,
   );
   check("maxContextChars", whole(values.maxContextChars), 200, limits?.memory_context_max_chars);
+  const budget = money(values.monthlyBudget);
+  if (budget === false || (budget !== null && (Number(budget) <= 0 || Number(budget) > MAX_BUDGET_USD)))
+    errors.monthlyBudget = { error: "money", limit: MAX_BUDGET_USD };
   return errors;
 }
 
-export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_type"> {
+export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_type"> & { contacts: AgentContacts } {
   const steps = whole(values.maxSteps);
   const minutes = whole(values.timeoutMinutes);
   const chars = whole(values.maxContextChars);
@@ -134,8 +199,12 @@ export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_typ
     },
     allowed_tools: values.tools,
     tool_overrides: Object.fromEntries(
-      Object.entries(values.overrides).filter(([name]) => values.tools.includes(name)),
+      // Under full access an exception may name any tool (every tool is allowed).
+      Object.entries(values.overrides).filter(([name]) => values.fullAccess || values.tools.includes(name)),
     ),
     workspace_id: values.workspaceId || null,
+    monthly_budget_usd: money(values.monthlyBudget) || null,
+    contacts:
+      values.contactMode === "list" ? { mode: "list", agent_ids: values.contactIds } : { ...DEFAULT_CONTACTS, mode: values.contactMode },
   };
 }

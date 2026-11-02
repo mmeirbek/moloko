@@ -2,23 +2,27 @@
 
 import type { AgentOut, EventOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Pause, Play, Settings2, Square, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { ExternalLink, Send, Settings2, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { AgentControls } from "@/features/agents/agent-controls";
+import { hasFullAccess } from "@/features/agents/agent-form-model";
+import { FullAccessBadge } from "@/features/agents/agent-full-access";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { modelLabel } from "@/features/chat/model-picker";
-import { agentAction, agentKeys, taskKeys } from "@/lib/api/agents";
+import { MicButton } from "@/features/voice/mic-button";
+import { agentKeys, runAgent, taskKeys } from "@/lib/api/agents";
 import { listPickerModels, modelKeys } from "@/lib/api/chat";
 import { api } from "@/lib/api/client";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
-
-const ACTIVE = new Set(["planning", "working", "waiting", "reviewing"]);
+import { TeamLine } from "@/features/agents/team-links";
+import { AgentTaskControl } from "@/features/tasks/task-control";
 
 const recentEvents = (agentId: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/events?agent_id=${agentId}&latest=true&limit=8`, {
@@ -36,12 +40,21 @@ export function AgentInspector({
   className?: string;
 }) {
   const t = useTranslations("office.inspector");
+  const tf = useTranslations("agents.fullAccess");
   const tStatus = useTranslations("status");
   const tTypes = useTranslations("agents.types");
   const format = useFormatter();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const [showLogs, setShowLogs] = useState(false);
+  // Escape closes the inspector (unless a dialog is open: it handles Escape itself).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open]")) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const task = useRealtimeStore((s) => (agent.current_task_id ? s.tasks[agent.current_task_id] : undefined));
   const allApprovals = useRealtimeStore((s) => s.approvals);
   const approvals = Object.values(allApprovals).filter((a) => a.agent_id === agent.id && a.status === "pending");
@@ -53,21 +66,27 @@ export function AgentInspector({
     queryKey: [...agentKeys.detail(agent.id), "events", agent.status],
     queryFn: ({ signal }) => recentEvents(agent.id, signal),
   });
-  const action = useMutation({
-    mutationFn: (a: "pause" | "resume" | "stop") => agentAction(agent.id, a),
+  const [taskText, setTaskText] = useState("");
+  const give = useMutation({
+    mutationFn: () =>
+      runAgent(agent.id, { title: taskText.split("\n")[0]!.slice(0, 200).trim() || agent.name, description: taskText }),
     onSuccess: () => {
+      setTaskText("");
       void queryClient.invalidateQueries({ queryKey: agentKeys.all });
       void queryClient.invalidateQueries({ queryKey: taskKeys.all });
     },
   });
   const model = models.data?.find((m) => m.id === agent.model_config_id);
   const isSub = agent.agent_type === "subagent";
+  // Persistent agents sit and wait until the owner gives them work.
+  const canTakeTask =
+    agent.agent_type === "autonomous" && !agent.current_task_id && ["idle", "completed", "failed"].includes(agent.status);
 
   return (
     <aside
       aria-label={t("label", { name: agent.name })}
       className={cn(
-        "flex max-h-[70%] flex-col gap-3 overflow-y-auto rounded-lg border bg-card/95 p-4 text-sm shadow-lg backdrop-blur",
+        "flex max-h-[70%] flex-col gap-3 overflow-y-auto bg-card p-4 text-sm pixel-frame",
         className,
       )}
     >
@@ -81,7 +100,8 @@ export function AgentInspector({
         </div>
         <div className="flex items-center gap-1">
           <StatusBadge status={agent.status} />
-          <Button size="icon" variant="ghost" className="size-7" onClick={onClose} aria-label={t("close")}>
+          {hasFullAccess(agent) && <FullAccessBadge />}
+          <Button size="icon" variant="ghost" className="-m-1 size-9" onClick={onClose} aria-label={t("close")}>
             <X />
           </Button>
         </div>
@@ -103,33 +123,50 @@ export function AgentInspector({
         <dt className="text-muted-foreground">{t("autonomy")}</dt>
         <dd>{t(`autonomyLevels.${agent.autonomy_level as "supervised"}`)}</dd>
         <dt className="text-muted-foreground">{t("tools")}</dt>
-        <dd className="truncate">{agent.allowed_tools.length ? agent.allowed_tools.join(", ") : t("noTools")}</dd>
+        <dd className="truncate">
+          {hasFullAccess(agent) ? tf("allTools") : agent.allowed_tools.length ? agent.allowed_tools.join(", ") : t("noTools")}
+        </dd>
       </dl>
 
-      {task?.result && <p className="line-clamp-4 rounded-md bg-muted p-2 text-xs">{task.result}</p>}
+      {task && <TeamLine task={task} className="text-xs" />}
+      {task?.result && <p className="line-clamp-4 bg-muted p-2 text-xs">{task.result}</p>}
+      <AgentTaskControl agentId={agent.id} currentTaskId={agent.current_task_id ?? null} />
 
-      <div className="flex flex-wrap gap-1">
-        {ACTIVE.has(agent.status) && (
-          <Button size="sm" variant="outline" onClick={() => action.mutate("pause")}>
-            <Pause /> {t("pause")}
-          </Button>
-        )}
-        {agent.status === "paused" && (
-          <Button size="sm" variant="outline" onClick={() => action.mutate("resume")}>
-            <Play /> {t("resume")}
-          </Button>
-        )}
-        {(ACTIVE.has(agent.status) || agent.status === "paused") && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (window.confirm(t("confirmStop", { name: agent.name }))) action.mutate("stop");
-            }}
-          >
-            <Square /> {t("stop")}
-          </Button>
-        )}
+      {canTakeTask && (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (taskText.trim()) give.mutate();
+          }}
+          data-testid="give-task"
+        >
+          <label htmlFor={`give-${agent.id}`} className="text-xs text-muted-foreground">
+            {t("giveTaskHint")}
+          </label>
+          <textarea
+            id={`give-${agent.id}`}
+            rows={2}
+            value={taskText}
+            onChange={(e) => setTaskText(e.target.value)}
+            placeholder={t("giveTaskPlaceholder")}
+            className="bg-background px-2 py-1.5 text-base md:text-sm pixel-frame pixel-sunken"
+          />
+          {give.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {toMessage(give.error).message}
+            </p>
+          )}
+          <div className="flex items-center gap-1">
+            <Button type="submit" size="sm" disabled={!taskText.trim() || give.isPending}>
+              <Send /> {t("giveTask")}
+            </Button>
+            <MicButton onText={(spoken) => setTaskText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))} />
+          </div>
+        </form>
+      )}
+
+      <AgentControls agent={agent}>
         {task && (
           <Button size="sm" variant="ghost" asChild>
             <Link href={`/tasks/${task.id}`}>
@@ -147,18 +184,13 @@ export function AgentInspector({
             </Link>
           </Button>
         )}
-      </div>
-      {action.error && (
-        <p role="alert" className="text-xs text-destructive">
-          {toMessage(action.error).message}
-        </p>
-      )}
+      </AgentControls>
 
       {approvals.map((a) => (
         <ApprovalCard key={a.id} approval={a} compact />
       ))}
       {showLogs && (
-        <ol className="flex flex-col gap-0.5 border-t pt-2 text-xs">
+        <ol className="flex flex-col gap-0.5 border-t-2 pt-2 text-xs">
           {events.data?.map((e) => (
             <li key={e.id} className="flex gap-2">
               <span className="text-muted-foreground tabular-nums">

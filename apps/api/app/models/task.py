@@ -45,6 +45,11 @@ class Task(UUIDPrimaryKey, Timestamps, Base):
     error_message: Mapped[str | None] = mapped_column(String(500))
     error_id: Mapped[str | None] = mapped_column(String(64))
     created_by: Mapped[str] = mapped_column(String(16), server_default="user")
+    # A "consult" task: the agent that asked for it (agent_ask). Its parent task is the
+    # asking agent's task, so cancelling the asker cancels the question too.
+    requested_by_agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agents.id", ondelete="SET NULL"), index=True
+    )
     extra: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
     started_at: Mapped[datetime | None]
     completed_at: Mapped[datetime | None]

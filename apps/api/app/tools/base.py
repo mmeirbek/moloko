@@ -49,6 +49,16 @@ class ToolFailed(Exception):
     """An expected failure with a message that is safe to show to the model and the owner."""
 
 
+class AwaitingAgent(Exception):
+    """``agent_ask``: the run stops here until another agent answers (the task is
+    ``waiting``, reason ``waiting_for_agent``; no worker is held). ``task_id`` = the
+    consult task."""
+
+    def __init__(self, task_id: uuid.UUID) -> None:
+        self.task_id = task_id
+        super().__init__(str(task_id))
+
+
 @dataclass(frozen=True)
 class OperationInfo:
     """What the owner sees in an approval request (spec 15.4)."""
@@ -83,7 +93,7 @@ class BaseTool(ABC):
     name: str
     title: str
     description: str
-    group: str  # files | terminal | web | github | memory | mcp
+    group: str  # files | terminal | web | github | memory | team | mcp
     category: ToolCategory
     input_schema: dict[str, Any]
     timeout_seconds: float | None = None  # None = TOOL_TIMEOUT_SECONDS
@@ -91,6 +101,10 @@ class BaseTool(ABC):
     async def available(self, db: AsyncSession, user_id: uuid.UUID, settings: Settings) -> bool:
         """False when the tool cannot work right now (integration not configured, …)."""
         return True
+
+    def timeout_for(self, settings: Settings) -> float:
+        """How long one call may run in all."""
+        return self.timeout_seconds or settings.tool_timeout_seconds
 
     async def category_for(self, ctx: ToolContext, args: dict[str, Any]) -> ToolCategory:
         return self.category
@@ -100,6 +114,11 @@ class BaseTool(ABC):
 
     def describe(self, args: dict[str, Any]) -> OperationInfo:
         return OperationInfo(summary=f"{self.title}: {json.dumps(args, ensure_ascii=False)[:300]}")
+
+    def describe_for(self, settings: Settings, args: dict[str, Any]) -> OperationInfo:
+        """``describe`` for an approval request, where texts may name configured values
+        (allowed hosts, limits). Defaults to ``describe``."""
+        return self.describe(args)
 
     @abstractmethod
     async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolOutput: ...

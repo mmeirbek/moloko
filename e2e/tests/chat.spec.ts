@@ -5,9 +5,8 @@ import { OWNER, watchErrors } from "./helpers";
 test("chat: streaming, markdown, history, attachments, stop, errors, second device", async ({ page, browser }) => {
   const errors = watchErrors(page);
   await page.goto("/chat");
-  await page.getByRole("button", { name: "Новый чат" }).first().click();
-  await page.waitForURL(/\/chat\/[0-9a-f-]{36}/);
-  const chatUrl = page.url();
+  await page.getByRole("link", { name: "Новый чат" }).first().click();
+  await page.waitForURL(/\/chat\/new$/);
   const input = page.getByPlaceholder("Сообщение для moloko…");
   /** The composer accepts a message only when no answer is running (Send button shown). */
   const say = async (text: string) => {
@@ -17,7 +16,10 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
     await expect(input).toHaveValue("");
   };
 
+  // The server gets the chat with its first message (no empty chats), then the chat opens.
   await say("Привет, **moloko**!");
+  await page.waitForURL(/\/chat\/[0-9a-f-]{36}$/);
+  const chatUrl = page.url();
   await expect(page.getByText("Echo: Привет, ")).toBeVisible();
   await expect(page.locator(".markdown strong", { hasText: "moloko" }).first()).toBeVisible();
   await page.reload();
@@ -29,6 +31,19 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
   await say("Что в файле?");
   await expect(page.getByRole("list", { name: "Прикреплённые файлы" }).getByText("notes.md").first()).toBeVisible();
   await expect(page.getByText("Echo: Что в файле?")).toBeVisible(); // wait for the answer before the next message
+
+  // A picture: shown as a thumbnail served by the API (same origin, CSP-safe).
+  const png = Buffer.from(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201a0a2b6e30000000049454e44ae426082",
+    "hex",
+  );
+  await page.locator("input[type=file]").setInputFiles({ name: "cow.png", mimeType: "image/png", buffer: png });
+  await expect(page.locator("[data-attachment='cow.png'] img")).toBeVisible();
+  await say("Что на картинке?");
+  await expect(page.getByText("Echo: Что на картинке?")).toBeVisible();
+  const thumb = page.getByRole("list", { name: "Прикреплённые файлы" }).getByRole("img", { name: "cow.png" }).first();
+  await expect(thumb).toBeVisible();
+  expect(await thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1);
 
   // A slow answer started here is visible live on a phone that opens the chat mid-stream.
   await say("[[mock:slow]] раз два три четыре пять шесть семь восемь");
@@ -42,7 +57,7 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
   await ppage.goto("/login");
   await ppage.getByLabel("Имя пользователя").fill(OWNER.username);
   await ppage.getByLabel("Пароль").fill(OWNER.password);
-  await ppage.getByRole("button", { name: "Войти" }).click();
+  await ppage.getByRole("button", { name: "Войти", exact: true }).click();
   await ppage.waitForURL(/\/chat/);
   await ppage.goto(chatUrl);
   await expect(ppage.getByText("Echo: раз два три четыре пять шесть семь восемь")).toBeVisible();

@@ -71,8 +71,9 @@ export function useChatThread(chatId: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running?.id, chatId]);
 
+  /** Resolves to false when the server never accepted the message (the caller restores the draft). */
   const send = useCallback(
-    async (content: string, modelConfigId: string | null, attachmentIds: string[] = []) => {
+    async (content: string, modelConfigId: string | null, attachmentIds: string[] = []): Promise<boolean> => {
       setSendError(null);
       let assistantId: string | null = null;
       const controller = new AbortController();
@@ -99,19 +100,26 @@ export function useChatThread(chatId: string) {
       } finally {
         controllers.current.delete(controller);
       }
+      return assistantId !== null;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatId, handlers, patch, queryClient],
   );
 
   const cancel = useCallback(async () => {
-    if (running) await cancelMessage(chatId, running.id);
+    if (!running) return;
+    try {
+      await cancelMessage(chatId, running.id);
+    } catch (error) {
+      setSendError(error);
+    }
   }, [chatId, running]);
 
   return {
     messages: items ?? [],
     isLoading: query.isPending,
     loadError: query.error,
+    reload: () => void query.refetch(),
     isRunning: Boolean(running),
     sendError,
     clearSendError: () => setSendError(null),

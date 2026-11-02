@@ -33,3 +33,14 @@ next-env.d.ts
 Thumbs.db
 .idea/
 .vscode/
+
+# Claude Code agent worktrees (local only)
+.claude/worktrees/
+
+# macOS island app (SwiftPM build output + assembled .app)
+apps/mac-island/build/
+.build/
+
+# Temporary folders of the off-site backup scripts (removed on exit)
+.offsite-test.*/
+.offsite-restore.*/

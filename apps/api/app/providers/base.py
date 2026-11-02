@@ -40,9 +40,18 @@ class ToolCall:
 
 
 @dataclass(frozen=True)
+class ImagePart:
+    """An image sent to a vision model (base64, never logged)."""
+
+    media_type: str  # image/png | image/jpeg | image/webp | image/gif
+    data_b64: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class ChatMessage:
     role: Role
     content: str = ""
+    images: tuple[ImagePart, ...] = ()  # role="user": attached pictures
     tool_calls: tuple[ToolCall, ...] = ()  # assistant asking to call tools
     tool_call_id: str | None = None  # role="tool": result for this call
     is_error: bool = False  # role="tool": the tool failed

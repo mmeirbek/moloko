@@ -20,7 +20,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \
-    && mkdir -p /data/workspaces && chown app:app /data/workspaces
+    && mkdir -p /data/workspaces /data/files && chown app:app /data/workspaces /data/files
 WORKDIR /app
 COPY --from=builder --chown=root:root /app /app
 USER app

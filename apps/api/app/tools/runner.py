@@ -13,6 +13,8 @@ For every call, in order:
    the policy is re-evaluated before anything runs.
 4. Execution has a timeout and an ``in_flight`` marker in the run checkpoint while a
    side-effecting tool runs. Output is capped and fenced as untrusted data.
+5. ``agent_ask`` suspends the run like an approval does (``AwaitingAgent``): the row stays
+   ``awaiting_agent`` until the other agent's answer is written into it.
 """
 
 from __future__ import annotations
@@ -38,8 +40,25 @@ from app.providers.base import ToolCall as ModelToolCall
 from app.runtimes.base import RunContext
 from app.services.audit import AuditService
 from app.services.workspaces import workspace_for_task
-from app.tools.base import ScopeError, ToolCategory, ToolContext, ToolFailed, ToolOutput, args_hash
-from app.tools.policy import CatalogEntry, Decision, Verdict, audit_decision, authorize
+from app.tools import standing
+from app.tools.base import (
+    AwaitingAgent,
+    ScopeError,
+    ToolCategory,
+    ToolContext,
+    ToolFailed,
+    ToolOutput,
+    args_hash,
+)
+from app.tools.policy import (
+    OVERRIDE_REASON,
+    CatalogEntry,
+    Decision,
+    Verdict,
+    audit_decision,
+    authorize,
+    full_access_mark,
+)
 from app.tools.registry import catalog
 
 logger = logging.getLogger("moloko.tools")
@@ -91,6 +110,9 @@ def approval_payload(a: Approval, agent_name: str | None = None) -> dict[str, An
         "resources": a.resources,
         "consequences": a.consequences,
         "reason": a.reason,
+        # what «Одобрить и больше не спрашивать» would cover ("" = the whole tool); None
+        # when it cannot be offered (the owner asked to approve every use of this tool)
+        "always": None if OVERRIDE_REASON in a.reason else standing.scopes(a.tool_name, a.args),
         "status": a.status,
         "expires_at": a.expires_at.isoformat(),
         "created_at": a.created_at.isoformat() if a.created_at else None,
@@ -193,10 +215,13 @@ class ToolRunner:
                 "Check the current state before trying again.",
                 True,
             )
+        if row.status == "awaiting_agent":  # agent_ask: its question is still open
+            return await self._after_agent(row)
         entry = (await self.entries()).get(row.tool_name)
         tctx = self.tool_context(row.id)
         if row.status == "awaiting_approval":
             return await self._after_approval(row, entry, args, tctx)
+        await self._recheck_full_access()
         decision = await authorize(
             agent=self.agent, name=row.tool_name, entry=entry, args=args, ctx=tctx
         )
@@ -252,6 +277,7 @@ class ToolRunner:
                 row, "denied", "The approval does not match this exact operation.", True
             )
         # The policy is checked again: the tool may have been turned off meanwhile.
+        await self._recheck_full_access()
         decision = await authorize(
             agent=self.agent, name=row.tool_name, entry=entry, args=args, ctx=tctx
         )
@@ -259,6 +285,36 @@ class ToolRunner:
         if decision.verdict == Verdict.DENY or entry is None:
             return await self._finish(row, "denied", f"Denied: {decision.reason}", True)
         return await self._execute(row, entry, args, tctx, decision.category)
+
+    async def _after_agent(self, row: ToolCall) -> ToolCall:
+        """The answer of another agent arrives in this row (``app/agents/team.py``); until
+        then the run waits again without holding a worker."""
+        from app.agents.team import resume_call  # team → services → approvals → runner
+
+        await resume_call(self.ctx.sessionmaker, row)  # raises AwaitingAgent while open
+        async with self.ctx.sessionmaker() as db:
+            fresh = await db.get(ToolCall, row.id)
+            assert fresh is not None
+            return fresh
+
+    async def _recheck_full_access(self) -> None:
+        """Full access is read again before every call, so switching it off (or blocking a
+        tool for this agent) takes effect at the agent's next action, not its next run."""
+        if not self.agent.full_access:
+            return
+        async with self.ctx.sessionmaker() as db:
+            fresh = (
+                await db.execute(
+                    select(Agent.full_access_since, Agent.permissions, Agent.archived_at).where(
+                        Agent.id == self.agent.id
+                    )
+                )
+            ).one_or_none()
+        if fresh is None or fresh.archived_at is not None:
+            self.agent.full_access_since = None
+            return
+        self.agent.full_access_since = fresh.full_access_since
+        self.agent.permissions = fresh.permissions
 
     async def _record_decision(self, row: ToolCall, decision: Decision) -> None:
         async with self.ctx.sessionmaker() as db:
@@ -283,7 +339,7 @@ class ToolRunner:
     async def _request_approval(
         self, row: ToolCall, entry: CatalogEntry, args: dict[str, Any], decision: Decision
     ) -> None:
-        info = entry.tool.describe(args)
+        info = entry.tool.describe_for(self.ctx.settings, args)
         now = datetime.now(UTC)
         async with self.ctx.sessionmaker() as db:
             approval = Approval(
@@ -365,13 +421,29 @@ class ToolRunner:
                     "side_effects": side_effects,
                 },
             }
-            await db.commit()
-        timeout = entry.tool.timeout_seconds or self.ctx.settings.tool_timeout_seconds
-        if entry.tool.group == "terminal":
-            timeout = self.ctx.settings.sandbox_timeout_seconds + 30
+            # Live: the task page shows what the agent is doing right now.
+            await bus.emit(
+                db,
+                user_id=self.ctx.user_id,
+                type="agent.message",
+                agent_id=self.agent.id,
+                task_id=self.ctx.task_id,
+                run_id=self.ctx.run_id,
+                payload={
+                    "kind": "tool_call",
+                    "tool": row.tool_name,
+                    "status": "running",
+                    "tool_call_id": str(row.id),
+                    "is_error": False,
+                },
+            )
+            await bus.commit(db)
+        timeout = entry.tool.timeout_for(self.ctx.settings)
         started = time.monotonic()
         try:
             output = await asyncio.wait_for(entry.tool.run(tctx, args), timeout=timeout)
+        except AwaitingAgent:
+            raise  # agent_ask suspended the run in the same transaction that asked
         except ToolFailed as exc:
             output = ToolOutput(str(exc), is_error=True)
         except ScopeError as exc:
@@ -429,6 +501,7 @@ class ToolRunner:
                         "args_hash": row.args_hash,
                         "task_id": str(self.ctx.task_id),
                         "duration_ms": duration_ms,
+                        **full_access_mark(self.agent),
                     },
                 )
             await bus.emit(

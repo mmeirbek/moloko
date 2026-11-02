@@ -261,7 +261,7 @@ async def test_agent_limits_can_only_be_stricter(app: FastAPI, owner: User) -> N
         assert resp.json()["config_version"] == agent["config_version"]
 
 
-async def test_orchestrator_plans_and_answers_with_memory_but_subagents_do_not(
+async def test_orchestrator_and_the_agents_doing_its_parts_use_memory(
     app: FastAPI, owner: User, queue: RecordingQueue, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from app.orchestrator.mock_script import scripted
@@ -289,5 +289,6 @@ async def test_orchestrator_plans_and_answers_with_memory_but_subagents_do_not(
     plan = next(s for s in systems if PROTOCOL_PLAN in s)
     synthesis = next(s for s in systems if PROTOCOL_SYNTHESIS in s)
     assert "budget is small" in plan and "budget is small" in synthesis
+    # the parts are done by ordinary agents of the office, with their own memory
     workers = [s for s in systems if PROTOCOL_PLAN not in s and PROTOCOL_SYNTHESIS not in s]
-    assert workers and all("budget is small" not in s for s in workers)
+    assert workers and all("budget is small" in s for s in workers)

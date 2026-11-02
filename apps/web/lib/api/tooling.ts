@@ -16,6 +16,7 @@ import type {
 } from "@moloko/shared-types";
 
 import { api } from "./client";
+import { API_BASE } from "./config";
 
 export const toolingKeys = {
   tools: ["tools"] as const,
@@ -39,6 +40,9 @@ export const listApprovals = (status: string, signal?: AbortSignal) =>
   api.request<ApprovalOut[]>(`/approvals?${new URLSearchParams(status ? { status } : {})}`, { signal });
 export const resolveApproval = (id: string, action: "approve" | "reject" | "cancel-task") =>
   api.request<ApprovalOut>(`/approvals/${id}/${action}`, { method: "POST" });
+/** Approve and don't ask again: the agent may do this kind of action from now on. */
+export const approveAlways = (id: string) =>
+  api.request<ApprovalOut>(`/approvals/${id}/approve`, { method: "POST", body: { always: true } });
 
 export const integrationsStatus = (signal?: AbortSignal) =>
   api.request<IntegrationsStatus>("/integrations/status", { signal });
@@ -79,3 +83,8 @@ export function auditLog(action: string, outcome: string, cursor: string | null,
   if (cursor) params.set("cursor", cursor);
   return api.request<AuditPage>(`/audit?${params}`, { signal });
 }
+
+/** A screenshot or PDF in a workspace, served by the API (same origin). */
+export const workspaceRawUrl = (workspaceId: string, path: string) =>
+  `${API_BASE}/workspaces/${workspaceId}/raw?path=${encodeURIComponent(path)}`;
+

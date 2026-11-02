@@ -11,7 +11,16 @@ from arq import cron, func
 
 from app.core.config import get_settings
 from app.tasks.queue import RUN_TASK_JOB, redis_settings
-from app.workers.jobs import housekeeping, push_notifications, run_task, shutdown, startup, sweep
+from app.workers.jobs import (
+    housekeeping,
+    push_notifications,
+    run_task,
+    schedules,
+    search_index,
+    shutdown,
+    startup,
+    sweep,
+)
 
 settings = get_settings()
 
@@ -29,6 +38,9 @@ class WorkerSettings:
         cron(sweep, second={0, 30}, run_at_startup=False, unique=True),
         cron(housekeeping, minute={17}, second={0}, run_at_startup=False, unique=True),
         cron(push_notifications, second=set(range(0, 60, 5)), run_at_startup=False, unique=True),
+        cron(search_index, second={7, 37}, run_at_startup=True, unique=True),
+        # At startup too: runs missed while the server was down start once (catch-up).
+        cron(schedules, second={0}, run_at_startup=True, unique=True),
     ]
     on_startup = _startup
     on_shutdown = shutdown

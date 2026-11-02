@@ -21,6 +21,8 @@ class ToolOut(BaseModel):
     enabled: bool
     available: bool
     input_schema: dict[str, Any]
+    # Every agent may use it without allowing it (read-only history look-ups).
+    always_allowed: bool = False
 
 
 class ToolUpdate(BaseModel):
@@ -43,10 +45,28 @@ class ApprovalOut(BaseModel):
     resources: list[str]
     consequences: str
     reason: str
+    # What «Одобрить и больше не спрашивать» would cover for this agent: programs of a
+    # command, a repository, a site, a colleague, or "" = the whole tool. None: not offered.
+    always: list[str] | None = None
     status: str
     expires_at: datetime
     created_at: datetime | None
     resolved_at: datetime | None
+
+
+class ApprovalDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Approve and don't ask again: the agent may do this kind of action from now on.
+    always: bool = False
+
+
+class StandingApprovalOut(BaseModel):
+    id: str
+    tool: str
+    scope: str  # "" = the whole tool
+    since: str
+    approval_id: str | None = None
 
 
 class ToolCallOut(BaseModel):

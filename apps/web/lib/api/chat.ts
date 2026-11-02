@@ -4,19 +4,22 @@ import type {
   ConversationCreate,
   ConversationOut,
   ConversationPage,
+  ConversationSummaryOut,
   ConversationUpdate,
   MessageOut,
   MessagePage,
   ModelOut,
 } from "@moloko/shared-types";
 
-import { api } from "./client";
+import { api, type UploadOptions } from "./client";
+import { API_BASE } from "./config";
 import { readSse } from "./sse";
 
 export const chatKeys = {
   list: ["chats"] as const,
   detail: (id: string) => ["chats", id] as const,
   messages: (id: string) => ["chats", id, "messages"] as const,
+  summary: (id: string) => ["chats", id, "summary"] as const,
 };
 export const modelKeys = { picker: ["models", "enabled"] as const };
 
@@ -30,6 +33,11 @@ export function createChat(body: ConversationCreate = {}): Promise<ConversationO
 
 export function getChat(id: string, signal?: AbortSignal): Promise<ConversationOut> {
   return api.request<ConversationOut>(`/chats/${id}`, { signal });
+}
+
+/** The rolling summary of the chat's older messages — what the model remembers of them. */
+export function getChatSummary(id: string, signal?: AbortSignal): Promise<ConversationSummaryOut> {
+  return api.request<ConversationSummaryOut>(`/chats/${id}/summary`, { signal });
 }
 
 export function updateChat(id: string, body: ConversationUpdate): Promise<ConversationOut> {
@@ -99,9 +107,21 @@ export async function attachStream(
   await consume(response, handlers);
 }
 
-/** Upload a text file; send its id with the next message. */
-export function uploadAttachment(chatId: string, file: File): Promise<AttachmentOut> {
+/** Where an attached file can be shown or downloaded (same origin; the cookie authorises it). */
+export const attachmentUrl = (chatId: string, attachmentId: string) =>
+  `${API_BASE}/chats/${chatId}/attachments/${attachmentId}/content`;
+
+/** Upload any file (no type, size or count limit); send its id with the next message. */
+export function uploadAttachment(chatId: string, file: File, opts: UploadOptions = {}): Promise<AttachmentOut> {
   const form = new FormData();
   form.append("file", file, file.name);
-  return api.request<AttachmentOut>(`/chats/${chatId}/attachments`, { method: "POST", body: form });
+  return api.upload<AttachmentOut>(`/chats/${chatId}/attachments`, form, opts);
+}
+
+/** Voice input: the recording goes to the speech-to-text engine (local model or provider), text comes back. */
+export function transcribeAudio(audio: Blob, filename: string, language: string): Promise<{ text: string }> {
+  const form = new FormData();
+  form.append("audio", audio, filename);
+  form.append("language", language);
+  return api.request<{ text: string }>("/ai/transcribe", { method: "POST", body: form });
 }

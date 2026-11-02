@@ -190,8 +190,8 @@ async def test_subscribe_and_receive_pushes_for_new_events(
     messages = [json.loads(browser.decrypt(r.content)) for r in received]
     assert messages == [
         {
-            "title": "Нужно ваше одобрение",
-            "body": "Dev: Delete x",
+            "title": "Dev ждёт вашего одобрения",
+            "body": "Delete x",
             "url": "/approvals",
             "tag": "approval:a1",
         },
@@ -258,5 +258,97 @@ def test_notice_rules_match_the_in_app_notifications() -> None:
     assert notice_for(event("task.completed", top, MAX_AGE + timedelta(seconds=1)), now) is None
     approval = {"approval": {"id": "a1", "agent_name": "Ana", "summary": "Write a.txt"}}
     need = notice_for(event("approval.required", approval), now)
-    assert need is not None and need.kind == "approval" and need.subject == "Ana: Write a.txt"
+    assert need is not None and need.kind == "approval" and need.name == "Ana"
     assert notice_for(event("agent.status_changed", {}), now) is None
+
+
+def test_notifications_are_plain_words_not_code() -> None:
+    from app.push.dispatcher import Notice, render
+
+    def approval(tool: str, args: dict[str, Any], task: str = "t1") -> Notice:
+        return Notice(
+            "approval",
+            "approval:x",
+            "raw",
+            "/approvals",
+            name="Кодер король",
+            tool=tool,
+            args=args,
+            tag=f"approval:task:{task}",
+        )
+
+    script = 'python3 -c "\ndef L(h):\n  c=[int(h[i:i+2],16)/255 for i in (1,3,5)]\n"'
+    assert render(approval("terminal_run", {"command": script}), "ru") == (
+        "Кодер король ждёт вашего одобрения",
+        "Выполнить команду python3",
+    )
+    assert render(approval("terminal_run", {"command": "cd /w && npm i"}), "ru")[1] == (
+        "Выполнить команду cd"
+    )
+    path = "moloko-mobile-polish/apps/web/app/(app)/chat/layout.tsx"
+    assert render(approval("fs_write", {"path": path, "content": "x" * 900}), "ru")[1] == (
+        "Записать файл layout.tsx"
+    )
+    gh = {"repo": "mmeirbek/moloko", "path": "apps/web/page-header.tsx", "content": "…"}
+    assert render(approval("github_write_file", gh), "ru")[1] == (
+        "Сохранить файл page-header.tsx в GitHub (mmeirbek/moloko)"
+    )
+    assert render(approval("terminal_run", {"command": "ls"}), "en") == (
+        "Кодер король needs your approval",
+        "Run a ls command",
+    )
+    assert render(approval("some_mcp_tool", {"q": "x"}), "ru")[1] == "Действие: some mcp tool"
+
+    long_title = (
+        "Найди репозитории молоко на гитхабе, надо улучшить фронтенд дизайн для телефонов " * 3
+    )
+    failed = Notice(
+        "taskFailed",
+        "k",
+        long_title + "```py\nprint(1)\n```",
+        "/tasks/t",
+        name="Кодер король",
+        error_code="empty_result",
+    )
+    title, body = render(failed, "ru")
+    assert title == "Задача не выполнена" and body.startswith("Кодер король: Найди репозитории")
+    assert "…" in body and body.endswith("— агент закончил без результата") and "```" not in body
+    done = Notice("taskDone", "k", "[[mock:sleep:1]] Отчёт", "/tasks/t")
+    assert render(done, "ru") == ("Задача выполнена", "Отчёт")
+
+
+def test_repository_and_package_actions_in_plain_words() -> None:
+    from app.push.texts import approval_text
+
+    online = {"command": "npm ci --prefix moloko", "network": "packages"}
+    assert approval_text("ru", "terminal_run", online) == "Выполнить npm и скачать пакеты"
+    assert approval_text("en", "terminal_run", online) == "Run npm with package downloads"
+    assert approval_text("ru", "terminal_run", {"command": "npm ci"}) == "Выполнить команду npm"
+    checkout = {"repo": "mmeirbek/moloko", "ref": "main"}
+    assert (
+        approval_text("ru", "github_checkout", checkout)
+        == "Скачать mmeirbek/moloko в рабочую папку"
+    )
+    commit = {"repo": "mmeirbek/moloko", "branch": "feature/ui", "paths": ["a/b.tsx"] * 40}
+    assert approval_text("ru", "github_commit_files", commit) == (
+        "Сохранить файлы в GitHub (mmeirbek/moloko, feature/ui)"
+    )
+    assert approval_text("en", "github_commit_files", commit) == (
+        "Commit files to GitHub (mmeirbek/moloko, feature/ui)"
+    )
+
+
+def test_the_push_contact_is_never_a_placeholder_apple_refuses() -> None:
+    from app.push.webpush import push_subject
+
+    site = ["https://moloko.tail1234.ts.net"]
+    assert push_subject("mailto:owner@moloko.invalid", site) == "https://moloko.tail1234.ts.net"
+    assert push_subject("mailto:admin@localhost", [*site, "x"]) == site[0]
+    assert push_subject("mailto:me@example.org", site) == site[0]
+    assert push_subject("mailto:me@mail.kz", site) == "mailto:me@mail.kz"
+    assert push_subject("https://my.site/", site) == "https://my.site/"
+    # nothing better known: keep what was configured
+    assert push_subject("mailto:owner@moloko.invalid", []) == "mailto:owner@moloko.invalid"
+    assert push_subject("mailto:owner@moloko.invalid", ["http://127.0.0.1:3000"]).endswith(
+        ".invalid"
+    )

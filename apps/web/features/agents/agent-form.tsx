@@ -17,10 +17,21 @@ import { memoryKeys } from "@/lib/api/memories";
 import { toolingKeys } from "@/lib/api/tooling";
 import { cn } from "@/lib/utils";
 
-import { AUTONOMY, fromAgent, toPayload, validate, type AgentFormValues, type FormErrors } from "./agent-form-model";
+import {
+  AUTONOMY,
+  canHaveFullAccess,
+  fromAgent,
+  hasFullAccess,
+  toPayload,
+  validate,
+  type AgentFormValues,
+  type FormErrors,
+} from "./agent-form-model";
+import { FullAccessOption } from "./agent-full-access";
 import { AgentToolsField } from "./agent-tools-field";
+import { AgentContactsField } from "./agent-contacts-field";
 
-const textareaClass = "rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm";
+const textareaClass = "bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken";
 
 function Field({
   id,
@@ -52,8 +63,8 @@ function Field({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-4">
-      <legend className="px-1 text-sm font-medium">{title}</legend>
+    <fieldset className="flex flex-col gap-4 bg-card p-4 pixel-frame">
+      <legend className="ml-2 bg-card px-2 font-pixel text-lg">{title}</legend>
       {children}
     </fieldset>
   );
@@ -63,6 +74,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (agent: AgentOut) => void }) {
   const t = useTranslations("agents.form");
   const ta = useTranslations("agents");
+  const tf = useTranslations("agents.fullAccess");
   const toMessage = useErrorMessage();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -110,7 +122,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-3xl flex-col gap-4" noValidate>
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <Section title={t("profile")}>
         <Field id={id("name")} label={ta("name")} error={errorText("name")}>
           <Input
@@ -143,7 +155,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
             id={id("model")}
             value={values.modelId}
             onChange={(e) => set("modelId", e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
           >
             <option value="">{ta("defaultModel")}</option>
             {models.data?.map((m) => (
@@ -170,12 +182,21 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
       </Section>
 
       <Section title={t("autonomy")}>
-        <div role="radiogroup" aria-label={t("autonomy")} className="grid gap-2 sm:grid-cols-3">
+        {values.fullAccess && (
+          <p role="note" className="text-xs text-destructive">
+            {tf("levelPaused")}
+          </p>
+        )}
+        <div
+          role="radiogroup"
+          aria-label={t("autonomy")}
+          className={cn("grid gap-2 sm:grid-cols-3", values.fullAccess && "opacity-60")}
+        >
           {AUTONOMY.map((level) => (
             <label
               key={level}
               className={cn(
-                "flex cursor-pointer flex-col gap-1 rounded-md border p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                "flex cursor-pointer flex-col gap-1 border-2 p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
                 values.autonomy === level && "border-primary bg-accent",
               )}
             >
@@ -194,6 +215,14 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
           ))}
         </div>
         <p className="text-xs text-muted-foreground">{t("autonomyNote")}</p>
+        {agent && canHaveFullAccess(agent) ? (
+          <FullAccessOption
+            agent={agent}
+            onChanged={(result) => setValues((v) => ({ ...v, fullAccess: hasFullAccess(result) }))}
+          />
+        ) : (
+          !agent && <p className="text-xs text-muted-foreground">{tf("afterCreate")}</p>
+        )}
       </Section>
 
       <Section title={t("tools")}>
@@ -205,6 +234,19 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
           }}
         />
       </Section>
+
+      {!isOrchestrator && (
+        <Section title={t("contacts.title")}>
+          <AgentContactsField
+            agentId={agent?.id}
+            values={values}
+            onChange={(next) => {
+              setValues(next);
+              setSaved(false);
+            }}
+          />
+        </Section>
+      )}
 
       <Section title={t("limits")}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -236,6 +278,22 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
               placeholder={limits.data ? String(Math.floor(limits.data.run_timeout_seconds / 60)) : ""}
               onChange={(e) => set("timeoutMinutes", e.target.value)}
               aria-invalid={Boolean(errorText("timeoutMinutes"))}
+            />
+          </Field>
+          <Field
+            id={id("budget")}
+            label={t("monthlyBudget")}
+            hint={isOrchestrator ? t("monthlyBudgetHintOrchestrator") : t("monthlyBudgetHint")}
+            error={errorText("monthlyBudget")}
+          >
+            <Input
+              id={id("budget")}
+              inputMode="decimal"
+              value={values.monthlyBudget}
+              placeholder={t("monthlyBudgetPlaceholder")}
+              onChange={(e) => set("monthlyBudget", e.target.value)}
+              aria-invalid={Boolean(errorText("monthlyBudget"))}
+              data-testid="agent-budget-input"
             />
           </Field>
         </div>

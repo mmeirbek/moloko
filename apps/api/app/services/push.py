@@ -17,7 +17,7 @@ from app.push.webpush import VapidKeys, b64u_decode, host_allowed
 from app.services.audit import AuditService
 
 VAPID_KEY = "push_vapid"
-KINDS = ("approval", "taskDone", "taskFailed")
+KINDS = ("approval", "taskDone", "taskFailed", "budget")
 
 
 class PushUnavailable(Conflict):

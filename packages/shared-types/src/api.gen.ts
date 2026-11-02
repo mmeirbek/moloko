@@ -22,6 +22,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agents removed from the office that can be brought back (newest first) */
+        get: operations["list_archived_agents_api_v1_agents_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/from-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a persistent agent from a template (built-in or own; it waits for a task) */
+        post: operations["create_from_template_api_v1_agents_from_template_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ready-made agents: the built-in templates, then the owner's own (newest first) */
+        get: operations["list_templates_api_v1_agents_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of the owner's own templates (agents made from it stay) */
+        delete: operations["delete_template_api_v1_agents_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}": {
         parameters: {
             query?: never;
@@ -41,6 +109,40 @@ export interface paths {
         patch: operations["update_agent_api_v1_agents__agent_id__patch"];
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This month's spending against the agent's own budget (subagents: the one above) */
+        get: operations["agent_budget_api_v1_agents__agent_id__budget_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/full-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Turn «Полный доступ» on (confirmed with the password) or off for a persistent agent */
+        put: operations["set_full_access_api_v1_agents__agent_id__full_access_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/memory-context": {
         parameters: {
             query?: never;
@@ -50,6 +152,23 @@ export interface paths {
         };
         /** Exactly what this agent's prompt receives from memory */
         get: operations["agent_memory_context_api_v1_agents__agent_id__memory_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Correspondence with other agents: questions, answers, notes (newest first) */
+        get: operations["agent_messages_api_v1_agents__agent_id__messages_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -69,6 +188,23 @@ export interface paths {
         put?: never;
         /** Pause Agent */
         post: operations["pause_agent_api_v1_agents__agent_id__pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring an archived agent back into the office (idle, no task) */
+        post: operations["restore_agent_api_v1_agents__agent_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -109,6 +245,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/save-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save the agent's configuration as an own template (no memory or history) */
+        post: operations["save_as_template_api_v1_agents__agent_id__save_template_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/standing-approvals/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Take back a «больше не спрашивать»: this kind of action needs approval again */
+        delete: operations["remove_standing_approval_api_v1_agents__agent_id__standing_approvals__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/stop": {
         parameters: {
             query?: never;
@@ -120,6 +290,41 @@ export interface paths {
         put?: never;
         /** Stop Agent */
         post: operations["stop_agent_api_v1_agents__agent_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Voice input and semantic search */
+        get: operations["get_settings_api_v1_ai_settings_get"];
+        /** Put Settings */
+        put: operations["put_settings_api_v1_ai_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Speech to text (voice input) */
+        post: operations["transcribe_api_v1_ai_transcribe_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -169,7 +374,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve this ONE operation */
+        /**
+         * Approve this ONE operation
+         * @description With ``{"always": true}``: approve and don't ask again — this agent may do this kind
+         *     of action from now on (see ``always`` on the approval for what it covers).
+         */
         post: operations["approve_api_v1_approvals__approval_id__approve_post"];
         delete?: never;
         options?: never;
@@ -296,6 +505,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/passkeys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The owner's passkeys */
+        get: operations["list_passkeys_api_v1_auth_passkeys_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/login/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start signing in with a passkey (no username needed) */
+        post: operations["login_options_api_v1_auth_passkeys_login_options_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/login/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign in with a passkey (creates a session exactly like the password login) */
+        post: operations["login_verify_api_v1_auth_passkeys_login_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/register/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start adding a passkey (confirmed with the password) */
+        post: operations["registration_options_api_v1_auth_passkeys_register_options_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/register/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish adding a passkey (the browser's answer to register/options) */
+        post: operations["register_api_v1_auth_passkeys_register_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/{passkey_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a passkey (confirmed with the password) */
+        delete: operations["delete_passkey_api_v1_auth_passkeys__passkey_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename a passkey */
+        patch: operations["rename_passkey_api_v1_auth_passkeys__passkey_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/auth/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change the owner's profile (form of address, display name) */
+        patch: operations["update_profile_api_v1_auth_profile_patch"];
+        trace?: never;
+    };
+    "/api/v1/auth/session-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How long sign-ins last */
+        get: operations["get_session_settings_api_v1_auth_session_settings_get"];
+        /** Change how long sign-ins last (confirmed with the password) */
+        put: operations["update_session_settings_api_v1_auth_session_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats": {
         parameters: {
             query?: never;
@@ -342,8 +689,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload a text file to attach to the next message */
+        /** Upload a file of any type and size to attach to the next message */
         post: operations["upload_attachment_api_v1_chats__chat_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chats/{chat_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an attached file (pictures are shown inline) */
+        get: operations["attachment_content_api_v1_chats__chat_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -412,6 +776,60 @@ export interface paths {
         /** Re-attach to an answer that is still being generated */
         get: operations["attach_stream_api_v1_chats__chat_id__messages__message_id__stream_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chats/{chat_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chat Summary
+         * @description The rolling summary of the chat's older messages — exactly what the model gets.
+         */
+        get: operations["get_chat_summary_api_v1_chats__chat_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tokens and approximate cost for a month */
+        get: operations["costs_api_v1_costs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/costs/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Monthly limit and warnings */
+        put: operations["update_budget_api_v1_costs_budget_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -827,7 +1245,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Orchestrated runs (Subagent Office) */
+        /** Orchestrated runs */
         get: operations["list_runs_api_v1_runs_get"];
         put?: never;
         /** Give a task to the Orchestrator */
@@ -845,8 +1263,113 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Plan, subagents, subtasks and messages */
+        /** Plan, parts, the agents and messages */
         get: operations["get_run_tree_api_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scheduled tasks (oldest first) */
+        get: operations["list_schedules_api_v1_schedules_get"];
+        put?: never;
+        /** Add a scheduled task (next_run_at is computed) */
+        post: operations["create_schedule_api_v1_schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The next runs of a rule, without saving anything */
+        post: operations["preview_schedule_api_v1_schedules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Schedule */
+        get: operations["get_schedule_api_v1_schedules__schedule_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete the schedule (tasks it started stay) */
+        delete: operations["delete_schedule_api_v1_schedules__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Schedule */
+        patch: operations["update_schedule_api_v1_schedules__schedule_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/schedules/{schedule_id}/run-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the scheduled task now (the plan stays as it is) */
+        post: operations["run_schedule_now_api_v1_schedules__schedule_id__run_now_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search memories, files, chat files and the work history (finished tasks, agent messages, chat messages) */
+        get: operations["run_search_api_v1_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the search index holds */
+        get: operations["status_api_v1_search_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -993,6 +1516,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Continue a stopped task from where it stopped (a new attempt) */
+        post: operations["continue_task_api_v1_tasks__task_id__continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{task_id}/events": {
         parameters: {
             query?: never;
@@ -1004,6 +1544,57 @@ export interface paths {
         get: operations["task_events_api_v1_tasks__task_id__events_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/export.md": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The task and its result as a Markdown file */
+        get: operations["export_markdown_api_v1_tasks__task_id__export_md_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Print the task's result to PDF (sandbox browser, no network) */
+        post: operations["export_pdf_api_v1_tasks__task_id__export_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Write to the agent while it works (read before its next step) */
+        post: operations["message_task_agent_api_v1_tasks__task_id__message_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1147,10 +1738,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A screenshot or PDF from the workspace */
+        get: operations["workspace_raw_api_v1_workspaces__workspace_id__raw_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentBudgetOut
+         * @description This month's spending against the budget that applies to an agent.
+         */
+        AgentBudgetOut: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /**
+             * Budget Agent Id
+             * Format: uuid
+             * @description Whose budget counts: the agent itself, or for a subagent the persistent agent / Orchestrator above it.
+             */
+            budget_agent_id: string;
+            /** Budget Agent Name */
+            budget_agent_name: string;
+            /** Exceeded */
+            exceeded: boolean;
+            /** Month */
+            month: string;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string | null;
+            /** Percent */
+            percent: number | null;
+            /** Spent Usd */
+            spent_usd: string;
+            /** Warn Percent */
+            warn_percent: number;
+        };
+        /**
+         * AgentContacts
+         * @description Who a persistent agent may talk to directly (agent_ask / agent_tell). Both sides
+         *     must allow it. Subagents only talk to their siblings; the Orchestrator is no contact.
+         */
+        AgentContacts: {
+            /**
+             * Agent Ids
+             * @description Used when mode = list.
+             */
+            agent_ids?: string[];
+            /**
+             * Mode
+             * @description all = every own agent, list = only agent_ids, none = nobody
+             * @default all
+             * @enum {string}
+             */
+            mode?: "all" | "list" | "none";
+        };
+        /**
+         * AgentCost
+         * @description One budget holder: an agent with its subagents' calls, or the chat.
+         */
+        AgentCost: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /**
+             * Monthly Budget Usd
+             * @description The agent's own limit (today's).
+             */
+            monthly_budget_usd: string | null;
+            /** Name */
+            name: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /**
+             * Percent
+             * @description Of the agent's limit; current month only.
+             */
+            percent: number | null;
+            /** Source */
+            source: string;
+            /**
+             * Subagents Cost Usd
+             * @description Part of cost_usd spent by its subagents.
+             */
+            subagents_cost_usd: string;
+        };
         /** AgentCreate */
         AgentCreate: {
             /** @default autonomous */
@@ -1159,6 +1852,7 @@ export interface components {
             allowed_tools?: string[];
             /** @default supervised */
             autonomy_level?: components["schemas"]["AutonomyLevel"];
+            contacts?: components["schemas"]["AgentContacts"];
             /**
              * Description
              * @default
@@ -1168,6 +1862,11 @@ export interface components {
             memory_settings?: components["schemas"]["MemorySettings"];
             /** Model Config Id */
             model_config_id?: string | null;
+            /**
+             * Monthly Budget Usd
+             * @description Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.
+             */
+            monthly_budget_usd?: number | string | null;
             /** Name */
             name: string;
             /** Specialization */
@@ -1184,12 +1883,115 @@ export interface components {
             /** Workspace Id */
             workspace_id?: string | null;
         };
+        /** AgentFromTemplate */
+        AgentFromTemplate: {
+            /**
+             * Locale
+             * @default ru
+             */
+            locale?: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Template
+             * @description A key from GET /agents/templates (built-in key or own template id).
+             */
+            template: string;
+        };
+        /**
+         * AgentFullAccessUpdate
+         * @description Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
+         *     (wrong ones count toward the login lockout); turning it off does not.
+         */
+        AgentFullAccessUpdate: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Password
+             * @description Required when enabled.
+             */
+            password?: string | null;
+        };
         /** AgentLimits */
         AgentLimits: {
             /** Max Steps */
             max_steps?: number | null;
             /** Run Timeout Seconds */
             run_timeout_seconds?: number | null;
+        };
+        /**
+         * AgentMessageItem
+         * @description One message in an agent's correspondence (agent page → «Переписка»).
+         */
+        AgentMessageItem: {
+            /**
+             * Asker Task Id
+             * @description The asking agent's task.
+             */
+            asker_task_id: string | null;
+            /**
+             * Consult Task Id
+             * @description The receiver's task of a question.
+             */
+            consult_task_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Direction
+             * @description Relative to the agent asked about.
+             * @enum {string}
+             */
+            direction: "in" | "out";
+            /**
+             * Error
+             * @description Why it was refused (a reason code).
+             */
+            error: string | null;
+            /** Files */
+            files: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Message Type
+             * @description request = agent_ask question, task_result = its answer, error = no answer (failed / cancelled / timed out), note = agent_tell, context = Orchestrator plan input
+             */
+            message_type: string;
+            /** Read At */
+            read_at: string | null;
+            /**
+             * Receiver Agent Id
+             * Format: uuid
+             */
+            receiver_agent_id: string;
+            /** Receiver Name */
+            receiver_name: string | null;
+            /**
+             * Sender Agent Id
+             * Format: uuid
+             */
+            sender_agent_id: string;
+            /** Sender Name */
+            sender_name: string | null;
+            /**
+             * Status
+             * @description delivered | refused
+             */
+            status: string;
+            /** Summary */
+            summary: string;
+            /** Task Id */
+            task_id: string | null;
+            /**
+             * Text
+             * @description The full text; null when refused.
+             */
+            text: string | null;
         };
         /** AgentMessageOut */
         AgentMessageOut: {
@@ -1241,6 +2043,7 @@ export interface components {
             autonomy_level: string;
             /** Config Version */
             config_version: number;
+            contacts: components["schemas"]["AgentContacts"];
             /**
              * Created At
              * Format: date-time
@@ -1252,6 +2055,16 @@ export interface components {
             depth: number;
             /** Description */
             description: string;
+            /**
+             * Full Access
+             * @description «Полный доступ»: every enabled tool, no approvals (the owner's decision; changed only through PUT /agents/{id}/full-access).
+             */
+            full_access: boolean;
+            /**
+             * Full Access Since
+             * @description When full access was turned on.
+             */
+            full_access_since: string | null;
             /**
              * Id
              * Format: uuid
@@ -1267,6 +2080,8 @@ export interface components {
             };
             /** Model Config Id */
             model_config_id: string | null;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string | null;
             /** Name */
             name: string;
             /** Parent Agent Id */
@@ -1295,6 +2110,17 @@ export interface components {
             /** Workspace Id */
             workspace_id: string | null;
         };
+        /**
+         * AgentRestore
+         * @description Optional body of ``POST /agents/{id}/restore``.
+         */
+        AgentRestore: {
+            /**
+             * Name
+             * @description Come back under this name (when another agent took the old one).
+             */
+            name?: string | null;
+        };
         /** AgentRunRequest */
         AgentRunRequest: {
             /**
@@ -1307,6 +2133,40 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** AgentTemplateOut */
+        AgentTemplateOut: {
+            /** Allowed Tools */
+            allowed_tools: string[];
+            /** Autonomy Level */
+            autonomy_level: string;
+            /** Created At */
+            created_at: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * @description Own templates only (DELETE /agents/templates/{id}).
+             */
+            id: string | null;
+            /**
+             * Key
+             * @description What POST /agents/from-template takes: a built-in key, or an own template's id.
+             */
+            key: string;
+            /** Model Config Id */
+            model_config_id: string | null;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "builtin" | "own";
+            /** Specialization */
+            specialization: string;
+        };
         /**
          * AgentType
          * @enum {string}
@@ -1317,12 +2177,18 @@ export interface components {
             /** Allowed Tools */
             allowed_tools?: string[] | null;
             autonomy_level?: components["schemas"]["AutonomyLevel"] | null;
+            contacts?: components["schemas"]["AgentContacts"] | null;
             /** Description */
             description?: string | null;
             limits?: components["schemas"]["AgentLimits"] | null;
             memory_settings?: components["schemas"]["MemorySettings"] | null;
             /** Model Config Id */
             model_config_id?: string | null;
+            /**
+             * Monthly Budget Usd
+             * @description Monthly limit in USD for this agent's model calls, subagents included; null = no limit of its own.
+             */
+            monthly_budget_usd?: number | string | null;
             /** Name */
             name?: string | null;
             /** Specialization */
@@ -1336,6 +2202,62 @@ export interface components {
             /** Workspace Id */
             workspace_id?: string | null;
         };
+        /** AiServicesIn */
+        AiServicesIn: {
+            /** Embedding Dimensions */
+            embedding_dimensions?: number | null;
+            /** Embedding Model */
+            embedding_model?: string | null;
+            /** Provider Id */
+            provider_id?: string | null;
+            /**
+             * Semantic Search
+             * @default true
+             */
+            semantic_search?: boolean;
+            /** Transcription Model */
+            transcription_model?: string | null;
+        };
+        /** AiServicesOut */
+        AiServicesOut: {
+            /** Active Provider Id */
+            active_provider_id: string | null;
+            /** Active Provider Name */
+            active_provider_name: string | null;
+            /** Available */
+            available: boolean;
+            /** Embedding Dimensions */
+            embedding_dimensions: number;
+            /** Embedding Model */
+            embedding_model: string;
+            /** Local Stt Model */
+            local_stt_model: string | null;
+            /**
+             * Local Stt Status
+             * @enum {string}
+             */
+            local_stt_status: "off" | "ready" | "loading" | "missing" | "error" | "unreachable";
+            /** Provider Id */
+            provider_id: string | null;
+            /** Semantic Search */
+            semantic_search: boolean;
+            /** Transcription Model */
+            transcription_model: string;
+            /** Voice Available */
+            voice_available: boolean;
+            /** Voice Engine */
+            voice_engine: ("local" | "provider") | null;
+            /** Voice Model */
+            voice_model: string | null;
+        };
+        /** ApprovalDecision */
+        ApprovalDecision: {
+            /**
+             * Always
+             * @default false
+             */
+            always?: boolean;
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /**
@@ -1345,6 +2267,8 @@ export interface components {
             agent_id: string;
             /** Agent Name */
             agent_name: string | null;
+            /** Always */
+            always?: string[] | null;
             /** Args */
             args: {
                 [key: string]: unknown;
@@ -1404,6 +2328,13 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Kind
+             * @default text
+             */
+            kind?: string;
+            /** Pages */
+            pages?: number | null;
             /** Size */
             size: number;
         };
@@ -1478,13 +2409,42 @@ export interface components {
             last: {
                 [key: string]: unknown;
             } | null;
+            offsite: components["schemas"]["OffsiteStatus"];
             /** Same Disk As Data */
             same_disk_as_data: boolean | null;
         };
-        /** Body_upload_attachment_api_v1_chats__chat_id__attachments_post */
-        Body_upload_attachment_api_v1_chats__chat_id__attachments_post: {
-            /** File */
-            file: string;
+        /** Body_transcribe_api_v1_ai_transcribe_post */
+        Body_transcribe_api_v1_ai_transcribe_post: {
+            /** Audio */
+            audio: string;
+            /** Language */
+            language?: string | null;
+        };
+        /** BudgetIn */
+        BudgetIn: {
+            /**
+             * Hard Stop
+             * @default false
+             */
+            hard_stop?: boolean;
+            /** Monthly Limit Usd */
+            monthly_limit_usd?: number | string | null;
+            /**
+             * Warn Percent
+             * @default 80
+             */
+            warn_percent?: number;
+        };
+        /** BudgetOut */
+        BudgetOut: {
+            /** Hard Stop */
+            hard_stop: boolean;
+            /** Monthly Limit Usd */
+            monthly_limit_usd: string | null;
+            /** Percent */
+            percent: number | null;
+            /** Warn Percent */
+            warn_percent: number;
         };
         /** CancelResult */
         CancelResult: {
@@ -1517,6 +2477,13 @@ export interface components {
             last_message_at: string;
             /** Model Config Id */
             model_config_id: string | null;
+            /**
+             * Summary Messages
+             * @default 0
+             */
+            summary_messages?: number;
+            /** Summary Updated At */
+            summary_updated_at?: string | null;
             /** Title */
             title: string;
             /**
@@ -1525,6 +2492,20 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * ConversationSummaryOut
+         * @description The rolling summary of a chat's older messages, as the model gets it.
+         */
+        ConversationSummaryOut: {
+            /** Summary */
+            summary: string | null;
+            /** Summary Messages */
+            summary_messages: number;
+            /** Summary Updated At */
+            summary_updated_at: string | null;
+            /** Summary Upto At */
+            summary_upto_at: string | null;
+        };
         /** ConversationUpdate */
         ConversationUpdate: {
             /** Model Config Id */
@@ -1532,10 +2513,49 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** CostSummary */
+        CostSummary: {
+            /**
+             * Agent Warn Percent
+             * @description Warning threshold of per-agent budgets.
+             */
+            agent_warn_percent: number;
+            budget: components["schemas"]["BudgetOut"];
+            /** By Agent */
+            by_agent: components["schemas"]["AgentCost"][];
+            /** By Day */
+            by_day: components["schemas"]["DayCost"][];
+            /** By Model */
+            by_model: components["schemas"]["ModelCost"][];
+            /** Calls */
+            calls: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Month */
+            month: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Spent Usd */
+            spent_usd: string;
+            /** Unpriced Calls */
+            unpriced_calls: number;
+        };
         /** CsrfResponse */
         CsrfResponse: {
             /** Csrf Token */
             csrf_token: string;
+        };
+        /** DayCost */
+        DayCost: {
+            /** Cost Usd */
+            cost_usd: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Tokens */
+            tokens: number;
         };
         /** DiskStatus */
         DiskStatus: {
@@ -1952,10 +2972,29 @@ export interface components {
             output_tokens: number | null;
             /** Provider Kind */
             provider_kind: string | null;
+            /** Recalled Sources */
+            recalled_sources?: components["schemas"]["RecalledSourceOut"][];
             /** Role */
             role: string;
             /** Status */
             status: string;
+        };
+        /** ModelCost */
+        ModelCost: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Model */
+            model: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Provider Kind */
+            provider_kind: string | null;
+            /** Unpriced Calls */
+            unpriced_calls: number;
         };
         /** ModelCreate */
         ModelCreate: {
@@ -2004,6 +3043,8 @@ export interface components {
         };
         /** ModelParams */
         ModelParams: {
+            /** Context Window */
+            context_window?: number | null;
             /** Max Tokens */
             max_tokens?: number | null;
             /** Temperature */
@@ -2022,6 +3063,111 @@ export interface components {
             /** Output Price Per Mtok */
             output_price_per_mtok?: number | string | null;
             params?: components["schemas"]["ModelParams"] | null;
+        };
+        /**
+         * OffsiteAttempt
+         * @description The last try to send a backup off-site (infrastructure/backup/offsite.sh).
+         */
+        OffsiteAttempt: {
+            /** At */
+            at?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Ok */
+            ok: boolean;
+        };
+        /**
+         * OffsiteCheck
+         * @description The last `restic check --read-data-subset`.
+         */
+        OffsiteCheck: {
+            /** At */
+            at?: string | null;
+            /** Detail */
+            detail?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Subset */
+            subset?: string | null;
+        };
+        /**
+         * OffsiteCopy
+         * @description The last good off-site copy: one restic snapshot of one local backup set.
+         */
+        OffsiteCopy: {
+            /** Added Bytes */
+            added_bytes?: number | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Bytes */
+            bytes?: number | null;
+            /** Snapshot */
+            snapshot: string;
+            /** Snapshots */
+            snapshots?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Source At */
+            source_at?: string | null;
+            /** Stored Bytes */
+            stored_bytes?: number | null;
+        };
+        /**
+         * OffsiteDrill
+         * @description The last restore drill from the off-site copy into a scratch database.
+         */
+        OffsiteDrill: {
+            /** At */
+            at?: string | null;
+            /** Detail */
+            detail?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Same As Local */
+            same_as_local?: boolean | null;
+            /** Snapshot */
+            snapshot?: string | null;
+        };
+        /** OffsiteStatus */
+        OffsiteStatus: {
+            /** Age Hours */
+            age_hours?: number | null;
+            check?: components["schemas"]["OffsiteCheck"] | null;
+            /** Check Days */
+            check_days?: number | null;
+            drill?: components["schemas"]["OffsiteDrill"] | null;
+            /** Drill Days */
+            drill_days?: number | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Keep Daily */
+            keep_daily?: number | null;
+            /** Keep Monthly */
+            keep_monthly?: number | null;
+            /** Keep Weekly */
+            keep_weekly?: number | null;
+            /** Kind */
+            kind?: string | null;
+            last_attempt?: components["schemas"]["OffsiteAttempt"] | null;
+            last_copy?: components["schemas"]["OffsiteCopy"] | null;
+            /** Repository */
+            repository?: string | null;
+        };
+        /** Page[AgentMessageItem] */
+        Page_AgentMessageItem_: {
+            /** Items */
+            items: components["schemas"]["AgentMessageItem"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** Page[ConversationOut] */
         Page_ConversationOut_: {
@@ -2043,6 +3189,116 @@ export interface components {
             items: components["schemas"]["TaskOut"][];
             /** Next Cursor */
             next_cursor?: string | null;
+        };
+        /** PasskeyListOut */
+        PasskeyListOut: {
+            /**
+             * Enabled
+             * @description False until WEBAUTHN_RP_ID and WEBAUTHN_ORIGINS are set on the server.
+             */
+            enabled: boolean;
+            /** Max Passkeys */
+            max_passkeys: number;
+            /** Passkeys */
+            passkeys: components["schemas"]["PasskeyOut"][];
+            /**
+             * Rp Id
+             * @description The domain passkeys are bound to.
+             */
+            rp_id: string | null;
+        };
+        /** PasskeyLoginVerify */
+        PasskeyLoginVerify: {
+            /**
+             * Credential
+             * @description AuthenticationResponseJSON: the result of navigator.credentials.get().
+             */
+            credential: {
+                [key: string]: unknown;
+            };
+        };
+        /** PasskeyOptionsOut */
+        PasskeyOptionsOut: {
+            /**
+             * Expires In Seconds
+             * @description The challenge is single-use and dies after this.
+             */
+            expires_in_seconds: number;
+            /**
+             * Options
+             * @description WebAuthn options for navigator.credentials.create()/get() in their JSON form (PublicKeyCredentialCreationOptionsJSON / PublicKeyCredentialRequestOptionsJSON; binary values base64url).
+             */
+            options: {
+                [key: string]: unknown;
+            };
+        };
+        /** PasskeyOut */
+        PasskeyOut: {
+            /**
+             * Backed Up
+             * @description A synced passkey (e.g. iCloud Keychain): works on the owner's other devices.
+             */
+            backed_up: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Name */
+            name: string;
+            /** Transports */
+            transports: string[];
+        };
+        /** PasskeyRegisterVerify */
+        PasskeyRegisterVerify: {
+            /**
+             * Credential
+             * @description RegistrationResponseJSON: the result of navigator.credentials.create().
+             */
+            credential: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+        };
+        /** PasskeyRename */
+        PasskeyRename: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * PasswordConfirm
+         * @description The current password, for adding or deleting a passkey (wrong ones count toward the
+         *     login lockout).
+         */
+        PasswordConfirm: {
+            /** Password */
+            password: string;
+        };
+        /**
+         * ProfileUpdate
+         * @description Only the fields sent are changed. Text is trimmed and whitespace collapsed; line
+         *     breaks and other control characters are refused (422 invalid_profile_text); blank or
+         *     null clears the field.
+         */
+        ProfileUpdate: {
+            /**
+             * Address As
+             * @description Form of address, e.g. «Мейрбек Максатович»; at most ADDRESS_AS_MAX_CHARS.
+             */
+            address_as?: string | null;
+            /**
+             * Display Name
+             * @description At most 128 characters.
+             */
+            display_name?: string | null;
         };
         /** ProviderCreate */
         ProviderCreate: {
@@ -2123,6 +3379,72 @@ export interface components {
             /** Public Key */
             public_key: string;
         };
+        /**
+         * RecalledSourceOut
+         * @description An earlier chat, task or memory that recall gave the model for this answer.
+         */
+        RecalledSourceOut: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Date */
+            date?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Type */
+            type: string;
+        };
+        /**
+         * RecurrenceIn
+         * @description When to run, in the schedule's time zone. Which fields count depends on ``kind``:
+         *
+         *     * ``once`` — ``run_at`` (a local date-time without offset is read in the schedule's zone);
+         *     * ``hourly`` — every ``interval_hours`` (1, 2, 3, 4, 6, 8, 12) from ``time`` (default 00:00);
+         *     * ``daily`` — ``time``;
+         *     * ``weekly`` — ``weekdays`` (1 = Monday … 7 = Sunday) and ``time``;
+         *     * ``monthly`` — ``day_of_month`` (1-31; shorter months use their last day) and ``time``.
+         */
+        RecurrenceIn: {
+            /** Day Of Month */
+            day_of_month?: number | null;
+            /** Interval Hours */
+            interval_hours?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "once" | "hourly" | "daily" | "weekly" | "monthly";
+            /** Run At */
+            run_at?: string | null;
+            /** Time */
+            time?: string | null;
+            /** Weekdays */
+            weekdays?: number[];
+        };
+        /** RecurrenceOut */
+        RecurrenceOut: {
+            /** Day Of Month */
+            day_of_month: number | null;
+            /** Interval Hours */
+            interval_hours: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "once" | "hourly" | "daily" | "weekly" | "monthly";
+            /** Run At */
+            run_at: string | null;
+            /** Time */
+            time: string | null;
+            /** Weekdays */
+            weekdays: number[];
+        };
         /** RunCreate */
         RunCreate: {
             /**
@@ -2191,8 +3513,6 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["AgentMessageOut"][];
             run: components["schemas"]["RunOut"];
-            /** Subagents */
-            subagents: unknown[];
             /** Subtasks */
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
@@ -2216,6 +3536,197 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /**
+         * SaveAsTemplate
+         * @description Optional body of ``POST /agents/{id}/save-template``.
+         */
+        SaveAsTemplate: {
+            /**
+             * Name
+             * @description The template's name; by default the agent's name.
+             */
+            name?: string | null;
+        };
+        /** ScheduleCreate */
+        ScheduleCreate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled?: boolean;
+            recurrence: components["schemas"]["RecurrenceIn"];
+            /**
+             * Target
+             * @default orchestrator
+             * @enum {string}
+             */
+            target?: "orchestrator" | "agent";
+            /** Timezone */
+            timezone: string;
+            /** Title */
+            title: string;
+        };
+        /** ScheduleList */
+        ScheduleList: {
+            /** Items */
+            items: components["schemas"]["ScheduleOut"][];
+            /** Max Schedules */
+            max_schedules: number;
+            /** Min Interval Minutes */
+            min_interval_minutes: number;
+        };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Busy Since */
+            busy_since: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Outcome */
+            last_outcome: string | null;
+            /** Last Reason */
+            last_reason: string | null;
+            /** Last Run At */
+            last_run_at: string | null;
+            /** Last Task Id */
+            last_task_id: string | null;
+            /** Last Task Status */
+            last_task_status: string | null;
+            /** Next Run At */
+            next_run_at: string | null;
+            recurrence: components["schemas"]["RecurrenceOut"];
+            /**
+             * Target
+             * @enum {string}
+             */
+            target: "orchestrator" | "agent";
+            /** Timezone */
+            timezone: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SchedulePreview
+         * @description The next few runs (UTC) of a rule, exactly as the worker will compute them.
+         */
+        SchedulePreview: {
+            /** Next Runs */
+            next_runs: string[];
+        };
+        /** SchedulePreviewIn */
+        SchedulePreviewIn: {
+            recurrence: components["schemas"]["RecurrenceIn"];
+            /** Timezone */
+            timezone: string;
+        };
+        /** ScheduleStarted */
+        ScheduleStarted: {
+            run: components["schemas"]["RunOut"];
+            schedule: components["schemas"]["ScheduleOut"];
+            task: components["schemas"]["TaskOut"];
+        };
+        /**
+         * ScheduleUpdate
+         * @description Only the fields sent change; ``recurrence`` is replaced as a whole.
+         */
+        ScheduleUpdate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            recurrence?: components["schemas"]["RecurrenceIn"] | null;
+            /** Target */
+            target?: ("orchestrator" | "agent") | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** SearchHitOut */
+        SearchHitOut: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Agent Name */
+            agent_name?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Message Type */
+            message_type?: string | null;
+            /** Mode */
+            mode: string;
+            /** Peer Agent Id */
+            peer_agent_id?: string | null;
+            /** Peer Agent Name */
+            peer_agent_name?: string | null;
+            /** Role */
+            role?: string | null;
+            /** Run Id */
+            run_id?: string | null;
+            /** Score */
+            score: number;
+            /** Snippet */
+            snippet: string;
+            /** Source At */
+            source_at?: string | null;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Type */
+            source_type: string;
+            /** Status */
+            status?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /** Title */
+            title: string;
+            /** Workspace Id */
+            workspace_id?: string | null;
+        };
+        /** SearchOut */
+        SearchOut: {
+            /** Hits */
+            hits: components["schemas"]["SearchHitOut"][];
+            /** Query */
+            query: string;
+        };
+        /** SearchStatus */
+        SearchStatus: {
+            /** Chunks */
+            chunks: number;
+            /** Sources */
+            sources: number;
+            /** With Vectors */
+            with_vectors: number;
+        };
         /** SessionOut */
         SessionOut: {
             /**
@@ -2233,6 +3744,46 @@ export interface components {
              * Format: uuid
              */
             id: string;
+        };
+        /**
+         * SessionSettingsOut
+         * @description How long sign-ins last. Bounds and default come from the server's settings.
+         */
+        SessionSettingsOut: {
+            /**
+             * Current Session Expires At
+             * Format: date-time
+             */
+            current_session_expires_at: string;
+            /**
+             * Default Ttl Hours
+             * @description SESSION_TTL_HOURS: used when no own choice.
+             */
+            default_ttl_hours: number;
+            /** Max Hours */
+            max_hours: number;
+            /** Min Hours */
+            min_hours: number;
+            /**
+             * Ttl Hours
+             * @description Effective lifetime of new sign-ins, in hours.
+             */
+            ttl_hours: number;
+            /**
+             * Uses Default
+             * @description True when no own choice is stored.
+             */
+            uses_default: boolean;
+        };
+        /** SessionSettingsUpdate */
+        SessionSettingsUpdate: {
+            /** Password */
+            password: string;
+            /**
+             * Ttl Hours
+             * @description Hours between min_hours and max_hours; null = back to the default.
+             */
+            ttl_hours: number | null;
         };
         /** StartedRun */
         StartedRun: {
@@ -2307,16 +3858,16 @@ export interface components {
         };
         /** SystemLimits */
         SystemLimits: {
-            /** Max Active Subagents Per Run */
-            max_active_subagents_per_run: number;
+            /** Max Active Parts Per Run */
+            max_active_parts_per_run: number;
             /** Max Steps Per Run */
             max_steps_per_run: number;
-            /** Max Subagent Depth */
-            max_subagent_depth: number;
             /** Memory Context Max Chars */
             memory_context_max_chars: number;
             /** Memory Entry Max Chars */
             memory_entry_max_chars: number;
+            /** Orchestrator Max New Agents */
+            orchestrator_max_new_agents: number;
             /** Run Timeout Seconds */
             run_timeout_seconds: number;
         };
@@ -2326,6 +3877,14 @@ export interface components {
             active_tasks: number;
             /** Engine Stopped */
             engine_stopped: boolean;
+        };
+        /**
+         * TaskContinue
+         * @description Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).
+         */
+        TaskContinue: {
+            /** Instruction */
+            instruction?: string | null;
         };
         /** TaskCreate */
         TaskCreate: {
@@ -2400,6 +3959,8 @@ export interface components {
             priority: number;
             /** Progress */
             progress: number;
+            /** Requested By Agent Id */
+            requested_by_agent_id?: string | null;
             /** Result */
             result: string | null;
             /** Retry Of Id */
@@ -2421,6 +3982,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * TaskOwnerMessage
+         * @description A message from the owner to the agent while it works (POST /tasks/{id}/message).
+         */
+        TaskOwnerMessage: {
+            /** Text */
+            text: string;
         };
         /** TaskUpdate */
         TaskUpdate: {
@@ -2493,6 +4062,11 @@ export interface components {
         ToolCategory: "read" | "write" | "sensitive";
         /** ToolOut */
         ToolOut: {
+            /**
+             * Always Allowed
+             * @default false
+             */
+            always_allowed?: boolean;
             /** Available */
             available: boolean;
             /** Category */
@@ -2527,8 +4101,18 @@ export interface components {
             /** Enabled */
             enabled?: boolean | null;
         };
+        /** Transcript */
+        Transcript: {
+            /** Text */
+            text: string;
+        };
         /** UserOut */
         UserOut: {
+            /**
+             * Address As
+             * @description How moloko addresses the owner in every answer; null = no particular form.
+             */
+            address_as: string | null;
             /** Display Name */
             display_name: string | null;
             /**
@@ -2668,6 +4252,119 @@ export interface operations {
             };
         };
     };
+    list_archived_agents_api_v1_agents_archived_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"][];
+                };
+            };
+        };
+    };
+    create_from_template_api_v1_agents_from_template_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentFromTemplate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_agents_templates_get: {
+        parameters: {
+            query?: {
+                locale?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_template_api_v1_agents_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_agent_api_v1_agents__agent_id__get: {
         parameters: {
             query?: never;
@@ -2763,6 +4460,72 @@ export interface operations {
             };
         };
     };
+    agent_budget_api_v1_agents__agent_id__budget_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBudgetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_full_access_api_v1_agents__agent_id__full_access_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentFullAccessUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     agent_memory_context_api_v1_agents__agent_id__memory_context_get: {
         parameters: {
             query?: never;
@@ -2794,6 +4557,41 @@ export interface operations {
             };
         };
     };
+    agent_messages_api_v1_agents__agent_id__messages_get: {
+        parameters: {
+            query?: {
+                direction?: "all" | "in" | "out";
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AgentMessageItem_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     pause_agent_api_v1_agents__agent_id__pause_post: {
         parameters: {
             query?: never;
@@ -2804,6 +4602,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_agent_api_v1_agents__agent_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AgentRestore"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -2893,6 +4726,73 @@ export interface operations {
             };
         };
     };
+    save_as_template_api_v1_agents__agent_id__save_template_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SaveAsTemplate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_standing_approval_api_v1_agents__agent_id__standing_approvals__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     stop_agent_api_v1_agents__agent_id__stop_post: {
         parameters: {
             query?: never;
@@ -2911,6 +4811,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_settings_api_v1_ai_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiServicesOut"];
+                };
+            };
+        };
+    };
+    put_settings_api_v1_ai_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiServicesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiServicesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    transcribe_api_v1_ai_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_transcribe_api_v1_ai_transcribe_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
                 };
             };
             /** @description Validation Error */
@@ -2997,7 +4983,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecision"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -3207,6 +5197,299 @@ export interface operations {
             };
         };
     };
+    list_passkeys_api_v1_auth_passkeys_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyListOut"];
+                };
+            };
+        };
+    };
+    login_options_api_v1_auth_passkeys_login_options_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyOptionsOut"];
+                };
+            };
+        };
+    };
+    login_verify_api_v1_auth_passkeys_login_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasskeyLoginVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    registration_options_api_v1_auth_passkeys_register_options_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyOptionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    register_api_v1_auth_passkeys_register_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasskeyRegisterVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_passkey_api_v1_auth_passkeys__passkey_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passkey_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rename_passkey_api_v1_auth_passkeys__passkey_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passkey_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasskeyRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_profile_api_v1_auth_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_session_settings_api_v1_auth_session_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSettingsOut"];
+                };
+            };
+        };
+    };
+    update_session_settings_api_v1_auth_session_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_chats_api_v1_chats_get: {
         parameters: {
             query?: {
@@ -3378,7 +5661,10 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_chats__chat_id__attachments_post"];
+                "multipart/form-data": {
+                    /** File */
+                    file: string;
+                };
             };
         };
         responses: {
@@ -3389,6 +5675,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttachmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    attachment_content_api_v1_chats__chat_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
                 };
             };
             /** @description Validation Error */
@@ -3559,6 +5877,101 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_chat_summary_api_v1_chats__chat_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    costs_api_v1_costs_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_budget_api_v1_costs_budget_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetOut"];
                 };
             };
             /** @description Validation Error */
@@ -4628,6 +7041,273 @@ export interface operations {
             };
         };
     };
+    list_schedules_api_v1_schedules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleList"];
+                };
+            };
+        };
+    };
+    create_schedule_api_v1_schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    preview_schedule_api_v1_schedules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchedulePreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_schedule_api_v1_schedules__schedule_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_schedule_api_v1_schedules__schedule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_schedule_api_v1_schedules__schedule_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    run_schedule_now_api_v1_schedules__schedule_id__run_now_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    run_search_api_v1_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                types?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    status_api_v1_search_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchStatus"];
+                };
+            };
+        };
+    };
     system_limits_api_v1_system_limits_get: {
         parameters: {
             query?: never;
@@ -4897,6 +7577,43 @@ export interface operations {
             };
         };
     };
+    continue_task_api_v1_tasks__task_id__continue_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskContinue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     task_events_api_v1_tasks__task_id__events_get: {
         parameters: {
             query?: {
@@ -4917,6 +7634,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_markdown_api_v1_tasks__task_id__export_md_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/markdown": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_pdf_api_v1_tasks__task_id__export_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    message_task_agent_api_v1_tasks__task_id__message_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskOwnerMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
                 };
             };
             /** @description Validation Error */
@@ -5198,6 +8012,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    workspace_raw_api_v1_workspaces__workspace_id__raw_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                    "image/png": unknown;
                 };
             };
             /** @description Validation Error */

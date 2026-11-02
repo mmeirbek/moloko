@@ -23,6 +23,8 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | display_name | varchar(128) null | |
 | is_active | bool default true | inactive users cannot log in; their sessions stop working |
 | last_login_at | timestamptz null | |
+| session_ttl_hours | int null | (0012) the owner's own sign-in lifetime; NULL = `SESSION_TTL_HOURS`; applied within `SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS` |
+| address_as | text null | (0013) how moloko addresses the owner in every answer (e.g. «Мейрбек Максатович»); NULL = no particular form. Stored normalised: one line, whitespace collapsed, no control/invisible characters, at most `ADDRESS_AS_MAX_CHARS` (a setting, so the column is plain text) |
 | created_at, updated_at | timestamptz | |
 
 ### `sessions`
@@ -31,7 +33,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | id | uuid PK | |
 | user_id | uuid FK → users (cascade) | indexed |
 | token_hash | varchar(64) unique | SHA-256 of the cookie token; the raw token is never stored |
-| expires_at | timestamptz | indexed; absolute expiry |
+| expires_at | timestamptz | indexed; absolute expiry (sign-in time + the user's lifetime; shortened, never extended, when the user picks a shorter one) |
 | last_seen_at | timestamptz | updated at most every `SESSION_TOUCH_INTERVAL_SECONDS` |
 | revoked_at | timestamptz null | set on logout / password reset |
 | ip_address, user_agent | varchar null | informational |
@@ -44,7 +46,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | created_at | timestamptz | |
 | actor_type | varchar(32) | `user` \| `agent` \| `system` \| `anonymous` |
 | actor_id, user_id | uuid null | **no FK** — history survives account deletion |
-| action | varchar(64) | e.g. `auth.login`, `auth.login_failed`, `auth.login_blocked`, `auth.logout`, `user.created`, `user.password_reset` |
+| action | varchar(64) | e.g. `auth.login`, `auth.login_failed`, `auth.login_blocked`, `auth.logout`, `auth.session_ttl_changed`, `auth.password_confirm_failed`, `auth.password_confirm_blocked`, `user.created`, `user.password_reset`, `user.profile_updated` (details `{via: api\|cli, changed[], <field>: {old, new}}`), `agent.restored` |
 | outcome | varchar(16) | `success` \| `failure` \| `denied` |
 | resource_type, resource_id | varchar null | |
 | ip_address | varchar null | |
@@ -117,3 +119,27 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - `mcp_servers.headers jsonb` (extra request headers, e.g. `X-MCP-Readonly`) and `auth_source` (`token` = the server's own token, `github` = the Integrations → GitHub token).
 - Tasks the Orchestrator gives to the owner's agents carry `extra.assigned = true` and `extra.root_run` (no schema change).
 
+## Tables (revisions 0009–0010 — owner requests)
+
+- **`usage_records`** — append-only ledger: `user_id, source (chat|agent|orchestrator), agent_id?, agent_name?, task_id?, run_id?, conversation_id?, model_config_id? (SET NULL), provider_kind, model, input_tokens, output_tokens, cost_usd?, created_at`; index `(user_id, created_at)`. Budget settings and sent alerts live in `system_settings` (`budget`, `budget_alerts`).
+- `attachments.kind` (`text|image|pdf`), `data bytea` (picture/PDF bytes, deferred), `pages` (PDF).
+- **`search_chunks`** (0011, pgvector) — derived, rebuilt from sources: `user_id, source_type (memory|file|attachment), source_id, agent_id?, memory_type?, project?, workspace_id?, conversation_id?, title, chunk_index, text, content_hash, model?, embedding vector?`; index `(user_id, source_type, source_id)`. Migration 0011 also creates the `vector` extension and re-indexes all tables once (Alpine → Debian image).
+
+## Tables (revision 0014b — scheduled tasks, owner request 2026-11-02)
+
+- **`schedules`** — the owner's scheduled tasks: `user_id → users (cascade), title, description, target (orchestrator|agent), agent_id? → agents (SET NULL)`; the rule in local time: `kind (once|hourly|daily|weekly|monthly), at_time "HH:MM"?, weekdays jsonb (ISO 1 = Monday…7), day_of_month?, interval_hours?, run_at? (once), timezone (IANA)`; state: `enabled, next_run_at?, busy_since? (waiting for a busy agent), last_run_at?, last_task_id? → tasks (SET NULL), last_outcome? (started|skipped|failed), last_reason?`. Indexes `(enabled, next_run_at)` (the worker's due query, `FOR UPDATE SKIP LOCKED`), `(user_id, created_at)`, `agent_id`. A started task is an ordinary top-level task with `created_by = "schedule"` and `extra.schedule_id`.
+
+## Tables (revision 0014c — own templates, per-agent budgets)
+
+- **`agent_templates`** — the owner's own templates ("Save as template"): `user_id → users (cascade), name (unique per user), description, specialization?, model_config_id? (SET NULL), system_prompt, autonomy_level, allowed_tools jsonb, permissions jsonb, limits jsonb, memory_settings jsonb, monthly_budget_usd numeric(12,2)?, source_agent_id? → agents (SET NULL), created_at, updated_at`. No memory, history or workspace.
+- `agents.monthly_budget_usd numeric(12,2)?` — the agent's own monthly limit (NULL = none).
+- `usage_records.budget_agent_id?` — whose budget a call counts against (the agent, or for a subagent the nearest non-subagent above it; NULL for chat); index `(budget_agent_id, created_at)`. Backfilled by the migration through the `parent_agent_id` chain. Sent per-agent alerts live in `system_settings` (`agent_budget_alerts:<agent id>` = `{month, limit_usd, sent[]}`).
+
+## Tables (revision 0014d — passkeys, owner request 2026-11-02)
+
+- **`webauthn_credentials`** — the owner's passkeys (sign in with Face ID / Touch ID): `user_id → users (cascade, indexed), credential_id bytea (unique; never logged), public_key bytea (COSE), sign_count bigint, transports jsonb, name (≤64), aaguid, backed_up (synced passkey), last_used_at, created_at, updated_at`. Only public data — the private key stays on the device. Challenges are not stored here: they live in Valkey for `WEBAUTHN_CHALLENGE_TTL_SECONDS`, single-use.
+
+## Tables (revision 0016a — work memory, owner request 2026-11-02)
+
+- `search_chunks` gets three more source types — `task` (finished tasks of every agent, subagents and the Orchestrator included), `agent_message` (delivered agent↔agent messages) and `chat_message` (completed user/assistant chat messages) — and the columns `peer_agent_id?` (an agent message's receiver; `agent_id` is the sender, or the agent that did the task), `run_id?`, `source_at?` (when the work happened) and `meta jsonb` (display fields: status, role, message type, task id, agent names). Their `content_hash` is a cheap version (status + last change), so a pass reads only ids and versions and loads the text of at most `WORK_INDEX_BATCH` changed ones, newest first; each takes at most `WORK_INDEX_MAX_CHUNKS` chunks. A deleted chat (cascade) leaves the index on the next pass.
+- Nothing about the work is deleted by the system: task rows, runs (with their transcripts), tool calls, agent messages, events and chats stay in PostgreSQL; archived subagents are only marked archived. Files of finished task workspaces are kept too (`WORKSPACE_TASK_TTL_DAYS=0` by default; a positive value deletes only the files, never the records).

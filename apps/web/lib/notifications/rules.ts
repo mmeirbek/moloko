@@ -1,12 +1,15 @@
 import type { EventEnvelope } from "@moloko/shared-types";
 
-export type NotificationKind = "approval" | "taskDone" | "taskFailed";
+import { approvalOp, shortText } from "./text";
+
+export type NotificationKind = "approval" | "taskDone" | "taskFailed" | "budget";
 export type NotificationPrefs = Record<NotificationKind, boolean> & { system: boolean; push: boolean };
 
 export const DEFAULT_PREFS: NotificationPrefs = {
   approval: true,
   taskDone: true,
   taskFailed: true,
+  budget: true,
   system: false,
   push: false,
 };
@@ -61,6 +64,13 @@ export interface Notice {
   url: string;
   /** i18n params */
   subject: string;
+  /** The agent's name (approvals) or id (tasks: the name is looked up when shown). */
+  agentName?: string;
+  agentId?: string;
+  /** Approvals: `notifications.ops.<key>` — what the agent asks to do, in plain words. */
+  op?: { key: string; params: Record<string, string> };
+  /** Notices with one tag replace each other (all approvals of one task). */
+  tag?: string;
 }
 
 /** Which events deserve the owner's attention. Pure: tested. */
@@ -68,20 +78,54 @@ export function noticeFor(event: EventEnvelope, now: number = Date.now()): Notic
   if (event.timestamp && now - Date.parse(event.timestamp) > MAX_AGE_MS) return null;
   const p = event.payload as Record<string, unknown>;
   if (event.type === "approval.required") {
-    const a = p.approval as { id: string; summary: string } | undefined;
+    const a = p.approval as
+      | { id: string; summary: string; tool_name?: string; args?: Record<string, unknown>; agent_name?: string | null; task_id?: string }
+      | undefined;
     if (!a) return null;
-    return { kind: "approval", key: `approval:${a.id}`, title: "approval", subject: a.summary, url: "/approvals" };
+    return {
+      kind: "approval",
+      key: `approval:${a.id}`,
+      title: "approval",
+      subject: shortText(a.summary),
+      url: "/approvals",
+      agentName: a.agent_name ?? undefined,
+      op: a.tool_name ? approvalOp(a.tool_name, a.args) : undefined,
+      tag: a.task_id ? `approval:task:${a.task_id}` : undefined,
+    };
+  }
+  if (event.type === "budget.warning" && p.scope === "agent") {
+    // One agent's own monthly budget.
+    const percent = Number(p.percent ?? 0);
+    const agentId = String(p.agent_id ?? event.agent_id ?? "");
+    return {
+      kind: "budget",
+      key: `budget:${String(p.month)}:${agentId}:${percent}`,
+      title: "budget",
+      subject: `«${String(p.agent_name ?? "")}»: ${percent}% · $${String(p.spent_usd)} / $${String(p.limit_usd)}`,
+      url: `/office/agents/${agentId}`,
+    };
+  }
+  if (event.type === "budget.warning") {
+    const percent = Number(p.percent ?? 0);
+    return {
+      kind: "budget",
+      key: `budget:${String(p.month)}:${percent}`,
+      title: "budget",
+      subject: `${percent}% · $${String(p.spent_usd)} / $${String(p.limit_usd)}`,
+      url: "/settings/costs",
+    };
   }
   if (event.type === "task.completed" || event.type === "task.failed") {
-    const task = p.task as { id: string; title: string; parent_task_id: string | null } | undefined;
+    const task = p.task as { id: string; title: string; parent_task_id: string | null; agent_id?: string | null } | undefined;
     if (!task || task.parent_task_id) return null; // subtasks are part of a bigger job
     const done = event.type === "task.completed";
     return {
       kind: done ? "taskDone" : "taskFailed",
       key: `task:${task.id}:${event.type}`,
       title: done ? "taskDone" : "taskFailed",
-      subject: task.title,
+      subject: shortText(task.title),
       url: `/tasks/${task.id}`,
+      agentId: task.agent_id ?? event.agent_id ?? undefined,
     };
   }
   return null;

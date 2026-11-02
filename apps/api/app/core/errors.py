@@ -59,10 +59,16 @@ class InvalidCredentials(AppError):
     message = "Invalid username or password."
 
 
-class Forbidden(AppError):
+class InvalidPassword(AppError):
+    """A signed-in user confirmed a sensitive change with the wrong password.
+
+    403, not 401: the session itself is fine, and the web client treats every 401 as
+    "signed out" and goes to the login page.
+    """
+
     status_code = 403
-    code = "forbidden"
-    message = "You are not allowed to do this."
+    code = "invalid_password"
+    message = "The password is incorrect."
 
 
 class CsrfFailed(AppError):

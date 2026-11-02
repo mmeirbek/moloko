@@ -63,6 +63,9 @@ class TaskType(StrEnum):
     AGENT = "agent"
     SUBTASK = "subtask"
     REVIEW = "review"
+    # One agent asked another directly (agent_ask): the receiver's task; its parent is the
+    # asker's task and the answer goes back as that tool call's result.
+    CONSULT = "consult"
     # "scheduled" is reserved by the spec for the future and deliberately not implemented.
 
 

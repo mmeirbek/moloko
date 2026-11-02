@@ -7,13 +7,16 @@ import os
 import shutil
 import stat
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import ClassVar
 
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.agents.state import TERMINAL_TASK
 from app.core.config import Settings
@@ -29,15 +32,27 @@ def workspace_dir(settings: Settings, workspace_id: uuid.UUID) -> Path:
 
 
 async def root_task(db: AsyncSession, task: Task) -> Task:
+    """The task that owns the workspace: the top of the tree, or a question one persistent
+    agent asked another (agent_ask) — the receiver answers in its own workspace."""
     current = task
     for _ in range(10):  # depth is limited (spec 7.2); guard against cycles anyway
-        if current.parent_task_id is None:
+        if current.parent_task_id is None or (current.extra or {}).get("own_workspace"):
             return current
         parent = await db.get(Task, current.parent_task_id)
         if parent is None:
             return current
         current = parent
     return current
+
+
+def workspace_owner_id(root: Task) -> uuid.UUID:
+    """The task whose workspace a root task works in: itself, or — for an attempt that
+    continues a stopped task — the first attempt (its files are part of where it stopped)."""
+    owner = (root.extra or {}).get("workspace_task_id")
+    try:
+        return uuid.UUID(str(owner)) if owner else root.id
+    except ValueError:
+        return root.id
 
 
 async def workspace_for_task(db: AsyncSession, settings: Settings, task_id: uuid.UUID) -> Workspace:
@@ -53,13 +68,14 @@ async def workspace_for_task(db: AsyncSession, settings: Settings, task_id: uuid
         if ws is not None:
             workspace_dir(settings, ws.id).mkdir(parents=True, exist_ok=True)
             return ws
+    owner_id = workspace_owner_id(root)
     ws = (
         await db.execute(
-            select(Workspace).where(Workspace.kind == "task", Workspace.task_id == root.id)
+            select(Workspace).where(Workspace.kind == "task", Workspace.task_id == owner_id)
         )
     ).scalar_one_or_none()
     if ws is None:
-        ws = Workspace(user_id=root.user_id, name=root.title[:100], kind="task", task_id=root.id)
+        ws = Workspace(user_id=root.user_id, name=root.title[:100], kind="task", task_id=owner_id)
         db.add(ws)
         await db.flush()
     workspace_dir(settings, ws.id).mkdir(parents=True, exist_ok=True)
@@ -82,11 +98,15 @@ class FileState:
     mtime_ns: int
 
 
-def snapshot(root: Path, max_files: int) -> dict[str, FileState]:
-    """Regular files under ``root`` (symlinks are not followed) — to detect changes."""
+def snapshot(root: Path, max_files: int, skip_dirs: Iterable[str] = ()) -> dict[str, FileState]:
+    """Regular files under ``root`` (symlinks are not followed) — to detect changes.
+    Folders named in ``skip_dirs`` (``node_modules``, caches…) are left out at any depth."""
+    skip = set(skip_dirs)
     found: dict[str, FileState] = {}
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
-        dirnames[:] = [d for d in dirnames if not os.path.islink(os.path.join(dirpath, d))]
+        dirnames[:] = [
+            d for d in dirnames if d not in skip and not os.path.islink(os.path.join(dirpath, d))
+        ]
         for name in filenames:
             full = os.path.join(dirpath, name)
             st = os.lstat(full)
@@ -196,6 +216,17 @@ async def clean_task_workspaces(db: AsyncSession, settings: Settings) -> int:
     if settings.workspace_task_ttl_days <= 0:
         return 0
     cutoff = datetime.now(UTC) - timedelta(days=settings.workspace_task_ttl_days)
+    # An attempt that continues the task still works in its folder (or finished recently).
+    later = aliased(Task)
+    continuing = (
+        select(later.id)
+        .where(
+            later.user_id == Workspace.user_id,
+            later.extra["workspace_task_id"].astext == cast(Workspace.task_id, String),
+            or_(later.status.not_in([s.value for s in TERMINAL_TASK]), later.updated_at >= cutoff),
+        )
+        .exists()
+    )
     rows = (
         await db.execute(
             select(Workspace, Task)
@@ -205,6 +236,7 @@ async def clean_task_workspaces(db: AsyncSession, settings: Settings) -> int:
                 Workspace.cleaned_at.is_(None),
                 Task.status.in_([s.value for s in TERMINAL_TASK]),
                 Task.updated_at < cutoff,
+                ~continuing,
             )
             .limit(100)
         )
@@ -278,7 +310,9 @@ class WorkspaceService:
             return await self.db.get(Workspace, agent.workspace_id)
         return (
             await self.db.execute(
-                select(Workspace).where(Workspace.kind == "task", Workspace.task_id == root.id)
+                select(Workspace).where(
+                    Workspace.kind == "task", Workspace.task_id == workspace_owner_id(root)
+                )
             )
         ).scalar_one_or_none()
 
@@ -329,3 +363,34 @@ class WorkspaceService:
         else:
             text, truncated = data.decode("utf-8", "replace"), size > VIEW_LIMIT
         return {"path": relative(root, path), "size": size, "content": text, "truncated": truncated}
+
+    RAW_TYPES: ClassVar[dict[str, str]] = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".pdf": "application/pdf",
+    }
+    RAW_LIMIT = 30_000_000
+
+    def raw(self, ws: Workspace, rel: str) -> tuple[str, bytes, str]:
+        """(name, bytes, media type) of a screenshot or PDF — other files are only shown as
+        text. The type comes from the name *and* the bytes (a .png must start like a PNG)."""
+        from app.tools.base import ScopeError
+        from app.workspaces.paths import resolve
+
+        root = workspace_dir(self.settings, ws.id)
+        path = resolve(root, rel, must_exist=True)
+        media = self.RAW_TYPES.get(path.suffix.lower())
+        if media is None or not path.is_file():
+            raise ScopeError("only pictures and PDFs can be downloaded")
+        if path.stat().st_size > self.RAW_LIMIT:
+            raise ScopeError("file too large")
+        data = path.read_bytes()
+        magic = {
+            "image/png": b"\x89PNG",
+            "image/jpeg": b"\xff\xd8\xff",
+            "application/pdf": b"%PDF-",
+        }
+        if not data.startswith(magic[media]):
+            raise ScopeError("the file content does not match its type")
+        return path.name, data, media

@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../.."),
   poweredByHeader: false,
   reactStrictMode: true,
+  // The subagents' office is gone (2026-11-02): old links open the run's task or the office.
+  async redirects() {
+    return [
+      {
+        source: "/office/subagents",
+        has: [{ type: "query", key: "run", value: "(?<run>[0-9a-f-]{36})" }],
+        destination: "/runs/:run",
+        permanent: false,
+      },
+      { source: "/office/subagents", destination: "/office/agents", permanent: false },
+    ];
+  },
   async rewrites() {
     if (!apiProxyTarget) return [];
     return [{ source: "/api/:path*", destination: `${apiProxyTarget}/api/:path*` }];

@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -11,6 +12,7 @@ from app.core.db import Database
 from app.providers.gateway import ModelGateway
 from app.services.auth import AuthContext, AuthService, ClientInfo
 from app.services.chat_stream import ChatStreamManager
+from app.services.stt import LocalStt
 from app.tasks.queue import TaskQueue
 
 
@@ -59,6 +61,16 @@ def get_chat_streams(request: Request) -> ChatStreamManager:
     return streams
 
 
+def get_redis(request: Request) -> Redis:
+    redis: Redis = request.app.state.redis
+    return redis
+
+
+def get_stt(request: Request) -> LocalStt:
+    stt: LocalStt = request.app.state.stt
+    return stt
+
+
 def get_queue(request: Request) -> TaskQueue:
     queue: TaskQueue = request.app.state.queue
     return queue
@@ -66,7 +78,9 @@ def get_queue(request: Request) -> TaskQueue:
 
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 QueueDep = Annotated[TaskQueue, Depends(get_queue)]
+RedisDep = Annotated[Redis, Depends(get_redis)]
 GatewayDep = Annotated[ModelGateway, Depends(get_gateway)]
+SttDep = Annotated[LocalStt, Depends(get_stt)]
 ChatStreamsDep = Annotated[ChatStreamManager, Depends(get_chat_streams)]
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 CurrentAuth = Annotated[AuthContext, Depends(require_auth)]

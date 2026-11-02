@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { ChatList } from "@/features/chat/chat-list";
+import { ChatList, NewChatButton } from "@/features/chat/chat-list";
+import { NewChat } from "@/features/chat/new-chat";
+import { GettingStarted } from "@/features/onboarding/getting-started";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("pages.chat");
@@ -9,13 +11,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ChatIndexPage() {
-  const t = await getTranslations("chat");
   return (
     <>
-      {/* Phones: the list is the page. Wider screens: the list sits in the sidebar. */}
-      <ChatList className="flex-1 md:hidden" />
-      <div className="hidden flex-1 items-center justify-center text-sm text-muted-foreground md:flex">
-        {t("pick")}
+      {/* Phones: the list is the page (first steps above it). Wider screens: the list is in the sidebar, this is a new chat. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:hidden">
+        <GettingStarted />
+        <NewChatButton />
+        <ChatList variant="page" />
+      </div>
+      <div className="hidden min-h-0 flex-1 flex-col md:flex">
+        <NewChat />
       </div>
     </>
   );
