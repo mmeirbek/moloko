@@ -39,6 +39,7 @@ if [[ "${1:-}" == "--add-missing" ]]; then
   new_default SANDBOX_MEMORY_MB 512 2048
   new_default SANDBOX_PIDS_LIMIT 128 512
   new_default SANDBOX_TIMEOUT_SECONDS 60 600
+  new_default SANDBOX_PACKAGE_HOSTS registry.npmjs.org,pypi.org,files.pythonhosted.org registry.npmjs.org,pypi.org,files.pythonhosted.org,cdn.playwright.dev,playwright.download.prss.microsoft.com
   if ! grep -q '^DOCKER_GID=' .env; then
     echo "DOCKER_GID=$(docker_gid)" >> .env
     echo "Added DOCKER_GID."

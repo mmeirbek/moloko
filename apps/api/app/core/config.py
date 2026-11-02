@@ -302,8 +302,16 @@ class Settings(BaseSettings):
     )
     # `terminal_run` with network "packages" may reach only these hosts (HTTPS, through the
     # `egress-packages` proxy, which gets the same list; public addresses only).
+    # cdn.playwright.dev / playwright.download.prss.microsoft.com: Playwright's browser builds
+    # (`npx playwright install chromium` for browser tests).
     sandbox_package_hosts: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["registry.npmjs.org", "pypi.org", "files.pythonhosted.org"]
+        default_factory=lambda: [
+            "registry.npmjs.org",
+            "pypi.org",
+            "files.pythonhosted.org",
+            "cdn.playwright.dev",
+            "playwright.download.prss.microsoft.com",
+        ]
     )
     # Runner side: how sandbox containers get the workspace (a named volume in compose,
     # or a host directory for development).
