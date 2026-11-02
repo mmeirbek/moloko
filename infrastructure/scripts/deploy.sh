@@ -52,8 +52,8 @@ if [[ "$(env_value PUSH_CONTACT)" == *"moloko.invalid"* || -z "$(env_value PUSH_
   warn "PUSH_CONTACT не задан: push-уведомления на iPhone не придут. Впишите в .env: PUSH_CONTACT=mailto:ваш@адрес"
 fi
 backup_dir="$(env_value BACKUP_DIR)"
-if [[ -z "$backup_dir" || "$backup_dir" == "./backups" ]]; then
-  warn "BACKUP_DIR указывает на этот же диск. Подключите внешний диск и пропишите его путь в .env."
+if [[ ( -z "$backup_dir" || "$backup_dir" == "./backups" ) && -z "$(env_value OFFSITE_REPOSITORY)$(env_value OFFSITE_DISK)" ]]; then
+  warn "Резервные копии лежат на этом же диске. Настройте копии вне ноутбука (docs/deployment.md, раздел 6a)."
 fi
 
 # --- 3. backup before an update -------------------------------------------------------------
@@ -123,9 +123,19 @@ else
   todo=1
   echo "• Установите Tailscale (docs/deployment.md, раздел 1), затем: sudo tailscale serve --bg $port"
 fi
+backup_root="${backup_dir:-./backups}"
+if [[ -z "$(env_value OFFSITE_REPOSITORY)" && -z "$(env_value OFFSITE_DISK)" ]]; then
+  todo=1
+  echo "• Копии лежат только на этом ноутбуке. Настройте копии вне ноутбука (облако B2/R2 или внешний диск):"
+  echo "    docs/deployment.md, раздел 6a, затем: infrastructure/scripts/offsite-init.sh"
+elif [[ ! -f "$backup_root/offsite-last.json" ]]; then
+  todo=1
+  echo "• Копии вне ноутбука указаны в .env, но ещё ни одной не сделано:"
+  echo "    infrastructure/scripts/offsite-init.sh"
+fi
 if docker volume inspect moloko_redis-data >/dev/null 2>&1; then
   echo "• Старый том Redis больше не нужен (теперь Valkey):  docker volume rm moloko_redis-data"
 fi
 [[ "$todo" == "0" ]] && echo "Всё готово. Откройте moloko на любом своём устройстве в Tailscale."
 echo
-echo "Сохраните копию .env в надёжном месте (менеджер паролей): без неё не расшифровать ключи."
+echo "Сохраните копию .env в надёжном месте (менеджер паролей): без неё не расшифровать ключи и копии вне ноутбука."

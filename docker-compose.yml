@@ -257,9 +257,15 @@ services:
     network_mode: none
 
   # Daily PostgreSQL dump + workspace archive, verified and rotated; weekly restore drill.
-  # BACKUP_DIR must be on ANOTHER disk (infrastructure/backup/README.md).
+  # BACKUP_DIR must be on ANOTHER disk (infrastructure/backup/README.md). With OFFSITE_* set
+  # it also sends every backup, encrypted by restic, off the laptop — cloud storage
+  # (Backblaze B2, Cloudflare R2, any S3), an SFTP host or an external disk — and checks and
+  # test-restores that copy (infrastructure/backup/offsite.sh, docs/deployment.md 6a).
   backup:
-    image: postgres:17.11-alpine
+    build:
+      context: infrastructure/backup  # postgres:17.11-alpine + restic (pinned by digest)
+    image: moloko-backup:local
+    hostname: moloko-backup  # stable, so restic recognises its own stale locks
     entrypoint: []
     command: ["sh", "/scripts/loop.sh"]
     restart: unless-stopped
@@ -280,11 +286,29 @@ services:
       BACKUP_HOUR: ${BACKUP_HOUR:-3}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
       BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      # Off-site copies (empty repository and disk = off). Secrets stay in .env only.
+      OFFSITE_REPOSITORY: ${OFFSITE_REPOSITORY:-}
+      OFFSITE_DISK: ${OFFSITE_DISK:-}
+      OFFSITE_PASSWORD: ${OFFSITE_PASSWORD:-}
+      OFFSITE_S3_ACCESS_KEY_ID: ${OFFSITE_S3_ACCESS_KEY_ID:-}
+      OFFSITE_S3_SECRET_ACCESS_KEY: ${OFFSITE_S3_SECRET_ACCESS_KEY:-}
+      OFFSITE_S3_REGION: ${OFFSITE_S3_REGION:-}
+      OFFSITE_KEEP_DAILY: ${OFFSITE_KEEP_DAILY:-7}
+      OFFSITE_KEEP_WEEKLY: ${OFFSITE_KEEP_WEEKLY:-4}
+      OFFSITE_KEEP_MONTHLY: ${OFFSITE_KEEP_MONTHLY:-6}
+      OFFSITE_CHECK_DAYS: ${OFFSITE_CHECK_DAYS:-7}
+      OFFSITE_CHECK_SUBSET: ${OFFSITE_CHECK_SUBSET:-10%}
+      OFFSITE_DRILL_DAYS: ${OFFSITE_DRILL_DAYS:-7}
+      OFFSITE_UPLOAD_LIMIT_KIB: ${OFFSITE_UPLOAD_LIMIT_KIB:-0}
     volumes:
       - ./infrastructure/backup:/scripts:ro
       - ${BACKUP_DIR:-./backups}:/backups
       - workspaces:/data/workspaces:ro
-    networks: [internal]
+      - backup-cache:/cache  # restic's cache + scratch space of the off-site restore drill
+      - ${OFFSITE_DISK:-offsite-disk-unused}:/offsite  # the external disk, if OFFSITE_DISK is set
+      - ${OFFSITE_SSH_DIR:-offsite-ssh-unused}:/root/.ssh:ro  # SFTP key + known_hosts, if set
+    # "internal" for PostgreSQL; "offsite" (its own network) to reach the cloud / SFTP host.
+    networks: [internal, offsite]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h postgres -U \"$${PGUSER}\""]
       interval: 60s
@@ -341,6 +365,7 @@ networks:
   browser:
     internal: true  # no route out except through the egress proxy
     name: ${BROWSER_NETWORK:-moloko_browser}
+  offsite: {}  # the backup service's way out (off-site copies); no other service is on it
 
 volumes:
   workspaces:
@@ -349,3 +374,6 @@ volumes:
   valkey-data:
   caddy-data:
   caddy-config:
+  backup-cache:
+  offsite-disk-unused:  # stand-ins when OFFSITE_DISK / OFFSITE_SSH_DIR are not set (stay empty)
+  offsite-ssh-unused:

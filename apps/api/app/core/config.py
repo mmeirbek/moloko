@@ -163,6 +163,8 @@ class Settings(BaseSettings):
     # Where the backup service writes (mounted read-only into the backend for its status).
     backup_dir: str = "/backups"
     backup_max_age_hours: int = Field(36, ge=1)
+    # Warn when the last good off-site copy (offsite-last.json in backup_dir) is older.
+    offsite_max_age_hours: int = Field(48, ge=1)
     disk_warn_free_percent: float = Field(10.0, ge=0, le=90)
 
     # --- Tools (spec 15) ----------------------------------------------------------

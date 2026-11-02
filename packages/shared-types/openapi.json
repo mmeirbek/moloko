@@ -1446,6 +1446,9 @@
             ],
             "title": "Last"
           },
+          "offsite": {
+            "$ref": "#/components/schemas/OffsiteStatus"
+          },
           "same_disk_as_data": {
             "anyOf": [
               {
@@ -1464,7 +1467,8 @@
           "age_hours",
           "drill",
           "files",
-          "same_disk_as_data"
+          "same_disk_as_data",
+          "offsite"
         ],
         "title": "BackupsStatus",
         "type": "object"
@@ -3340,6 +3344,411 @@
           }
         },
         "title": "ModelUpdate",
+        "type": "object"
+      },
+      "OffsiteAttempt": {
+        "description": "The last try to send a backup off-site (infrastructure/backup/offsite.sh).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OffsiteAttempt",
+        "type": "object"
+      },
+      "OffsiteCheck": {
+        "description": "The last `restic check --read-data-subset`.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "subset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subset"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OffsiteCheck",
+        "type": "object"
+      },
+      "OffsiteCopy": {
+        "description": "The last good off-site copy: one restic snapshot of one local backup set.",
+        "properties": {
+          "added_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added Bytes"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes"
+          },
+          "snapshot": {
+            "title": "Snapshot",
+            "type": "string"
+          },
+          "snapshots": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshots"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "source_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source At"
+          },
+          "stored_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stored Bytes"
+          }
+        },
+        "required": [
+          "at",
+          "snapshot"
+        ],
+        "title": "OffsiteCopy",
+        "type": "object"
+      },
+      "OffsiteDrill": {
+        "description": "The last restore drill from the off-site copy into a scratch database.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "same_as_local": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Same As Local"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OffsiteDrill",
+        "type": "object"
+      },
+      "OffsiteStatus": {
+        "properties": {
+          "age_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Hours"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "check_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Days"
+          },
+          "drill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteDrill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drill_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drill Days"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "keep_daily": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep Daily"
+          },
+          "keep_monthly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep Monthly"
+          },
+          "keep_weekly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep Weekly"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "last_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteAttempt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_copy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffsiteCopy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "OffsiteStatus",
         "type": "object"
       },
       "Page_ConversationOut_": {

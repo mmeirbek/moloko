@@ -108,6 +108,65 @@ class BackupFile(BaseModel):
     at: datetime
 
 
+class OffsiteAttempt(BaseModel):
+    """The last try to send a backup off-site (infrastructure/backup/offsite.sh)."""
+
+    ok: bool
+    at: datetime | None = None
+    error_code: str | None = None  # no_repository, wrong_password, disk_missing, failed, …
+    error: str | None = None  # restic's last message (English, no secrets)
+
+
+class OffsiteCopy(BaseModel):
+    """The last good off-site copy: one restic snapshot of one local backup set."""
+
+    at: datetime
+    snapshot: str
+    source: str | None = None  # the local dump it holds
+    source_at: datetime | None = None
+    bytes: int | None = None  # size of the backup set
+    added_bytes: int | None = None  # new data uploaded (after deduplication + compression)
+    stored_bytes: int | None = None  # the whole repository
+    snapshots: int | None = None  # copies kept
+
+
+class OffsiteCheck(BaseModel):
+    """The last `restic check --read-data-subset`."""
+
+    ok: bool
+    at: datetime | None = None
+    subset: str | None = None
+    error_code: str | None = None
+    detail: str | None = None
+
+
+class OffsiteDrill(BaseModel):
+    """The last restore drill from the off-site copy into a scratch database."""
+
+    ok: bool
+    at: datetime | None = None
+    snapshot: str | None = None
+    same_as_local: bool | None = None  # the restored dump equals the local one
+    error_code: str | None = None
+    detail: str | None = None
+
+
+class OffsiteStatus(BaseModel):
+    enabled: bool
+    kind: str | None = None  # s3, sftp, rest, disk, …
+    repository: str | None = None  # where to (never with credentials)
+    keep_daily: int | None = None
+    keep_weekly: int | None = None
+    keep_monthly: int | None = None
+    check_days: int | None = None
+    drill_days: int | None = None
+    last_attempt: OffsiteAttempt | None = None
+    last_copy: OffsiteCopy | None = None
+    age_hours: float | None = None  # since the last good copy
+    check: OffsiteCheck | None = None
+    drill: OffsiteDrill | None = None
+
+
 class BackupsStatus(BaseModel):
     configured: bool
     last: dict[str, Any] | None
@@ -115,6 +174,7 @@ class BackupsStatus(BaseModel):
     drill: dict[str, Any] | None
     files: list[BackupFile]
     same_disk_as_data: bool | None
+    offsite: OffsiteStatus
 
 
 class DiskStatus(BaseModel):

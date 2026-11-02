@@ -1022,8 +1022,72 @@
       "last_backup_failed": "The last backup failed. See docker compose logs backup.",
       "backup_too_old": "The last backup is older than a day and a half.",
       "restore_drill_failed": "The restore check failed — backups may be unusable.",
-      "same_disk": "Backups are on the same disk as the data. That is no protection: mount another disk (BACKUP_DIR).",
+      "same_disk": "Backups are on the same disk as the data and there is no off-site copy. That is no protection: set up copies off the laptop (below).",
       "low_disk": "Low free disk space."
+    },
+    "offsite": {
+      "title": "Copies off the laptop",
+      "description": "Every daily backup also leaves the laptop, encrypted (restic), for cloud storage or an external disk. Once a week the repository is checked and a test restore is made from it.",
+      "state": {
+        "protected": "Protected: a recent copy off the laptop",
+        "problem": "Off-site copies need attention",
+        "off": "Backups live on this laptop only"
+      },
+      "offExplain": "If the laptop breaks, is lost or its disk fails, every backup goes with it. Set up copies off the laptop — three steps:",
+      "steps": {
+        "storage": "Create a bucket in Backblaze B2 or Cloudflare R2 (or plug an external USB disk into the server).",
+        "env": "Put the storage address and keys (OFFSITE_*) into the .env file on the server.",
+        "init": "Run on the server:"
+      },
+      "docs": "Step by step, and restoring on a new computer: docs/deployment.md, section 6a.",
+      "where": "Where",
+      "kinds": {
+        "s3": "Cloud (S3: Backblaze B2, Cloudflare R2…)",
+        "b2": "Backblaze B2 cloud",
+        "sftp": "Server over SFTP",
+        "rest": "restic server (REST)",
+        "azure": "Azure cloud",
+        "gs": "Google Cloud Storage",
+        "swift": "OpenStack Swift cloud",
+        "disk": "External disk"
+      },
+      "lastCopy": "Last copy",
+      "noCopy": "none yet",
+      "snapshot": "snapshot {id}",
+      "stored": "In storage",
+      "copiesKept": "{count, plural, one {# copy} other {# copies}}",
+      "retention": "Kept",
+      "keep": "one per day — {daily}, per week — {weekly}, per month — {monthly}",
+      "check": "Repository check",
+      "checkOk": "no errors ({subset} of the data read)",
+      "drill": "Test restore",
+      "drillOk": "restore works",
+      "drillOkSame": "restore works, identical to the local copy",
+      "drillFailed": "failed",
+      "notYet": "not run yet (every {days} days)",
+      "howto": "Send a copy now and check it: infrastructure/scripts/backup-now.sh --offsite --check. List copies and restore: infrastructure/scripts/offsite-restore.sh.",
+      "warnings": {
+        "offsite_failed": "The last off-site copy failed.",
+        "offsite_no_copy_yet": "No off-site copy yet — the first one leaves after the next daily backup (or run offsite-init.sh).",
+        "offsite_too_old": "The last off-site copy is older than two days.",
+        "offsite_check_failed": "The repository check found errors — the off-site copies may be damaged.",
+        "offsite_drill_failed": "The test restore from the off-site copy failed."
+      },
+      "errors": {
+        "no_repository": "No repository there: run infrastructure/scripts/offsite-init.sh.",
+        "wrong_password": "OFFSITE_PASSWORD does not open the repository.",
+        "no_password": "OFFSITE_PASSWORD is not set: run infrastructure/scripts/offsite-init.sh.",
+        "disk_missing": "The external disk is not connected. Plug it in, then run docker compose restart backup.",
+        "bad_settings": "A mistake in the OFFSITE_* settings in .env.",
+        "locked": "Another restic run holds the repository — it is retried within the hour.",
+        "no_local_backup": "No good local backup — nothing to send.",
+        "incomplete": "Some files could not be read.",
+        "forget_failed": "The copy was sent, but old copies were not removed.",
+        "interrupted": "Interrupted (the service restarted) — it is retried within the hour.",
+        "corrupt": "The agents' files archive in the copy is damaged.",
+        "no_snapshot": "There are no copies in the repository yet.",
+        "failed": "Failed — details below and in docker compose logs backup. It is retried within the hour."
+      }
     }
   },
   "mascot": {

@@ -2157,6 +2157,7 @@ export interface components {
             last: {
                 [key: string]: unknown;
             } | null;
+            offsite: components["schemas"]["OffsiteStatus"];
             /** Same Disk As Data */
             same_disk_as_data: boolean | null;
         };
@@ -2790,6 +2791,104 @@ export interface components {
             /** Output Price Per Mtok */
             output_price_per_mtok?: number | string | null;
             params?: components["schemas"]["ModelParams"] | null;
+        };
+        /**
+         * OffsiteAttempt
+         * @description The last try to send a backup off-site (infrastructure/backup/offsite.sh).
+         */
+        OffsiteAttempt: {
+            /** At */
+            at?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Ok */
+            ok: boolean;
+        };
+        /**
+         * OffsiteCheck
+         * @description The last `restic check --read-data-subset`.
+         */
+        OffsiteCheck: {
+            /** At */
+            at?: string | null;
+            /** Detail */
+            detail?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Subset */
+            subset?: string | null;
+        };
+        /**
+         * OffsiteCopy
+         * @description The last good off-site copy: one restic snapshot of one local backup set.
+         */
+        OffsiteCopy: {
+            /** Added Bytes */
+            added_bytes?: number | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Bytes */
+            bytes?: number | null;
+            /** Snapshot */
+            snapshot: string;
+            /** Snapshots */
+            snapshots?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Source At */
+            source_at?: string | null;
+            /** Stored Bytes */
+            stored_bytes?: number | null;
+        };
+        /**
+         * OffsiteDrill
+         * @description The last restore drill from the off-site copy into a scratch database.
+         */
+        OffsiteDrill: {
+            /** At */
+            at?: string | null;
+            /** Detail */
+            detail?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Same As Local */
+            same_as_local?: boolean | null;
+            /** Snapshot */
+            snapshot?: string | null;
+        };
+        /** OffsiteStatus */
+        OffsiteStatus: {
+            /** Age Hours */
+            age_hours?: number | null;
+            check?: components["schemas"]["OffsiteCheck"] | null;
+            /** Check Days */
+            check_days?: number | null;
+            drill?: components["schemas"]["OffsiteDrill"] | null;
+            /** Drill Days */
+            drill_days?: number | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Keep Daily */
+            keep_daily?: number | null;
+            /** Keep Monthly */
+            keep_monthly?: number | null;
+            /** Keep Weekly */
+            keep_weekly?: number | null;
+            /** Kind */
+            kind?: string | null;
+            last_attempt?: components["schemas"]["OffsiteAttempt"] | null;
+            last_copy?: components["schemas"]["OffsiteCopy"] | null;
+            /** Repository */
+            repository?: string | null;
         };
         /** Page[ConversationOut] */
         Page_ConversationOut_: {
