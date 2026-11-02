@@ -71,12 +71,6 @@ class InvalidPassword(AppError):
     message = "The password is incorrect."
 
 
-class Forbidden(AppError):
-    status_code = 403
-    code = "forbidden"
-    message = "You are not allowed to do this."
-
-
 class CsrfFailed(AppError):
     status_code = 403
     code = "csrf_failed"

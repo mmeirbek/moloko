@@ -13,14 +13,6 @@ from typing import Protocol
 
 
 @dataclass(frozen=True)
-class SandboxLimits:
-    cpus: float
-    memory_mb: int
-    pids: int
-    timeout_seconds: int
-
-
-@dataclass(frozen=True)
 class SandboxResult:
     exit_code: int | None  # None: killed (timeout) or failed to start
     stdout: str

@@ -33,3 +33,6 @@ next-env.d.ts
 Thumbs.db
 .idea/
 .vscode/
+
+# Claude Code agent worktrees (local only)
+.claude/worktrees/

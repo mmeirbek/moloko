@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import (
@@ -395,10 +394,3 @@ async def prepare_start(
     )
     await set_task_status(db, task, TaskStatus.QUEUED, reason="started", run=run)
     return run
-
-
-async def count_tasks(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
-    rows = await db.execute(
-        select(Task.status, func.count()).where(Task.user_id == user_id).group_by(Task.status)
-    )
-    return {status: n for status, n in rows.all()}

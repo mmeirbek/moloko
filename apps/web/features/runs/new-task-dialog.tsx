@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -85,16 +85,5 @@ export function NewTaskDialog({ open, onClose }: { open: boolean; onClose: () =>
         </div>
       </form>
     </Dialog>
-  );
-}
-
-/** Renders `children(open)` plus the dialog; keeps the open state in one place. */
-export function NewTaskLauncher({ children }: { children: (open: () => void) => ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      {children(() => setOpen(true))}
-      <NewTaskDialog open={open} onClose={() => setOpen(false)} />
-    </>
   );
 }

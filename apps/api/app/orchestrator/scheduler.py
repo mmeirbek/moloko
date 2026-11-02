@@ -209,25 +209,6 @@ async def _report(db: AsyncSession, task: Task, agents: dict[uuid.UUID, Agent]) 
     task.extra = {**(task.extra or {}), "reported": True}
 
 
-async def root_run_for_agent(db: AsyncSession, agent_id: uuid.UUID) -> uuid.UUID | None:
-    agent = await db.get(Agent, agent_id)
-    if agent is None:
-        return None
-    if agent.agent_type == AgentType.SUBAGENT.value:
-        return agent.run_id
-    if agent.agent_type == AgentType.ORCHESTRATOR.value:
-        return agent.run_id
-    return None
-
-
-async def schedule_tree_for_agent(
-    db: AsyncSession, agent_id: uuid.UUID, queue: TaskEnqueuer | None
-) -> None:
-    root = await root_run_for_agent(db, agent_id)
-    if root is not None:
-        await schedule_tree(db, root, queue)
-
-
 async def after_task(sessionmaker: object, task_id: uuid.UUID, queue: TaskEnqueuer | None) -> None:
     """Executor hook: after any run step, advance its tree (if it belongs to one)."""
     async with sessionmaker() as db:  # type: ignore[operator]

@@ -1,6 +1,5 @@
 {
   "common": {
-    "appName": "moloko",
     "loading": "Loading…",
     "retry": "Try again",
     "errorId": "Error ID: {id}",
@@ -112,7 +111,6 @@
     "themeSystemShort": "Auto"
   },
   "pages": {
-    "comingSoon": "This section arrives in Sprint {sprint}.",
     "chat": {
       "title": "Chat",
       "description": "Conversations with AI models, with streaming and history."
@@ -137,7 +135,6 @@
       "title": "Settings",
       "description": "AI models, notifications, agents, appearance, backups and server health.",
       "auditLink": "Audit log",
-      "integrationsLink": "Tools and integrations",
       "costsLink": "Costs",
       "sectionsLabel": "Settings sections",
       "sections": {
@@ -174,7 +171,6 @@
     "version": "Version {version}",
     "account": "Account",
     "sessionExpires": "Session valid until {date}",
-    "engine": "Agents",
     "engineRunning": "Running normally · {count} active tasks",
     "engineStopped": "Stopped by the kill switch. New runs are blocked.",
     "stopAll": "Stop all agents",
@@ -535,10 +531,6 @@
       },
       "tools": "Tools",
       "noTools": "none",
-      "pause": "Pause",
-      "resume": "Resume",
-      "stop": "Stop",
-      "confirmStop": "Stop {name} and cancel its task?",
       "viewTask": "View task",
       "logs": "Logs",
       "settings": "Settings",

@@ -15,7 +15,6 @@ import type {
   TaskDetail,
   TaskOut,
   TaskPage,
-  TaskUpdate,
 } from "@moloko/shared-types";
 
 import { api } from "./client";
@@ -65,8 +64,6 @@ export const getTask = (id: string, signal?: AbortSignal) => api.request<TaskDet
 export const taskEvents = (id: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/tasks/${id}/events`, { signal });
 export const createTask = (body: TaskCreate) => api.request<TaskOut>("/tasks", { method: "POST", body });
-export const updateTask = (id: string, body: TaskUpdate) =>
-  api.request<TaskOut>(`/tasks/${id}`, { method: "PATCH", body });
 export const cancelTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/cancel`, { method: "POST" });
 export const retryTask = (id: string) => api.request<TaskOut>(`/tasks/${id}/retry`, { method: "POST" });
 
