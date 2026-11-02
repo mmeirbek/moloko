@@ -7,6 +7,7 @@ from app.models.base import Base
 from app.models.chat import Attachment, Conversation, Message
 from app.models.event import AgentEvent
 from app.models.memory import Memory, MemoryRevision
+from app.models.passkey import WebAuthnCredential
 from app.models.provider import ModelConfig, Provider
 from app.models.schedule import Schedule
 from app.models.search import SearchChunk
@@ -55,6 +56,7 @@ __all__ = [
     "ToolCall",
     "UsageRecord",
     "User",
+    "WebAuthnCredential",
     "Workspace",
     "WorkspaceFile",
 ]

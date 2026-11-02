@@ -59,6 +59,12 @@ const KNOWN = new Set([
   "schedule_in_past",
   "invalid_schedule_target",
   "too_many_schedules",
+  "passkeys_disabled",
+  "passkey_rejected",
+  "passkey_expired",
+  "passkey_invalid",
+  "passkey_limit_reached",
+  "passkey_already_registered",
   "server_error",
 ] as const);
 type KnownCode = typeof KNOWN extends Set<infer T> ? T : never;

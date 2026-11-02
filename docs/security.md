@@ -45,6 +45,15 @@ This file tracks what is implemented and what is still open.
 - MCP tools start disabled; MCP and every other tool output is fenced as untrusted data.
 - Residual risk: the runner's Docker socket is root-equivalent on the host — keep the runner minimal (it is), and never mount the socket anywhere else.
 
+**Passkeys (owner request, 2026-11-02)** — sign in with Face ID / Touch ID (WebAuthn, `py_webauthn`):
+- Off unless `WEBAUTHN_RP_ID` + `WEBAUTHN_ORIGINS` are set (the server's `*.ts.net` name; validated at startup: a domain, HTTPS origins on it). The password always keeps working.
+- Only public data is stored (`webauthn_credentials`: credential id, COSE public key, sign count, transports); the private key never leaves the device or its password manager. User handle = the user's UUID bytes (no personal data).
+- Adding one: signed-in session **and** the current password (same lockout as every password check), then a challenge bound to that session. Deleting one: the password again — a borrowed or stolen session can neither add a way in nor remove the owner's. Renaming: session only. At most `WEBAUTHN_MAX_CREDENTIALS`.
+- Challenges: 64 random bytes, single-use (Valkey `GETDEL`), TTL `WEBAUTHN_CHALLENGE_TTL_SECONDS`, stored under a hash of the challenge (never the challenge itself) with their purpose and binding: the session (adding) or a hash of an `HttpOnly; Secure; SameSite=Strict` flow cookie scoped to `/api/v1/auth/passkeys/login` (signing in). Ephemeral by design — losing one only means asking again.
+- Verification: origin in `WEBAUTHN_ORIGINS`, RP ID hash, user presence **and user verification** (biometrics/device PIN), signature, sign-count regression (cloned authenticators), user handle = the credential's owner, active account. Attestation `none` (privacy; Apple/Google passkeys don't attest).
+- Signing in creates exactly the password login's session (same cookies, per-user lifetime, CSRF rotated), audited `auth.login` with `method: passkey` + our passkey row id. Every failure for a known passkey counts toward the owner's login lockout, and a locked account cannot be entered with a passkey either; unknown passkeys are audited under one shared key that locks nobody out. One error (`401 passkey_rejected`) for every reason.
+- Never logged or audited: credential ids, public keys, challenges, client data, signatures, the flow cookie (tested).
+
 ## Security review (Sprint 8)
 
 | Area (spec 20) | Status | Evidence |

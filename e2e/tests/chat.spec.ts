@@ -57,7 +57,7 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
   await ppage.goto("/login");
   await ppage.getByLabel("Имя пользователя").fill(OWNER.username);
   await ppage.getByLabel("Пароль").fill(OWNER.password);
-  await ppage.getByRole("button", { name: "Войти" }).click();
+  await ppage.getByRole("button", { name: "Войти", exact: true }).click();
   await ppage.waitForURL(/\/chat/);
   await ppage.goto(chatUrl);
   await expect(ppage.getByText("Echo: раз два три четыре пять шесть семь восемь")).toBeVisible();

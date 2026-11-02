@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -59,6 +60,11 @@ def get_chat_streams(request: Request) -> ChatStreamManager:
     return streams
 
 
+def get_redis(request: Request) -> Redis:
+    redis: Redis = request.app.state.redis
+    return redis
+
+
 def get_queue(request: Request) -> TaskQueue:
     queue: TaskQueue = request.app.state.queue
     return queue
@@ -66,6 +72,7 @@ def get_queue(request: Request) -> TaskQueue:
 
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 QueueDep = Annotated[TaskQueue, Depends(get_queue)]
+RedisDep = Annotated[Redis, Depends(get_redis)]
 GatewayDep = Annotated[ModelGateway, Depends(get_gateway)]
 ChatStreamsDep = Annotated[ChatStreamManager, Depends(get_chat_streams)]
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]

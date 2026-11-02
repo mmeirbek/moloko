@@ -21,6 +21,14 @@ export type SessionSettingsUpdate = Schemas["SessionSettingsUpdate"];
 export type LoginRequest = Schemas["LoginRequest"];
 export type CsrfResponse = Schemas["CsrfResponse"];
 export type HealthResponse = Schemas["HealthResponse"];
+// Passkeys (sign in with Face ID / Touch ID)
+export type PasskeyOut = Schemas["PasskeyOut"];
+export type PasskeyListOut = Schemas["PasskeyListOut"];
+export type PasskeyOptionsOut = Schemas["PasskeyOptionsOut"];
+export type PasskeyRegisterVerify = Schemas["PasskeyRegisterVerify"];
+export type PasskeyRename = Schemas["PasskeyRename"];
+export type PasskeyLoginVerify = Schemas["PasskeyLoginVerify"];
+export type PasswordConfirm = Schemas["PasswordConfirm"];
 
 // Sprint 2 — chat, providers, models
 export type ConversationOut = Schemas["ConversationOut"];

@@ -35,6 +35,7 @@ const MAP = {
   GripVertical: "drag-and-drop",
   History: "clock",
   Info: "info-box",
+  KeyRound: "key",
   Languages: "languages",
   Link2: "link",
   ListChecks: "list-box",

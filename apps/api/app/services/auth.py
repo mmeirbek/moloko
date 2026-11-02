@@ -8,6 +8,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,12 +45,19 @@ LOGOUT = "auth.logout"
 CONFIRM_FAILED = "auth.password_confirm_failed"
 CONFIRM_BLOCKED = "auth.password_confirm_blocked"
 SESSION_TTL_CHANGED = "auth.session_ttl_changed"
+# Passkeys (app.services.passkeys): adding and deleting one is confirmed with the password.
+PASSKEY_ADDED = "auth.passkey_added"
+PASSKEY_DELETED = "auth.passkey_deleted"
 
-# Every wrong password — at login or when confirming a change — counts toward the same
-# per-username lockout, so no endpoint can be used to guess the password.
+# Every wrong password — at login or when confirming a change — and every failed passkey
+# sign-in counts toward the same per-username lockout, so no endpoint can be used to guess
+# the password, and a locked account cannot be entered with a passkey either.
 PASSWORD_FAILURE_ACTIONS = (LOGIN_FAILED, CONFIRM_FAILED)
-# A correct password restarts the count (these entries carry the same subject_key).
-PASSWORD_SUCCESS_ACTIONS = (LOGIN_OK, SESSION_TTL_CHANGED)
+# A correct password (or a passkey sign-in) restarts the count (these entries carry the
+# same subject_key).
+PASSWORD_SUCCESS_ACTIONS = (LOGIN_OK, SESSION_TTL_CHANGED, PASSKEY_ADDED, PASSKEY_DELETED)
+
+LoginMethod = Literal["password", "passkey"]
 
 
 class SessionTtlOutOfRange(AppError):
@@ -124,25 +132,43 @@ class AuthService:
         self.audit = AuditService(db)
 
     async def login(self, username: str, password: str, client: ClientInfo) -> LoginResult:
-        now = utcnow()
         normalized = normalize_username(username)
         subject_key = login_subject_key(normalized)
 
-        await self._enforce_lockout(subject_key, client)
+        await self.enforce_lockout(subject_key, client)
 
         user = await self.users.get_by_username(normalized)
         if user is None or not user.is_active:
             await asyncio.to_thread(burn_password_check, password)
-            await self._record_failure(subject_key, client, reason="unknown_or_inactive")
+            await self.record_failure(
+                subject_key, client, reason="unknown_or_inactive", method="password"
+            )
             raise InvalidCredentials()
 
         if not await asyncio.to_thread(verify_password, user.password_hash, password):
-            await self._record_failure(subject_key, client, reason="bad_password", user=user)
+            await self.record_failure(
+                subject_key, client, reason="bad_password", user=user, method="password"
+            )
             raise InvalidCredentials()
 
         if password_needs_rehash(user.password_hash):
             user.password_hash = await asyncio.to_thread(hash_password, password)
 
+        return await self.start_session(user, client, subject_key=subject_key, method="password")
+
+    async def start_session(
+        self,
+        user: User,
+        client: ClientInfo,
+        *,
+        subject_key: str,
+        method: LoginMethod,
+        details: dict[str, Any] | None = None,
+    ) -> LoginResult:
+        """Sign ``user`` in after a successful password or passkey check: a new server-side
+        session with the user's own lifetime, audited as ``auth.login`` (which also restarts
+        the lockout count). Commits."""
+        now = utcnow()
         ttl = timedelta(hours=effective_session_ttl_hours(self.settings, user.session_ttl_hours))
         token = generate_session_token()
         session = await self.sessions.add(
@@ -165,10 +191,13 @@ class AuthService:
             resource_type="session",
             resource_id=str(session.id),
             ip_address=client.ip_address,
-            details={"subject_key": subject_key},
+            details={"subject_key": subject_key, "method": method, **(details or {})},
         )
         await self.db.commit()
-        logger.info("login_ok", extra={"user_id": str(user.id), "session_id": str(session.id)})
+        logger.info(
+            "login_ok",
+            extra={"user_id": str(user.id), "session_id": str(session.id), "method": method},
+        )
         return LoginResult(
             user=user, session=session, token=token, ttl_seconds=int(ttl.total_seconds())
         )
@@ -233,19 +262,7 @@ class AuthService:
             )
 
         user = ctx.user
-        subject_key = login_subject_key(user.username)
-        await self._enforce_lockout(subject_key, client, action=CONFIRM_BLOCKED, actor=user)
-        if not await asyncio.to_thread(verify_password, user.password_hash, password):
-            await self._record_failure(
-                subject_key,
-                client,
-                reason="bad_password",
-                user=user,
-                action=CONFIRM_FAILED,
-                actor=user,
-                purpose="session_ttl",
-            )
-            raise InvalidPassword()
+        subject_key = await self.confirm_password(user, password, client, purpose="session_ttl")
 
         old_hours = effective_session_ttl_hours(s, user.session_ttl_hours)
         new_hours = effective_session_ttl_hours(s, ttl_hours)
@@ -294,22 +311,31 @@ class AuthService:
                 return max(1, math.ceil((session.expires_at - now).total_seconds()))
         return effective_session_ttl_hours(self.settings, None) * 3600
 
-    # --- internals -------------------------------------------------------------
+    async def confirm_password(
+        self, user: User, password: str, client: ClientInfo, *, purpose: str
+    ) -> str:
+        """Check the signed-in user's password before a sensitive change.
 
-    def _session_settings(
-        self, chosen_hours: int | None, current_expires_at: datetime
-    ) -> SessionSettings:
-        s = self.settings
-        return SessionSettings(
-            ttl_hours=effective_session_ttl_hours(s, chosen_hours),
-            default_ttl_hours=s.session_ttl_hours,
-            min_hours=s.session_ttl_min_hours,
-            max_hours=s.session_ttl_max_hours,
-            uses_default=chosen_hours is None,
-            current_session_expires_at=current_expires_at,
-        )
+        Subject to the login lockout (429), and a wrong password counts toward it (403
+        ``invalid_password``, never 401: the session itself is fine). Returns the user's
+        lockout ``subject_key`` for the success audit entry that restarts the count.
+        """
+        subject_key = login_subject_key(user.username)
+        await self.enforce_lockout(subject_key, client, action=CONFIRM_BLOCKED, actor=user)
+        if not await asyncio.to_thread(verify_password, user.password_hash, password):
+            await self.record_failure(
+                subject_key,
+                client,
+                reason="bad_password",
+                user=user,
+                action=CONFIRM_FAILED,
+                actor=user,
+                purpose=purpose,
+            )
+            raise InvalidPassword()
+        return subject_key
 
-    async def _enforce_lockout(
+    async def enforce_lockout(
         self,
         subject_key: str,
         client: ClientInfo,
@@ -339,7 +365,7 @@ class AuthService:
             await self.db.commit()
             raise TooManyAttempts(headers={"Retry-After": str(self.settings.login_lockout_seconds)})
 
-    async def _record_failure(
+    async def record_failure(
         self,
         subject_key: str,
         client: ClientInfo,
@@ -349,11 +375,15 @@ class AuthService:
         action: str = LOGIN_FAILED,
         actor: User | None = None,
         purpose: str | None = None,
+        method: LoginMethod | None = None,
     ) -> None:
-        """``user``: whose password it was (if known); ``actor``: who was signed in."""
+        """``user``: whose password (or passkey) it was, if known; ``actor``: who was
+        signed in. Commits, so the failure counts even if the request then fails."""
         details = {"subject_key": subject_key, "reason": reason}
         if purpose:
             details["purpose"] = purpose
+        if method:
+            details["method"] = method
         await self.audit.record(
             action,
             "failure",
@@ -365,3 +395,18 @@ class AuthService:
         )
         await self.db.commit()
         logger.warning(action.removeprefix("auth."), extra={"reason": reason})
+
+    # --- internals -------------------------------------------------------------
+
+    def _session_settings(
+        self, chosen_hours: int | None, current_expires_at: datetime
+    ) -> SessionSettings:
+        s = self.settings
+        return SessionSettings(
+            ttl_hours=effective_session_ttl_hours(s, chosen_hours),
+            default_ttl_hours=s.session_ttl_hours,
+            min_hours=s.session_ttl_min_hours,
+            max_hours=s.session_ttl_max_hours,
+            uses_default=chosen_hours is None,
+            current_session_expires_at=current_expires_at,
+        )

@@ -55,3 +55,29 @@ def clear_session_cookie(response: Response, settings: Settings) -> None:
         httponly=True,
         samesite="lax",
     )
+
+
+def set_passkey_flow_cookie(
+    response: Response, settings: Settings, token: str, *, max_age: int, path: str
+) -> None:
+    """Binds a passkey sign-in prompt to this browser (only a hash of it is stored next to the
+    challenge). Sent back only to the passkey sign-in endpoints, never readable by scripts."""
+    response.set_cookie(
+        settings.webauthn_cookie_name,
+        token,
+        max_age=max_age,
+        path=path,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="strict",
+    )
+
+
+def clear_passkey_flow_cookie(response: Response, settings: Settings, *, path: str) -> None:
+    response.delete_cookie(
+        settings.webauthn_cookie_name,
+        path=path,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="strict",
+    )

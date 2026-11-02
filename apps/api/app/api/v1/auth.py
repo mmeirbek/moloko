@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response, status
 
 from app.api.deps import Client, CurrentAuth, DbSession, SettingsDep
+from app.core.config import Settings
 from app.core.cookies import (
     clear_session_cookie,
     keep_csrf_cookie,
@@ -20,7 +21,7 @@ from app.schemas.auth import (
     SessionSettingsUpdate,
     UserOut,
 )
-from app.services.auth import AuthService, effective_session_ttl_hours
+from app.services.auth import AuthService, LoginResult, effective_session_ttl_hours
 from app.services.users import UserService
 
 # Endpoints here are reachable without a session (login itself, CSRF bootstrap, logout).
@@ -33,6 +34,14 @@ def _me(ctx_user: object, ctx_session: object) -> MeResponse:
     return MeResponse(
         user=UserOut.model_validate(ctx_user), session=SessionOut.model_validate(ctx_session)
     )
+
+
+def signed_in(response: Response, settings: Settings, result: LoginResult) -> MeResponse:
+    """The response to any successful sign-in (password or passkey): the session cookie,
+    and a CSRF token rotated to the new session."""
+    set_session_cookie(response, settings, result.token, max_age=result.ttl_seconds)
+    set_csrf_cookie(response, settings, result.token, max_age=result.ttl_seconds)
+    return _me(result.user, result.session)
 
 
 @public_router.get("/csrf", response_model=CsrfResponse, summary="Issue a CSRF token")
@@ -54,10 +63,7 @@ async def login(
     client: Client,
 ) -> MeResponse:
     result = await AuthService(db, settings).login(body.username, body.password, client)
-    set_session_cookie(response, settings, result.token, max_age=result.ttl_seconds)
-    # Rotate: bind CSRF to the new session.
-    set_csrf_cookie(response, settings, result.token, max_age=result.ttl_seconds)
-    return _me(result.user, result.session)
+    return signed_in(response, settings, result)
 
 
 @public_router.post(

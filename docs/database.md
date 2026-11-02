@@ -131,3 +131,6 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - `agents.monthly_budget_usd numeric(12,2)?` — the agent's own monthly limit (NULL = none).
 - `usage_records.budget_agent_id?` — whose budget a call counts against (the agent, or for a subagent the nearest non-subagent above it; NULL for chat); index `(budget_agent_id, created_at)`. Backfilled by the migration through the `parent_agent_id` chain. Sent per-agent alerts live in `system_settings` (`agent_budget_alerts:<agent id>` = `{month, limit_usd, sent[]}`).
 
+## Tables (revision 0014d — passkeys, owner request 2026-11-02)
+
+- **`webauthn_credentials`** — the owner's passkeys (sign in with Face ID / Touch ID): `user_id → users (cascade, indexed), credential_id bytea (unique; never logged), public_key bytea (COSE), sign_count bigint, transports jsonb, name (≤64), aaguid, backed_up (synced passkey), last_used_at, created_at, updated_at`. Only public data — the private key stays on the device. Challenges are not stored here: they live in Valkey for `WEBAUTHN_CHALLENGE_TTL_SECONDS`, single-use.

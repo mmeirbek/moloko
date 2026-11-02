@@ -22,6 +22,7 @@ from app.api.v1 import (
     events,
     health,
     memories,
+    passkeys,
     providers,
     push,
     runs,
@@ -35,9 +36,11 @@ from app.api.v1 import (
 public = APIRouter()
 public.include_router(health.router)
 public.include_router(auth.public_router)
+public.include_router(passkeys.public_router)
 
 protected = APIRouter(dependencies=[Depends(require_auth)])
 protected.include_router(auth.protected_router)
+protected.include_router(passkeys.protected_router)
 protected.include_router(providers.router)
 protected.include_router(chats.router)
 protected.include_router(agents.router)
@@ -71,5 +74,9 @@ PUBLIC_ROUTES = frozenset(
         ("GET", "/api/v1/auth/csrf"),
         ("POST", "/api/v1/auth/login"),
         ("POST", "/api/v1/auth/logout"),
+        # Signing in with a passkey replaces the password login, so it must work without a
+        # session; adding, renaming and deleting passkeys stays protected.
+        ("POST", "/api/v1/auth/passkeys/login/options"),
+        ("POST", "/api/v1/auth/passkeys/login/verify"),
     }
 )

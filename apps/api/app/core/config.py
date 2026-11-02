@@ -6,11 +6,18 @@ Everything configurable lives here and is read from environment variables
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from typing import Annotated, Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+# A DNS name (labels of letters, digits and hyphens) — what WebAuthn accepts as an RP ID.
+_LABEL = r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?"
+_HOSTNAME_RE = re.compile(rf"^(?=.{{1,253}}$){_LABEL}(\.{_LABEL})*$")
+_IPV4_RE = re.compile(r"^\d+(\.\d+){3}$")
 
 
 class Settings(BaseSettings):
@@ -52,6 +59,21 @@ class Settings(BaseSettings):
     # --- Login brute-force protection ----------------------------------------
     login_max_failures: int = Field(5, ge=1)
     login_lockout_seconds: int = Field(900, ge=1)
+
+    # --- Passkeys (WebAuthn: sign in with Face ID / Touch ID) --------------------
+    # The site's domain exactly as the browser shows it, without scheme or port, e.g.
+    # moloko.tail1234.ts.net, and the full origin(s), e.g. https://moloko.tail1234.ts.net
+    # (comma-separated). Both empty = passkeys off, password only — e.g. on an
+    # http://127.0.0.1 test stack: WebAuthn needs a real domain name.
+    webauthn_rp_id: str | None = None
+    webauthn_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Shown by the device when it saves the passkey ("moloko — owner").
+    webauthn_rp_name: str = Field("moloko", min_length=1, max_length=64)
+    # How long one passkey prompt stays valid. Its challenge is single-use.
+    webauthn_challenge_ttl_seconds: int = Field(300, ge=30, le=900)
+    webauthn_max_credentials: int = Field(20, ge=1, le=100)
+    # Short-lived cookie that binds a sign-in prompt to the browser that asked for it.
+    webauthn_cookie_name: str = "moloko_passkey"
 
     # --- Owner profile ----------------------------------------------------------
     # Longest form of address the owner may set (users.address_as). It goes into the
@@ -243,7 +265,9 @@ class Settings(BaseSettings):
             )
         return value
 
-    @field_validator("sandbox_url", "sandbox_runner_token", "searxng_url", mode="before")
+    @field_validator(
+        "sandbox_url", "sandbox_runner_token", "searxng_url", "webauthn_rp_id", mode="before"
+    )
     @classmethod
     def _empty_is_unset(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
@@ -253,6 +277,7 @@ class Settings(BaseSettings):
         "sandbox_allowed_commands",
         "web_fetch_allowed_ports",
         "push_allowed_hosts",
+        "webauthn_origins",
         mode="before",
     )
     @classmethod
@@ -268,6 +293,48 @@ class Settings(BaseSettings):
                 "SESSION_TTL_HOURS must lie between SESSION_TTL_MIN_HOURS and SESSION_TTL_MAX_HOURS"
             )
         return self
+
+    @model_validator(mode="after")
+    def _webauthn_consistent(self) -> Self:
+        """Passkeys need both the RP ID and its origins; each origin must be an HTTPS origin
+        (http only for localhost) on the RP ID or one of its subdomains. A wrong value
+        fails at startup instead of failing silently in the browser."""
+        if self.webauthn_rp_id is None and not self.webauthn_origins:
+            return self
+        if self.webauthn_rp_id is None or not self.webauthn_origins:
+            raise ValueError("Set both WEBAUTHN_RP_ID and WEBAUTHN_ORIGINS, or neither")
+        rp_id = self.webauthn_rp_id.strip().lower().rstrip(".")
+        if not _HOSTNAME_RE.fullmatch(rp_id) or _IPV4_RE.fullmatch(rp_id):
+            raise ValueError(
+                "WEBAUTHN_RP_ID must be a domain name without scheme or port, "
+                "e.g. moloko.tail1234.ts.net"
+            )
+        origins: list[str] = []
+        for raw in self.webauthn_origins:
+            origin = raw.strip().rstrip("/").lower()
+            parsed = urlsplit(origin)
+            host = parsed.hostname or ""
+            secure = parsed.scheme == "https" or (parsed.scheme == "http" and host == "localhost")
+            if (
+                not secure
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or parsed.username is not None
+                or not (host == rp_id or host.endswith("." + rp_id))
+            ):
+                raise ValueError(
+                    f"WEBAUTHN_ORIGINS: {raw!r} must be an https:// origin on {rp_id} "
+                    "(no path), e.g. https://" + rp_id
+                )
+            origins.append(origin)
+        self.webauthn_rp_id = rp_id
+        self.webauthn_origins = origins
+        return self
+
+    @property
+    def passkeys_enabled(self) -> bool:
+        return self.webauthn_rp_id is not None and bool(self.webauthn_origins)
 
     @property
     def is_development(self) -> bool:

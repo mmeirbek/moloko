@@ -11,6 +11,7 @@ import { BackupsSection } from "@/features/settings/backups-section";
 import { MascotSection } from "@/features/settings/mascot-section";
 import { MemorySection } from "@/features/settings/memory-section";
 import { NotificationsSection } from "@/features/settings/notifications-section";
+import { PasskeysCard } from "@/features/settings/passkeys-card";
 import { ProvidersSection } from "@/features/settings/providers-section";
 import { SessionLifetimeCard } from "@/features/settings/session-lifetime";
 import { KillSwitchCard } from "@/features/system/kill-switch";
@@ -92,6 +93,7 @@ export default async function SettingsPage() {
             <AccountCard />
           </div>
           <SessionLifetimeCard />
+          <PasskeysCard />
           <BackupsSection />
         </Section>
       </div>

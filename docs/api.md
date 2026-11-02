@@ -37,6 +37,11 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 409 | `approval_not_pending` | The approval was already answered or expired |
 | 422 | `unknown_tool` / `invalid_path` / `category_fixed` | Unknown tool name; workspace path outside the workspace; category of a built-in tool |
 | 422 | `invalid_attachment` / `attachment_too_large` | Not a UTF-8 text file / larger than `CHAT_ATTACHMENT_MAX_BYTES` |
+| 404 | `passkeys_disabled` | Passkeys are off on this server (`WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS` unset) |
+| 401 | `passkey_rejected` | Passkey sign-in failed (unknown passkey, bad signature, other site, no user verification…) — one answer for every reason |
+| 401 / 400 | `passkey_expired` | The passkey prompt's challenge is gone (too old, already used, other browser/session); 401 at sign-in, 400 when adding |
+| 400 | `passkey_invalid` | A new passkey could not be verified |
+| 409 | `passkey_limit_reached` / `passkey_already_registered` | `WEBAUTHN_MAX_CREDENTIALS` reached (`details: {max}`) / that credential is already saved |
 | 429 | `too_many_attempts` | Login (or a password confirmation) locked out; see `Retry-After` |
 | 500 | `internal_error` | Unexpected bug (details only in server log) |
 | 503 | `database_unavailable` / `redis_unavailable` | A dependency is down; see `Retry-After` |
@@ -241,3 +246,17 @@ A schedule starts a task like `POST /runs` (`target: "orchestrator"`) or `POST /
 Errors: `422 invalid_recurrence` (`details.field`: kind, time, weekdays, day_of_month, interval_hours, run_at) · `422 invalid_timezone` · `422 interval_too_short` (below `SCHEDULE_MIN_INTERVAL_MINUTES`) · `422 schedule_in_past` (a one-off whose moment passed) · `422 invalid_schedule_target` · `404` agent · `409 agent_archived` · `409 too_many_schedules` (`SCHEDULES_MAX_PER_USER`). Run-now refusals are the ones of a manual start: `409 agent_busy`, `409 engine_stopped`, `409 budget_exceeded`.
 
 Realtime (payload `{schedule_id, title, enabled, next_run_at, …}`, never `task`): `schedule.created`, `schedule.updated` (`changed[]` or `reason: "waiting_for_agent"`), `schedule.deleted`, `schedule.fired` (`trigger: schedule|run_now`, with `task_id`/`run_id`), `schedule.skipped` (`reason`: agent_busy, engine_stopped, budget_exceeded, agent_archived, start_failed).
+
+## Endpoints — passkeys (sign in with Face ID / Touch ID, owner request 2026-11-02)
+
+Off (`404 passkeys_disabled`, list says `enabled: false`) until `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGINS` are set. Options are WebAuthn's JSON form (binary values base64url); credentials are the browser's `RegistrationResponseJSON` / `AuthenticationResponseJSON` (`PublicKeyCredential.toJSON()` shape). All POST/PATCH/DELETE need CSRF.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/auth/passkeys` | session | `{"enabled", "rp_id", "max_passkeys", "passkeys": [{"id","name","created_at","last_used_at","backed_up","transports"}]}` |
+| POST | `/auth/passkeys/register/options` | session | Body `{"password"}` → `{"options": PublicKeyCredentialCreationOptionsJSON, "expires_in_seconds"}` (resident key + user verification required, attestation `none`, the owner's passkeys in `excludeCredentials`). Wrong password → `403 invalid_password` (counts toward the login lockout, audit `auth.password_confirm_failed` purpose `passkey_register`); `429`; `409 passkey_limit_reached` |
+| POST | `/auth/passkeys/register/verify` | session | Body `{"credential", "name"}` (1–64 chars, one line) → `201 PasskeyOut`. Challenge from this session only; `400 passkey_expired` / `passkey_invalid` (audit `auth.passkey_add_failed`), `409 passkey_already_registered`. Audit `auth.passkey_added` |
+| PATCH | `/auth/passkeys/{id}` | session | Body `{"name"}` → `PasskeyOut`; audit `auth.passkey_renamed` |
+| DELETE | `/auth/passkeys/{id}` | session | Body `{"password"}` → `204`; wrong password → `403 invalid_password` (counts toward the lockout); audit `auth.passkey_deleted` |
+| POST | `/auth/passkeys/login/options` | **public** | No body → `{"options": PublicKeyCredentialRequestOptionsJSON, "expires_in_seconds"}` (no `allowCredentials`: the device offers its passkeys; user verification required). Sets the `moloko_passkey` flow cookie (HttpOnly, SameSite=Strict, path `/api/v1/auth/passkeys/login`) that the challenge is bound to |
+| POST | `/auth/passkeys/login/verify` | **public** | Body `{"credential"}` → `{"user","session"}` exactly like `/auth/login` (session cookie with the owner's lifetime, CSRF rotated, audit `auth.login` `{method: "passkey", passkey_id}`). `401 passkey_rejected` / `401 passkey_expired` (audit `auth.login_failed` with `method: passkey`, counted toward the lockout), `429 too_many_attempts` |
