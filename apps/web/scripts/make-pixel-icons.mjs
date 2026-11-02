@@ -20,6 +20,7 @@ const MAP = {
   Bot: "robot",
   Brain: "lightbulb",
   Building2: "building",
+  CalendarDays: "calendar-2",
   Check: "check",
   ChevronDown: "chevron-down",
   ChevronLeft: "chevron-left",

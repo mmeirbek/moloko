@@ -115,6 +115,16 @@ class Settings(BaseSettings):
     # How often a running agent re-checks the DB for cancel/pause requests.
     worker_control_poll_seconds: float = Field(1.0, gt=0)
 
+    # --- Scheduled tasks (owner request) ---------------------------------------------
+    # How many schedules one owner may keep, and the shortest repeat ("every N hours").
+    schedules_max_per_user: int = Field(50, ge=1, le=1000)
+    schedule_min_interval_minutes: int = Field(60, ge=60, le=1440)
+    # A due schedule whose agent is busy waits this long for it (checked every tick), then
+    # that run is skipped. 0 = skip at once.
+    schedule_busy_wait_minutes: int = Field(30, ge=0, le=720)
+    # Due schedules started per worker tick (the rest follow on the next tick).
+    schedule_due_batch: int = Field(20, ge=1, le=500)
+
     # --- Realtime ------------------------------------------------------------------
     # Clients missing more events than this get a fresh snapshot instead of a replay.
     realtime_max_replay: int = Field(500, ge=10)

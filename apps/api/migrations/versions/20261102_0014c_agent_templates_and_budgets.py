@@ -7,7 +7,7 @@
   or for a subagent the nearest persistent agent / Orchestrator above it). Backfilled.
 
 Revision ID: 0014c
-Revises: 0013
+Revises: 0014b
 Create Date: 2026-11-02 18:00:00+00:00
 """
 
@@ -18,7 +18,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0014c"
-down_revision: str | Sequence[str] | None = "0013"
+down_revision: str | Sequence[str] | None = "0014b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

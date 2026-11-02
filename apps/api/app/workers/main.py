@@ -15,6 +15,7 @@ from app.workers.jobs import (
     housekeeping,
     push_notifications,
     run_task,
+    schedules,
     search_index,
     shutdown,
     startup,
@@ -38,6 +39,8 @@ class WorkerSettings:
         cron(housekeeping, minute={17}, second={0}, run_at_startup=False, unique=True),
         cron(push_notifications, second=set(range(0, 60, 5)), run_at_startup=False, unique=True),
         cron(search_index, second={7, 37}, run_at_startup=True, unique=True),
+        # At startup too: runs missed while the server was down start once (catch-up).
+        cron(schedules, second={0}, run_at_startup=True, unique=True),
     ]
     on_startup = _startup
     on_shutdown = shutdown

@@ -21,6 +21,7 @@ from app.runtimes.native import NativeRuntime
 from app.sandbox.base import Sandbox
 from app.sandbox.client import RunnerSandbox
 from app.services.approvals import expire_due
+from app.services.schedules import run_due as run_due_schedules
 from app.services.workspaces import clean_task_workspaces
 from app.tasks.queue import TaskEnqueuer, TaskQueue
 from app.workers.recovery import recover, sweep_queued
@@ -98,6 +99,13 @@ async def sweep(ctx: dict[str, Any]) -> None:
     expired = await expire_due(ctx["db"].sessionmaker, ctx["queue"])
     if expired:
         logger.info("approvals_expired", extra={"count": expired})
+
+
+async def schedules(ctx: dict[str, Any]) -> None:
+    """Every minute: start the scheduled tasks that are due (row-locked, see services/schedules)."""
+    started = await run_due_schedules(ctx["db"].sessionmaker, ctx["queue"], ctx["settings"])
+    if started:
+        logger.info("schedules_started", extra={"count": started})
 
 
 async def push_notifications(ctx: dict[str, Any]) -> None:

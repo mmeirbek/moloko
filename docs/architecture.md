@@ -150,4 +150,5 @@ Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (t
 - **Voice & search provider** (`app/services/ai_services.py`): speech-to-text and embeddings through the owner's OpenAI-type provider.
 - **Browser** (`app/sandbox/runner.py` `/v1/browse`, `app/sandbox/egress.py`, `app/tools/builtin/browser.py`) and **export** (`app/services/export.py`).
 - **Mascot** (`apps/web/features/mascot/`): one art file (`cow-art.json`) for the UI, the office (`engine/cow.ts`) and the icons.
+- **Scheduled tasks** (`app/schedules/recurrence.py` rules → next run, `app/services/schedules.py`): the worker's `schedules` cron (every minute and at start-up) locks due rows (`FOR UPDATE SKIP LOCKED`) and starts each occurrence in one transaction through `prepare_start`, like a manual start; missed runs collapse into one catch-up run.
 

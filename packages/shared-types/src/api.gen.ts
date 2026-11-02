@@ -1095,6 +1095,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scheduled tasks (oldest first) */
+        get: operations["list_schedules_api_v1_schedules_get"];
+        put?: never;
+        /** Add a scheduled task (next_run_at is computed) */
+        post: operations["create_schedule_api_v1_schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The next runs of a rule, without saving anything */
+        post: operations["preview_schedule_api_v1_schedules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Schedule */
+        get: operations["get_schedule_api_v1_schedules__schedule_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete the schedule (tasks it started stay) */
+        delete: operations["delete_schedule_api_v1_schedules__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Schedule */
+        patch: operations["update_schedule_api_v1_schedules__schedule_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/schedules/{schedule_id}/run-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the scheduled task now (the plan stays as it is) */
+        post: operations["run_schedule_now_api_v1_schedules__schedule_id__run_now_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -2735,6 +2806,51 @@ export interface components {
             /** Public Key */
             public_key: string;
         };
+        /**
+         * RecurrenceIn
+         * @description When to run, in the schedule's time zone. Which fields count depends on ``kind``:
+         *
+         *     * ``once`` — ``run_at`` (a local date-time without offset is read in the schedule's zone);
+         *     * ``hourly`` — every ``interval_hours`` (1, 2, 3, 4, 6, 8, 12) from ``time`` (default 00:00);
+         *     * ``daily`` — ``time``;
+         *     * ``weekly`` — ``weekdays`` (1 = Monday … 7 = Sunday) and ``time``;
+         *     * ``monthly`` — ``day_of_month`` (1-31; shorter months use their last day) and ``time``.
+         */
+        RecurrenceIn: {
+            /** Day Of Month */
+            day_of_month?: number | null;
+            /** Interval Hours */
+            interval_hours?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "once" | "hourly" | "daily" | "weekly" | "monthly";
+            /** Run At */
+            run_at?: string | null;
+            /** Time */
+            time?: string | null;
+            /** Weekdays */
+            weekdays?: number[];
+        };
+        /** RecurrenceOut */
+        RecurrenceOut: {
+            /** Day Of Month */
+            day_of_month: number | null;
+            /** Interval Hours */
+            interval_hours: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "once" | "hourly" | "daily" | "weekly" | "monthly";
+            /** Run At */
+            run_at: string | null;
+            /** Time */
+            time: string | null;
+            /** Weekdays */
+            weekdays: number[];
+        };
         /** RunCreate */
         RunCreate: {
             /**
@@ -2838,6 +2954,128 @@ export interface components {
              * @description The template's name; by default the agent's name.
              */
             name?: string | null;
+        };
+        /** ScheduleCreate */
+        ScheduleCreate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled?: boolean;
+            recurrence: components["schemas"]["RecurrenceIn"];
+            /**
+             * Target
+             * @default orchestrator
+             * @enum {string}
+             */
+            target?: "orchestrator" | "agent";
+            /** Timezone */
+            timezone: string;
+            /** Title */
+            title: string;
+        };
+        /** ScheduleList */
+        ScheduleList: {
+            /** Items */
+            items: components["schemas"]["ScheduleOut"][];
+            /** Max Schedules */
+            max_schedules: number;
+            /** Min Interval Minutes */
+            min_interval_minutes: number;
+        };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Busy Since */
+            busy_since: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Outcome */
+            last_outcome: string | null;
+            /** Last Reason */
+            last_reason: string | null;
+            /** Last Run At */
+            last_run_at: string | null;
+            /** Last Task Id */
+            last_task_id: string | null;
+            /** Last Task Status */
+            last_task_status: string | null;
+            /** Next Run At */
+            next_run_at: string | null;
+            recurrence: components["schemas"]["RecurrenceOut"];
+            /**
+             * Target
+             * @enum {string}
+             */
+            target: "orchestrator" | "agent";
+            /** Timezone */
+            timezone: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SchedulePreview
+         * @description The next few runs (UTC) of a rule, exactly as the worker will compute them.
+         */
+        SchedulePreview: {
+            /** Next Runs */
+            next_runs: string[];
+        };
+        /** SchedulePreviewIn */
+        SchedulePreviewIn: {
+            recurrence: components["schemas"]["RecurrenceIn"];
+            /** Timezone */
+            timezone: string;
+        };
+        /** ScheduleStarted */
+        ScheduleStarted: {
+            run: components["schemas"]["RunOut"];
+            schedule: components["schemas"]["ScheduleOut"];
+            task: components["schemas"]["TaskOut"];
+        };
+        /**
+         * ScheduleUpdate
+         * @description Only the fields sent change; ``recurrence`` is replaced as a whole.
+         */
+        ScheduleUpdate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            recurrence?: components["schemas"]["RecurrenceIn"] | null;
+            /** Target */
+            target?: ("orchestrator" | "agent") | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Title */
+            title?: string | null;
         };
         /** SearchHitOut */
         SearchHitOut: {
@@ -5810,6 +6048,220 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunTree"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_schedules_api_v1_schedules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleList"];
+                };
+            };
+        };
+    };
+    create_schedule_api_v1_schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    preview_schedule_api_v1_schedules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchedulePreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_schedule_api_v1_schedules__schedule_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_schedule_api_v1_schedules__schedule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_schedule_api_v1_schedules__schedule_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    run_schedule_now_api_v1_schedules__schedule_id__run_now_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleStarted"];
                 };
             };
             /** @description Validation Error */

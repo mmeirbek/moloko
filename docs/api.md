@@ -221,3 +221,23 @@ Sandbox runner (internal, token): `POST /v1/browse` `{workspace_id, mode: page\|
 | GET | `/costs` | `by_agent[]` now has one row per budget holder (an agent with its subagents' calls): `{…, subagents_cost_usd, monthly_budget_usd?, percent?}` (`percent` only for the current month); new top-level `agent_warn_percent` |
 
 Per-agent budgets: model calls of an agent (and of its subagents) are refused with `agent_budget_exceeded` once its month is used up (always, independent of the global "stop at the limit"); its task fails with that code and a message naming the agent and the amounts. Realtime: `budget.warning` with `{scope: "agent", agent_id, agent_name, month, percent, spent_usd, limit_usd, hard_stop: true}` at `AGENT_BUDGET_WARN_PERCENT` and at 100 % (once per month and limit; a changed limit starts over); push title "«name»: N% бюджета агента на месяц", link `/office/agents/{id}`.
+
+## Endpoints — scheduled tasks (owner request, 2026-11-02)
+
+A schedule starts a task like `POST /runs` (`target: "orchestrator"`) or `POST /agents/{id}/run` (`target: "agent"` + `agent_id` of a persistent agent). The rule is local time in `timezone` (IANA). `recurrence`: `{kind: "once", run_at}` (a date-time without offset is read in `timezone`) · `{kind: "hourly", interval_hours: 1|2|3|4|6|8|12, time?}` (the same times every day, from `time`, default 00:00) · `{kind: "daily", time}` · `{kind: "weekly", weekdays: [1…7] (1 = Monday), time}` · `{kind: "monthly", day_of_month: 1…31, time}` (shorter months: last day); `time` is `"HH:MM"`.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/schedules` | `{items: ScheduleOut[], max_schedules, min_interval_minutes}` (oldest first) |
+| POST | `/schedules` | `{title, description?, target?, agent_id?, recurrence, timezone, enabled?}` → `201 ScheduleOut` with the computed `next_run_at` |
+| POST | `/schedules/preview` | `{recurrence, timezone}` → `{next_runs: [3 × UTC]}`; nothing is saved |
+| GET | `/schedules/{id}` | `ScheduleOut` |
+| PATCH | `/schedules/{id}` | Any of the create fields; `recurrence` is replaced as a whole; switching on re-plans from now |
+| DELETE | `/schedules/{id}` | `204`; tasks it started stay |
+| POST | `/schedules/{id}/run-now` | Start now (`Idempotency-Key` supported); `next_run_at` is unchanged → `{schedule, task, run}` |
+
+`ScheduleOut`: `{id, title, description, target, agent_id, recurrence{kind, time, weekdays, day_of_month, interval_hours, run_at}, timezone, enabled, next_run_at, busy_since, last_run_at, last_task_id, last_task_status, last_outcome: started|skipped|failed|null, last_reason, created_at, updated_at}`. Tasks it starts have `created_by: "schedule"` and `extra.schedule_id`.
+
+Errors: `422 invalid_recurrence` (`details.field`: kind, time, weekdays, day_of_month, interval_hours, run_at) · `422 invalid_timezone` · `422 interval_too_short` (below `SCHEDULE_MIN_INTERVAL_MINUTES`) · `422 schedule_in_past` (a one-off whose moment passed) · `422 invalid_schedule_target` · `404` agent · `409 agent_archived` · `409 too_many_schedules` (`SCHEDULES_MAX_PER_USER`). Run-now refusals are the ones of a manual start: `409 agent_busy`, `409 engine_stopped`, `409 budget_exceeded`.
+
+Realtime (payload `{schedule_id, title, enabled, next_run_at, …}`, never `task`): `schedule.created`, `schedule.updated` (`changed[]` or `reason: "waiting_for_agent"`), `schedule.deleted`, `schedule.fired` (`trigger: schedule|run_now`, with `task_id`/`run_id`), `schedule.skipped` (`reason`: agent_busy, engine_stopped, budget_exceeded, agent_archived, start_failed).

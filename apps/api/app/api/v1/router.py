@@ -25,6 +25,7 @@ from app.api.v1 import (
     providers,
     push,
     runs,
+    schedules,
     search,
     system,
     tasks,
@@ -44,6 +45,7 @@ protected.include_router(tasks.router)
 protected.include_router(events.router)
 protected.include_router(system.router)
 protected.include_router(runs.router)
+protected.include_router(schedules.router)
 protected.include_router(memories.router)
 protected.include_router(push.router)
 protected.include_router(costs.router)

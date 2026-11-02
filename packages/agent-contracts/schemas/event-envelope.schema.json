@@ -15,7 +15,8 @@
         "agent.task_started", "agent.task_completed", "agent.task_failed",
         "task.created", "task.updated", "task.completed", "task.failed", "task.cancelled",
         "approval.required", "approval.resolved", "budget.warning",
-        "chat.message_delta", "chat.message_completed"
+        "chat.message_delta", "chat.message_completed",
+        "schedule.created", "schedule.updated", "schedule.deleted", "schedule.fired", "schedule.skipped"
       ]
     },
     "version": { "const": 1 },

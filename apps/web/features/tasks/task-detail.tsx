@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { ArrowLeft, RotateCcw, Square } from "@/components/icons";
+import { ArrowLeft, CalendarDays, RotateCcw, Square } from "@/components/icons";
 import { TaskToolActivity } from "@/features/tasks/tool-calls";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
@@ -55,6 +55,8 @@ function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, t
       return t("ev.approvalResolved", {
         status: String((p.approval as { status?: string } | undefined)?.status ?? ""),
       });
+    case "schedule.fired":
+      return p.trigger === "run_now" ? t("ev.scheduledNow") : t("ev.scheduled");
     default:
       return e.type;
   }
@@ -64,6 +66,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
   const tStatus = useTranslations("status");
+  const tSchedules = useTranslations("schedules");
   const ts = (status: string) => {
     const key = status as Parameters<typeof tStatus>[0];
     return tStatus.has(key) ? tStatus(key).toLowerCase() : status;
@@ -113,6 +116,14 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
           {run && ` · ${t("steps", { n: run.steps })}`}
           {run?.usage?.output_tokens != null && ` · ${t("tokens", { n: Number(run.usage.output_tokens) })}`}
         </p>
+        {typeof task.extra?.schedule_id === "string" && (
+          <Link
+            href={`/schedules#schedule-${task.extra.schedule_id}`}
+            className="inline-flex items-center gap-1.5 self-start text-sm underline"
+          >
+            <CalendarDays className="size-3" aria-hidden /> {tSchedules("fromSchedule")}
+          </Link>
+        )}
         {task.description && <p className="text-sm whitespace-pre-wrap">{task.description}</p>}
         <div className="flex gap-2">
           {ACTIVE.has(task.status) && (

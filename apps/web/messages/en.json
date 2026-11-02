@@ -15,6 +15,7 @@
     "agentOffice": "Agent Office",
     "agentOfficeShort": "Agents",
     "tasks": "Tasks",
+    "schedules": "Schedule",
     "integrations": "Integrations",
     "settings": "Settings",
     "search": "Search",
@@ -31,6 +32,7 @@
     "hints": {
       "chat": "Ask an AI model anything",
       "tasks": "Everything agents do and have done",
+      "schedules": "Tasks the agents do on their own, on a schedule",
       "approvals": "Agent actions waiting for your yes",
       "search": "Find things in agent memory and files",
       "agentOffice": "Your permanent agents at their desks",
@@ -106,7 +108,13 @@
     "agent_budget_exceeded": "The agent's monthly budget is used up. Raise it on the agent's page (\"Monthly budget, $\").",
     "template_name_taken": "You already have a template with this name. Choose another one.",
     "template_limit_reached": "You have reached the limit of own templates. Delete one first.",
-    "agent_not_templatable": "Only your own persistent agents can be saved as a template — not the Orchestrator or a subagent."
+    "agent_not_templatable": "Only your own persistent agents can be saved as a template — not the Orchestrator or a subagent.",
+    "invalid_recurrence": "The schedule is incomplete: check the time, the days and the date.",
+    "invalid_timezone": "Unknown time zone.",
+    "interval_too_short": "It cannot run that often.",
+    "schedule_in_past": "That moment has passed — pick one in the future.",
+    "invalid_schedule_target": "Choose the Orchestrator or one of your persistent agents.",
+    "too_many_schedules": "You have the maximum number of schedules. Delete one you no longer need."
   },
   "preferences": {
     "theme": "Theme",
@@ -135,6 +143,10 @@
     "tasks": {
       "title": "Tasks",
       "description": "Every task, its subtasks and its execution history."
+    },
+    "schedules": {
+      "title": "Schedule",
+      "description": "Tasks that start on their own: every morning, on chosen weekdays, once a month, or once at the right moment."
     },
     "integrations": {
       "title": "Integrations",
@@ -378,7 +390,9 @@
       "agentDone": "The agent finished the task",
       "agentFailed": "The agent failed",
       "approvalRequired": "Approval needed: {tool}",
-      "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}"
+      "approvalResolved": "Approval decision: {status, select, approved {approved} rejected {rejected} expired {expired} cancelled {cancelled} other {{status}}}",
+      "scheduled": "Started by its schedule",
+      "scheduledNow": "Started by hand from its schedule"
     },
     "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
     "emptyFiltered": "Nothing found. Try another filter or search.",
@@ -1158,5 +1172,128 @@
       "open": "Open the task",
       "pickHint": "Click an agent on the map to give the task to it."
     }
+  },
+  "schedules": {
+    "new": "New schedule",
+    "empty": "No schedules yet",
+    "emptyHint": "For example: every morning at 8:00 — a news summary; Mondays at 9:00 — a spending report.",
+    "limit": "At most {max} schedules.",
+    "listLabel": "Schedules",
+    "orchestrator": "Orchestrator",
+    "doneBy": "Done by: {name}",
+    "unknownAgent": "agent deleted",
+    "next": "Next run {when}",
+    "off": "Off",
+    "done": "Done",
+    "waiting": "Waiting for the agent to be free",
+    "last": "Last time {when}",
+    "lastTask": "task",
+    "skipped": "Skipped: {reason}",
+    "failed": "Did not start: {reason}",
+    "reasons": {
+      "agent_busy": "the agent was busy",
+      "engine_stopped": "the agents were stopped",
+      "budget_exceeded": "the monthly spending limit was used up",
+      "agent_archived": "the agent was deleted, the schedule is off",
+      "start_failed": "a server error",
+      "invalid_timezone": "unknown time zone, the schedule is off",
+      "other": "reason “{code}”"
+    },
+    "toggle": "Schedule “{title}” on",
+    "runNow": "Run now",
+    "started": "Started.",
+    "openTask": "Open the task",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the schedule “{title}”?",
+    "deleteHint": "Tasks it already started stay.",
+    "fromSchedule": "Started by a schedule",
+    "openSchedule": "Schedule",
+    "form": {
+      "titleNew": "New schedule",
+      "titleEdit": "Edit schedule",
+      "title": "Name",
+      "titlePlaceholder": "News summary",
+      "description": "What to do",
+      "descriptionPlaceholder": "Collect the main news of the night and summarise them briefly.",
+      "target": "Who does it",
+      "targetOrchestrator": "Orchestrator (splits the task between agents itself)",
+      "repeat": "When",
+      "kinds": {
+        "once": "Once",
+        "hourly": "Every N hours",
+        "daily": "Every day",
+        "weekly": "On weekdays",
+        "monthly": "Once a month"
+      },
+      "date": "Date",
+      "time": "Time",
+      "startingAt": "Starting at",
+      "every": "How often",
+      "hours": "{n, plural, one {every hour} other {every # hours}}",
+      "days": "Days of the week",
+      "presetWorkdays": "Weekdays",
+      "presetWeekend": "Weekend",
+      "presetAll": "Every day",
+      "dayOfMonth": "Day",
+      "shortMonthHint": "Months without that day use their last day.",
+      "zone": "Times are in the {zone} time zone.",
+      "previewLoading": "Working out the next run…",
+      "create": "Create",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "rule": {
+      "once": "Once, {when}",
+      "hourly": "{n, plural, one {Every hour} other {Every # hours}}, starting at {time}",
+      "daily": "Every day at {time}",
+      "workdays": "Every weekday at {time}",
+      "weekend": "On weekends at {time}",
+      "oneDay": "{day} at {time}",
+      "someDays": "On {days} at {time}",
+      "monthly": "Every month on day {day} at {time}"
+    },
+    "everyDay": {
+      "1": "Every Monday",
+      "2": "Every Tuesday",
+      "3": "Every Wednesday",
+      "4": "Every Thursday",
+      "5": "Every Friday",
+      "6": "Every Saturday",
+      "7": "Every Sunday"
+    },
+    "onDays": {
+      "1": "Mondays",
+      "2": "Tuesdays",
+      "3": "Wednesdays",
+      "4": "Thursdays",
+      "5": "Fridays",
+      "6": "Saturdays",
+      "7": "Sundays"
+    },
+    "dayShort": {
+      "1": "Mo",
+      "2": "Tu",
+      "3": "We",
+      "4": "Th",
+      "5": "Fr",
+      "6": "Sa",
+      "7": "Su"
+    },
+    "dayName": {
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    },
+    "when": {
+      "today": "today at {time}",
+      "tomorrow": "tomorrow at {time}",
+      "date": "{date} at {time}"
+    },
+    "preview": "{rule} · next run {when}"
   }
 }

@@ -53,6 +53,12 @@ const KNOWN = new Set([
   "audio_too_large",
   "pdf_unavailable",
   "nothing_to_export",
+  "invalid_recurrence",
+  "invalid_timezone",
+  "interval_too_short",
+  "schedule_in_past",
+  "invalid_schedule_target",
+  "too_many_schedules",
   "server_error",
 ] as const);
 type KnownCode = typeof KNOWN extends Set<infer T> ? T : never;

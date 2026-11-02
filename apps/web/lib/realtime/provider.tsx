@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 import { agentKeys, systemStateKey, taskKeys } from "@/lib/api/agents";
 import { chatKeys } from "@/lib/api/chat";
+import { scheduleKeys } from "@/lib/api/schedules";
 
 import { RealtimeClient } from "./socket";
 import { useRealtimeStore } from "./store";
@@ -56,6 +57,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       }
       if (e.type.startsWith("agent.") && e.type !== "agent.message") {
         refresh(agentKeys.all);
+      }
+      if (e.type.startsWith("schedule.")) {
+        refresh(scheduleKeys.all);
       }
       if (e.type === "chat.message_completed") {
         const conversationId = String(e.payload.conversation_id ?? "");

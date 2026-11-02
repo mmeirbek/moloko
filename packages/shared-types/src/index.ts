@@ -108,3 +108,14 @@ export type SearchHitOut = Schemas["SearchHitOut"];
 export type SearchStatus = Schemas["SearchStatus"];
 export type AiServicesOut = Schemas["AiServicesOut"];
 export type AiServicesIn = Schemas["AiServicesIn"];
+
+// Scheduled tasks (owner request)
+export type ScheduleOut = Schemas["ScheduleOut"];
+export type ScheduleList = Schemas["ScheduleList"];
+export type ScheduleCreate = Schemas["ScheduleCreate"];
+export type ScheduleUpdate = Schemas["ScheduleUpdate"];
+export type ScheduleStarted = Schemas["ScheduleStarted"];
+export type SchedulePreview = Schemas["SchedulePreview"];
+export type SchedulePreviewIn = Schemas["SchedulePreviewIn"];
+export type RecurrenceIn = Schemas["RecurrenceIn"];
+export type RecurrenceOut = Schemas["RecurrenceOut"];
