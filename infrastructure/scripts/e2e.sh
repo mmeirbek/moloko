@@ -14,12 +14,15 @@ WORK="$(mktemp -d)"
 ENV_FILE="$WORK/e2e.env"
 gen() { openssl rand -hex 32; }
 
+# The sandbox needs the Docker socket's group. Docker Desktop / colima on a Mac: the group
+# inside the VM differs from the host's — pass it, e.g. DOCKER_GID=991 infrastructure/scripts/e2e.sh
+DOCKER_GID="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock 2>/dev/null || echo 999)}"
 cat > "$ENV_FILE" <<ENV
 POSTGRES_PASSWORD=$(gen)
 SECRET_KEY=$(gen)
 APP_ENCRYPTION_KEY=$(gen)
 SANDBOX_RUNNER_TOKEN=$(gen)
-DOCKER_GID=$(stat -c %g /var/run/docker.sock 2>/dev/null || echo 999)
+DOCKER_GID=$DOCKER_GID
 HTTP_BIND=127.0.0.1
 HTTP_PORT=$PORT
 COOKIE_SECURE=false
