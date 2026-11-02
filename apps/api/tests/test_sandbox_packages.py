@@ -152,6 +152,10 @@ def test_package_downloads_get_only_the_proxy_network() -> None:
     for name in ("HTTPS_PROXY", "https_proxy", "npm_config_https_proxy", "npm_config_proxy"):
         assert f"{name}=http://egress-packages:3128" in online["Env"]
     assert "npm_config_cache=/workspace/.cache/npm" in online["Env"]
+    # /tmp is noexec: native code unpacked into ~/.cache (swc in `next build`) goes here
+    assert "XDG_CACHE_HOME=/workspace/.cache" in offline["Env"]
+    tmpfs = offline["HostConfig"]["Tmpfs"]["/tmp"]  # noqa: S108 — the container's own /tmp
+    assert "exec" not in tmpfs.split(",")  # stays Docker's default noexec
     # everything else stays as locked down as without network
     for key in ("ReadonlyRootfs", "CapDrop", "SecurityOpt", "Memory", "PidsLimit", "Mounts"):
         assert online["HostConfig"][key] == offline["HostConfig"][key]

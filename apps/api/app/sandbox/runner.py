@@ -195,6 +195,10 @@ COMMAND_ENV = (
     "PIP_DISABLE_PIP_VERSION_CHECK=1",
     "PYTHONUSERBASE=/workspace/.cache/python",
     "npm_config_cache=/workspace/.cache/npm",
+    # Tools that unpack native code into ~/.cache (swc in Next.js builds) cannot use /tmp:
+    # it is mounted noexec. The workspace is not.
+    "XDG_CACHE_HOME=/workspace/.cache",
+    "SWC_NATIVE_BINDING_CACHE=/workspace/.cache/swc",
     "npm_config_update_notifier=false",
     "npm_config_fund=false",
     "npm_config_audit=false",

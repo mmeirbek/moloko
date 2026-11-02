@@ -132,9 +132,12 @@ model → tool call → ToolRunner ─ authorize() ─┬─ DENY ────�
                                               │                      approval.required → owner decides → re-queue
                                               └─ ALLOW ─► tool.run() ─► fenced result → model
 terminal_run ─► RunnerSandbox (worker) ─HTTP+token─► sandbox runner ─docker.sock─► fresh locked-down container
+                                                                    (moloko-sandbox:local: Python, Node.js, git)
+  network "packages" (sensitive) ─► container on PACKAGES_NETWORK ─► egress-packages ─► npm / PyPI only
+github_checkout / github_commit_files ─► worker (owner's token) ─► GitHub API ⇄ workspace folder (no token in a container)
 ```
 
-`app/tools/`: `base.py` (tool contract, categories, `args_hash`), `policy.py` (`authorize`), `registry.py` (catalog), `runner.py` (`ToolRunner`: records, approvals, execution, fencing), `mcp.py`, `builtin/` (files, terminal, web, github, memory). `app/sandbox/`: `base.py` (`Sandbox` interface), `client.py` (worker side), `runner.py` + `docker_api.py` (runner service). `app/workspaces/paths.py` (safe paths), `app/services/{approvals,tools,integrations,mcp,workspaces}.py`.
+`app/tools/`: `base.py` (tool contract, categories, `args_hash`), `policy.py` (`authorize`), `registry.py` (catalog), `runner.py` (`ToolRunner`: records, approvals, execution, fencing), `mcp.py`, `builtin/` (files, terminal, web, github, memory). `app/sandbox/`: `base.py` (`Sandbox` interface), `client.py` (worker side), `runner.py` + `docker_api.py` (runner service), `egress.py` (the browser's and the package downloads' egress proxies). `app/workspaces/paths.py` (safe paths), `app/workspaces/archive.py` (safe unpacking of a repository archive), `app/services/{approvals,tools,integrations,mcp,workspaces}.py`.
 Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (tools, sandbox, GitHub, MCP, workspaces), `features/tasks/tool-calls.tsx` (actions + workspace files on the task page), `features/agents/agent-tools-field.tsx`, `features/settings/audit-log.tsx`. The realtime store keeps approvals from the snapshot and `approval.*` events.
 
 ## Stabilization (Sprint 8)
