@@ -39,7 +39,7 @@ describe("off-site copies state", () => {
     const script = repoFile("infrastructure/backup/offsite.sh");
     const written = new Set<string>();
     for (const pattern of [/echo ([a-z_]+) ;;/g, /REASON_CODE=([a-z_]+)/g, /(?:attempt|drill_fail) ([a-z_]+) "/g]) {
-      for (const match of script.matchAll(pattern)) written.add(match[1]);
+      for (const match of script.matchAll(pattern)) written.add(match[1]!);
     }
     expect(written.size).toBeGreaterThan(8);
     for (const code of written) expect(OFFSITE_ERROR_CODES).toContain(code);
