@@ -48,8 +48,9 @@ async def _agent_names(db: AsyncSession, ids: set[uuid.UUID]) -> dict[uuid.UUID,
     return {i: n for i, n in rows.all()}
 
 
-async def inputs_for(db: AsyncSession, agent: Agent) -> str:
-    messages = await inbox(db, agent)
+async def inputs_for(db: AsyncSession, agent: Agent, run_id: uuid.UUID) -> str:
+    """The results sent to the Orchestrator within this run (its parts' results)."""
+    messages = await inbox(db, agent, run_id=run_id)
     names = await _agent_names(db, {m.sender_agent_id for m in messages})
     return format_inputs(messages, names)
 
@@ -126,7 +127,7 @@ class OrchestratorRuntime(NativeRuntime):
         )
         system = with_owner_context(system, setup)
         async with ctx.sessionmaker() as db:
-            inputs = await inputs_for(db, agent)
+            inputs = await inputs_for(db, agent, ctx.run_id)
         prompt = task_prompt(task) + (f"\n\n{inputs}" if inputs else "")
         transcript = [ChatMessage(role="user", content=prompt)]
         attempts = 0
@@ -236,7 +237,7 @@ class OrchestratorRuntime(NativeRuntime):
                 for c in children
                 if c.status == TaskStatus.COMPLETED.value and c.task_type == TaskType.SUBTASK.value
             ]
-            inputs = await inputs_for(db, setup.agent)
+            inputs = await inputs_for(db, setup.agent, ctx.run_id)
         if not completed:
             raise LimitExceeded("subtasks_failed", "None of the subtasks finished successfully.")
 

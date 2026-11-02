@@ -529,7 +529,9 @@
         "agent_tell": "Messages the agent {agent}",
         "agents_list": "Looks who is in the office",
         "other": "Tool “{tool}”"
-      }
+      },
+      "plan": "Plan: {summary} — {count} parts",
+      "planDirect": "Decided to answer itself, no helpers"
     }
   },
   "agents": {

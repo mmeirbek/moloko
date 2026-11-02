@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import { Brain, Check, ChevronDown, ChevronRight, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
+import { Brain, Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { shortText } from "@/lib/notifications/text";
 import { taskToolCalls, toolingKeys } from "@/lib/api/tooling";
@@ -20,7 +20,11 @@ import { cn } from "@/lib/utils";
 type Item =
   | { kind: "thought"; id: string; step: number; text: string }
   | { kind: "tool"; id: string; step: number; call: ToolCallOut }
-  | { kind: "owner"; id: string; text: string };
+  | { kind: "owner"; id: string; text: string }
+  | { kind: "plan"; id: string; mode: string; summary: string; parts: { title: string; agent: string }[] };
+
+/** The Orchestrator's planning reply is JSON — shown as its plan instead of raw text. */
+const PLAN_JSON = /^\s*(```(json)?\s*)?\{[\s\S]*"mode"\s*:/;
 
 const RUNNING = new Set(["running", "pending"]);
 const FAILED = new Set(["failed", "denied", "rejected", "expired", "unknown"]);
@@ -156,7 +160,18 @@ function StepRow({
   );
 }
 
-export function AgentSteps({ taskId, status, events }: { taskId: string; status: string; events: EventOut[] | undefined }) {
+export function AgentSteps({
+  taskId,
+  status,
+  events,
+  result,
+}: {
+  taskId: string;
+  status: string;
+  events: EventOut[] | undefined;
+  /** The final answer is shown below on its own: not repeated as a step. */
+  result?: string | null;
+}) {
   const t = useTranslations("tasks.agentSteps");
   const tStatus = useTranslations("tools.calls.status");
   const calls = useQuery({
@@ -174,9 +189,19 @@ export function AgentSteps({ taskId, status, events }: { taskId: string; status:
     const placed = new Set<string>();
     for (const e of events ?? []) {
       const p = e.payload as Record<string, unknown>;
-      if (e.type === "agent.message" && p.kind === undefined && typeof p.step === "number") {
+      if (e.type === "agent.message" && p.kind === "plan") {
+        const parts = Array.isArray(p.subtasks) ? (p.subtasks as { title?: string; agent?: string }[]) : [];
+        out.push({
+          kind: "plan",
+          id: e.id,
+          mode: String(p.mode ?? ""),
+          summary: String(p.summary ?? ""),
+          parts: parts.map((s) => ({ title: String(s.title ?? ""), agent: String(s.agent ?? "") })),
+        });
+      } else if (e.type === "agent.message" && p.kind === undefined && typeof p.step === "number") {
         const text = String(p.text ?? "").trim();
-        if (text) out.push({ kind: "thought", id: e.id, step: p.step, text });
+        const isAnswer = Boolean(result && text === result.trim());
+        if (text && !isAnswer && !PLAN_JSON.test(text)) out.push({ kind: "thought", id: e.id, step: p.step, text });
         for (const c of byStep.get(p.step) ?? []) {
           out.push({ kind: "tool", id: c.id, step: c.step, call: c });
           placed.add(c.id);
@@ -188,7 +213,7 @@ export function AgentSteps({ taskId, status, events }: { taskId: string; status:
     // calls whose step event is not loaded yet (e.g. the history is still on its way)
     for (const c of calls.data ?? []) if (!placed.has(c.id)) out.push({ kind: "tool", id: c.id, step: c.step, call: c });
     return out;
-  }, [calls.data, events]);
+  }, [calls.data, events, result]);
 
   const busyTool = items.find((i) => i.kind === "tool" && RUNNING.has(i.call.status));
   const now = useNow(running);
@@ -228,6 +253,33 @@ export function AgentSteps({ taskId, status, events }: { taskId: string; status:
                 open={false}
                 onToggle={() => undefined}
               />
+            );
+          if (item.kind === "plan")
+            return (
+              <StepRow
+                key={item.id}
+                icon={<ListChecks className="size-3.5" />}
+                tone="text-sky"
+                title={
+                  item.mode === "direct"
+                    ? t("planDirect")
+                    : t("plan", { count: item.parts.length, summary: shortText(item.summary, 80) })
+                }
+                open={isOpen(item.id)}
+                onToggle={() => toggle(item.id)}
+                testId="step-plan"
+              >
+                {item.parts.length > 0 ? (
+                  <ul className="flex flex-col gap-0.5">
+                    {item.parts.map((part, i) => (
+                      <li key={i}>
+                        {part.title}
+                        {part.agent && <span className="text-muted-foreground"> → {part.agent}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </StepRow>
             );
           if (item.kind === "thought")
             return (

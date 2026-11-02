@@ -185,7 +185,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
       )}
 
       <TaskToolActivity taskId={task.id} status={task.status} />
-      <AgentSteps taskId={task.id} status={task.status} events={events.data} />
+      <AgentSteps taskId={task.id} status={task.status} events={events.data} result={task.result} />
 
       {detail.data && detail.data.subtasks.length > 0 && (
         <section>

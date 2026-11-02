@@ -129,6 +129,23 @@ async def test_complex_task_is_split_executed_and_merged(
     assert all(a.details["created_by"] == "orchestrator" for a in created)
 
 
+async def test_a_run_merges_only_its_own_parts(
+    app: FastAPI, owner: User, queue: RecordingQueue
+) -> None:
+    """The Orchestrator is one agent for every task: results of an earlier run never leak
+    into the next one's plan or answer."""
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)
+        await start_run(client, "First", "[[mock:plan:2]] [[mock:spread]]")
+        await drain(app, queue)
+        second = await start_run(client, "Second", "[[mock:plan:3]]")
+        await drain(app, queue)
+        t = await tree(client, second["run"]["id"])
+    assert t["task"]["status"] == "completed"
+    assert t["task"]["result"].count("(task_result)") == 3
+    assert "Helper" not in t["task"]["result"]
+
+
 async def test_the_next_plan_reuses_the_agents_it_created(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:

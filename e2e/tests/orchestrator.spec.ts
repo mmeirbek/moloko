@@ -20,7 +20,8 @@ test("orchestrator: gives the parts to agents (creating them when none fits), me
   await expect(parts).toHaveCount(3, { timeout: 30_000 });
   await expect(parts.filter({ hasText: "Researcher" })).toHaveCount(2);
   await expect(parts.filter({ hasText: "Analyst" })).toHaveCount(1);
-  await expect(page.getByText(/Final answer combining/)).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText(/^Final answer combining/)).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByTestId("step-plan")).toContainText("частей: 3"); // the plan, as a step
   // No temporary subagents: the agents it needed are ordinary agents of the office.
   const agents = await api<{ name: string; agent_type: string; archived_at: string | null }[]>(request, "GET", "/agents");
   expect(agents.some((a) => a.agent_type === "subagent")).toBe(false);

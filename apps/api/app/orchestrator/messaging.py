@@ -107,8 +107,14 @@ async def send_message(
 
 
 async def inbox(
-    db: AsyncSession, agent: Agent, *, message_type: str | None = None
+    db: AsyncSession,
+    agent: Agent,
+    *,
+    message_type: str | None = None,
+    run_id: uuid.UUID | None = None,
 ) -> list[AgentMessage]:
+    """``run_id``: only what was sent within that run (the Orchestrator is one agent for
+    every task — the results of earlier tasks must never leak into this one)."""
     # Questions and answers between agents (agent_ask) are consumed at once (read_at set):
     # they travel as a task and a tool result, never through the inbox.
     query = select(AgentMessage).where(
@@ -118,6 +124,8 @@ async def inbox(
     )
     if message_type is not None:
         query = query.where(AgentMessage.message_type == message_type)
+    if run_id is not None:
+        query = query.where(AgentMessage.run_id == run_id)
     return list((await db.execute(query.order_by(AgentMessage.created_at))).scalars())
 
 
