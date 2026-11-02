@@ -40,3 +40,7 @@ Thumbs.db
 # macOS island app (SwiftPM build output + assembled .app)
 apps/mac-island/build/
 .build/
+
+# Temporary folders of the off-site backup scripts (removed on exit)
+.offsite-test.*/
+.offsite-restore.*/

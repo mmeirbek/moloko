@@ -353,6 +353,11 @@ The owner asked: remove technical clutter; "the site looks too AI-made" → **pi
 | 2026-11-02 | Challenges live only in Valkey: used once (`GETDEL`), `WEBAUTHN_CHALLENGE_TTL_SECONDS` (300), stored under a hash. A sign-in challenge is bound to the HttpOnly SameSite=Strict `moloko_passkey` cookie (path `/api/v1/auth/passkeys/login`); an add challenge to the session. The two sign-in routes are deliberately in `PUBLIC_ROUTES`. | Replay and cross-browser use are refused; several tabs still work. |
 | 2026-11-02 | Passkey failures count toward the password lockout; a locked account cannot use a passkey; a passkey sign-in resets the count and starts the session exactly like the password login (`AuthService.start_session`). Unknown passkeys are recorded under one shared key that locks nobody out. Credential ids, keys, challenges and signatures are never logged or audited. | One lockout for every way in. |
 | 2026-11-02 | Frontend uses the plain WebAuthn API with a small helper (`lib/webauthn.ts`), not `@simplewebauthn/browser`. The username field offers the passkey in autofill (renewed 20 s before its challenge expires); the button reuses options fetched in advance so Safari sees the call inside the click. | No dependency for a few conversions; older Safari lacks the newer JSON helpers. |
+| 2026-11-02 | **Off-site backups with restic 0.19.1** inside the `backup` service (built image; restic binary pinned by image digest and SHA-256). After each local backup, one snapshot of that set (host `moloko`, tags `moloko,auto\|manual`), then `forget --prune` with keep-last 1, daily 7, weekly 4, monthly 6, grouped by host. Weekly `check --read-data-subset 10%` and a weekly restore drill into the scratch DB `moloko_offsite_check` with a `same_as_local` comparison. Targets: S3 (B2/R2), SFTP, external disk (refused if it is the laptop's own disk). Empty = off. | Owner request «Резервные копии вне ноутбука»; spec 21.3. |
+| 2026-11-02 | `loop.sh` wakes hourly: the daily backup catches up if the server was off at `BACKUP_HOUR`; the off-site upload is retried hourly; check/drill when due, failures retried after a day. | Laptop server, home internet. |
+| 2026-11-02 | The backup container joins its own network `offsite` to reach the internet; `OFFSITE_*` secrets only in `.env` → that container's env, never in status files (masked) or logs; the backend only reads the world-readable `offsite-*.json`. | Least privilege, no secrets in logs. |
+| 2026-11-02 | Settings → Backups gets a «Копии вне ноутбука» card and `offsite_*` warnings (`offsite_max_age_hours` = 48). `same_disk` is hidden while a recent good off-site copy exists. | Owner request. |
+| 2026-11-02 | `restore.sh` reads root-owned backup files through a container (no sudo), uses `WORKSPACES_VOLUME`, restores into a fresh DB and swaps it in only on success (old data kept as `<db>_before_restore`). | Bug fixes; exact restores across versions (`pg_restore --clean` left tables that are not in the dump). |
 
 ## Dependency register
 
@@ -434,6 +439,9 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | webauthn (py_webauthn, Duo Labs) | 3.0.1 | BSD-3-Clause | Passkey (WebAuthn) registration and sign-in checks | 8+ | 2026-11-02 |
 | cbor2 / pyOpenSSL / pyasn1 / pyasn1-modules (via webauthn) | 6.2.0.post1 / 26.4.0 / 0.6.5 / 0.4.2 | MIT / Apache-2.0 / BSD-2-Clause / BSD | CBOR authenticator data; attestation certificate chains and ASN.1 (unused with attestation `none`) | 8+ | 2026-11-02 |
 | pixelarticons `calendar-2`, `key` (copied paths) | commit c9ecc2d | MIT | `CalendarDays`, `KeyRound` icons | 8+ | 2026-11-02 |
+| restic (binary from the official `restic/restic` image) | 0.19.1 @sha256:136600b6…; binary sha256 amd64 `20d41426…`, arm64 `2fb45ac6…` | BSD-2-Clause | Encrypted off-site backups | 8+ | 2026-11-02 |
+| openssh-client-default (Alpine package in the backup image) | 10.3_p1-r1 | BSD (OpenSSH) | SFTP repositories | 8+ | 2026-11-02 |
+| Backblaze B2 / Cloudflare R2 (optional, the owner's own account) | — | external service | Off-site storage | 8+ | 2026-11-02 |
 | **Optional, not bundled** | | | | | |
 | SearXNG (separate service, if the owner runs it) | — | AGPL-3.0 (service, not linked) | web_search back-end | 7 | 2026-11-01 |
 | **Container images** | | | | | |
