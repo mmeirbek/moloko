@@ -113,6 +113,19 @@ describe("plain words, not code", () => {
       repo: "mmeirbek/moloko",
     });
     expect(approvalOp("weird_tool", {})).toEqual({ key: "other", params: { tool: "weird tool" } });
+    expect(approvalOp("terminal_run", { command: "npm ci", network: "packages" })).toEqual({
+      key: "terminal_run_packages",
+      params: { program: "npm" },
+    });
+    expect(approvalOp("terminal_run", { command: "$(x)", network: "packages" }).key).toBe("terminal_run_packages_plain");
+    expect(approvalOp("github_checkout", { repo: "mmeirbek/moloko", ref: "main" })).toEqual({
+      key: "github_checkout",
+      params: { repo: "mmeirbek/moloko" },
+    });
+    expect(approvalOp("github_commit_files", { repo: "mmeirbek/moloko", branch: "ui", paths: ["a", "b"] })).toEqual({
+      key: "github_commit_files",
+      params: { repo: "mmeirbek/moloko", branch: "ui" },
+    });
     expect(shortText("[[mock:sleep:1]] Отчёт ```py\nprint(1)\n```")).toBe("Отчёт");
     expect(shortText("слово ".repeat(40)).endsWith("…")).toBe(true);
   });

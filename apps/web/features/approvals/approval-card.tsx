@@ -15,7 +15,7 @@ import { approveAlways, resolveApproval } from "@/lib/api/tooling";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
-import { opParams, reasonKey } from "./approval-text";
+import { opKey, opParams, reasonKey } from "./approval-text";
 import { useStandingWhat } from "./standing-text";
 import { minutesLeft } from "./time-left";
 
@@ -59,11 +59,7 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
   const pending = approval.status === "pending";
   const left = minutesLeft(approval.expires_at, now);
   const params = opParams(approval);
-  const op = params
-    ? approval.tool_name === "fs_write" && params.mode === "append"
-      ? "fs_append"
-      : approval.tool_name
-    : null;
+  const op = params ? opKey(approval.tool_name, params) : null;
   const summary = op ? t(`ops.${op}.summary` as "ops.fs_write.summary", params!) : approval.summary;
   const consequences = op ? t(`ops.${op}.consequences` as "ops.fs_write.consequences") : approval.consequences;
   const why = reasonKey(approval);

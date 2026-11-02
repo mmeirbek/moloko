@@ -43,12 +43,17 @@ export function approvalOp(tool: string, args: Record<string, unknown> | undefin
       return { key: tool, params: { file: fileName(a.source) } };
     case "terminal_run": {
       const p = program(a.command);
-      return p ? { key: "terminal_run", params: { program: p } } : { key: "terminal_run_plain", params: {} };
+      const key = a.network === "packages" ? "terminal_run_packages" : "terminal_run";
+      return p ? { key, params: { program: p } } : { key: `${key}_plain`, params: {} };
     }
+    case "github_checkout":
+      return { key: tool, params: { repo: s("repo") } };
     case "github_create_branch":
       return { key: tool, params: { branch: s("branch", 40), repo: s("repo") } };
     case "github_write_file":
       return { key: tool, params: { file: fileName(a.path), repo: s("repo") } };
+    case "github_commit_files":
+      return { key: tool, params: { repo: s("repo"), branch: s("branch", 40) } };
     case "github_create_pull_request":
       return { key: tool, params: { repo: s("repo") } };
     case "memory_save":

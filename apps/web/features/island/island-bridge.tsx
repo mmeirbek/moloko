@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useEffectEvent, useRef } from "react";
 
 import { usePendingApprovalCount } from "@/features/approvals/approvals-badge";
-import { opParams } from "@/features/approvals/approval-text";
+import { opKey, opParams } from "@/features/approvals/approval-text";
 import { usePendingApprovals } from "@/features/approvals/approvals-view";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, taskKeys } from "@/lib/api/agents";
@@ -22,8 +22,7 @@ function useApprovalSummary() {
     (approval: ApprovalOut) => {
       const params = opParams(approval);
       if (!params) return approval.summary;
-      const op = approval.tool_name === "fs_write" && params.mode === "append" ? "fs_append" : approval.tool_name;
-      return t(`ops.${op}.summary` as "ops.fs_write.summary", params);
+      return t(`ops.${opKey(approval.tool_name, params)}.summary` as "ops.fs_write.summary", params);
     },
     [t],
   );

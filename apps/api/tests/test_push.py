@@ -317,6 +317,27 @@ def test_notifications_are_plain_words_not_code() -> None:
     assert render(done, "ru") == ("Задача выполнена", "Отчёт")
 
 
+def test_repository_and_package_actions_in_plain_words() -> None:
+    from app.push.texts import approval_text
+
+    online = {"command": "npm ci --prefix moloko", "network": "packages"}
+    assert approval_text("ru", "terminal_run", online) == "Выполнить npm и скачать пакеты"
+    assert approval_text("en", "terminal_run", online) == "Run npm with package downloads"
+    assert approval_text("ru", "terminal_run", {"command": "npm ci"}) == "Выполнить команду npm"
+    checkout = {"repo": "mmeirbek/moloko", "ref": "main"}
+    assert (
+        approval_text("ru", "github_checkout", checkout)
+        == "Скачать mmeirbek/moloko в рабочую папку"
+    )
+    commit = {"repo": "mmeirbek/moloko", "branch": "feature/ui", "paths": ["a/b.tsx"] * 40}
+    assert approval_text("ru", "github_commit_files", commit) == (
+        "Сохранить файлы в GitHub (mmeirbek/moloko, feature/ui)"
+    )
+    assert approval_text("en", "github_commit_files", commit) == (
+        "Commit files to GitHub (mmeirbek/moloko, feature/ui)"
+    )
+
+
 def test_the_push_contact_is_never_a_placeholder_apple_refuses() -> None:
     from app.push.webpush import push_subject
 

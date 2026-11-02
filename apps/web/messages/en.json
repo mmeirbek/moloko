@@ -927,6 +927,22 @@
       "agent_tell": {
         "summary": "Message agent {agent}: “{message}”",
         "consequences": "Agent {agent} receives the message (and files, if any) and reads it on its next run."
+      },
+      "terminal_run_packages": {
+        "summary": "Run with package downloads: {command}",
+        "consequences": "The command may download packages from the npm and PyPI registries only (the rest of the internet stays closed) and run their install scripts in the sandbox; it may create, change or delete files in the task folder."
+      },
+      "github_checkout": {
+        "summary": "Download {repo} ({ref, select, default {default branch} other {{ref}}}) into the folder {folder}/",
+        "consequences": "The repository's files are written into this new folder of the task. Nothing changes on GitHub."
+      },
+      "github_checkout_overwrite": {
+        "summary": "Download {repo} ({ref, select, default {default branch} other {{ref}}}) into {folder}/, replacing files",
+        "consequences": "Files in this folder with the same path are replaced by the repository's; their current content is lost. Other files stay. Nothing changes on GitHub."
+      },
+      "github_commit_files": {
+        "summary": "Commit to {repo}@{branch} (files: {count}): {message}",
+        "consequences": "One commit with these files is pushed to this branch (it is created if it does not exist) and is visible to everyone with access."
       }
     },
     "reasons": {
@@ -953,7 +969,10 @@
         "agent_ask": "ask the agent {scope}",
         "agent_tell": "message the agent {scope}",
         "other": "use “{tool}”",
-        "otherIn": "use “{tool}” for {scope}"
+        "otherIn": "use “{tool}” for {scope}",
+        "terminal_run_packages": "run {scope} with package downloads",
+        "github_checkout": "download {scope} into its folder",
+        "github_commit_files": "commit files to {scope}"
       }
     }
   },
@@ -1021,7 +1040,9 @@
       "agent_ask": "Ask a colleague",
       "agent_tell": "Message a colleague",
       "work_search": "Search the work history",
-      "work_read": "Open a history record"
+      "work_read": "Open a history record",
+      "github_checkout": "Download a repository",
+      "github_commit_files": "Commit several files"
     },
     "hints": {
       "fs_list": "Sees which files are in the task's work folder.",
@@ -1029,7 +1050,7 @@
       "fs_write": "Creates or changes a text file in the work folder.",
       "fs_move": "Moves or renames a file in the work folder.",
       "fs_delete": "Deletes a file or folder — only with your approval.",
-      "terminal_run": "Runs one command (e.g. python) in a locked sandbox without internet.",
+      "terminal_run": "Runs one command (python, node, npm, git…) in a locked sandbox without internet; package downloads (npm, PyPI) only with your approval.",
       "web_fetch": "Opens a public web page and reads its text.",
       "web_search": "Searches the web through your SearXNG.",
       "github_list_repos": "Sees the repositories the token can access.",
@@ -1048,18 +1069,20 @@
       "agent_ask": "Asks another agent a question or hands it part of the work, and waits for the answer.",
       "agent_tell": "Leaves another agent a note (and files); it reads it at the start of its next task.",
       "work_search": "Searches finished tasks of all agents, their messages and your chats — to check what has been done.",
-      "work_read": "Reads one task in full (request, result, subtasks, actions, files), a message or a chat."
+      "work_read": "Reads one task in full (request, result, subtasks, actions, files), a message or a chat.",
+      "github_checkout": "Downloads a whole repository into the work folder in one step.",
+      "github_commit_files": "Commits many files to a branch as one commit — always with your approval."
     }
   },
   "integrations": {
     "github": {
-      "description": "Agents read repositories, issues and history, create branches and commits. Committing to the default branch and pull requests need your approval.",
+      "description": "Agents read repositories, issues and history, download a repository into their folder, create branches and commits. Commits of several files, commits to the default branch and pull requests need your approval.",
       "error": "Connection error: {error}",
       "connected": "Connected as {login} (token {hint}).",
       "notConnected": "Not connected.",
       "newToken": "New token (to replace it)",
       "token": "Access token (fine-grained)",
-      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need. Stored encrypted, never sent back to the browser.",
+      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need, with Contents and Pull requests: Read and write (with read-only access agents can read but not commit). Stored encrypted, never sent back to the browser.",
       "repos": "Allowed repositories",
       "reposHint": "One owner/repo per line. Empty = everything the token can access.",
       "save": "Save",
@@ -1069,7 +1092,7 @@
     },
     "sandbox": {
       "title": "Sandbox and web",
-      "description": "Agent commands run in a separate container: no network, no root, limited, only the task's folder visible.",
+      "description": "Agent commands run in a separate container: no root, limited, only the task's folder visible. No network, except package downloads from npm and PyPI that you approve.",
       "notConfigured": "The sandbox is not configured: no terminal.",
       "ok": "The sandbox is running.",
       "down": "The sandbox does not answer.",
@@ -1219,7 +1242,11 @@
       "browser_screenshot": "Open the page {host}",
       "agent_ask": "Ask the agent {agent}",
       "agent_tell": "Message the agent {agent}",
-      "other": "Action: {tool}"
+      "other": "Action: {tool}",
+      "terminal_run_packages": "Run {program} with package downloads",
+      "terminal_run_packages_plain": "Run a command with package downloads",
+      "github_checkout": "Download {repo} into the work folder",
+      "github_commit_files": "Commit files to GitHub ({repo}, {branch})"
     }
   },
   "backups": {
