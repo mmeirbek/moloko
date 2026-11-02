@@ -1,0 +1,45 @@
+[project]
+name = "moloko-stt"
+version = "0.1.0"
+description = "moloko speech-to-text service (faster-whisper on CPU, OpenAI-compatible API)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "av==19.0.2",
+    "fastapi==0.162.0",
+    "faster-whisper==1.2.1",
+    "huggingface-hub>=0.36",
+    "python-multipart==0.0.33",
+    "uvicorn==0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "BLE", "RUF", "SIM"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["faster_whisper", "faster_whisper.*", "huggingface_hub", "huggingface_hub.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

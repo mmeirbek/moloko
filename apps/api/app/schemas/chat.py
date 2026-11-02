@@ -39,7 +39,7 @@ class AttachmentOut(BaseModel):
     filename: str
     content_type: str
     size: int
-    kind: str = "text"  # text | image | pdf
+    kind: str = "text"  # text | image | pdf | file (any other type: stored, described)
     pages: int | None = None
     created_at: datetime
 
@@ -72,8 +72,9 @@ class MessageCreate(BaseModel):
 
     content: str = Field(min_length=1, max_length=32_000)
     model_config_id: uuid.UUID | None = None
-    # Uploaded first via POST /chats/{id}/attachments; at most CHAT_ATTACHMENTS_PER_MESSAGE.
-    attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
+    # Uploaded first via POST /chats/{id}/attachments. Any number (CHAT_ATTACHMENTS_PER_MESSAGE
+    # may set a limit; 0 = none).
+    attachment_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
 class CancelResult(BaseModel):

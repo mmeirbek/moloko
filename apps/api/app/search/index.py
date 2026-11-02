@@ -13,7 +13,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
@@ -91,24 +91,21 @@ async def sources_for(db: AsyncSession, settings: Settings, user_id: uuid.UUID) 
                 project=m.project,
             )
         )
+    # Only the start of a big file is indexed (MAX_CHUNKS_PER_SOURCE chunks anyway).
+    head = func.left(Attachment.text, MAX_CHUNKS_PER_SOURCE * settings.search_chunk_chars)
     attachments = await db.execute(
-        select(Attachment).where(
+        select(
+            Attachment.id, Attachment.filename, head, Attachment.sha256, Attachment.conversation_id
+        ).where(
             Attachment.user_id == user_id,
             Attachment.message_id.is_not(None),
             Attachment.kind.in_(("text", "pdf")),
         )
     )
-    for a in attachments.scalars():
-        if a.text.strip():
+    for a_id, filename, body, sha, conversation_id in attachments:
+        if body and body.strip():
             out.append(
-                Source(
-                    "attachment",
-                    a.id,
-                    a.filename,
-                    a.text,
-                    a.sha256,
-                    conversation_id=a.conversation_id,
-                )
+                Source("attachment", a_id, filename, body, sha, conversation_id=conversation_id)
             )
     from app.models.tooling import Workspace
 

@@ -98,16 +98,34 @@ class Settings(BaseSettings):
     chat_context_max_messages: int = Field(40, ge=1, le=500)
     chat_max_output_tokens: int = Field(4096, ge=1)
     chat_title_max_chars: int = Field(60, ge=10, le=200)
-    chat_attachment_max_bytes: int = Field(200_000, ge=1000, le=5_000_000)
-    chat_attachments_per_message: int = Field(5, ge=1, le=20)
-    # Pictures (for vision models) and PDFs (their text is extracted on the server).
-    chat_image_max_bytes: int = Field(5_000_000, ge=10_000, le=20_000_000)
-    chat_pdf_max_bytes: int = Field(10_000_000, ge=10_000, le=50_000_000)
-    chat_pdf_max_pages: int = Field(100, ge=1, le=1000)
-    chat_pdf_max_chars: int = Field(200_000, ge=1000, le=2_000_000)
-    chat_pdf_timeout_seconds: float = Field(20.0, gt=0, le=120)
-    # How many of the most recent pictures in a chat are sent to the model again.
+    # Attached files: any type, any size, any number (0 = no limit). The original is
+    # streamed to FILE_STORAGE_ROOT; what the model sees is cut to a budget (below).
+    chat_attachment_max_bytes: int = Field(0, ge=0)
+    chat_attachments_per_message: int = Field(0, ge=0)
+    # Uploads stop (507) when the disk would have less free space than this.
+    chat_upload_min_free_bytes: int = Field(1_000_000_000, ge=0)
+    # Text kept in the database per file (decoded text / PDF text) for prompts and search.
+    chat_attachment_text_max_chars: int = Field(2_000_000, ge=1000, le=50_000_000)
+    # Pages read from a PDF (0 = all) and the time allowed for it; the file is kept anyway.
+    chat_pdf_max_pages: int = Field(0, ge=0)
+    chat_pdf_timeout_seconds: float = Field(60.0, gt=0, le=3600)
+    # Attachment text put into one model request (all files, newest message first). It is
+    # also capped at CHAT_ATTACHMENT_CONTEXT_SHARE of the model's context window when the
+    # model config says how big it is (params.context_window, in tokens).
+    chat_attachment_prompt_max_chars: int = Field(200_000, ge=1000, le=20_000_000)
+    chat_attachment_context_share: float = Field(0.5, gt=0, le=0.9)
+    chat_chars_per_token: float = Field(3.0, gt=0.5, le=10)
+    # Pictures are sent to vision models at most this big (longest side, bytes); larger
+    # ones get a downscaled copy for the model, the original is kept. Bigger than
+    # CHAT_IMAGE_MAX_PIXELS = not decoded at all (shown to the model as a note).
+    chat_image_model_max_side: int = Field(1568, ge=256, le=8000)
+    chat_image_model_max_bytes: int = Field(3_500_000, ge=100_000, le=20_000_000)
+    chat_image_max_pixels: int = Field(100_000_000, ge=1_000_000, le=1_000_000_000)
+    chat_image_timeout_seconds: float = Field(60.0, gt=0, le=600)
+    # How many of the most recent pictures in a chat are sent to the model again, and the
+    # most pictures sent in one request (the rest are listed by name).
     chat_context_images: int = Field(4, ge=0, le=20)
+    chat_images_per_request: int = Field(20, ge=1, le=100)
 
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
     max_active_subagents_per_run: int = Field(5, ge=1, le=50)
@@ -239,12 +257,21 @@ class Settings(BaseSettings):
     # --- Integrations ----------------------------------------------------------------
     integration_timeout_seconds: float = Field(20.0, gt=0, le=120)
     mcp_timeout_seconds: float = Field(30.0, gt=0, le=600)
-    # --- Voice input and semantic search (through the owner's OpenAI provider) ------
+    # --- Voice input: the local Whisper service first (no key, no cost), else the
+    # owner's OpenAI provider. Empty STT_URL = no local service.
+    stt_url: str | None = None
+    stt_model: str = "large-v3-turbo"  # must match the `stt` service's STT_MODEL
+    stt_timeout_seconds: float = Field(900.0, gt=0, le=7200)  # a 15-minute recording
+    stt_connect_timeout_seconds: float = Field(3.0, gt=0, le=60)
+    stt_health_cache_seconds: float = Field(15.0, ge=0, le=600)
+    # Largest recording accepted, and the provider API's own cap (OpenAI: 25 MB).
+    voice_upload_max_bytes: int = Field(200_000_000, ge=10_000, le=2_000_000_000)
+    transcription_provider_max_bytes: int = Field(25_000_000, ge=10_000)
+    # --- Semantic search and provider voice (through the owner's OpenAI provider) ----
     # Model names are defaults; the owner can change them in Settings → Voice & search.
     transcription_model: str = "gpt-4o-mini-transcribe"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = Field(1536, ge=64, le=4096)
-    voice_max_bytes: int = Field(10_000_000, ge=10_000, le=25_000_000)
     search_chunk_chars: int = Field(1200, ge=200, le=8000)
     search_max_results: int = Field(8, ge=1, le=50)
     search_index_batch: int = Field(32, ge=1, le=256)
@@ -276,7 +303,12 @@ class Settings(BaseSettings):
         return value
 
     @field_validator(
-        "sandbox_url", "sandbox_runner_token", "searxng_url", "webauthn_rp_id", mode="before"
+        "sandbox_url",
+        "sandbox_runner_token",
+        "searxng_url",
+        "webauthn_rp_id",
+        "stt_url",
+        mode="before",
     )
     @classmethod
     def _empty_is_unset(cls, value: object) -> object:

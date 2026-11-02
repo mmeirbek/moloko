@@ -651,7 +651,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload a file (text, picture or PDF) to attach to the next message */
+        /** Upload a file of any type and size to attach to the next message */
         post: operations["upload_attachment_api_v1_chats__chat_id__attachments_post"];
         delete?: never;
         options?: never;
@@ -2114,12 +2114,25 @@ export interface components {
             embedding_dimensions: number;
             /** Embedding Model */
             embedding_model: string;
+            /** Local Stt Model */
+            local_stt_model: string | null;
+            /**
+             * Local Stt Status
+             * @enum {string}
+             */
+            local_stt_status: "off" | "ready" | "loading" | "missing" | "error" | "unreachable";
             /** Provider Id */
             provider_id: string | null;
             /** Semantic Search */
             semantic_search: boolean;
             /** Transcription Model */
             transcription_model: string;
+            /** Voice Available */
+            voice_available: boolean;
+            /** Voice Engine */
+            voice_engine: ("local" | "provider") | null;
+            /** Voice Model */
+            voice_model: string | null;
         };
         /** ApprovalOut */
         ApprovalOut: {
@@ -2280,11 +2293,6 @@ export interface components {
             audio: string;
             /** Language */
             language?: string | null;
-        };
-        /** Body_upload_attachment_api_v1_chats__chat_id__attachments_post */
-        Body_upload_attachment_api_v1_chats__chat_id__attachments_post: {
-            /** File */
-            file: string;
         };
         /** BudgetIn */
         BudgetIn: {
@@ -2886,6 +2894,8 @@ export interface components {
         };
         /** ModelParams */
         ModelParams: {
+            /** Context Window */
+            context_window?: number | null;
             /** Max Tokens */
             max_tokens?: number | null;
             /** Temperature */
@@ -5373,7 +5383,10 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_chats__chat_id__attachments_post"];
+                "multipart/form-data": {
+                    /** File */
+                    file: string;
+                };
             };
         };
         responses: {

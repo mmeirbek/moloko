@@ -133,6 +133,14 @@ elif [[ ! -f "$backup_root/offsite-last.json" ]]; then
   echo "• Копии вне ноутбука указаны в .env, но ещё ни одной не сделано:"
   echo "    infrastructure/scripts/offsite-init.sh"
 fi
+stt_status="$(docker compose exec -T stt python -c "import json, urllib.request; print(json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4))['status'])" 2>/dev/null || true)"
+case "$stt_status" in
+  ready) echo "• Распознавание речи: локальная модель Whisper готова ✓" ;;
+  missing|loading)
+    echo "• Модель распознавания речи ещё скачивается/загружается (один раз). Ход: docker compose logs -f stt-models"
+    echo "  Пока она не готова, голос идёт через провайдера OpenAI (если он добавлен)." ;;
+  *) warn "Локальное распознавание речи не готово (${stt_status:-нет ответа}): docker compose logs stt stt-models" ;;
+esac
 if docker volume inspect moloko_redis-data >/dev/null 2>&1; then
   echo "• Старый том Redis больше не нужен (теперь Valkey):  docker volume rm moloko_redis-data"
 fi

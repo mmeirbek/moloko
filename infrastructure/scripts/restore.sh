@@ -12,9 +12,12 @@ compose() { docker compose ${ENV_ARGS[@]+"${ENV_ARGS[@]}"} "$@"; }
 # through a throwaway container instead of needing sudo.
 HELPER=postgres:17.11-alpine
 as_root() { docker run --rm --network none "$@"; }
-# The agents' files volume (WORKSPACES_VOLUME in the env file, as in docker-compose.yml).
+# The agents' workspaces volume (WORKSPACES_VOLUME in the env file, as in docker-compose.yml).
 WORKSPACES_VOLUME="$(grep -E '^WORKSPACES_VOLUME=' "${MOLOKO_ENV_FILE:-.env}" 2> /dev/null | tail -1 | cut -d= -f2- || true)"
 WORKSPACES_VOLUME="${WORKSPACES_VOLUME:-moloko_workspaces}"
+# Chat attachments (FILES_VOLUME, likewise).
+FILES_VOLUME="$(grep -E '^FILES_VOLUME=' "${MOLOKO_ENV_FILE:-.env}" 2> /dev/null | tail -1 | cut -d= -f2- || true)"
+FILES_VOLUME="${FILES_VOLUME:-moloko_files}"
 
 DUMP="${1:?give the .dump file}"
 FILES="${2:-}"
@@ -62,8 +65,10 @@ SQL
 swapped=1
 echo "The data from before the restore is kept as the database …_before_restore (the next restore removes it)."
 if [[ -n "$FILES" ]]; then
-  docker run --rm --network none -v "$WORKSPACES_VOLUME:/data/workspaces" -v "$FILES:/restore.tar.gz:ro" \
-    "$HELPER" sh -c 'rm -rf /data/workspaces/* && tar -xzf /restore.tar.gz -C /data'
+  # The archive holds workspaces/ and (since chat files moved to disk) files/.
+  docker run --rm --network none -v "$WORKSPACES_VOLUME:/data/workspaces" -v "$FILES_VOLUME:/data/files" \
+    -v "$FILES:/restore.tar.gz:ro" "$HELPER" \
+    sh -c 'rm -rf /data/workspaces/* && if tar -tzf /restore.tar.gz files >/dev/null 2>&1; then rm -rf /data/files/*; fi && tar -xzf /restore.tar.gz -C /data'
 fi
 compose up -d
 echo "Restored. Check the app, then the audit log."

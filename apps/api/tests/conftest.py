@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import tempfile
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
@@ -34,6 +35,9 @@ TEST_DATABASE_URL = os.environ.get(
 TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL", "redis://127.0.0.1:56379/15")
 API_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Chat attachments are written here (FILE_STORAGE_ROOT), one folder per test run.
+FILES_ROOT = tempfile.mkdtemp(prefix="moloko-test-files-")
+
 OWNER_USERNAME = "owner"
 OWNER_PASSWORD = "correct horse battery staple"
 
@@ -50,6 +54,8 @@ def make_settings(**overrides: Any) -> Settings:
         "enable_mock_provider": True,
         "provider_retry_base_delay_seconds": 0.0,
         "worker_control_poll_seconds": 0.05,
+        "file_storage_root": FILES_ROOT,
+        "chat_upload_min_free_bytes": 0,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)

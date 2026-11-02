@@ -47,6 +47,9 @@
 		respond "ok" 200
 	}
 
+	# No request_body max_size and Caddy's defaults (no read_body / write timeout, request
+	# bodies streamed, not buffered): multi-GB chat files and 15-minute voice
+	# transcriptions pass. Keep it that way — the backend enforces its own limits.
 	handle /api/* {
 		reverse_proxy backend:8000
 	}

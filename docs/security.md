@@ -86,8 +86,9 @@ Residual risks (accepted, documented): the sandbox runner holds the Docker socke
 | Agents' browser | Sensitive tool (approval); own container on an internal network; the egress proxy allows only public addresses on 80/443; no host secrets; screenshot in the workspace, page text fenced as untrusted |
 | PDF export | Raw HTML in results escaped; printed with no network |
 | Search by meaning | Texts of memories and files are sent to the owner's OpenAI-type provider for embeddings (toggle in Settings → Voice & search); agents search only their own scope, never chat files |
-| Microphone (voice input) | ✅ `Permissions-Policy: microphone=(self)`; audio goes only to the owner's OpenAI-type provider |
+| Microphone (voice input) | ✅ `Permissions-Policy: microphone=(self)`; audio goes to the local `stt` service (internal network, no internet, nothing logged but timings) or, when it is off/not ready, only to the owner's OpenAI-type provider |
 | Uploaded pictures/PDFs | ✅ type from the bytes, size/page limits, PDF parsed in a thread with a timeout, served with `nosniff` + sandbox CSP |
+| Uploaded files of any type and size (2026-11-02) | ✅ streamed to disk (never whole in memory or the RAM-backed /tmp), name stripped to its last part, stored under a random id; free-disk guard; only text/picture/PDF detected from the bytes are served as such, everything else as `application/octet-stream` download; picture sizes read from headers (no decoding above `CHAT_IMAGE_MAX_PIXELS`), downscaling in a child process with a time and memory limit; file text is fenced as untrusted data |
 | Official GitHub MCP server | ✅ after Sprint 8 (read-only by default, tools start disabled, token from Integrations → GitHub) |
 
 ## Reporting

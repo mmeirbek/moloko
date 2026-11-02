@@ -199,10 +199,13 @@ Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.me
 | PUT | `/costs/budget` | `{monthly_limit_usd?, warn_percent, hard_stop}`; `409 budget_exceeded` is returned by model calls when "stop at the limit" is on and the month is used up |
 | POST | `/chats/{id}/attachments` | now also pictures (PNG/JPEG/WebP/GIF) and PDFs; `{…, kind: text\|image\|pdf, pages?}` |
 | GET | `/chats/{id}/attachments/{aid}/content` | The file (pictures inline, other files as a download) |
+| POST | `/chats/{id}/attachments` | (2026-11-02) **any type, size and number**: the body is streamed to disk; `kind: text\|image\|pdf\|file` (`file` = any other type, described to the model by name/type/size); optional limits `CHAT_ATTACHMENT_MAX_BYTES` → `413 attachment_too_large`, `CHAT_ATTACHMENTS_PER_MESSAGE` (0 = none); `507 insufficient_storage` when the disk would fall below `CHAT_UPLOAD_MIN_FREE_BYTES` |
 
 Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_stop}`.
 | GET / PUT | `/ai/settings` | Voice & search: `{provider_id?, transcription_model?, embedding_model?, embedding_dimensions?, semantic_search}`; GET also `{active_provider_id, active_provider_name, available}` |
 | POST | `/ai/transcribe` | multipart `audio` (+ `language`) → `{text}`; `409 ai_service_unavailable` without an OpenAI-type provider, `413 audio_too_large` |
+| GET | `/ai/settings` | (2026-11-02) also `voice_available`, `voice_engine: local\|provider\|null`, `voice_model`, `local_stt_status: off\|ready\|loading\|missing\|error\|unreachable`, `local_stt_model`; `available` is for search by meaning |
+| POST | `/ai/transcribe` | (2026-11-02) the local Whisper service first (`STT_URL`), then the provider; `language` "" = detect, `ru`/`en` = hint; ≤ `VOICE_UPLOAD_MAX_BYTES`; the provider path also ≤ `TRANSCRIPTION_PROVIDER_MAX_BYTES` (25 MB); `503 voice_unavailable` when the local model is still loading and there is no provider; `422 audio_unreadable` |
 | GET | `/search?q&types=memory,file,attachment&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?}]}` |
 | GET | `/search/status` | `{chunks, with_vectors, sources}` |
 | GET | `/tasks/{id}/export.md` | The task and its result as Markdown (download) |

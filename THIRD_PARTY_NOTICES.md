@@ -98,6 +98,39 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## faster-whisper
+
+`decode_audio()` in `apps/stt/stt_server/engine.py` is adapted from `faster_whisper/audio.py`
+of faster-whisper 1.2.1 (https://github.com/SYSTRAN/faster-whisper), rewritten for the
+PyAV 19 API. faster-whisper itself is a dependency of `apps/stt` (pinned in its `uv.lock`).
+
+```
+MIT License
+
+Copyright (c) 2023 SYSTRAN
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Whisper model weights (OpenAI, MIT; CTranslate2 conversions) are downloaded at run time
+by the `stt-models` service and are not part of this repository.
+
 ## Ark Pixel Font
 
 The text and code fonts (`apps/web/app/fonts/ArkPixel12.woff2`, `ArkPixel12Mono.woff2`) are

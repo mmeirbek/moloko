@@ -37,29 +37,41 @@ for (const [lang, file, words] of [
   ["Russian", "speech-ru.wav", /проверк/i],
   ["English", "speech-en.wav", /test/i],
 ] as const) {
-  test.describe(`voice input in ${lang}`, () => {
-    // Chromium plays the file as the microphone.
-    test.use({
-      permissions: ["microphone"],
-      launchOptions: {
-        args: [
-          "--use-fake-ui-for-media-stream",
-          "--use-fake-device-for-media-stream",
-          `--use-file-for-fake-audio-capture=${fixture(file)}`,
-        ],
-      },
+  test(`voice: a ${lang} phrase becomes text in the composer`, async ({ playwright, baseURL }) => {
+    // Its own browser: Chromium plays the file as the microphone (a launch option, so it
+    // cannot be set per test with test.use).
+    const browser = await playwright.chromium.launch({
+      executablePath: process.env.E2E_CHROMIUM_PATH,
+      args: [
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        `--use-file-for-fake-audio-capture=${fixture(file)}`,
+      ],
     });
-
-    test(`voice: a ${lang} phrase becomes text in the composer`, async ({ page }) => {
+    try {
+      const context = await browser.newContext({
+        baseURL,
+        locale: "ru-RU",
+        viewport: { width: 1280, height: 900 },
+        permissions: ["microphone"],
+        storageState: path.resolve(__dirname, "../.auth/owner.json"),
+      });
+      const page = await context.newPage();
       const errors = watchErrors(page);
+      // The local speech model really hears the phrase; without it (the default e2e stack)
+      // the mock provider answers with a fixed phrase — the round trip is still checked.
+      const settings = (await (await page.request.get("/api/v1/ai/settings")).json()) as { voice_engine?: string | null };
+      const expected = settings.voice_engine === "local" ? words : /moloko/i;
       const input = await newChat(page);
       await page.getByTestId("mic").click();
       const strip = page.getByTestId("mic-recording");
       await expect(strip).toBeVisible();
       await page.waitForTimeout(4500); // the phrase is ~3 s
       await strip.getByRole("button", { name: /Готово/ }).click();
-      await expect(input).toHaveValue(words, { timeout: 60_000 });
+      await expect(input).toHaveValue(expected, { timeout: 60_000 });
       expect(errors).toEqual([]);
-    });
+    } finally {
+      await browser.close();
+    }
   });
 }

@@ -4,7 +4,17 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, Timestamps, UUIDPrimaryKey
@@ -52,9 +62,11 @@ class Message(UUIDPrimaryKey, Timestamps, Base):
 
 
 class Attachment(UUIDPrimaryKey, Timestamps, Base):
-    """A text file attached to a chat message (spec 19). The text itself is stored here, in
-    PostgreSQL (small files only), so backups and the source of truth stay in one place.
-    It is given to the model fenced as untrusted data."""
+    """A file attached to a chat message (spec 19): any type, any size. The original is on
+    disk under FILE_STORAGE_ROOT (``storage_path``; backed up with the workspaces); this
+    row is the source of truth for it and keeps the text the model and search use.
+    Rows from before 0014a keep their bytes in ``data``. Everything from a file is given
+    to the model fenced as untrusted data."""
 
     __tablename__ = "attachments"
     __table_args__ = (Index("ix_attachments_conversation", "conversation_id", "created_at"),)
@@ -68,9 +80,14 @@ class Attachment(UUIDPrimaryKey, Timestamps, Base):
     )  # NULL until sent with a message
     filename: Mapped[str] = mapped_column(String(200))
     content_type: Mapped[str] = mapped_column(String(100))
-    size: Mapped[int] = mapped_column(Integer)
+    size: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64))
-    text: Mapped[str] = mapped_column(Text)  # the file's text (PDF: extracted text; image: "")
-    kind: Mapped[str] = mapped_column(String(8), server_default="text")  # text | image | pdf
-    data: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)  # image / PDF bytes
+    # Decoded text / PDF text, at most CHAT_ATTACHMENT_TEXT_MAX_CHARS (image, other: "").
+    text: Mapped[str] = mapped_column(Text, deferred=True)
+    kind: Mapped[str] = mapped_column(String(8), server_default="text")  # text|image|pdf|file
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)  # before 0014a
     pages: Mapped[int | None] = mapped_column(Integer)  # PDF page count
+    storage_path: Mapped[str | None] = mapped_column(String(255))  # relative to the root
+    model_path: Mapped[str | None] = mapped_column(String(255))  # picture shown to the model
+    text_chars: Mapped[int | None] = mapped_column(BigInteger)  # the whole text's length
+    note: Mapped[str | None] = mapped_column(String(300))  # e.g. "pages 1-40 of 300 read"
