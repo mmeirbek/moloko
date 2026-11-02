@@ -25,15 +25,17 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 401 | `not_authenticated` | No/invalid/expired/revoked session |
 | 401 | `invalid_credentials` | Wrong username or password (same answer for unknown users) |
 | 403 | `csrf_failed` | Missing/mismatched/forged CSRF token |
+| 403 | `invalid_password` | A change confirmed with the wrong password (counts toward the login lockout) |
 | 404 | `not_found` | Unknown route |
 | 405 | `method_not_allowed` | |
 | 422 | `validation_error` | Body/params failed validation |
 | 422 | `limit_too_high` | A per-agent limit above the global one (`details: {field, max}`) |
+| 422 | `session_ttl_out_of_range` | Session lifetime outside `SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS` (`details: {field, min, max}`) |
 | 422 | `invalid_memory` / `memory_too_long` | Memory scope rules broken / entry longer than `MEMORY_ENTRY_MAX_CHARS` |
 | 409 | `approval_not_pending` | The approval was already answered or expired |
 | 422 | `unknown_tool` / `invalid_path` / `category_fixed` | Unknown tool name; workspace path outside the workspace; category of a built-in tool |
 | 422 | `invalid_attachment` / `attachment_too_large` | Not a UTF-8 text file / larger than `CHAT_ATTACHMENT_MAX_BYTES` |
-| 429 | `too_many_attempts` | Login locked out; see `Retry-After` |
+| 429 | `too_many_attempts` | Login (or a password confirmation) locked out; see `Retry-After` |
 | 500 | `internal_error` | Unexpected bug (details only in server log) |
 | 503 | `database_unavailable` / `redis_unavailable` | A dependency is down; see `Retry-After` |
 
@@ -47,6 +49,8 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | POST | `/auth/login` | public + CSRF | Body `{"username","password"}` → `{"user","session"}`; sets session cookie, rotates CSRF |
 | POST | `/auth/logout` | public + CSRF | Revokes the current session (if any), clears the cookie → `204` |
 | GET | `/auth/me` | session | `{"user":{"id","username","display_name"},"session":{"id","created_at","expires_at"}}` |
+| GET | `/auth/session-settings` | session | `{"ttl_hours","default_ttl_hours","min_hours","max_hours","uses_default","current_session_expires_at"}` — `ttl_hours` is the effective lifetime of sign-ins |
+| PUT | `/auth/session-settings` | session + CSRF | Body `{"ttl_hours": int\|null, "password"}` (`null` = back to `SESSION_TTL_HOURS`) → same shape. The current session lasts the new lifetime from now (cookies re-issued); the user's other sessions are only shortened to it, never extended. Wrong password → `403 invalid_password`, counted toward the login lockout (`429 too_many_attempts`); out of bounds → `422 session_ttl_out_of_range`. Audited (`auth.session_ttl_changed` / `auth.password_confirm_failed`) |
 
 ### Example (curl)
 

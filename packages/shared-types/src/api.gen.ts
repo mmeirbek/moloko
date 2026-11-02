@@ -365,6 +365,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/session-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How long sign-ins last */
+        get: operations["get_session_settings_api_v1_auth_session_settings_get"];
+        /** Change how long sign-ins last (confirmed with the password) */
+        put: operations["update_session_settings_api_v1_auth_session_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats": {
         parameters: {
             query?: never;
@@ -2647,6 +2665,46 @@ export interface components {
              */
             id: string;
         };
+        /**
+         * SessionSettingsOut
+         * @description How long sign-ins last. Bounds and default come from the server's settings.
+         */
+        SessionSettingsOut: {
+            /**
+             * Current Session Expires At
+             * Format: date-time
+             */
+            current_session_expires_at: string;
+            /**
+             * Default Ttl Hours
+             * @description SESSION_TTL_HOURS: used when no own choice.
+             */
+            default_ttl_hours: number;
+            /** Max Hours */
+            max_hours: number;
+            /** Min Hours */
+            min_hours: number;
+            /**
+             * Ttl Hours
+             * @description Effective lifetime of new sign-ins, in hours.
+             */
+            ttl_hours: number;
+            /**
+             * Uses Default
+             * @description True when no own choice is stored.
+             */
+            uses_default: boolean;
+        };
+        /** SessionSettingsUpdate */
+        SessionSettingsUpdate: {
+            /** Password */
+            password: string;
+            /**
+             * Ttl Hours
+             * @description Hours between min_hours and max_hours; null = back to the default.
+             */
+            ttl_hours: number | null;
+        };
         /** StartedRun */
         StartedRun: {
             run: components["schemas"]["RunOut"];
@@ -3771,6 +3829,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    get_session_settings_api_v1_auth_session_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSettingsOut"];
+                };
+            };
+        };
+    };
+    update_session_settings_api_v1_auth_session_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

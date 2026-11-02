@@ -7,9 +7,9 @@ Everything configurable lives here and is read from environment variables
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -37,7 +37,11 @@ class Settings(BaseSettings):
     app_encryption_key: SecretStr | None = None
 
     # --- Sessions / cookies ---------------------------------------------------
+    # How long a sign-in lasts (absolute expiry). The owner may choose their own value
+    # within [min, max] (confirmed with the password); this is the default.
     session_ttl_hours: int = Field(168, ge=1, le=24 * 90)
+    session_ttl_min_hours: int = Field(1, ge=1, le=24 * 90)
+    session_ttl_max_hours: int = Field(24 * 90, ge=1, le=24 * 90)
     session_touch_interval_seconds: int = Field(300, ge=0)
     session_cookie_name: str = "moloko_session"
     csrf_cookie_name: str = "moloko_csrf"
@@ -236,6 +240,14 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _session_ttl_within_bounds(self) -> Self:
+        if not (self.session_ttl_min_hours <= self.session_ttl_hours <= self.session_ttl_max_hours):
+            raise ValueError(
+                "SESSION_TTL_HOURS must lie between SESSION_TTL_MIN_HOURS and SESSION_TTL_MAX_HOURS"
+            )
+        return self
 
     @property
     def is_development(self) -> bool:

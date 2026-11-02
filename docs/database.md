@@ -23,6 +23,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | display_name | varchar(128) null | |
 | is_active | bool default true | inactive users cannot log in; their sessions stop working |
 | last_login_at | timestamptz null | |
+| session_ttl_hours | int null | (0012) the owner's own sign-in lifetime; NULL = `SESSION_TTL_HOURS`; applied within `SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS` |
 | created_at, updated_at | timestamptz | |
 
 ### `sessions`
@@ -31,7 +32,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | id | uuid PK | |
 | user_id | uuid FK → users (cascade) | indexed |
 | token_hash | varchar(64) unique | SHA-256 of the cookie token; the raw token is never stored |
-| expires_at | timestamptz | indexed; absolute expiry |
+| expires_at | timestamptz | indexed; absolute expiry (sign-in time + the user's lifetime; shortened, never extended, when the user picks a shorter one) |
 | last_seen_at | timestamptz | updated at most every `SESSION_TOUCH_INTERVAL_SECONDS` |
 | revoked_at | timestamptz null | set on logout / password reset |
 | ip_address, user_agent | varchar null | informational |
@@ -44,7 +45,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | created_at | timestamptz | |
 | actor_type | varchar(32) | `user` \| `agent` \| `system` \| `anonymous` |
 | actor_id, user_id | uuid null | **no FK** — history survives account deletion |
-| action | varchar(64) | e.g. `auth.login`, `auth.login_failed`, `auth.login_blocked`, `auth.logout`, `user.created`, `user.password_reset` |
+| action | varchar(64) | e.g. `auth.login`, `auth.login_failed`, `auth.login_blocked`, `auth.logout`, `auth.session_ttl_changed`, `auth.password_confirm_failed`, `auth.password_confirm_blocked`, `user.created`, `user.password_reset` |
 | outcome | varchar(16) | `success` \| `failure` \| `denied` |
 | resource_type, resource_id | varchar null | |
 | ip_address | varchar null | |

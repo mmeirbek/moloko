@@ -14,8 +14,9 @@ This file tracks what is implemented and what is still open.
 - Single owner account, created via CLI; no registration endpoint.
 - argon2id hashes (argon2-cffi defaults, RFC 9106 profile), rehash on parameter change; hashing runs off the event loop.
 - Unknown usernames take the same time and return the same error as wrong passwords.
-- Lockout after `LOGIN_MAX_FAILURES` failures per username within `LOGIN_LOCKOUT_SECONDS` → `429`.
+- Lockout after `LOGIN_MAX_FAILURES` failures per username within `LOGIN_LOCKOUT_SECONDS` → `429`. Wrong passwords given to confirm a change while signed in (e.g. the session lifetime) count toward the same lockout, so a stolen session cannot be used to guess the password.
 - Server-side sessions: random 256-bit token in an `HttpOnly; Secure; SameSite=Lax` cookie, only its SHA-256 in the DB, absolute expiry, revocation on logout and password reset. Sessions on different devices are independent.
+- The owner can choose the session lifetime (`SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS`, default `SESSION_TTL_HOURS`) — only with the password. A shorter lifetime also shortens the other open sessions; a longer one never extends them (only the session that confirmed it).
 
 **CSRF**: signed double-submit token bound to the session, checked by a global middleware on every non-GET `/api/*` request (login included). `SameSite=Strict` CSRF cookie.
 

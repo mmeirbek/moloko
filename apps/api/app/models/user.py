@@ -20,3 +20,6 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     display_name: Mapped[str | None] = mapped_column(String(128))
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=true())
     last_login_at: Mapped[datetime | None]
+    # The owner's own sign-in lifetime; NULL = the configured default (SESSION_TTL_HOURS).
+    # Always applied within SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS.
+    session_ttl_hours: Mapped[int | None]

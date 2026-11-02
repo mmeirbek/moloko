@@ -3852,6 +3852,78 @@
         "title": "SessionOut",
         "type": "object"
       },
+      "SessionSettingsOut": {
+        "description": "How long sign-ins last. Bounds and default come from the server's settings.",
+        "properties": {
+          "current_session_expires_at": {
+            "format": "date-time",
+            "title": "Current Session Expires At",
+            "type": "string"
+          },
+          "default_ttl_hours": {
+            "description": "SESSION_TTL_HOURS: used when no own choice.",
+            "title": "Default Ttl Hours",
+            "type": "integer"
+          },
+          "max_hours": {
+            "title": "Max Hours",
+            "type": "integer"
+          },
+          "min_hours": {
+            "title": "Min Hours",
+            "type": "integer"
+          },
+          "ttl_hours": {
+            "description": "Effective lifetime of new sign-ins, in hours.",
+            "title": "Ttl Hours",
+            "type": "integer"
+          },
+          "uses_default": {
+            "description": "True when no own choice is stored.",
+            "title": "Uses Default",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ttl_hours",
+          "default_ttl_hours",
+          "min_hours",
+          "max_hours",
+          "uses_default",
+          "current_session_expires_at"
+        ],
+        "title": "SessionSettingsOut",
+        "type": "object"
+      },
+      "SessionSettingsUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "ttl_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hours between min_hours and max_hours; null = back to the default.",
+            "title": "Ttl Hours"
+          }
+        },
+        "required": [
+          "ttl_hours",
+          "password"
+        ],
+        "title": "SessionSettingsUpdate",
+        "type": "object"
+      },
       "StartedRun": {
         "properties": {
           "run": {
@@ -6068,6 +6140,66 @@
           }
         },
         "summary": "Current user and session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/session-settings": {
+      "get": {
+        "operationId": "get_session_settings_api_v1_auth_session_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "How long sign-ins last",
+        "tags": [
+          "auth"
+        ]
+      },
+      "put": {
+        "operationId": "update_session_settings_api_v1_auth_session_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change how long sign-ins last (confirmed with the password)",
         "tags": [
           "auth"
         ]
