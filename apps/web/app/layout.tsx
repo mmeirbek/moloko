@@ -10,10 +10,11 @@ import { SIDEBAR_INIT_SCRIPT } from "@/components/layout/sidebar-prefs";
 import { Providers } from "./providers";
 import "./globals.css";
 
-// Tiny5 — SIL Open Font License 1.1 (app/fonts/Tiny5-OFL.txt), self-hosted,
-// subset to Latin + Russian (pyftsubset). One weight: headings never get a fake bold.
+// Moloko Pixel — our own pixel font, drawn after the "moloko" lettering of the logo
+// (bitmaps: assets/brand/moloko-pixel.txt, built by scripts/make-font.py). Latin + Russian.
+// One weight: headings never get a fake bold.
 const headingFont = localFont({
-  src: "./fonts/Tiny5-subset.woff2",
+  src: "./fonts/MolokoPixel.woff2",
   variable: "--font-heading",
   weight: "400",
   display: "swap",

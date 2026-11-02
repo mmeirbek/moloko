@@ -72,11 +72,5 @@ SOFTWARE.
 
 No third-party art assets. All Pixel Office art is original and drawn in code; every
 asset is listed with its source and license in `apps/web/assets/MANIFEST.md`
-(spec 18.2). The brand logo belongs to the owner.
-
-## Tiny5 (font)
-
-`apps/web/app/fonts/Tiny5-subset.woff2` — Copyright 2022-2024 The Tiny5 Project Authors
-(https://github.com/Gissio/font_tiny5). Licensed under the SIL Open Font License,
-Version 1.1; the full license is in `apps/web/app/fonts/Tiny5-OFL.txt`. The file is a
-subset (Latin + Russian) of the original, as the license allows.
+(spec 18.2). The brand logo belongs to the owner. The heading font, Moloko Pixel, is our own:
+drawn for moloko after the logo's lettering (`apps/web/scripts/make-font.py`).

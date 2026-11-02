@@ -13,8 +13,8 @@ Every visual asset of the Pixel Office, with its source and license.
 | **The owner's logo** (cow-in-a-meadow tile + "moloko" wordmark): brand mark, wordmark, favicon, PWA icons | source `assets/brand/logo-source.jpg` (1280×640, the owner's image); `public/brand/logo-tile.png`, `public/brand/wordmark-mask.png`, `public/icons/{favicon-32,icon-192,icon-512,maskable-512,apple-touch-icon}.png`, `app/favicon.ico` (16/32/48) — all cut from it by `scripts/make-brand.py`; composed in `components/brand/logo.tsx`; the tile is also the assistant's avatar in the chat | The owner's own image, cropped (tile corners made transparent, wordmark turned into a mask tinted with the theme colour), palette PNGs | Owner's |
 | Notification badge, offline-page cow | `public/icons/badge-96.png`, `public/icons/cow-sleep.png` (generated from the cow art) | Original | Owner's (project) |
 | "Moo" sound | `features/mascot/moo.ts` | Synthesized with Web Audio at runtime (no audio file) | Owner's (project) |
-| Heading font **Tiny5** (subset: Latin + Russian) | `app/fonts/Tiny5-subset.woff2` (+ `Tiny5-OFL.txt`) | google/fonts `ofl/tiny5` (upstream Gissio/font_tiny5), subset with fontTools `pyftsubset` | SIL OFL 1.1 |
+| Heading font **Moloko Pixel** (Latin + Russian + typographic signs, 159 glyphs) | `app/fonts/MolokoPixel.woff2`, built by `scripts/make-font.py` from the bitmaps in `assets/brand/moloko-pixel.txt` | Original pixel font drawn for moloko after the "moloko" lettering of the owner's logo (its grid, strokes, cut corners and spacing; every other letter drawn in that style, nothing taken from another font) | Owner's (project) |
 
-No third-party art is used (the only third-party asset is the OFL heading font above). Before adding any external asset pack: confirm its license,
+No third-party art or fonts are used. Before adding any external asset pack: confirm its license,
 ask the owner (docs/external-repositories.md rule 3), keep the style unified, and add a
 row here.

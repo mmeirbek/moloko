@@ -80,7 +80,8 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  /* Tiny5 (OFL, self-hosted: app/fonts) — headings only; body text stays plain. */
+  /* Moloko Pixel (our own, drawn after the logo: app/fonts, scripts/make-font.py) — headings only;
+     body text stays plain. */
   --font-pixel: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -119,7 +120,9 @@
   .font-pixel {
     font-family: var(--font-pixel);
     font-synthesis: none; /* the font has one weight: no smeared fake bold */
-    letter-spacing: 0.01em;
+    /* The letters already stand 2 pixels apart, as in the logo; extra spacing would push them
+       off the pixel grid and blur their edges. */
+    letter-spacing: 0;
   }
 }
 
