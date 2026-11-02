@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Send, Settings2, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { AgentControls } from "@/features/agents/agent-controls";
+import { hasFullAccess } from "@/features/agents/agent-form-model";
+import { FullAccessBadge } from "@/features/agents/agent-full-access";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -37,6 +39,7 @@ export function AgentInspector({
   className?: string;
 }) {
   const t = useTranslations("office.inspector");
+  const tf = useTranslations("agents.fullAccess");
   const tStatus = useTranslations("status");
   const tTypes = useTranslations("agents.types");
   const format = useFormatter();
@@ -96,6 +99,7 @@ export function AgentInspector({
         </div>
         <div className="flex items-center gap-1">
           <StatusBadge status={agent.status} />
+          {hasFullAccess(agent) && <FullAccessBadge />}
           <Button size="icon" variant="ghost" className="-m-1 size-9" onClick={onClose} aria-label={t("close")}>
             <X />
           </Button>
@@ -118,7 +122,9 @@ export function AgentInspector({
         <dt className="text-muted-foreground">{t("autonomy")}</dt>
         <dd>{t(`autonomyLevels.${agent.autonomy_level as "supervised"}`)}</dd>
         <dt className="text-muted-foreground">{t("tools")}</dt>
-        <dd className="truncate">{agent.allowed_tools.length ? agent.allowed_tools.join(", ") : t("noTools")}</dd>
+        <dd className="truncate">
+          {hasFullAccess(agent) ? tf("allTools") : agent.allowed_tools.length ? agent.allowed_tools.join(", ") : t("noTools")}
+        </dd>
       </dl>
 
       {task && <TeamLine task={task} className="text-xs" />}
