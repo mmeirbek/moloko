@@ -294,6 +294,9 @@ The owner asked for the chat to be redesigned and the blocks rearranged ("like C
 | 2026-11-02 | **The lockout window is measured on the DB clock** (`created_at > now() - window`), the clock that stamps audit rows. | On macOS the Docker VM clock ran 0.44 s ahead of the host, which made `test_lockout_after_repeated_failures` fail; in production both share the kernel clock, so no behaviour change there. |
 | 2026-11-02 | **Settings → System and data → "How long a sign-in lasts"**: default, presets inside the server's bounds (1 h … 90 days) or a custom number of hours/days, the moloko password, and what happens to other devices said in words. The password field is emptied after every try. | Owner request ("change the session time using the owner's password"). |
 | 2026-11-02 | The Orchestrator's task box clears only the text that was sent: what the owner started typing while "Start" was in flight stays. | It used to be wiped by the previous start's success. |
+| 2026-11-02 | Heading font changed from Tiny5 to **Moloko Pixel**, our own pixel font drawn after the logo's "moloko" lettering (no existing font matched it; the closest, Jersey, has no Cyrillic). Grid = the logo's unit: strokes 4, outer corners cut 2×2, x-height 13, caps/ascenders 17, 2-pixel letter gap; m o l k redrawn from the logo, every other letter drawn in that style. 159 glyphs (Latin, Russian, « » — – … № “ ” „ ‘ ’ · × ° ₽ ₸ €), 3.6 KB WOFF2. | Owner: "exactly the same font as our logo". |
+| 2026-11-02 | Font metrics: em = 24 design pixels (unitsPerEm 1200), so page titles at 24 px draw exactly one design pixel per CSS pixel; ascent/descent equal Tiny5's (0.875/0.25 em), so line boxes and baselines don't move. `letter-spacing: 0` for `h1, .font-pixel`, and `tracking-tight` removed from `PageHeader`, because any letter-spacing pushes the glyphs off the pixel grid. | Crisp pixels and no layout jumps. |
+| 2026-11-02 | The font source is `apps/web/assets/brand/moloko-pixel.txt` (bitmaps); `scripts/make-font.py` builds the WOFF2 via `uv run --with fonttools==4.67.0 --with brotli==1.2.0` — a one-off developer tool, not an app dependency (output committed, reproducible). | No new runtime dependency. |
 
 ## Dependency register
 
@@ -365,7 +368,7 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | markdown-it-py / mdurl | 4.2.0 / 0.1.2 | MIT | Markdown → HTML for PDF export | 8+ | 2026-11-01 |
 | debian (browser image base) + chromium-headless-shell, fonts-noto-core, fonts-dejavu-core | trixie-slim / distro packages | BSD-3-Clause (Chromium) / OFL / Bitstream-Vera | Agents' browser and PDF printing | 8+ | 2026-11-01 |
 | pypdf | 6.21.4 | BSD-3-Clause | PDF text extraction for chat attachments | 8+ | 2026-11-01 |
-| ~~Pixelify Sans~~ → **Tiny5** (font file, self-hosted, subset) | google/fonts `ofl/tiny5` @ 2026-11-01 | OFL-1.1 | Pixel font for headings | 8+ | 2026-11-01 |
+| ~~Pixelify Sans~~ → ~~Tiny5~~ (font file) | removed 2026-11-02: replaced by our own font **Moloko Pixel** (drawn for moloko, no third-party notice) | — | Pixel font for headings | 8+ | 2026-11-02 |
 | phaser | 4.2.1 (replaces 3.90.0) | MIT | Pixel Office engine | 8+ | 2026-11-01 |
 | github/github-mcp-server (hosted endpoint, not bundled) | — | MIT | Official GitHub MCP server, reached over HTTPS | 8+ | 2026-11-01 |
 | Web Push services (Apple / Google / Mozilla / Microsoft) | — | external service, free | Deliver encrypted notifications to closed apps | 8+ | 2026-11-01 |
