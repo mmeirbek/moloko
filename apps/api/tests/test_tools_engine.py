@@ -247,7 +247,8 @@ async def test_model_cannot_call_tools_it_was_not_given(
         agent = await tool_agent(client, tools=["fs_read"])
         task_id = (await run_agent(client, agent["id"], "Try")).json()["task"]["id"]
         await drain(tool_app, tool_app.state.queue)
-    assert [t.name for t in seen[0].tools] == ["fs_read"]  # only what it may use is offered
+    # only what it may use is offered (plus the read-only history look-ups every agent has)
+    assert [t.name for t in seen[0].tools] == ["fs_read", "work_search", "work_read"]
     call = (await tool_calls(tool_app, task_id))[0]
     assert call.status == "denied" and "not allowed" in (call.decision_reason or "")
     assert not ws_file(tool_app, "x")

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, and_, false, func, literal, or_, select, text
@@ -25,6 +26,14 @@ class Scope:
     types: tuple[str, ...] = ("memory", "file", "attachment")
     memory_filter: ColumnElement[bool] | None = None
     workspace_ids: tuple[uuid.UUID, ...] | None = None  # None = any
+    # Work sources (task, agent_message, chat_message): only the work of these agents —
+    # tasks they did, messages they sent or received (None = any agent) — and since when.
+    work_agent_ids: tuple[uuid.UUID, ...] | None = None
+    since: datetime | None = None
+
+
+WORK_TYPES = ("task", "agent_message", "chat_message")
+ALL_TYPES = ("memory", "file", "attachment", *WORK_TYPES)
 
 
 @dataclass
@@ -38,7 +47,10 @@ class Hit:
     agent_id: uuid.UUID | None = None
     workspace_id: uuid.UUID | None = None
     conversation_id: uuid.UUID | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
+    peer_agent_id: uuid.UUID | None = None
+    run_id: uuid.UUID | None = None
+    source_at: datetime | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 def _where(user_id: uuid.UUID, scope: Scope) -> list[ColumnElement[bool]]:
@@ -53,6 +65,19 @@ def _where(user_id: uuid.UUID, scope: Scope) -> list[ColumnElement[bool]]:
         parts.append(cond)
     if "attachment" in scope.types:
         parts.append(SearchChunk.source_type == "attachment")
+    for kind in WORK_TYPES:
+        if kind not in scope.types:
+            continue
+        clause: ColumnElement[bool] = SearchChunk.source_type == kind
+        if scope.work_agent_ids is not None and kind != "chat_message":
+            ids = scope.work_agent_ids or (uuid.uuid4(),)
+            mine: ColumnElement[bool] = SearchChunk.agent_id.in_(ids)
+            if kind == "agent_message":
+                mine = or_(mine, SearchChunk.peer_agent_id.in_(ids))
+            clause = and_(clause, mine)
+        if scope.since is not None:
+            clause = and_(clause, SearchChunk.source_at >= scope.since)
+        parts.append(clause)
     return [SearchChunk.user_id == user_id, or_(*parts) if parts else false()]
 
 
@@ -159,4 +184,8 @@ def _hit(chunk: SearchChunk, query: str, score: float, mode: str) -> Hit:
         agent_id=chunk.agent_id,
         workspace_id=chunk.workspace_id,
         conversation_id=chunk.conversation_id,
+        peer_agent_id=chunk.peer_agent_id,
+        run_id=chunk.run_id,
+        source_at=chunk.source_at,
+        meta=dict(chunk.meta or {}),
     )

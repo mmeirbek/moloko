@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql.base import ischema_names
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import UserDefinedType
@@ -30,16 +31,24 @@ def vector_literal(values: list[float]) -> str:
 
 
 class SearchChunk(UUIDPrimaryKey, Base):
-    """A piece of a memory, a workspace file or a chat file, for search. Derived data: it
-    is rebuilt from its source whenever the source changes (the source stays the truth)."""
+    """A piece of a memory, a workspace file, a chat file, a finished task, an agent↔agent
+    message or a chat message, for search. Derived data: it is rebuilt from its source
+    whenever the source changes (the source stays the truth)."""
 
     __tablename__ = "search_chunks"
     __table_args__ = (Index("ix_search_chunks_source", "user_id", "source_type", "source_id"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    source_type: Mapped[str] = mapped_column(String(16))  # memory | file | attachment
+    # memory | file | attachment | task | agent_message | chat_message
+    source_type: Mapped[str] = mapped_column(String(16))
     source_id: Mapped[uuid.UUID]
-    agent_id: Mapped[uuid.UUID | None]  # memory: its agent (NULL = shared)
+    # memory: its agent (NULL = shared); task: the agent that did it; agent_message: sender
+    agent_id: Mapped[uuid.UUID | None]
+    peer_agent_id: Mapped[uuid.UUID | None]  # agent_message: the receiver
+    run_id: Mapped[uuid.UUID | None]  # task / agent_message: the run (tree)
+    source_at: Mapped[datetime | None]  # when the work happened (task: finished)
+    # Display fields of work sources: status, role, message type, task id, agent names.
+    meta: Mapped[dict[str, Any]] = mapped_column(server_default=sql_text("'{}'::jsonb"))
     memory_type: Mapped[str | None] = mapped_column(String(24))
     project: Mapped[str | None] = mapped_column(String(100))
     workspace_id: Mapped[uuid.UUID | None]  # file: its workspace

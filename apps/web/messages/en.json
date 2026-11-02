@@ -556,7 +556,8 @@
         "pick": "Colleagues",
         "noColleagues": "There are no other agents yet.",
         "note": "The rule is mutual: two agents talk only if both allow each other. Each keeps its own approvals, tools and budget."
-      }
+      },
+      "alwaysAllowed": "Every agent has it: read-only look-ups of the work history. You can block it on the right."
     },
     "detail": {
       "back": "All agents",
@@ -869,7 +870,8 @@
       "github": "GitHub",
       "memory": "Memory",
       "team": "Team",
-      "mcp": "MCP"
+      "mcp": "MCP",
+      "history": "Work history"
     },
     "calls": {
       "title": "Agent actions ({count})",
@@ -911,7 +913,9 @@
       "knowledge_search": "Search memory and files",
       "agents_list": "List colleagues",
       "agent_ask": "Ask a colleague",
-      "agent_tell": "Message a colleague"
+      "agent_tell": "Message a colleague",
+      "work_search": "Search the work history",
+      "work_read": "Open a history record"
     },
     "hints": {
       "fs_list": "Sees which files are in the task's work folder.",
@@ -936,7 +940,9 @@
       "knowledge_search": "Searches its memory and task files by meaning.",
       "agents_list": "Sees which agents it may contact and who is free right now.",
       "agent_ask": "Asks another agent a question or hands it part of the work, and waits for the answer.",
-      "agent_tell": "Leaves another agent a note (and files); it reads it at the start of its next task."
+      "agent_tell": "Leaves another agent a note (and files); it reads it at the start of its next task.",
+      "work_search": "Searches finished tasks of all agents, their messages and your chats — to check what has been done.",
+      "work_read": "Reads one task in full (request, result, subtasks, actions, files), a message or a chat."
     }
   },
   "integrations": {
@@ -1275,7 +1281,7 @@
   },
   "search": {
     "title": "Search",
-    "description": "Agents' memory, files in workspaces and files from chats — by meaning, not only by words.",
+    "description": "Agents' memory, files, the agents' work and chats — by meaning, not only by words.",
     "label": "What to find",
     "placeholder": "For example: how much does milk cost at the farm",
     "go": "Search",
@@ -1283,15 +1289,23 @@
     "types": {
       "memory": "Memory",
       "file": "Files",
-      "attachment": "Chat files"
+      "attachment": "Chat files",
+      "task": "Tasks",
+      "agent_message": "Agents' messages",
+      "chat_message": "Chats"
     },
     "searching": "Searching…",
     "nothing": "Nothing found",
-    "nothingHint": "Try other words. New notes and files reach the search within a minute.",
+    "nothingHint": "Try other words. New notes, files, tasks and messages reach the search within a minute.",
     "bySense": "Found by meaning",
     "byWords": "Found by words (search by meaning is off or not ready yet)",
     "start": "What shall we look for?",
-    "startHint": "Ask in your own words: the cow finds related things even when the words differ."
+    "startHint": "Ask in your own words: the cow finds related things even when the words differ.",
+    "from": "{from} → {to}",
+    "role": {
+      "user": "you",
+      "assistant": "reply"
+    }
   },
   "aiServices": {
     "title": "Voice & search",

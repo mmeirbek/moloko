@@ -2,7 +2,8 @@
 
     authorize(agent, tool, args, context) -> ALLOW | REQUIRE_APPROVAL | DENY (+ reason)
 
-1. The tool exists, is enabled and available, and is in ``agent.allowed_tools``.
+1. The tool exists, is enabled and available, and is in ``agent.allowed_tools`` (or is
+   one of the read-only ``ALWAYS_ALLOWED`` history tools).
 2. The arguments match the tool's schema and stay inside the allowed scope.
 3. Category (possibly narrowed by the arguments) + autonomy level (spec 14.2):
 
@@ -57,6 +58,16 @@ class CatalogEntry:
     available: bool
 
 
+# Read-only look-ups of the office's own history (owner request: agents can always check
+# what was done). Every agent may use them without listing them in ``allowed_tools``; the
+# owner can still switch them off for everyone, or block them for one agent ("deny").
+ALWAYS_ALLOWED: tuple[str, ...] = ("work_search", "work_read")
+
+
+def may_use(agent: Agent, name: str) -> bool:
+    return name in (agent.allowed_tools or []) or name in ALWAYS_ALLOWED
+
+
 def tool_override(agent: Agent, name: str) -> str | None:
     tools = (agent.permissions or {}).get("tools") or {}
     value = tools.get(name) if isinstance(tools, dict) else None
@@ -107,7 +118,7 @@ async def authorize(
         return Decision(Verdict.DENY, "This tool is turned off.")
     if not entry.available:
         return Decision(Verdict.DENY, "This tool is not available right now (not configured).")
-    if name not in (agent.allowed_tools or []):
+    if not may_use(agent, name):
         return Decision(Verdict.DENY, "This agent is not allowed to use this tool.")
     # 2. arguments + scope
     if not isinstance(args, dict):

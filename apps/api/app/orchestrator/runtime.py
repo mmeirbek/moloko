@@ -37,6 +37,7 @@ from app.providers.gateway import ModelTarget
 from app.runtimes.base import RunContext
 from app.runtimes.native import LimitExceeded, NativeRuntime, RunSetup, task_prompt
 from app.schemas.chat import MessageOut
+from app.tools.policy import ALWAYS_ALLOWED
 
 
 async def _agent_names(db: AsyncSession, ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
@@ -130,7 +131,8 @@ class OrchestratorRuntime(NativeRuntime):
             max_subtasks=settings.max_subtasks_per_plan,
             max_active=settings.max_active_subagents_per_run,
             can_delegate=can_delegate_further,
-            tools=tuple(t.name for t in setup.tools),
+            # Every subagent has the read-only history tools anyway: not part of the plan.
+            tools=tuple(t.name for t in setup.tools if t.name not in ALWAYS_ALLOWED),
             agents=tuple((a.name, a.specialization or "", a.description) for a in roster),
         )
         system = with_owner_context(system, setup)

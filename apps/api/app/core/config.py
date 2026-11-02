@@ -155,6 +155,11 @@ class Settings(BaseSettings):
     # Max characters of saved memory put into one agent's prompt (per-agent may be lower).
     memory_context_max_chars: int = Field(8000, ge=500, le=200_000)
     memory_entry_max_chars: int = Field(4000, ge=100, le=100_000)
+    # "Your recent work" in every agent's prompt (owner request: agents remember what they
+    # did): how many of its last finished tasks, and at most how many characters in all.
+    # 0 = off.
+    work_history_items: int = Field(10, ge=0, le=100)
+    work_history_context_chars: int = Field(4000, ge=0, le=50_000)
 
     # --- Worker (ARQ) ------------------------------------------------------------
     worker_max_jobs: int = Field(10, ge=1, le=100)
@@ -183,8 +188,9 @@ class Settings(BaseSettings):
     file_storage_root: str = "/data/files"
     workspace_max_file_bytes: int = Field(1_000_000, ge=1000)  # one file read/written by a tool
     workspace_max_files: int = Field(5000, ge=10)  # files scanned per workspace
-    # Task workspaces of finished tasks are deleted this many days later (0 = never).
-    workspace_task_ttl_days: int = Field(14, ge=0)
+    # Task workspaces of finished tasks are deleted this many days later (0 = never, the
+    # default: the work of agents is kept). The task records stay in PostgreSQL either way.
+    workspace_task_ttl_days: int = Field(0, ge=0)
 
     # Where the backup service writes (mounted read-only into the backend for its status).
     backup_dir: str = "/backups"
@@ -275,6 +281,11 @@ class Settings(BaseSettings):
     search_chunk_chars: int = Field(1200, ge=200, le=8000)
     search_max_results: int = Field(8, ge=1, le=50)
     search_index_batch: int = Field(32, ge=1, le=256)
+    # Work history in search (finished tasks, agent↔agent messages, chat messages): how
+    # many of them are (re)indexed per pass (a backfill goes newest first, a pass at a
+    # time, so the worker never stalls) and how many chunks one of them may take.
+    work_index_batch: int = Field(100, ge=1, le=2000)
+    work_index_max_chunks: int = Field(20, ge=1, le=200)
     # --- Web Push (notifications while the app is closed) ---------------------------
     # Contact for the push services (VAPID "sub"): use your e-mail, e.g. mailto:me@example.org
     push_contact: str = "mailto:owner@moloko.invalid"

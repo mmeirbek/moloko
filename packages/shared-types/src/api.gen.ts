@@ -1293,7 +1293,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search memories, workspace files and chat files */
+        /** Search memories, files, chat files and the work history (finished tasks, agent messages, chat messages) */
         get: operations["run_search_api_v1_search_get"];
         put?: never;
         post?: never;
@@ -3505,14 +3505,28 @@ export interface components {
         SearchHitOut: {
             /** Agent Id */
             agent_id?: string | null;
+            /** Agent Name */
+            agent_name?: string | null;
             /** Conversation Id */
             conversation_id?: string | null;
+            /** Message Type */
+            message_type?: string | null;
             /** Mode */
             mode: string;
+            /** Peer Agent Id */
+            peer_agent_id?: string | null;
+            /** Peer Agent Name */
+            peer_agent_name?: string | null;
+            /** Role */
+            role?: string | null;
+            /** Run Id */
+            run_id?: string | null;
             /** Score */
             score: number;
             /** Snippet */
             snippet: string;
+            /** Source At */
+            source_at?: string | null;
             /**
              * Source Id
              * Format: uuid
@@ -3520,6 +3534,10 @@ export interface components {
             source_id: string;
             /** Source Type */
             source_type: string;
+            /** Status */
+            status?: string | null;
+            /** Task Id */
+            task_id?: string | null;
             /** Title */
             title: string;
             /** Workspace Id */
@@ -3860,6 +3878,11 @@ export interface components {
         ToolCategory: "read" | "write" | "sensitive";
         /** ToolOut */
         ToolOut: {
+            /**
+             * Always Allowed
+             * @default false
+             */
+            always_allowed?: boolean;
             /** Available */
             available: boolean;
             /** Category */

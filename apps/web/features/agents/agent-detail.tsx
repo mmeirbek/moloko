@@ -24,11 +24,9 @@ import { AgentBudget } from "./agent-budget";
 import { AgentControls, isAgentBusy } from "./agent-controls";
 import { AgentForm } from "./agent-form";
 import { AgentMessages } from "./agent-messages";
+import { asTab, TABS, type Tab } from "./agent-tabs";
 import { SaveTemplateButton } from "./save-template";
 import { StatusBadge } from "./status-badge";
-
-const TABS = ["profile", "memory", "tasks", "messages"] as const;
-type Tab = (typeof TABS)[number];
 
 function AgentTasks({ agentId }: { agentId: string }) {
   const t = useTranslations("agents.detail");
@@ -68,14 +66,14 @@ function AgentTasks({ agentId }: { agentId: string }) {
   );
 }
 
-export function AgentDetail({ agentId }: { agentId: string }) {
+export function AgentDetail({ agentId, initialTab }: { agentId: string; initialTab?: string }) {
   const t = useTranslations("agents");
   const td = useTranslations("agents.detail");
   const confirm = useConfirm();
   const toMessage = useErrorMessage();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>(asTab(initialTab));
   const [taskTitle, setTaskTitle] = useState("");
   const agent = useQuery({ queryKey: agentKeys.detail(agentId), queryFn: ({ signal }) => getAgent(agentId, signal) });
   const liveAgent = useRealtimeStore((s) => s.agents[agentId]);

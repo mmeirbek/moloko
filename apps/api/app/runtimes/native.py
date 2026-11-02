@@ -34,7 +34,7 @@ from app.agents.state import AgentStatus, AgentType, InvalidTransition, TaskStat
 from app.agents.team import consult_prompt, read_inbox
 from app.core.errors import AppError, new_error_id
 from app.events import bus
-from app.memory.context import build_memory_context
+from app.memory.context import build_memory_context, build_work_context
 from app.models.agent import Agent, AgentRun
 from app.models.task import Task
 from app.providers.base import (
@@ -64,7 +64,8 @@ class RunSetup:
     run: AgentRun
     target: ModelTarget
     extra_system: str
-    memory: str  # saved memory, fenced as data ("" when none / disabled)
+    # saved memory, then "Your recent work" — both fenced as data ("" when none / disabled)
+    memory: str
     address: str  # how to address the owner — an instruction line ("" when not set)
     tools: tuple[ToolSpec, ...]  # what the model may call (each call is authorized again)
     runner: ToolRunner
@@ -224,7 +225,14 @@ class NativeRuntime:
             assert agent is not None and task is not None and run is not None
             target = await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
             extra = await self.extra_system(ctx, db, agent, task)
-            memory = (await build_memory_context(db, agent, ctx.settings)).text
+            memory = "\n\n".join(
+                p
+                for p in (
+                    (await build_memory_context(db, agent, ctx.settings)).text,
+                    await build_work_context(db, agent, task, ctx.settings),
+                )
+                if p
+            )
             address = await owner_address_instruction(db, ctx.user_id)
         runner = ToolRunner(ctx, agent)
         tools = specs_for(agent, await runner.entries())

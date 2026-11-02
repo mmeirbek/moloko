@@ -206,7 +206,7 @@ Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_sto
 | POST | `/ai/transcribe` | multipart `audio` (+ `language`) → `{text}`; `409 ai_service_unavailable` without an OpenAI-type provider, `413 audio_too_large` |
 | GET | `/ai/settings` | (2026-11-02) also `voice_available`, `voice_engine: local\|provider\|null`, `voice_model`, `local_stt_status: off\|ready\|loading\|missing\|error\|unreachable`, `local_stt_model`; `available` is for search by meaning |
 | POST | `/ai/transcribe` | (2026-11-02) the local Whisper service first (`STT_URL`), then the provider; `language` "" = detect, `ru`/`en` = hint; ≤ `VOICE_UPLOAD_MAX_BYTES`; the provider path also ≤ `TRANSCRIPTION_PROVIDER_MAX_BYTES` (25 MB); `503 voice_unavailable` when the local model is still loading and there is no provider; `422 audio_unreadable` |
-| GET | `/search?q&types=memory,file,attachment&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?}]}` |
+| GET | `/search?q&types=memory,file,attachment,task,agent_message,chat_message&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?, peer_agent_id?, run_id?, source_at?, status?, role?, message_type?, task_id?, agent_name?, peer_agent_name?}]}` (default types: memory, file, attachment) |
 | GET | `/search/status` | `{chunks, with_vectors, sources}` |
 | GET | `/tasks/{id}/export.md` | The task and its result as Markdown (download) |
 | POST | `/tasks/{id}/export.pdf` | PDF of the result (`409 pdf_unavailable` without the sandbox browser, `409 nothing_to_export`) |

@@ -146,6 +146,7 @@ Frontend: `features/approvals/` (card, badge, page), `features/integrations/` (t
 ## Owner requests after the MVP (2026-11-01)
 
 - **Search** (`app/search/`): `index.py` keeps `search_chunks` in step with memories, workspace files and chat files (worker cron); `query.py` searches by meaning (pgvector) or by words. Agents use the `knowledge_search` tool within their own scope.
+- **Work memory** (owner request): every agent's prompt ends with "Your recent work" (its last `WORK_HISTORY_ITEMS` finished tasks; a part of a plan also sees the other parts' outcomes) built in `app/memory/context.py`, fenced as data, at most `WORK_HISTORY_CONTEXT_CHARS`. Finished tasks, agent↔agent messages and chat messages are indexed for search too; every agent has the read-only `work_search` / `work_read` tools (`ALWAYS_ALLOWED` in `app/tools/policy.py`, records read by `app/memory/work.py`).
 - **Costs** (`app/services/usage.py`): every model call writes a `usage_records` row; the monthly budget emits `budget.warning` and can stop new model calls.
 - **Voice & search provider** (`app/services/ai_services.py`): speech-to-text and embeddings through the owner's OpenAI-type provider.
 - **Local speech-to-text** (`apps/stt`, compose services `stt` + `stt-models`): Whisper (faster-whisper, int8, CPU) behind an OpenAI-compatible API on the internal network; the backend's `app/services/stt.py` uses it first and falls back to the provider. `stt-models` downloads the pinned model once into a volume over its own network; `stt` has no internet.

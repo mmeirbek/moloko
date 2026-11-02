@@ -2,33 +2,74 @@
 
 import type { SearchHitOut } from "@moloko/shared-types";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { Brain, FileText, MessageSquare, Search as SearchIcon, Sparkles } from "@/components/icons";
+import {
+  Brain,
+  FileText,
+  ListChecks,
+  MessageSquare,
+  Paperclip,
+  Search as SearchIcon,
+  Send,
+  Sparkles,
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/features/agents/status-badge";
 import { EmptyState } from "@/features/mascot/empty-state";
 import { MicButton } from "@/features/voice/mic-button";
 import { searchAll, searchKeys } from "@/lib/api/search";
 import { cn } from "@/lib/utils";
 import { ErrorState } from "@/features/system/query-state";
 
-const TYPES = ["memory", "file", "attachment"] as const;
-const ICON = { memory: Brain, file: FileText, attachment: MessageSquare } as const;
+const TYPES = ["memory", "file", "attachment", "task", "agent_message", "chat_message"] as const;
+type HitType = (typeof TYPES)[number];
+const ICON = {
+  memory: Brain,
+  file: FileText,
+  attachment: Paperclip,
+  task: ListChecks,
+  agent_message: Send,
+  chat_message: MessageSquare,
+} as const;
 
 /** Where a hit lives in the app. Pure: tested. */
 export function hitHref(hit: SearchHitOut): string {
-  if (hit.source_type === "attachment" && hit.conversation_id) return `/chat/${hit.conversation_id}`;
-  if (hit.source_type === "memory") return hit.agent_id ? `/office/agents/${hit.agent_id}` : "/settings";
-  return "/integrations";
+  switch (hit.source_type) {
+    case "attachment":
+    case "chat_message":
+      return hit.conversation_id ? `/chat/${hit.conversation_id}` : "/chat";
+    case "memory":
+      return hit.agent_id ? `/office/agents/${hit.agent_id}` : "/settings";
+    case "task":
+      return `/tasks/${hit.source_id}`;
+    case "agent_message":
+      if (hit.agent_id) return `/office/agents/${hit.agent_id}?tab=messages`;
+      return hit.task_id ? `/tasks/${hit.task_id}` : "/office";
+    default:
+      return "/integrations";
+  }
 }
 
-/** Search memories, workspace files and chat files — by meaning when available. */
+/** Who did it: the agent of a task, "A → B" for agents' messages, you / reply in chats. */
+function HitWho({ hit }: { hit: SearchHitOut }) {
+  const t = useTranslations("search");
+  if (hit.source_type === "task") return hit.agent_name ? <span>{hit.agent_name}</span> : null;
+  if (hit.source_type === "agent_message")
+    return <span>{t("from", { from: hit.agent_name ?? "?", to: hit.peer_agent_name ?? "?" })}</span>;
+  if (hit.source_type === "chat_message" && (hit.role === "user" || hit.role === "assistant"))
+    return <span>{t(`role.${hit.role}`)}</span>;
+  return null;
+}
+
+/** Search memories, files, chat files and the work history — by meaning when available. */
 export function SearchView() {
   const t = useTranslations("search");
+  const format = useFormatter();
   const initial = useSearchParams().get("q") ?? "";
   const [text, setText] = useState(initial);
   const [query, setQuery] = useState(initial);
@@ -113,16 +154,28 @@ export function SearchView() {
           </p>
           <ol className="flex flex-col gap-2" data-testid="search-results">
             {hits.map((hit) => {
-              const Icon = ICON[hit.source_type as keyof typeof ICON] ?? FileText;
+              const known = (TYPES as readonly string[]).includes(hit.source_type);
+              const Icon = known ? ICON[hit.source_type as HitType] : FileText;
               return (
                 <li key={`${hit.source_type}-${hit.source_id}`} className="bg-card p-3 pixel-frame">
                   <Link href={hitHref(hit)} className="flex items-center gap-2 font-medium hover:underline">
                     <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
                     <span className="truncate">{hit.title}</span>
                     <span className="ml-auto shrink-0 text-xs font-normal text-muted-foreground">
-                      {t(`types.${hit.source_type as (typeof TYPES)[number]}`)}
+                      {known ? t(`types.${hit.source_type as HitType}`) : hit.source_type}
                     </span>
                   </Link>
+                  {(hit.source_at || hit.agent_name || hit.role || hit.status) && (
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                      {hit.source_at && (
+                        <time dateTime={hit.source_at}>
+                          {format.dateTime(new Date(hit.source_at), { dateStyle: "short", timeStyle: "short" })}
+                        </time>
+                      )}
+                      <HitWho hit={hit} />
+                      {hit.source_type === "task" && hit.status && <StatusBadge status={hit.status} />}
+                    </p>
+                  )}
                   <p className="mt-1 line-clamp-3 text-sm whitespace-pre-line text-muted-foreground">{hit.snippet}</p>
                 </li>
               );
