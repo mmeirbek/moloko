@@ -203,7 +203,7 @@ Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.me
 Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_stop}`.
 | GET / PUT | `/ai/settings` | Voice & search: `{provider_id?, transcription_model?, embedding_model?, embedding_dimensions?, semantic_search}`; GET also `{active_provider_id, active_provider_name, available}` |
 | POST | `/ai/transcribe` | multipart `audio` (+ `language`) → `{text}`; `409 ai_service_unavailable` without an OpenAI-type provider, `413 audio_too_large` |
-| GET | `/search?q&types=memory,file,attachment&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?}]}` |
+| GET | `/search?q&types=memory,file,attachment,task,agent_message,chat_message&limit` | `{query, hits[{source_type, source_id, title, snippet, score, mode: semantic\|words, agent_id?, workspace_id?, conversation_id?, peer_agent_id?, run_id?, source_at?, status?, role?, message_type?, task_id?, agent_name?, peer_agent_name?}]}` (default types: memory, file, attachment) |
 | GET | `/search/status` | `{chunks, with_vectors, sources}` |
 | GET | `/tasks/{id}/export.md` | The task and its result as Markdown (download) |
 | POST | `/tasks/{id}/export.pdf` | PDF of the result (`409 pdf_unavailable` without the sandbox browser, `409 nothing_to_export`) |

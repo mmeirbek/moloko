@@ -21,6 +21,8 @@ class ToolOut(BaseModel):
     enabled: bool
     available: bool
     input_schema: dict[str, Any]
+    # Every agent may use it without allowing it (read-only history look-ups).
+    always_allowed: bool = False
 
 
 class ToolUpdate(BaseModel):

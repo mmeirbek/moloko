@@ -34,7 +34,9 @@ export function AgentToolsField({
         <fieldset key={group} className="flex flex-col gap-1">
           <legend className="text-sm font-semibold">{tt(`groups.${group as "files"}`)}</legend>
           {items.map((tool) => {
-            const allowed = values.tools.includes(tool.name);
+            // Read-only history look-ups: every agent has them (they can only be blocked).
+            const always = tool.always_allowed === true;
+            const allowed = always || values.tools.includes(tool.name);
             return (
               <div
                 key={tool.name}
@@ -46,11 +48,13 @@ export function AgentToolsField({
                     type="checkbox"
                     className="mt-0.5 size-4 shrink-0"
                     checked={allowed}
+                    disabled={always}
                     onChange={(e) => onChange(toggleTool(values, tool.name, e.target.checked))}
                   />
                   <span className="min-w-0">
                     <span className="block">{titleOf(tool)}</span>
                     <span className="block text-xs text-muted-foreground">{hintOf(tool)}</span>
+                    {always && <span className="block text-xs text-muted-foreground">{t("alwaysAllowed")}</span>}
                   </span>
                 </label>
                 <CategoryBadge category={tool.category} />

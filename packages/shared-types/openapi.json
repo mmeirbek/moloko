@@ -5418,6 +5418,17 @@
             ],
             "title": "Agent Id"
           },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
           "conversation_id": {
             "anyOf": [
               {
@@ -5430,9 +5441,66 @@
             ],
             "title": "Conversation Id"
           },
+          "message_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Type"
+          },
           "mode": {
             "title": "Mode",
             "type": "string"
+          },
+          "peer_agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Agent Id"
+          },
+          "peer_agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Agent Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
           },
           "score": {
             "title": "Score",
@@ -5442,6 +5510,18 @@
             "title": "Snippet",
             "type": "string"
           },
+          "source_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source At"
+          },
           "source_id": {
             "format": "uuid",
             "title": "Source Id",
@@ -5450,6 +5530,29 @@
           "source_type": {
             "title": "Source Type",
             "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
           },
           "title": {
             "title": "Title",
@@ -6433,6 +6536,11 @@
       },
       "ToolOut": {
         "properties": {
+          "always_allowed": {
+            "default": false,
+            "title": "Always Allowed",
+            "type": "boolean"
+          },
           "available": {
             "title": "Available",
             "type": "boolean"
@@ -11097,7 +11205,7 @@
             "required": false,
             "schema": {
               "default": "memory,file,attachment",
-              "maxLength": 40,
+              "maxLength": 200,
               "title": "Types",
               "type": "string"
             }
@@ -11137,7 +11245,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Search memories, workspace files and chat files",
+        "summary": "Search memories, files, chat files and the work history (finished tasks, agent messages, chat messages)",
         "tags": [
           "voice & search"
         ]

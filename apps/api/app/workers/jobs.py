@@ -130,7 +130,8 @@ async def push_notifications(ctx: dict[str, Any]) -> None:
 
 
 async def search_index(ctx: dict[str, Any]) -> None:
-    """Every half minute: bring the search index up to date with memories and files."""
+    """Every half minute: bring the search index up to date with memories, files and the
+    work history (finished tasks, agent messages, chat messages)."""
     from app.search.index import index_all
 
     done = await index_all(ctx["db"].sessionmaker, ctx["gateway"], ctx["settings"])

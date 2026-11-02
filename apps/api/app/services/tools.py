@@ -14,7 +14,7 @@ from app.models.tooling import McpServer, Tool
 from app.schemas.tooling import ToolOut, ToolUpdate
 from app.services.audit import AuditService
 from app.tools.mcp import McpTool
-from app.tools.policy import CatalogEntry
+from app.tools.policy import ALWAYS_ALLOWED, CatalogEntry
 from app.tools.registry import BUILTIN, catalog
 
 
@@ -38,6 +38,7 @@ def tool_out(name: str, entry: CatalogEntry, server: McpServer | None = None) ->
         enabled=entry.enabled,
         available=entry.available,
         input_schema=tool.input_schema,
+        always_allowed=name in ALWAYS_ALLOWED,
     )
 
 
