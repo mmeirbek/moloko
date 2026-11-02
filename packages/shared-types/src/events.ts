@@ -21,6 +21,7 @@ export type EventType =
   | "approval.resolved"
   | "chat.message_delta"
   | "chat.message_completed"
+  | "chat.summary_updated"
   | "budget.warning"
   | "schedule.created"
   | "schedule.updated"

@@ -8,6 +8,8 @@ from fastapi import APIRouter, Query, Response, UploadFile, status
 
 from app.api.deps import ChatStreamsDep, CurrentAuth, DbSession, GatewayDep, QueueDep, SettingsDep
 from app.api.sse import queue_events, sse_event, sse_response
+from app.core.config import Settings
+from app.models.chat import Conversation
 from app.orchestrator.service import hand_off_chat
 from app.schemas.agents import StartedRun
 from app.schemas.chat import (
@@ -15,6 +17,7 @@ from app.schemas.chat import (
     CancelResult,
     ConversationCreate,
     ConversationOut,
+    ConversationSummaryOut,
     ConversationUpdate,
     MessageCreate,
     MessageOut,
@@ -24,6 +27,14 @@ from app.schemas.tasks import HandoffRequest, RunOut, TaskOut
 from app.services.chat import ChatService
 
 router = APIRouter(prefix="/chats", tags=["chats"])
+
+
+def conversation_out(conv: Conversation, settings: Settings) -> ConversationOut:
+    out = ConversationOut.model_validate(conv)
+    if not settings.chat_summary_enabled:  # the model does not get it: don't claim it does
+        out = out.model_copy(update={"summary_updated_at": None, "summary_messages": 0})
+    return out
+
 
 SSE_DOC: dict[int | str, dict[str, Any]] = {
     200: {
@@ -46,7 +57,7 @@ async def list_chats(
     rows, next_cursor = await ChatService(db, settings, gateway).list_conversations(
         ctx.user.id, limit=limit, cursor=cursor
     )
-    return Page(items=[ConversationOut.model_validate(c) for c in rows], next_cursor=next_cursor)
+    return Page(items=[conversation_out(c, settings) for c in rows], next_cursor=next_cursor)
 
 
 @router.post("", response_model=ConversationOut, status_code=status.HTTP_201_CREATED)
@@ -57,8 +68,8 @@ async def create_chat(
     settings: SettingsDep,
     gateway: GatewayDep,
 ) -> ConversationOut:
-    return ConversationOut.model_validate(
-        await ChatService(db, settings, gateway).create(ctx.user.id, body)
+    return conversation_out(
+        await ChatService(db, settings, gateway).create(ctx.user.id, body), settings
     )
 
 
@@ -66,8 +77,26 @@ async def create_chat(
 async def get_chat(
     chat_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, gateway: GatewayDep
 ) -> ConversationOut:
-    return ConversationOut.model_validate(
-        await ChatService(db, settings, gateway).get(ctx.user.id, chat_id)
+    return conversation_out(
+        await ChatService(db, settings, gateway).get(ctx.user.id, chat_id), settings
+    )
+
+
+@router.get("/{chat_id}/summary", response_model=ConversationSummaryOut)
+async def get_chat_summary(
+    chat_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, gateway: GatewayDep
+) -> ConversationSummaryOut:
+    """The rolling summary of the chat's older messages — exactly what the model gets."""
+    conv = await ChatService(db, settings, gateway).get(ctx.user.id, chat_id)
+    if not settings.chat_summary_enabled:
+        return ConversationSummaryOut(
+            summary=None, summary_messages=0, summary_upto_at=None, summary_updated_at=None
+        )
+    return ConversationSummaryOut(
+        summary=conv.summary,
+        summary_messages=conv.summary_messages,
+        summary_upto_at=conv.summary_upto_at,
+        summary_updated_at=conv.summary_updated_at,
     )
 
 
@@ -81,7 +110,7 @@ async def update_chat(
     gateway: GatewayDep,
 ) -> ConversationOut:
     conv = await ChatService(db, settings, gateway).update(ctx.user.id, chat_id, body)
-    return ConversationOut.model_validate(conv)
+    return conversation_out(conv, settings)
 
 
 @router.delete("/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)

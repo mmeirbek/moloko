@@ -20,6 +20,7 @@ from app.providers.base import ChatMessage, ChatRequest, ImagePart
 from app.providers.gateway import ModelGateway, ModelUnavailable
 from app.schemas.chat import ConversationCreate, ConversationUpdate
 from app.schemas.common import decode_cursor, encode_cursor
+from app.services import chat_memory
 from app.services.addressing import owner_address_instruction
 from app.services.audit import AuditService
 from app.services.chat_stream import ChatStreamManager, StreamState
@@ -247,18 +248,25 @@ class ChatService:
         return message
 
     async def _context(
-        self, conversation_id: uuid.UUID, image_budget: int = 0
+        self,
+        conversation_id: uuid.UUID,
+        image_budget: int = 0,
+        after: tuple[datetime, uuid.UUID] | None = None,
     ) -> list[ChatMessage]:
+        """The latest completed messages; with a summary only those after it (the summary
+        covers the older ones — services/chat_memory.py)."""
+        query = select(Message).where(
+            Message.conversation_id == conversation_id,
+            Message.status == "completed",
+            Message.role.in_(("user", "assistant")),
+        )
+        if after is not None:
+            query = query.where(chat_memory.after_cursor(after))
         rows = (
             await self.db.execute(
-                select(Message)
-                .where(
-                    Message.conversation_id == conversation_id,
-                    Message.status == "completed",
-                    Message.role.in_(("user", "assistant")),
+                query.order_by(Message.created_at.desc(), Message.id.desc()).limit(
+                    self.settings.chat_context_max_messages - 1
                 )
-                .order_by(Message.created_at.desc(), Message.id.desc())
-                .limit(self.settings.chat_context_max_messages - 1)
             )
         ).scalars()
         messages = list(reversed(list(rows)))
@@ -470,10 +478,23 @@ class ChatService:
             if len(files) != len(ids):
                 raise InvalidAttachment("An attached file is missing or was already sent.")
         new_images = sum(1 for a in files if a.kind == "image")
+        cursor = chat_memory.summary_cursor(conv, self.settings)
         history = await self._context(
-            conversation_id, max(0, self.settings.chat_context_images - new_images)
+            conversation_id, max(0, self.settings.chat_context_images - new_images), cursor
         )
         current = await self._image_parts(files, max(new_images, 0))
+        # Earlier chats, tasks and memory (time-boxed; nothing when off or nothing found).
+        recalled = await chat_memory.recall(
+            self.db.bind,  # type: ignore[arg-type]
+            self.gateway,
+            self.settings,
+            user_id,
+            conversation_id,
+            content,
+        )
+        recall_text, recall_used = chat_memory.recall_block(
+            recalled, self.settings.chat_recall_max_chars
+        )
 
         now = datetime.now(UTC)
         user_msg = Message(
@@ -495,6 +516,7 @@ class ChatService:
             provider_kind=target.provider_kind,
             model=target.model,
             created_at=now + timedelta(microseconds=1),  # strictly after the question
+            recalled_sources=[r.public() for r in recall_used] or None,
         )
         self.db.add_all([user_msg, assistant_msg])
         await self.db.flush()
@@ -517,7 +539,12 @@ class ChatService:
                     images=tuple(current[a.id] for a in files if a.id in current),
                 ),
             ),
-            system=await chat_system_prompt(self.db, user_id),
+            # Instructions first, then data: the summary of older messages, then recall.
+            system=chat_memory.chat_system(
+                await chat_system_prompt(self.db, user_id),
+                chat_memory.summary_block(conv.summary or "") if cursor else "",
+                recall_text,
+            ),
         )
         state = streams.start(
             user_id=user_id,

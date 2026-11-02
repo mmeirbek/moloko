@@ -4,6 +4,7 @@ import type {
   ConversationCreate,
   ConversationOut,
   ConversationPage,
+  ConversationSummaryOut,
   ConversationUpdate,
   MessageOut,
   MessagePage,
@@ -18,6 +19,7 @@ export const chatKeys = {
   list: ["chats"] as const,
   detail: (id: string) => ["chats", id] as const,
   messages: (id: string) => ["chats", id, "messages"] as const,
+  summary: (id: string) => ["chats", id, "summary"] as const,
 };
 export const modelKeys = { picker: ["models", "enabled"] as const };
 
@@ -31,6 +33,11 @@ export function createChat(body: ConversationCreate = {}): Promise<ConversationO
 
 export function getChat(id: string, signal?: AbortSignal): Promise<ConversationOut> {
   return api.request<ConversationOut>(`/chats/${id}`, { signal });
+}
+
+/** The rolling summary of the chat's older messages — what the model remembers of them. */
+export function getChatSummary(id: string, signal?: AbortSignal): Promise<ConversationSummaryOut> {
+  return api.request<ConversationSummaryOut>(`/chats/${id}/summary`, { signal });
 }
 
 export function updateChat(id: string, body: ConversationUpdate): Promise<ConversationOut> {

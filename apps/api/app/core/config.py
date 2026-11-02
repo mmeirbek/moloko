@@ -108,6 +108,31 @@ class Settings(BaseSettings):
     chat_pdf_timeout_seconds: float = Field(20.0, gt=0, le=120)
     # How many of the most recent pictures in a chat are sent to the model again.
     chat_context_images: int = Field(4, ge=0, le=20)
+    # A long chat never forgets: messages that no longer fit into CHAT_CONTEXT_MAX_MESSAGES
+    # are condensed into a rolling summary (stored on the conversation, made in the
+    # background after an answer). CHAT_SUMMARY_MODEL = the name of one of your models
+    # (e.g. a cheaper one); empty = the chat's own model. INPUT_MAX_CHARS = how much new
+    # conversation text one summary call reads.
+    chat_summary_enabled: bool = True
+    chat_summary_max_chars: int = Field(4000, ge=500, le=50_000)
+    chat_summary_model: str = ""
+    chat_summary_input_max_chars: int = Field(30_000, ge=2000, le=500_000)
+    # Recall: before answering, the best matches from the owner's other chats, tasks and
+    # memory (through search) are given to the model as data. TYPES = search source types.
+    chat_recall_enabled: bool = True
+    chat_recall_top_k: int = Field(5, ge=1, le=20)
+    chat_recall_max_chars: int = Field(3000, ge=200, le=20_000)
+    chat_recall_timeout_seconds: float = Field(2.0, gt=0, le=30)
+    chat_recall_types: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "memory",
+            "attachment",
+            "task",
+            "conversation",
+            "message",
+            "agent_message",
+        ]
+    )
 
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
     max_active_subagents_per_run: int = Field(5, ge=1, le=50)
@@ -288,6 +313,7 @@ class Settings(BaseSettings):
         "web_fetch_allowed_ports",
         "push_allowed_hosts",
         "webauthn_origins",
+        "chat_recall_types",
         mode="before",
     )
     @classmethod

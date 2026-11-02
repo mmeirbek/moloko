@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, Timestamps, UUIDPrimaryKey
@@ -20,6 +22,14 @@ class Conversation(UUIDPrimaryKey, Timestamps, Base):
         ForeignKey("model_configs.id", ondelete="SET NULL")
     )
     last_message_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Rolling summary of the messages that no longer fit into the model's context
+    # (services/chat_memory.py). It covers every completed message up to and including
+    # `summary_upto_message_id` (created at `summary_upto_at`); the model gets it as data.
+    summary: Mapped[str | None] = mapped_column(Text)
+    summary_upto_message_id: Mapped[uuid.UUID | None]
+    summary_upto_at: Mapped[datetime | None]
+    summary_messages: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    summary_updated_at: Mapped[datetime | None]
 
 
 class Message(UUIDPrimaryKey, Timestamps, Base):
@@ -48,6 +58,9 @@ class Message(UUIDPrimaryKey, Timestamps, Base):
     error_message: Mapped[str | None] = mapped_column(String(500))
     error_id: Mapped[str | None] = mapped_column(String(64))
     agent_run_id: Mapped[uuid.UUID | None]  # set when the message hands off to agents (Sprint 4)
+    # Assistant answers: which earlier chats / tasks / memories recall gave the model
+    # (list of {type, id, title, date, conversation_id, agent_id}); NULL = none.
+    recalled_sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     completed_at: Mapped[datetime | None]
 
 

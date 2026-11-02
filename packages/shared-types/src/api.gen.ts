@@ -745,6 +745,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chats/{chat_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chat Summary
+         * @description The rolling summary of the chat's older messages — exactly what the model gets.
+         */
+        get: operations["get_chat_summary_api_v1_chats__chat_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/costs": {
         parameters: {
             query?: never;
@@ -2343,6 +2363,13 @@ export interface components {
             last_message_at: string;
             /** Model Config Id */
             model_config_id: string | null;
+            /**
+             * Summary Messages
+             * @default 0
+             */
+            summary_messages?: number;
+            /** Summary Updated At */
+            summary_updated_at?: string | null;
             /** Title */
             title: string;
             /**
@@ -2350,6 +2377,20 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * ConversationSummaryOut
+         * @description The rolling summary of a chat's older messages, as the model gets it.
+         */
+        ConversationSummaryOut: {
+            /** Summary */
+            summary: string | null;
+            /** Summary Messages */
+            summary_messages: number;
+            /** Summary Updated At */
+            summary_updated_at: string | null;
+            /** Summary Upto At */
+            summary_upto_at: string | null;
         };
         /** ConversationUpdate */
         ConversationUpdate: {
@@ -2817,6 +2858,8 @@ export interface components {
             output_tokens: number | null;
             /** Provider Kind */
             provider_kind: string | null;
+            /** Recalled Sources */
+            recalled_sources?: components["schemas"]["RecalledSourceOut"][];
             /** Role */
             role: string;
             /** Status */
@@ -3219,6 +3262,27 @@ export interface components {
         PushKey: {
             /** Public Key */
             public_key: string;
+        };
+        /**
+         * RecalledSourceOut
+         * @description An earlier chat, task or memory that recall gave the model for this answer.
+         */
+        RecalledSourceOut: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Date */
+            date?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Type */
+            type: string;
         };
         /**
          * RecurrenceIn
@@ -5586,6 +5650,37 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_chat_summary_api_v1_chats__chat_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSummaryOut"];
                 };
             };
             /** @description Validation Error */
