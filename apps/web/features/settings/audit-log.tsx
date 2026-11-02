@@ -74,7 +74,7 @@ export function AuditLog() {
   });
   const items = pages.data?.pages.flatMap((p) => p.items) ?? [];
   return (
-    <div className="flex max-w-4xl flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         <select
           aria-label={t("area")}

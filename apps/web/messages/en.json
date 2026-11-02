@@ -38,7 +38,14 @@
       "subagentOffice": "How the Orchestrator splits a big task",
       "integrations": "GitHub, MCP servers and agent tools",
       "settings": "AI providers, notifications, costs, backups"
-    }
+    },
+    "sidebar": "Sidebar",
+    "resize": "Sidebar width",
+    "resizeHint": "Drag to change the width. Double-click for the default width.",
+    "collapsed": "Folded",
+    "widthPx": "{px} pixels",
+    "collapse": "Fold the sidebar",
+    "expand": "Unfold the sidebar"
   },
   "auth": {
     "title": "Sign in",
@@ -178,7 +185,6 @@
     "newChat": "New chat",
     "history": "Chat history",
     "noChats": "No chats yet.",
-    "pick": "Pick a chat or start a new one.",
     "allChats": "All chats",
     "deleteChat": "Delete “{title}”",
     "confirmDelete": "Delete this chat and all its messages?",
@@ -210,11 +216,11 @@
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
     "agentsWorking": "Agents are working on it…",
     "handedOff": "Done by agents — open the run",
-    "attach": "Attach a text file",
+    "attach": "Attach a file: text, picture or PDF",
     "attachments": "Attached files",
     "removeAttachment": "Remove \"{name}\"",
     "pages": "{count, plural, one {# page} other {# pages}}",
-    "emptyHint": "The answer appears as it is written and is saved on the server — you can close the tab. Or start with an example:",
+    "emptyHint": "The answer is written as you watch and saved on the server — you can close the tab.",
     "noModelsHint": "Add an OpenAI or Anthropic key in Settings — it takes a minute.",
     "placeholderAgents": "Describe the job for the agents…",
     "agentsModeHint": "The Orchestrator splits the job into steps for agents. For bigger work.",
@@ -225,7 +231,14 @@
       "explain": "Explain in simple words how search by meaning works",
       "plan": "Make a weekly plan: three workouts and an hour of reading a day",
       "letter": "Help me write a polite email declining a meeting"
-    }
+    },
+    "recent": "Recent chats",
+    "greeting": "How can I help, {name}?",
+    "greetingNoName": "How can I help?",
+    "copy": "Copy the answer",
+    "scrollDown": "Jump to the latest messages",
+    "notSent": "The message did not reach the server. Please try again.",
+    "defaultModelNamed": "{name} · default"
   },
   "settings": {
     "providers": {
@@ -953,7 +966,10 @@
     "start": "Speak",
     "stop": "Stop recording",
     "denied": "No microphone access: allow it in the browser settings.",
-    "nothing": "No speech recognised. Try again."
+    "nothing": "No speech recognised. Try again.",
+    "needsProvider": "Voice input uses your OpenAI key. Add it in the settings and you can speak.",
+    "openSettings": "Open the settings",
+    "closeHint": "Close the hint"
   },
   "search": {
     "title": "Search",

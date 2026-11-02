@@ -15,7 +15,7 @@ import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, createTask, listAgents, listTasks, taskKeys } from "@/lib/api/agents";
 import { useDebounced } from "@/lib/hooks";
 import { useRealtimeStore } from "@/lib/realtime/store";
-import { cn } from "@/lib/utils";
+import { cn, notAfter } from "@/lib/utils";
 import { EmptyState } from "@/features/mascot/empty-state";
 
 const FILTERS = ["all", "active", "completed", "failed", "cancelled"] as const;
@@ -109,7 +109,7 @@ function TaskRow({ task, now }: { task: TaskOut; now: Date }) {
         <div className="min-w-0">
           <p className="truncate font-medium">{live.title}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {agentName ?? "—"} · {format.relativeTime(new Date(live.created_at), now)}
+            {agentName ?? "—"} · {format.relativeTime(notAfter(new Date(live.created_at), now), now)}
             {live.attempt > 1 && ` · #${live.attempt}`}
           </p>
         </div>
@@ -135,7 +135,7 @@ export function TasksView() {
   });
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* One scrollable row on phones instead of wrapping onto a second line. */}
         <div

@@ -47,7 +47,7 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await page.getByRole("tab", { name: "История задач" }).click();
   await expect(page.getByRole("list", { name: "Задачи агента" }).getByText("Готово")).toBeVisible({ timeout: 60_000 });
 
-  await page.getByRole("button", { name: "Удалить" }).click();
+  await page.getByRole("button", { name: "Удалить", exact: true }).click(); // not the chats' delete buttons in the sidebar
   await page.getByTestId("confirm-dialog").getByRole("button", { name: "Удалить" }).click(); // in-app confirm
   await page.waitForURL(/\/office\/agents$/);
   await expect(page.getByRole("link", { name })).toHaveCount(0);

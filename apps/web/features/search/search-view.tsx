@@ -42,7 +42,7 @@ export function SearchView() {
   const hits = results.data?.hits ?? [];
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <form
         role="search"
         className="flex items-center gap-2"

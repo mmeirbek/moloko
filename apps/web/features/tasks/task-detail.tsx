@@ -95,7 +95,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   const run = detail.data?.run;
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Link href="/tasks" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
         <ArrowLeft className="size-4" /> {t("allTasks")}
       </Link>

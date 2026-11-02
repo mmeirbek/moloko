@@ -30,7 +30,7 @@ export function ApprovalsView() {
   const loading = !live && recent.isPending;
   const answered = (recent.data ?? []).filter((a) => a.status !== "pending").slice(0, 20);
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3" aria-labelledby="pending-title">
         <h2 id="pending-title" className="text-lg font-semibold">
           {t("pending")}

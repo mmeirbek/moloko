@@ -44,7 +44,7 @@ export function CostsView() {
   const label = format.dateTime(new Date(`${data.month}-01T12:00:00Z`), { month: "long", year: "numeric" });
 
   return (
-    <div className="flex max-w-5xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" aria-label={t("prevMonth")} onClick={() => setMonth(shiftMonth(current!, -1))}>
           <ChevronLeft />

@@ -1,7 +1,7 @@
 """Brand images from the owner's logo (assets/brand/logo-source.jpg).
 
 Writes the logo tile (cow in a meadow) and the "moloko" wordmark mask used by
-components/brand/logo.tsx, plus the favicon and PWA icons. Re-run after replacing
+components/brand/logo.tsx, plus the favicon (app/favicon.ico and PNG) and the PWA icons. Re-run after replacing
 the source image (from apps/web):
 
     uv run --with pillow==13.0.0 python scripts/make-brand.py
@@ -104,6 +104,11 @@ def main() -> None:
             image = image.quantize(colors=COLORS, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
         image.save(path, optimize=True)
         print(f"{path.relative_to(WEB)}  {image.size[0]}×{image.size[1]}  {path.stat().st_size // 1024} KB")
+
+    # /favicon.ico: Safari and link-preview fetchers ask for it whatever the <link> tags say.
+    favicon = WEB / "app/favicon.ico"
+    on_background(tile, 48, 1.0, None).save(favicon, sizes=[(16, 16), (32, 32), (48, 48)])
+    print(f"{favicon.relative_to(WEB)}  16/32/48  {favicon.stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":

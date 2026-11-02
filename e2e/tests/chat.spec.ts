@@ -5,9 +5,8 @@ import { OWNER, watchErrors } from "./helpers";
 test("chat: streaming, markdown, history, attachments, stop, errors, second device", async ({ page, browser }) => {
   const errors = watchErrors(page);
   await page.goto("/chat");
-  await page.getByRole("button", { name: "Новый чат" }).first().click();
-  await page.waitForURL(/\/chat\/[0-9a-f-]{36}/);
-  const chatUrl = page.url();
+  await page.getByRole("link", { name: "Новый чат" }).first().click();
+  await page.waitForURL(/\/chat\/new$/);
   const input = page.getByPlaceholder("Сообщение для moloko…");
   /** The composer accepts a message only when no answer is running (Send button shown). */
   const say = async (text: string) => {
@@ -17,7 +16,10 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
     await expect(input).toHaveValue("");
   };
 
+  // The server gets the chat with its first message (no empty chats), then the chat opens.
   await say("Привет, **moloko**!");
+  await page.waitForURL(/\/chat\/[0-9a-f-]{36}$/);
+  const chatUrl = page.url();
   await expect(page.getByText("Echo: Привет, ")).toBeVisible();
   await expect(page.locator(".markdown strong", { hasText: "moloko" }).first()).toBeVisible();
   await page.reload();

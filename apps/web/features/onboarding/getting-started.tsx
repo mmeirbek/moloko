@@ -1,17 +1,16 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { UNTITLED_CHAT } from "@/features/chat/chat-title";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { agentKeys, listAgents, listTasks, taskKeys } from "@/lib/api/agents";
-import { chatKeys, createChat, listChats, listPickerModels, modelKeys } from "@/lib/api/chat";
+import { chatKeys, listChats, listPickerModels, modelKeys } from "@/lib/api/chat";
 import { cn } from "@/lib/utils";
 
 const HIDDEN_KEY = "moloko.gettingStarted.hidden"; // per device: the owner closed the checklist
@@ -36,8 +35,6 @@ type StepKey = "model" | "chat" | "task" | "agent";
  */
 export function GettingStarted({ className }: { className?: string }) {
   const t = useTranslations("start");
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const storedHidden = useSyncExternalStore(subscribeStorage, readHidden, () => true);
   const [hiddenNow, setHiddenNow] = useState(false);
 
@@ -45,13 +42,6 @@ export function GettingStarted({ className }: { className?: string }) {
   const chats = useQuery({ queryKey: chatKeys.list, queryFn: ({ signal }) => listChats(signal) });
   const tasks = useQuery({ queryKey: taskKeys.list("all", ""), queryFn: ({ signal }) => listTasks("all", "", signal) });
   const agents = useQuery({ queryKey: agentKeys.all, queryFn: ({ signal }) => listAgents(signal) });
-  const newChat = useMutation({
-    mutationFn: () => createChat(),
-    onSuccess: (chat) => {
-      void queryClient.invalidateQueries({ queryKey: chatKeys.list });
-      router.push(`/chat/${chat.id}`);
-    },
-  });
 
   if (storedHidden || hiddenNow) return null;
   if (!models.data || !chats.data || !tasks.data || !agents.data) return null; // no flicker while loading
@@ -79,14 +69,14 @@ export function GettingStarted({ className }: { className?: string }) {
   const action = (step: StepKey) => {
     const primary = step === next;
     const variant = primary ? "default" : "outline";
-    if (step === "chat") {
+    if (step === "chat" && !done.model) {
       return (
-        <Button size="sm" variant={variant} disabled={!done.model || newChat.isPending} onClick={() => newChat.mutate()}>
+        <Button size="sm" variant={variant} disabled>
           {t("chat.action")}
         </Button>
       );
     }
-    const href = { model: "/settings#ai", task: "/office/subagents", agent: "/office/agents" }[step];
+    const href = { model: "/settings#ai", chat: "/chat/new", task: "/office/subagents", agent: "/office/agents" }[step];
     return (
       <Button size="sm" variant={variant} asChild>
         <Link href={href}>{t(`${step}.action`)}</Link>

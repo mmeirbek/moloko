@@ -1,12 +1,15 @@
 "use client";
 
-import { Loader2, Mic, Square } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Info, Loader2, Mic, Square, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { transcribeAudio } from "@/lib/api/chat";
+import { getAiServices, searchKeys } from "@/lib/api/search";
 import { cn } from "@/lib/utils";
 
 const MAX_SECONDS = 120;
@@ -29,7 +32,8 @@ export function extensionFor(type: string): string {
 
 /**
  * Voice input: press to record, press again (or wait 2 minutes) to stop; the speech is
- * turned into text by the owner's provider and handed to `onText`.
+ * turned into text by the owner's provider and handed to `onText`. Without a provider for it,
+ * a press explains how to get one (before anything is recorded) instead of failing afterwards.
  */
 export function MicButton({ onText, className, disabled }: { onText: (text: string) => void; className?: string; disabled?: boolean }) {
   const t = useTranslations("voice");
@@ -39,6 +43,9 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
   const [state, setState] = useState<"idle" | "recording" | "sending">("idle");
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const ai = useQuery({ queryKey: searchKeys.ai, queryFn: ({ signal }) => getAiServices(signal), staleTime: 60_000 });
+  const unavailable = ai.data?.available === false;
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<number>(0);
   const mounted = useRef(true);
@@ -58,6 +65,10 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
 
   async function start() {
     setError(null);
+    if (unavailable) {
+      setNeedsSetup(true);
+      return;
+    }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -117,7 +128,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
         disabled={disabled || state === "sending"}
         aria-pressed={recording}
         aria-label={recording ? t("stop") : t("start")}
-        title={error ?? (recording ? t("stop") : t("start"))}
+        title={recording ? t("stop") : unavailable ? t("needsProvider") : t("start")}
         onClick={() => (recording ? stop() : void start())}
         data-testid="mic"
       >
@@ -128,16 +139,33 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
           ● {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
         </span>
       )}
-      {error && !recording && (
-        // Visible, not only a tooltip: phones have no hover. A tap closes it.
-        <button
-          type="button"
+      {(error || needsSetup) && !recording && (
+        // Visible, not only a tooltip: phones have no hover.
+        <span
           role="alert"
-          onClick={() => setError(null)}
-          className="absolute right-0 bottom-full z-10 mb-1 w-max max-w-56 rounded-md border bg-card px-2 py-1 text-left text-xs text-destructive shadow-md"
+          className="absolute right-0 bottom-full z-20 mb-2 flex w-72 max-w-[calc(100vw-2rem)] items-start gap-2 rounded-lg border bg-card p-3 text-left text-xs text-card-foreground shadow-lg"
         >
-          {error}
-        </button>
+          <Info className="mt-0.5 size-4 shrink-0 text-sky" aria-hidden />
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+            <span>{needsSetup ? t("needsProvider") : error}</span>
+            {needsSetup && (
+              <Link href="/settings#ai" className="font-medium text-sky underline-offset-2 hover:underline">
+                {t("openSettings")}
+              </Link>
+            )}
+          </span>
+          <button
+            type="button"
+            aria-label={t("closeHint")}
+            className="-m-1.5 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setError(null);
+              setNeedsSetup(false);
+            }}
+          >
+            <X className="size-3.5" />
+          </button>
+        </span>
       )}
     </span>
   );

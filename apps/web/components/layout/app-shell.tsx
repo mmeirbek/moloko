@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, Menu, Search, WifiOff } from "lucide-react";
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, SquarePen, WifiOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
 import { ApprovalsBadge, usePendingApprovalCount } from "@/features/approvals/approvals-badge";
+import { ChatList } from "@/features/chat/chat-list";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { PixelCow, WalkingCow } from "@/features/mascot/pixel-cow";
 import { Notifier } from "@/features/notifications/notifier";
@@ -26,6 +27,8 @@ import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
 import { NAV_GROUPS, PHONE_MORE, PHONE_TABS, type NavItem } from "./nav-items";
+import { setCollapsed, useSidebarCollapsed } from "./use-sidebar";
+import { SidebarResizer } from "./sidebar-resizer";
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -39,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const toMessage = useErrorMessage();
   const [newTask, setNewTask] = useState(false);
   const [more, setMore] = useState(false);
+  const status = useRealtimeStore((s) => s.status);
 
   // The backend decides whether we are signed in; the UI only reflects it.
   const me = useQuery({ queryKey: authKeys.me, queryFn: ({ signal }) => getMe(signal) });
@@ -105,46 +109,77 @@ export function AppShell({ children }: { children: ReactNode }) {
       {t("nav.skipToContent")}
     </a>
     <div className="flex min-h-dvh">
-      {/* Desktop / tablet sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
-        <div className="flex h-16 items-center justify-between gap-2 px-4">
-          <Link href="/chat" aria-label="moloko">
+      {/* Desktop / tablet sidebar: the owner drags its edge to resize it, or folds it into an icon rail. */}
+      <aside
+        id="app-sidebar"
+        aria-label={t("nav.sidebar")}
+        className="sticky top-0 hidden h-dvh w-(--sidebar-width) shrink-0 flex-col border-r bg-card md:flex sidebar-collapsed:w-16"
+      >
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 sidebar-collapsed:justify-center sidebar-collapsed:px-0">
+          <Link href="/chat" aria-label="moloko" className="min-w-0 sidebar-collapsed:hidden">
             <Logo />
           </Link>
+          <SidebarToggle />
         </div>
-        <div className="px-2 pt-1">
-          <Button className="w-full justify-start gap-2" onClick={() => setNewTask(true)} data-testid="new-task-sidebar">
+        <div className="flex shrink-0 flex-col gap-1.5 px-2 pb-2 sidebar-collapsed:items-center">
+          <Button asChild className="w-full justify-start gap-2 sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0">
+            <Link href="/chat/new" data-testid="new-chat-sidebar" title={t("chat.newChat")}>
+              <SquarePen />
+              <span className="sidebar-collapsed:sr-only">{t("chat.newChat")}</span>
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2 sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0"
+            onClick={() => setNewTask(true)}
+            title={t("newTask.title")}
+            data-testid="new-task-sidebar"
+          >
             <PixelCow mood="happy" size={22} outfit={false} />
-            {t("newTask.button")}
+            <span className="sidebar-collapsed:sr-only">{t("newTask.button")}</span>
           </Button>
         </div>
-        <nav aria-label={t("nav.label")} className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.key} className="flex flex-col gap-0.5">
-              <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                {t(`nav.groups.${group.key}`)}
-              </p>
-              {group.items.map((item) => (
-                <SidebarLink key={item.href} item={item} active={isActive(pathname, item.href)} />
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="flex flex-col gap-3 border-t p-3">
-          <div className="flex items-center justify-between gap-2">
+        {/* Sections, then the recent chats (like Claude's "Recents"): one scrolling column. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 py-2">
+          <nav aria-label={t("nav.label")} className="flex flex-col gap-4 sidebar-collapsed:items-center">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.key} className="flex flex-col gap-0.5 sidebar-collapsed:items-center">
+                <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase sidebar-collapsed:hidden">
+                  {t(`nav.groups.${group.key}`)}
+                </p>
+                {group.items.map((item) => (
+                  <SidebarLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+                ))}
+              </div>
+            ))}
+          </nav>
+          <section aria-labelledby="recent-chats" className="flex flex-col sidebar-collapsed:hidden">
+            <p id="recent-chats" className="px-3 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {t("chat.recent")}
+            </p>
+            <ChatList variant="sidebar" />
+          </section>
+        </div>
+        <div className="flex shrink-0 flex-col gap-3 border-t p-3 sidebar-collapsed:items-center sidebar-collapsed:px-2">
+          <div className="flex items-center justify-between gap-2 sidebar-collapsed:hidden">
             <p className="truncate text-xs text-muted-foreground" title={user.username}>
               {t("auth.signedInAs", { name: displayName })}
             </p>
             <ConnectionStatus />
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <LocaleSwitcher />
-            <div className="flex items-center">
+          <div className="flex items-center justify-between gap-2 sidebar-collapsed:flex-col">
+            <LocaleSwitcher className="sidebar-collapsed:hidden" />
+            <span className="hidden sidebar-collapsed:inline-flex" title={t(`realtime.${status}`)}>
+              <ConnectionDot />
+              <span className="sr-only">{t(`realtime.${status}`)}</span>
+            </span>
+            <div className="flex items-center sidebar-collapsed:flex-col">
               <ThemeToggle />
               {signOutButton}
             </div>
           </div>
         </div>
+        <SidebarResizer controls="app-sidebar" />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -246,20 +281,20 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      title={t(`hints.${item.labelKey}`)}
+      title={`${t(item.labelKey)} — ${t(`hints.${item.labelKey}`)}`}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0",
         active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
       )}
     >
-      <Icon className="size-4" />
-      <span className="flex-1">{t(item.labelKey)}</span>
+      <Icon className="size-4 shrink-0" />
+      <span className="flex-1 truncate sidebar-collapsed:sr-only">{t(item.labelKey)}</span>
       {count > 0 && (
         <>
           <span className="sr-only">{t("pendingCount", { count })}</span>
           <span
             aria-hidden
-            className="rounded-full bg-amber-400 px-1.5 text-xs leading-5 font-semibold text-amber-950"
+            className="rounded-full bg-amber-400 px-1.5 text-xs leading-5 font-semibold text-amber-950 sidebar-collapsed:absolute sidebar-collapsed:-top-1 sidebar-collapsed:-right-1 sidebar-collapsed:px-1 sidebar-collapsed:text-[10px] sidebar-collapsed:leading-4"
             data-testid="approvals-badge"
           >
             {count}
@@ -267,6 +302,26 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
         </>
       )}
     </Link>
+  );
+}
+
+function SidebarToggle() {
+  const t = useTranslations("nav");
+  const collapsed = useSidebarCollapsed();
+  const label = collapsed ? t("expand") : t("collapse");
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={label}
+      title={label}
+      aria-expanded={!collapsed}
+      aria-controls="app-sidebar"
+      onClick={() => setCollapsed(!collapsed)}
+      data-testid="sidebar-toggle"
+    >
+      {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+    </Button>
   );
 }
 

@@ -10,7 +10,7 @@ test("performance targets", async ({ page, request }) => {
 
   let started = Date.now();
   await page.goto("/chat");
-  await expect(page.getByRole("button", { name: "Новый чат" }).first()).toBeVisible();
+  await expect(page.getByPlaceholder("Сообщение для moloko…")).toBeVisible();
   results.mainPageMs = Date.now() - started;
 
   const chat = await api<{ id: string }>(request, "POST", "/chats", {});

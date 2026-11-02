@@ -110,7 +110,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-3xl flex-col gap-4" noValidate>
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <Section title={t("profile")}>
         <Field id={id("name")} label={ta("name")} error={errorText("name")}>
           <Input

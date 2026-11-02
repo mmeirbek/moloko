@@ -1,6 +1,11 @@
+import { Page } from "@/components/layout/page";
 import { TaskDetailView } from "@/features/tasks/task-detail";
 
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <TaskDetailView key={id} taskId={id} />;
+  return (
+    <Page>
+      <TaskDetailView key={id} taskId={id} />
+    </Page>
+  );
 }

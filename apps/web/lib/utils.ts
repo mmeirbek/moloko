@@ -30,3 +30,11 @@ export function plainTitle(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * A server time for "N minutes ago": never later than `now`. The server's clock can run a few
+ * seconds ahead of the browser's, and "in 3 seconds" for a message just sent reads like a bug.
+ */
+export function notAfter(date: Date, now: Date): Date {
+  return date > now ? now : date;
+}

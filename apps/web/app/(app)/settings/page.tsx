@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { AiServicesSection } from "@/features/settings/ai-services-section";
 import { AppearanceSection } from "@/features/settings/appearance-section";
@@ -39,12 +40,12 @@ function Section({ id, title, hint, children }: { id: string; title: string; hin
 export default async function SettingsPage() {
   const t = await getTranslations("pages.settings");
   return (
-    <>
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
       {/* Jump to a section: one row, scrolls sideways on phones, stays under the header. */}
       <nav
         aria-label={t("sectionsLabel")}
-        className="sticky top-14 z-[5] -mx-4 mb-6 flex gap-1 overflow-x-auto border-b bg-background/95 px-4 py-2 backdrop-blur md:top-0 md:-mx-8 md:px-8"
+        className="sticky top-14 z-[5] -mx-4 mb-6 flex gap-1 overflow-x-auto border-b bg-background/95 px-4 py-2 backdrop-blur md:top-0 md:mx-0 md:px-0"
       >
         {SECTIONS.map((id) => (
           <a
@@ -68,7 +69,7 @@ export default async function SettingsPage() {
           {t("auditLink")}
         </Link>
       </nav>
-      <div className="grid max-w-4xl grid-cols-1 gap-10">
+      <div className="grid grid-cols-1 gap-10">
         <Section id="ai" title={t("sections.ai.title")} hint={t("sections.ai.hint")}>
           <ProvidersSection />
           <AiServicesSection />
@@ -92,6 +93,6 @@ export default async function SettingsPage() {
           <BackupsSection />
         </Section>
       </div>
-    </>
+    </Page>
   );
 }

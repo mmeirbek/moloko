@@ -5,6 +5,8 @@ import localFont from "next/font/local";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
+import { SIDEBAR_INIT_SCRIPT } from "@/components/layout/sidebar-prefs";
+
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -46,6 +48,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale} className={headingFont.variable} suppressHydrationWarning>
       <body className="min-h-dvh">
+        {/* The sidebar width the owner chose on this device, applied before the first paint. */}
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SIDEBAR_INIT_SCRIPT }} suppressHydrationWarning />
         <NextIntlClientProvider>
           <Providers nonce={nonce}>{children}</Providers>
         </NextIntlClientProvider>

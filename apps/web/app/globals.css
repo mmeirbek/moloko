@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* The desktop sidebar folded into its icon rail (components/layout/sidebar-prefs.ts). */
+@custom-variant sidebar-collapsed (&:where([data-sidebar="collapsed"] *));
 
 /*
  * Brand palette, taken from the moloko logo: night-navy background, milk-cream
@@ -29,6 +31,8 @@
   --input: #d6cfbb;
   --ring: #1c6aa3; /* focus ring ≥3:1 on every light surface */
   --radius: 0.375rem;
+  /* Desktop sidebar width; the owner drags it (sidebar-prefs.ts sets it on <html>). */
+  --sidebar-width: 256px;
 }
 
 .dark {
@@ -243,3 +247,9 @@
   }
 }
 
+/* While the sidebar edge is dragged: one cursor everywhere, no text selection. */
+html[data-resizing],
+html[data-resizing] * {
+  cursor: col-resize !important;
+  user-select: none;
+}

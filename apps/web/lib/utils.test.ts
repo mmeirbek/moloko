@@ -4,7 +4,7 @@ import { localeFromAcceptLanguage } from "@/i18n/config";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
-import { plainTitle, safeNextPath } from "./utils";
+import { notAfter, plainTitle, safeNextPath } from "./utils";
 
 describe("safeNextPath", () => {
   it.each([
@@ -59,5 +59,16 @@ describe("plainTitle", () => {
     ["  много   пробелов\nи строк ", "много пробелов и строк"],
   ])("%s -> %s", (input, expected) => {
     expect(plainTitle(input)).toBe(expected);
+  });
+});
+
+describe("notAfter", () => {
+  const now = new Date("2026-11-02T10:00:00Z");
+  it("keeps a time in the past", () => {
+    const past = new Date("2026-11-02T09:59:00Z");
+    expect(notAfter(past, now)).toBe(past);
+  });
+  it("turns a server time a few seconds ahead into now", () => {
+    expect(notAfter(new Date("2026-11-02T10:00:03Z"), now)).toBe(now);
   });
 });
