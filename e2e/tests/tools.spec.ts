@@ -43,9 +43,12 @@ test("tools: every action is approved once, runs in the sandbox, is visible and 
 
   await page.goto(taskHref!);
   await expect(page.getByText("Готово").first()).toBeVisible({ timeout: 60_000 });
-  const call = page.locator("[data-tool-call=terminal_run]");
-  await call.getByText("Параметры и результат").click();
-  await expect(call.getByText(/hi from sandbox/).first()).toBeVisible();
+  // The agent's steps: one line per action, a click shows everything it passed and got back.
+  const call = page.getByTestId("step-tool").filter({ hasText: "Запускает: python hello.py" });
+  await expect(call).toContainText("hi from sandbox"); // the first line of the output, collapsed
+  await call.getByRole("button").click();
+  await expect(call.getByText("Что получилось")).toBeVisible();
+  await expect(call.locator("pre").filter({ hasText: /hi from sandbox/ })).toBeVisible();
   await expect(page.getByTestId("file-browser").getByText("hello.py")).toBeVisible();
 
   await page.goto("/settings/audit");

@@ -421,7 +421,23 @@ class ToolRunner:
                     "side_effects": side_effects,
                 },
             }
-            await db.commit()
+            # Live: the task page shows what the agent is doing right now.
+            await bus.emit(
+                db,
+                user_id=self.ctx.user_id,
+                type="agent.message",
+                agent_id=self.agent.id,
+                task_id=self.ctx.task_id,
+                run_id=self.ctx.run_id,
+                payload={
+                    "kind": "tool_call",
+                    "tool": row.tool_name,
+                    "status": "running",
+                    "tool_call_id": str(row.id),
+                    "is_error": False,
+                },
+            )
+            await bus.commit(db)
         timeout = entry.tool.timeout_seconds or self.ctx.settings.tool_timeout_seconds
         if entry.tool.group == "terminal":
             timeout = self.ctx.settings.sandbox_timeout_seconds + 30

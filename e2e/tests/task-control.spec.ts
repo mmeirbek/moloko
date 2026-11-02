@@ -27,7 +27,7 @@ test("full control: write to a working agent, stop it, continue from where it st
   await box.getByRole("textbox").fill("Пиши коротко");
   await box.getByRole("button", { name: "Отправить" }).click();
   await expect(box.getByRole("status")).toContainText("Отправлено");
-  await expect(page.getByText("Вы написали агенту: «Пиши коротко»")).toBeVisible();
+  await expect(page.getByTestId("agent-steps").getByText("Вы написали: «Пиши коротко»")).toBeVisible();
 
   // Stop it, then continue from where it stopped, with an instruction.
   await page.getByRole("button", { name: "Отменить задачу" }).first().click();
@@ -67,5 +67,24 @@ test("full control: the office inspector offers to continue the agent's stopped 
   await expect(stopped.getByRole("link", { name: "Long one" })).toBeVisible();
   await expect(stopped.getByRole("button", { name: "Продолжить с места остановки" })).toBeVisible();
   await expect(stopped.getByRole("button", { name: "Начать заново" })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("agent steps: a live line while it works, then one short line per step that opens fully", async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const models = await api<{ id: string }[]>(request, "GET", "/models");
+  const agent = await newAgent(request, { name: unique("Stepper"), model_config_id: models[0]!.id, autonomy_level: "balanced", allowed_tools: ["fs_write"] });
+  const script = `[[mock:tools]][["fs_write",{"path":"notes/plan.md","content":"# Plan\\nline two"}]][[/mock:tools]] [[mock:sleep:4]]`;
+  const started = await api<{ task: Task }>(request, "POST", `/agents/${agent.id}/run`, { title: "Steps", description: script });
+  await page.goto(`/tasks/${started.task.id}`);
+  const steps = page.getByTestId("agent-steps");
+  await expect(steps.getByTestId("step-live")).toBeVisible(); // «Думает над следующим шагом…» / «В очереди»
+  const write = steps.getByTestId("step-tool").filter({ hasText: "Записывает файл plan.md" });
+  await expect(write).toBeVisible({ timeout: 60_000 });
+  await expect.poll(async () => (await api<{ task: Task }>(request, "GET", `/tasks/${started.task.id}`)).task.status, { timeout: 60_000 }).toBe("completed");
+  await expect(steps.getByTestId("step-live")).toHaveCount(0);
+  await write.getByRole("button").click();
+  await expect(write.getByText("Что передал инструменту")).toBeVisible();
+  await expect(write.locator("pre").first()).toContainText("notes/plan.md");
   expect(errors).toEqual([]);
 });

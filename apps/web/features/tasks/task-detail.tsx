@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { ArrowLeft, CalendarDays, Square } from "@/components/icons";
 import { TaskToolActivity } from "@/features/tasks/tool-calls";
+import { AgentSteps } from "@/features/tasks/agent-steps";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
@@ -91,7 +92,6 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   useDocumentTitle(task?.title);
   const agentName = useRealtimeStore((s) => (task?.agent_id ? s.agents[task.agent_id]?.name : undefined));
   const agentsById = useRealtimeStore((s) => s.agents);
-  const lastMessage = useRealtimeStore((s) => (task?.run_id ? s.lastMessage[task.run_id] : undefined));
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: taskKeys.all });
   const cancel = useMutation({ mutationFn: () => cancelTask(taskId), onSuccess: invalidate });
@@ -152,14 +152,6 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </div>
       </div>
 
-      {task.status === "running" && lastMessage?.text && (
-        <section className="bg-card p-4 pixel-frame">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-            {t("latestStep", { step: lastMessage.step })}
-          </h2>
-          <MarkdownBody text={lastMessage.text} />
-        </section>
-      )}
       {task.result && (
         <section className="print-area bg-card p-4 pixel-frame">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -193,6 +185,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
       )}
 
       <TaskToolActivity taskId={task.id} status={task.status} />
+      <AgentSteps taskId={task.id} status={task.status} events={events.data} />
 
       {detail.data && detail.data.subtasks.length > 0 && (
         <section>
@@ -220,8 +213,8 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </section>
       )}
 
-      <section>
-        <h2 className="mb-2 font-medium">{t("history")}</h2>
+      <details>
+        <summary className="mb-2 cursor-pointer font-medium">{t("history")}</summary>
         <ol className="flex flex-col gap-1 border-l-2 pl-4 text-sm">
           {events.data?.map((e) => (
             <li key={e.id} className="relative">
@@ -233,7 +226,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             </li>
           ))}
         </ol>
-      </section>
+      </details>
     </div>
   );
 }
