@@ -114,6 +114,19 @@ class AgentFromTemplate(BaseModel):
     locale: str = Field(default="ru", max_length=8)
 
 
+class AgentRestore(BaseModel):
+    """Optional body of ``POST /agents/{id}/restore``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="Come back under this name (when another agent took the old one).",
+    )
+
+
 class AgentRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

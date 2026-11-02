@@ -20,6 +20,7 @@ from app.providers.base import ChatMessage, ChatRequest, ImagePart
 from app.providers.gateway import ModelGateway, ModelUnavailable
 from app.schemas.chat import ConversationCreate, ConversationUpdate
 from app.schemas.common import decode_cursor, encode_cursor
+from app.services.addressing import owner_address_instruction
 from app.services.audit import AuditService
 from app.services.chat_stream import ChatStreamManager, StreamState
 
@@ -107,6 +108,12 @@ def extract_pdf_text(data: bytes, max_pages: int, max_chars: int) -> tuple[str, 
     if pages > max_pages:
         out += f"\n\n(Only the first {max_pages} of {pages} pages are included.)"
     return out, pages
+
+
+async def chat_system_prompt(db: AsyncSession, user_id: uuid.UUID) -> str | None:
+    """The chat's instructions: today only the owner's form of address (none = no system
+    prompt, as before). History and attachments stay in the messages, fenced as data."""
+    return await owner_address_instruction(db, user_id) or None
 
 
 def make_title(content: str, max_chars: int) -> str:
@@ -510,6 +517,7 @@ class ChatService:
                     images=tuple(current[a.id] for a in files if a.id in current),
                 ),
             ),
+            system=await chat_system_prompt(self.db, user_id),
         )
         state = streams.start(
             user_id=user_id,

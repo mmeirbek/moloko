@@ -484,6 +484,28 @@
         "title": "AgentOut",
         "type": "object"
       },
+      "AgentRestore": {
+        "additionalProperties": false,
+        "description": "Optional body of ``POST /agents/{id}/restore``.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Come back under this name (when another agent took the old one).",
+            "title": "Name"
+          }
+        },
+        "title": "AgentRestore",
+        "type": "object"
+      },
       "AgentRunRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3177,6 +3199,38 @@
         "title": "Page[TaskOut]",
         "type": "object"
       },
+      "ProfileUpdate": {
+        "additionalProperties": false,
+        "description": "Only the fields sent are changed. Text is trimmed and whitespace collapsed; line\nbreaks and other control characters are refused (422 invalid_profile_text); blank or\nnull clears the field.",
+        "properties": {
+          "address_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Form of address, e.g. «Мейрбек Максатович»; at most ADDRESS_AS_MAX_CHARS.",
+            "title": "Address As"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "At most 128 characters.",
+            "title": "Display Name"
+          }
+        },
+        "title": "ProfileUpdate",
+        "type": "object"
+      },
       "ProviderCreate": {
         "additionalProperties": false,
         "properties": {
@@ -4846,6 +4900,18 @@
       },
       "UserOut": {
         "properties": {
+          "address_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How moloko addresses the owner in every answer; null = no particular form.",
+            "title": "Address As"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -4870,7 +4936,8 @@
         "required": [
           "id",
           "username",
-          "display_name"
+          "display_name",
+          "address_as"
         ],
         "title": "UserOut",
         "type": "object"
@@ -5131,6 +5198,31 @@
           }
         },
         "summary": "Create Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/archived": {
+      "get": {
+        "operationId": "list_archived_agents_api_v1_agents_archived_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentOut"
+                  },
+                  "title": "Response List Archived Agents Api V1 Agents Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Agents removed from the office that can be brought back (newest first)",
         "tags": [
           "agents"
         ]
@@ -5434,6 +5526,66 @@
           }
         },
         "summary": "Pause Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/restore": {
+      "post": {
+        "operationId": "restore_agent_api_v1_agents__agent_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AgentRestore"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bring an archived agent back into the office (idle, no task)",
         "tags": [
           "agents"
         ]
@@ -6140,6 +6292,47 @@
           }
         },
         "summary": "Current user and session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/profile": {
+      "patch": {
+        "operationId": "update_profile_api_v1_auth_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change the owner's profile (form of address, display name)",
         "tags": [
           "auth"
         ]

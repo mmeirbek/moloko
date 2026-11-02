@@ -30,6 +30,8 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | 405 | `method_not_allowed` | |
 | 422 | `validation_error` | Body/params failed validation |
 | 422 | `limit_too_high` | A per-agent limit above the global one (`details: {field, max}`) |
+| 422 | `invalid_profile_text` / `profile_text_too_long` | A profile text with line breaks, tabs or other control/invisible characters (`details: {field}`) / longer than `ADDRESS_AS_MAX_CHARS` (form of address) or 128 (display name) (`details: {field, max}`) |
+| 409 | `agent_not_archived` / `agent_not_restorable` / `agent_name_taken` | Restoring an agent that is already in the office / a subagent or the Orchestrator / under a name another agent in the office has (`details: {field, name, agent_id}`) |
 | 422 | `session_ttl_out_of_range` | Session lifetime outside `SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS` (`details: {field, min, max}`) |
 | 422 | `invalid_memory` / `memory_too_long` | Memory scope rules broken / entry longer than `MEMORY_ENTRY_MAX_CHARS` |
 | 409 | `approval_not_pending` | The approval was already answered or expired |
@@ -48,7 +50,8 @@ Base path `/api/v1`, JSON only. Interactive docs at `/api/docs` when `ENVIRONMEN
 | GET | `/auth/csrf` | public | Sets `moloko_csrf` cookie, returns `{"csrf_token"}` |
 | POST | `/auth/login` | public + CSRF | Body `{"username","password"}` → `{"user","session"}`; sets session cookie, rotates CSRF |
 | POST | `/auth/logout` | public + CSRF | Revokes the current session (if any), clears the cookie → `204` |
-| GET | `/auth/me` | session | `{"user":{"id","username","display_name"},"session":{"id","created_at","expires_at"}}` |
+| GET | `/auth/me` | session | `{"user":{"id","username","display_name","address_as"},"session":{"id","created_at","expires_at"}}` — `address_as`: how moloko addresses the owner (null = no particular form) |
+| PATCH | `/auth/profile` | session + CSRF | Body `{"address_as"?: string\|null, "display_name"?: string\|null}` — only the fields sent change → `UserOut` `{"id","username","display_name","address_as"}`. Text is trimmed and inner whitespace collapsed; blank or null clears; line breaks/control/invisible characters → `422 invalid_profile_text`; longer than `ADDRESS_AS_MAX_CHARS` (default 80) / 128 → `422 profile_text_too_long`. No password. A real change is audited (`user.profile_updated`, old and new values). When set, the chat, agent runs and the Orchestrator get the instruction "Always address the owner as «…»". CLI: `python -m app.cli set-address --username me --address "…"` / `--clear` |
 | GET | `/auth/session-settings` | session | `{"ttl_hours","default_ttl_hours","min_hours","max_hours","uses_default","current_session_expires_at"}` — `ttl_hours` is the effective lifetime of sign-ins |
 | PUT | `/auth/session-settings` | session + CSRF | Body `{"ttl_hours": int\|null, "password"}` (`null` = back to `SESSION_TTL_HOURS`) → same shape. The current session lasts the new lifetime from now (cookies re-issued); the user's other sessions are only shortened to it, never extended. Wrong password → `403 invalid_password`, counted toward the login lockout (`429 too_many_attempts`); out of bounds → `422 session_ttl_out_of_range`. Audited (`auth.session_ttl_changed` / `auth.password_confirm_failed`) |
 
@@ -203,3 +206,9 @@ Realtime: `budget.warning` with `{month, percent, spent_usd, limit_usd, hard_sto
 
 Sandbox runner (internal, token): `POST /v1/browse` `{workspace_id, mode: page\|pdf, url?, source?, screenshot?, dom?, pdf?, width, height}`.
 
+## Endpoints — owner requests (2026-11-02)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/agents/archived` | Agents removed from the office that can be brought back: the owner's persistent (`autonomous`) agents with `archived_at` set, newest removal first → `AgentOut[]`. Subagents and the Orchestrator are never listed |
+| POST | `/agents/{id}/restore` | Optional body `{"name"?: string}` (1–100 chars; come back under a new name) → `AgentOut`: `archived_at: null`, `status: "idle"`, `current_task_id: null`; settings, memory and history unchanged (`config_version` +1 only when renamed). Events: `agent.status_changed` (reason `restored`, only if it was `completed`/`failed`) and `agent.updated` `{changed: ["archived_at"(, "name")], agent}`; audit `agent.restored` `{name, renamed_from?}`. Errors: `404 not_found` (not the owner's), `409 agent_not_restorable` (subagent or Orchestrator), `409 agent_not_archived` (already in the office), `409 agent_name_taken` (another agent in the office has the name; retry with `name`) |

@@ -11,6 +11,7 @@ from app.schemas.agents import (
     AgentCreate,
     AgentFromTemplate,
     AgentOut,
+    AgentRestore,
     AgentRunRequest,
     AgentTemplateOut,
     AgentUpdate,
@@ -37,6 +38,16 @@ async def list_agents(
     rows = await AgentService(db, queue).list_agents(
         ctx.user.id, agent_type=agent_type, include_archived=include_archived, run_id=run_id
     )
+    return [AgentOut.model_validate(a) for a in rows]
+
+
+@router.get(
+    "/archived",
+    response_model=list[AgentOut],
+    summary="Agents removed from the office that can be brought back (newest first)",
+)
+async def list_archived_agents(ctx: CurrentAuth, db: DbSession, queue: QueueDep) -> list[AgentOut]:
+    rows = await AgentService(db, queue).list_archived(ctx.user.id)
     return [AgentOut.model_validate(a) for a in rows]
 
 
@@ -126,6 +137,24 @@ async def delete_agent(
 ) -> Response:
     await AgentService(db, queue).archive(ctx.user.id, agent_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{agent_id}/restore",
+    response_model=AgentOut,
+    summary="Bring an archived agent back into the office (idle, no task)",
+)
+async def restore_agent(
+    agent_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    queue: QueueDep,
+    body: AgentRestore | None = None,
+) -> AgentOut:
+    agent = await AgentService(db, queue).restore(
+        ctx.user.id, agent_id, body.name if body is not None else None
+    )
+    return AgentOut.model_validate(agent)
 
 
 @router.post(

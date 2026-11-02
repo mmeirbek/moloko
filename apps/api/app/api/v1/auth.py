@@ -14,12 +14,14 @@ from app.schemas.auth import (
     CsrfResponse,
     LoginRequest,
     MeResponse,
+    ProfileUpdate,
     SessionOut,
     SessionSettingsOut,
     SessionSettingsUpdate,
     UserOut,
 )
 from app.services.auth import AuthService, effective_session_ttl_hours
+from app.services.users import UserService
 
 # Endpoints here are reachable without a session (login itself, CSRF bootstrap, logout).
 public_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -86,6 +88,26 @@ async def logout(
 @protected_router.get("/me", response_model=MeResponse, summary="Current user and session")
 async def me(ctx: CurrentAuth) -> MeResponse:
     return _me(ctx.user, ctx.session)
+
+
+@protected_router.patch(
+    "/profile",
+    response_model=UserOut,
+    summary="Change the owner's profile (form of address, display name)",
+)
+async def update_profile(
+    body: ProfileUpdate, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, client: Client
+) -> UserOut:
+    await UserService(db).update_profile(
+        ctx.user,
+        body.changes(),
+        address_as_max_chars=settings.address_as_max_chars,
+        actor_type="user",
+        actor_id=ctx.user.id,
+        ip_address=client.ip_address,
+        via="api",
+    )
+    return UserOut.model_validate(ctx.user)
 
 
 @protected_router.get(

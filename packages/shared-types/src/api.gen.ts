@@ -22,6 +22,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agents removed from the office that can be brought back (newest first) */
+        get: operations["list_archived_agents_api_v1_agents_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/from-template": {
         parameters: {
             query?: never;
@@ -103,6 +120,23 @@ export interface paths {
         put?: never;
         /** Pause Agent */
         post: operations["pause_agent_api_v1_agents__agent_id__pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring an archived agent back into the office (idle, no task) */
+        post: operations["restore_agent_api_v1_agents__agent_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -363,6 +397,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change the owner's profile (form of address, display name) */
+        patch: operations["update_profile_api_v1_auth_profile_patch"];
         trace?: never;
     };
     "/api/v1/auth/session-settings": {
@@ -1547,6 +1598,17 @@ export interface components {
             /** Workspace Id */
             workspace_id: string | null;
         };
+        /**
+         * AgentRestore
+         * @description Optional body of ``POST /agents/{id}/restore``.
+         */
+        AgentRestore: {
+            /**
+             * Name
+             * @description Come back under this name (when another agent took the old one).
+             */
+            name?: string | null;
+        };
         /** AgentRunRequest */
         AgentRunRequest: {
             /**
@@ -2435,6 +2497,24 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /**
+         * ProfileUpdate
+         * @description Only the fields sent are changed. Text is trimmed and whitespace collapsed; line
+         *     breaks and other control characters are refused (422 invalid_profile_text); blank or
+         *     null clears the field.
+         */
+        ProfileUpdate: {
+            /**
+             * Address As
+             * @description Form of address, e.g. «Мейрбек Максатович»; at most ADDRESS_AS_MAX_CHARS.
+             */
+            address_as?: string | null;
+            /**
+             * Display Name
+             * @description At most 128 characters.
+             */
+            display_name?: string | null;
+        };
         /** ProviderCreate */
         ProviderCreate: {
             /** Api Key */
@@ -3005,6 +3085,11 @@ export interface components {
         };
         /** UserOut */
         UserOut: {
+            /**
+             * Address As
+             * @description How moloko addresses the owner in every answer; null = no particular form.
+             */
+            address_as: string | null;
             /** Display Name */
             display_name: string | null;
             /**
@@ -3140,6 +3225,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_archived_agents_api_v1_agents_archived_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"][];
                 };
             };
         };
@@ -3344,6 +3449,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_agent_api_v1_agents__agent_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AgentRestore"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -3829,6 +3969,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    update_profile_api_v1_auth_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

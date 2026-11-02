@@ -27,7 +27,7 @@ from app.agents.state import (
     agent_transition_allowed,
 )
 from app.core.config import Settings
-from app.core.errors import AppError, NotFound
+from app.core.errors import AppError, Conflict, NotFound
 from app.events import bus
 from app.models.agent import Agent, AgentRun
 from app.models.provider import ModelConfig
@@ -52,6 +52,21 @@ class LimitTooHigh(AppError):
     status_code = 422
     code = "limit_too_high"
     message = "A per-agent limit can only be stricter than the global one."
+
+
+class AgentNotArchived(Conflict):
+    code = "agent_not_archived"
+    message = "This agent is already in the office."
+
+
+class AgentNotRestorable(Conflict):
+    code = "agent_not_restorable"
+    message = "Only your own agents can be brought back; subagents and the Orchestrator cannot."
+
+
+class AgentNameTaken(Conflict):
+    code = "agent_name_taken"
+    message = "Another agent in the office already has this name. Choose another name."
 
 
 class AgentService:
@@ -86,6 +101,20 @@ class AgentService:
         if not include_archived:
             query = query.where(Agent.archived_at.is_(None))
         return list((await self.db.execute(query.order_by(Agent.created_at))).scalars())
+
+    async def list_archived(self, user_id: uuid.UUID) -> list[Agent]:
+        """Agents removed from the office that can be brought back: the owner's persistent
+        agents (subagents and the Orchestrator are never restored), newest removal first."""
+        query = (
+            select(Agent)
+            .where(
+                Agent.user_id == user_id,
+                Agent.agent_type == AgentType.AUTONOMOUS.value,
+                Agent.archived_at.is_not(None),
+            )
+            .order_by(Agent.archived_at.desc(), Agent.created_at.desc(), Agent.id)
+        )
+        return list((await self.db.execute(query)).scalars())
 
     async def _check_model(self, user_id: uuid.UUID, model_config_id: uuid.UUID | None) -> None:
         if model_config_id is None:
@@ -309,6 +338,71 @@ class AgentService:
             resource_id=str(agent.id),
         )
         await bus.commit(self.db)
+
+    async def restore(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, name: str | None = None
+    ) -> Agent:
+        """Bring an archived persistent agent back into the office: idle, no task, with its
+        settings, memory and history as they were. ``name`` renames it on the way back
+        (for when another agent in the office took its name meanwhile)."""
+        agent = await lock_agent(self.db, agent_id)
+        if agent.user_id != user_id:
+            raise NotFound("Agent not found.")
+        if agent.agent_type != AgentType.AUTONOMOUS.value:
+            raise AgentNotRestorable()
+        if agent.archived_at is None:
+            raise AgentNotArchived()
+        new_name = name.strip() if name and name.strip() else agent.name
+        clash = (
+            await self.db.execute(
+                select(Agent.id)
+                .where(
+                    Agent.user_id == user_id,
+                    Agent.id != agent.id,
+                    Agent.archived_at.is_(None),
+                    Agent.agent_type != AgentType.SUBAGENT.value,
+                    Agent.name == new_name,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if clash is not None:
+            raise AgentNameTaken(
+                details={"field": "name", "name": new_name, "agent_id": str(clash)}
+            )
+
+        changed = ["archived_at"]
+        old_name = agent.name
+        agent.archived_at = None
+        if new_name != old_name:
+            agent.name = new_name
+            agent.config_version += 1
+            changed.append("name")
+        agent.updated_at = datetime.now(UTC)
+        # Back as idle with no task (an archived agent was never busy: archive refuses that).
+        await release_agent(self.db, agent, to=AgentStatus.IDLE, reason="restored")
+        await bus.emit(
+            self.db,
+            user_id=user_id,
+            type="agent.updated",
+            agent_id=agent.id,
+            payload={"changed": changed, "agent": agent_payload(agent)},
+        )
+        details: dict[str, str] = {"name": agent.name}
+        if "name" in changed:
+            details["renamed_from"] = old_name
+        await self.audit.record(
+            "agent.restored",
+            "success",
+            actor_type="user",
+            actor_id=user_id,
+            user_id=user_id,
+            resource_type="agent",
+            resource_id=str(agent.id),
+            details=details,
+        )
+        await bus.commit(self.db)
+        return agent
 
     # --- run control ---------------------------------------------------------------------
 

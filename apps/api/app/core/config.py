@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     login_max_failures: int = Field(5, ge=1)
     login_lockout_seconds: int = Field(900, ge=1)
 
+    # --- Owner profile ----------------------------------------------------------
+    # Longest form of address the owner may set (users.address_as). It goes into the
+    # instruction part of every prompt that talks to the owner, so it stays short.
+    address_as_max_chars: int = Field(80, ge=10, le=500)
+
     # --- HTTP ----------------------------------------------------------------
     # Comma-separated. Empty = same-origin only (the default behind the reverse proxy).
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)

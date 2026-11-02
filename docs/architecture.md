@@ -120,6 +120,8 @@ realtime store (Zustand) ─► OfficeView (React) ─► OfficeBus ─► Offic
 ## Autonomous agents & memory (Sprint 6)
 
 `app/memory/context.py` builds the memory block for one agent (scope, order, size budget, data fence); `app/services/memories.py` is CRUD + history + scope rules; `NativeRuntime.setup` adds the block to the system prompt (`RunSetup.memory`), and the Orchestrator adds it to its planning and synthesis prompts. Subagents get none.
+
+`app/services/addressing.py` holds the owner's form of address (`users.address_as`): `normalize_profile_text` (one line, no control/invisible characters, at most `ADDRESS_AS_MAX_CHARS`) for the API and CLI, and `address_instruction`, the one quoted line put into the *instruction* part of the chat system prompt (`services/chat.py`), agent runs (`runtimes/native.py`, before inputs and memory) and the Orchestrator's planning/synthesis prompts (before memory). It is the owner's own setting, so it may be an instruction; memory and tool/web text never are.
 Frontend: `features/agents/agent-form.tsx` (+ `agent-form-model.ts`, pure and unit-tested), `features/agents/agent-detail.tsx` (`/office/agents/[id]`), `features/memory/memory-panel.tsx` (agent memory with a "what the model sees" preview; shared memory in Settings).
 
 ## Tools, approvals, sandbox (Sprint 7)

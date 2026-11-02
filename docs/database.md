@@ -24,6 +24,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | is_active | bool default true | inactive users cannot log in; their sessions stop working |
 | last_login_at | timestamptz null | |
 | session_ttl_hours | int null | (0012) the owner's own sign-in lifetime; NULL = `SESSION_TTL_HOURS`; applied within `SESSION_TTL_MIN_HOURS..SESSION_TTL_MAX_HOURS` |
+| address_as | text null | (0013) how moloko addresses the owner in every answer (e.g. «Мейрбек Максатович»); NULL = no particular form. Stored normalised: one line, whitespace collapsed, no control/invisible characters, at most `ADDRESS_AS_MAX_CHARS` (a setting, so the column is plain text) |
 | created_at, updated_at | timestamptz | |
 
 ### `sessions`
@@ -45,7 +46,7 @@ Alembic migrations in `apps/api/migrations/versions/`.
 | created_at | timestamptz | |
 | actor_type | varchar(32) | `user` \| `agent` \| `system` \| `anonymous` |
 | actor_id, user_id | uuid null | **no FK** — history survives account deletion |
-| action | varchar(64) | e.g. `auth.login`, `auth.login_failed`, `auth.login_blocked`, `auth.logout`, `auth.session_ttl_changed`, `auth.password_confirm_failed`, `auth.password_confirm_blocked`, `user.created`, `user.password_reset` |
+| action | varchar(64) | e.g. `auth.login`, `auth.login_failed`, `auth.login_blocked`, `auth.logout`, `auth.session_ttl_changed`, `auth.password_confirm_failed`, `auth.password_confirm_blocked`, `user.created`, `user.password_reset`, `user.profile_updated` (details `{via: api\|cli, changed[], <field>: {old, new}}`), `agent.restored` |
 | outcome | varchar(16) | `success` \| `failure` \| `denied` |
 | resource_type, resource_id | varchar null | |
 | ip_address | varchar null | |

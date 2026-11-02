@@ -52,6 +52,12 @@ async def inputs_for(db: AsyncSession, agent: Agent) -> str:
     return format_inputs(messages, names)
 
 
+def with_owner_context(system: str, setup: RunSetup) -> str:
+    """The Orchestrator's protocol prompt, then the owner's form of address (an
+    instruction), then saved memory (data, always last)."""
+    return "\n\n".join(p for p in (system, setup.address, setup.memory) if p)
+
+
 class SubagentRuntime(NativeRuntime):
     """A native agent whose context includes the results passed to it by other agents."""
 
@@ -126,8 +132,7 @@ class OrchestratorRuntime(NativeRuntime):
             tools=tuple(t.name for t in setup.tools),
             agents=tuple((a.name, a.specialization or "", a.description) for a in roster),
         )
-        if setup.memory:
-            system += "\n\n" + setup.memory
+        system = with_owner_context(system, setup)
         async with ctx.sessionmaker() as db:
             inputs = await inputs_for(db, agent)
         prompt = task_prompt(task) + (f"\n\n{inputs}" if inputs else "")
@@ -268,7 +273,7 @@ class OrchestratorRuntime(NativeRuntime):
             run.phase = "aggregating"
             await bus.commit(db)
         transcript = [ChatMessage(role="user", content=f"{task_prompt(setup.task)}\n\n{inputs}")]
-        system = synthesis_system() + (f"\n\n{setup.memory}" if setup.memory else "")
+        system = with_owner_context(synthesis_system(), setup)
         result = await self._call(ctx, setup, system, transcript, segment_started)
         await self._complete(ctx, result.text)
 
