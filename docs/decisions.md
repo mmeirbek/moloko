@@ -358,6 +358,14 @@ The owner asked: remove technical clutter; "the site looks too AI-made" → **pi
 | 2026-11-02 | The backup container joins its own network `offsite` to reach the internet; `OFFSITE_*` secrets only in `.env` → that container's env, never in status files (masked) or logs; the backend only reads the world-readable `offsite-*.json`. | Least privilege, no secrets in logs. |
 | 2026-11-02 | Settings → Backups gets a «Копии вне ноутбука» card and `offsite_*` warnings (`offsite_max_age_hours` = 48). `same_disk` is hidden while a recent good off-site copy exists. | Owner request. |
 | 2026-11-02 | `restore.sh` reads root-owned backup files through a container (no sudo), uses `WORKSPACES_VOLUME`, restores into a fresh DB and swaps it in only on success (old data kept as `<db>_before_restore`). | Bug fixes; exact restores across versions (`pg_restore --clean` left tables that are not in the dump). |
+| 2026-11-02 | **Local speech-to-text**: own service `apps/stt` (faster-whisper 1.2.1, int8, CPU) with an OpenAI-shaped `POST /v1/audio/transcriptions`, internal network only (read-only root, no capabilities); the backend uses it first (`STT_URL`), the provider as fallback; a free usage row (`provider_kind=local`, cost 0). | Owner: voice without an OpenAI key, Russian and English. |
+| 2026-11-02 | Default `STT_MODEL=large-v3-turbo`. Measured on the M4 (6 cores, synthetic speech): ru 99.3 %, en 100 %, ~4.5 s per phrase ≤ 21 s; small 92 % / 1.5–3 s; medium 96 % / 4–9 s. Beam 1; auto-detection limited to `STT_LANGUAGES=ru,en`; VAD once; one encoder pass shared by detection and decoding. `STT_MODEL=small` if the server is too slow. | Russian quality first, within ~5 s. |
+| 2026-11-02 | Model download: one-shot `stt-models` on its own egress network into volume `stt-models`, pinned Hugging Face commit + SHA-256; never blocks a deploy; `stt` is "healthy" while it waits and loads. | The running service has no internet; deploys keep working offline. |
+| 2026-11-02 | `/ai/settings` gains `voice_available`, `voice_engine`, `voice_model`, `local_stt_status`, `local_stt_model` (`available` keeps meaning search). `VOICE_MAX_BYTES` → `VOICE_UPLOAD_MAX_BYTES` (200 MB) + `TRANSCRIPTION_PROVIDER_MAX_BYTES` (25 MB); STT timeout 900 s. | 15-minute recordings; the server's old `.env` value would have kept the 10 MB cap. |
+| 2026-11-02 | **Attachments: any type, size and number.** Streamed to the `files` volume (python-multipart parser, SHA-256 and text on the fly, DB connection released during the upload; old rows keep their bytes in `data`); `kind=file` for other types (download only, one line for the model); limits are settings with 0 = none; free-disk guard `CHAT_UPLOAD_MIN_FREE_BYTES` (1 GB, `507`); the `files` volume is in the daily workspaces archive and `restore.sh` restores it (`FILES_VOLUME`). | Owner: «никаких ограничений для прикрепления файла». |
+| 2026-11-02 | Prompt budget for attachments: 200 000 chars (≤ 50 % of `params.context_window` × 3 chars/token), newest message first, cut text marked «…файл обрезан…»; PDFs without a page cap (time/text limit + note); pictures > 1568 px / 3.5 MB get a downscaled copy (PyAV in a child process), > 100 MP are not decoded; ≤ 20 pictures per request. | Everything is kept, but a request must still fit the model. |
+| 2026-11-02 | PyAV's binary wheel bundles FFmpeg (LGPL-3.0+) and x264/x265 (GPL-2.0+): OSI-approved licences, used unmodified inside our own images, which are built on the owner's machine and not distributed — so no obligation is triggered. Pillow was not used (MIT-CMU is not marked OSI-approved by SPDX). | Rule 5 of `docs/external-repositories.md`; noted for the owner. |
+| 2026-11-02 | `e2e.sh` runs without the speech model by default (the voice tests then check the round trip with the mock provider's phrase); `E2E_STT=1 STT_MODELS_FROM=<volume>` runs the real model, copied from a local volume, and the tests check that Russian and English speech is recognised. | The default run needs no 1.6 GB download; the real check stays one command away. |
 
 ## Dependency register
 
@@ -442,6 +450,14 @@ Versions are exact pins (npm `package.json` + `package-lock.json`; Python `uv.lo
 | restic (binary from the official `restic/restic` image) | 0.19.1 @sha256:136600b6…; binary sha256 amd64 `20d41426…`, arm64 `2fb45ac6…` | BSD-2-Clause | Encrypted off-site backups | 8+ | 2026-11-02 |
 | openssh-client-default (Alpine package in the backup image) | 10.3_p1-r1 | BSD (OpenSSH) | SFTP repositories | 8+ | 2026-11-02 |
 | Backblaze B2 / Cloudflare R2 (optional, the owner's own account) | — | external service | Off-site storage | 8+ | 2026-11-02 |
+| faster-whisper | 1.2.1 | MIT | Local speech-to-text engine (`apps/stt`) | 8+ | 2026-11-02 |
+| ctranslate2 | 4.8.4 | MIT | Whisper inference, int8 on the CPU | 8+ | 2026-11-02 |
+| onnxruntime | 1.31.1 | MIT | Silero VAD (via faster-whisper) | 8+ | 2026-11-02 |
+| tokenizers / huggingface-hub (+ hf-xet, unused) | 0.23.3 / 2.4.0 | Apache-2.0 | Tokenizer; one-time model download | 8+ | 2026-11-02 |
+| av (PyAV) | 19.0.2 | BSD-3-Clause (wheel bundles FFmpeg LGPL-3.0+, x264/x265 GPL-2.0+) | Audio decoding (stt); downscaled picture copies (backend) | 8+ | 2026-11-02 |
+| numpy / tqdm (via faster-whisper) | 2.5.4 / 4.70.1 | BSD-3-Clause / MPL-2.0 AND MIT | Arrays; progress bars | 8+ | 2026-11-02 |
+| fastapi / uvicorn / python-multipart (stt service) | 0.162.0 / 0.54.0 / 0.0.33 | MIT / BSD-3-Clause / Apache-2.0 | STT HTTP API | 8+ | 2026-11-02 |
+| Whisper weights (CTranslate2): `dropbox-dash/faster-whisper-large-v3-turbo` @0a363e9; `Systran/faster-whisper-small` @536b066, `-medium` @08e178d, `-large-v3` @edaa852 | pinned commits + SHA-256 | MIT | Speech models, downloaded at run time | 8+ | 2026-11-02 |
 | **Optional, not bundled** | | | | | |
 | SearXNG (separate service, if the owner runs it) | — | AGPL-3.0 (service, not linked) | web_search back-end | 7 | 2026-11-01 |
 | **Container images** | | | | | |

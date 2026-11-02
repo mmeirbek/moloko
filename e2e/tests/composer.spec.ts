@@ -52,13 +52,17 @@ for (const [lang, file, words] of [
 
     test(`voice: a ${lang} phrase becomes text in the composer`, async ({ page }) => {
       const errors = watchErrors(page);
+      // The local speech model really hears the phrase; without it (the default e2e stack)
+      // the mock provider answers with a fixed phrase — the round trip is still checked.
+      const settings = (await (await page.request.get("/api/v1/ai/settings")).json()) as { voice_engine?: string | null };
+      const expected = settings.voice_engine === "local" ? words : /moloko/i;
       const input = await newChat(page);
       await page.getByTestId("mic").click();
       const strip = page.getByTestId("mic-recording");
       await expect(strip).toBeVisible();
       await page.waitForTimeout(4500); // the phrase is ~3 s
       await strip.getByRole("button", { name: /Готово/ }).click();
-      await expect(input).toHaveValue(words, { timeout: 60_000 });
+      await expect(input).toHaveValue(expected, { timeout: 60_000 });
       expect(errors).toEqual([]);
     });
   });
