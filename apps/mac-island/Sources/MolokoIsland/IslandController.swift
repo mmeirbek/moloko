@@ -370,6 +370,10 @@ final class IslandController: NSObject, IslandViewDelegate {
         menu.autoenablesItems = false
         menu.addItem(item("Обновить", #selector(menuReload)))
         menu.addItem(item("Сменить адрес moloko…", #selector(menuChangeAddress)))
+        if let (_, mode) = NotchMode.notchModeAvailable() {
+            // The screen is in a "below the notch" mode: the island cannot sit in the notch.
+            menu.addItem(item("Показать вырез (экран \(mode.width)×\(mode.height))", #selector(menuShowNotch)))
+        }
         menu.addItem(.separator())
         menu.addItem(item(pinned ? "Открепить" : "Закрепить", #selector(menuTogglePin)))
         let login = item("Запускать при входе", #selector(menuToggleLoginItem))
@@ -392,6 +396,10 @@ final class IslandController: NSObject, IslandViewDelegate {
 
     @objc private func menuChangeAddress() {
         onChangeAddress?()
+    }
+
+    @objc private func menuShowNotch() {
+        NotchMode.switchToNotchMode() // the island follows via didChangeScreenParameters
     }
 
     @objc private func menuTogglePin() {

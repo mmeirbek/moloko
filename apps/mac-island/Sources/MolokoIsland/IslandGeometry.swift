@@ -21,6 +21,9 @@ struct IslandGeometry {
     let screenFrame: CGRect
     let hasNotch: Bool
     let notchWidth: CGFloat
+    /// Horizontal centre of the notch (screen coordinates); the screen's centre without one.
+    /// The two can differ by half a point, which is one visible pixel on a retina screen.
+    let centerX: CGFloat
     /// Height of the collapsed pill: the notch height, or the menu bar height without a notch.
     let barHeight: CGFloat
     let headerHeight: CGFloat
@@ -34,13 +37,16 @@ struct IslandGeometry {
         screenFrame = screen.frame
         var notch: CGFloat = 0
         var notchHeight: CGFloat = 0
+        var notchMid = screen.frame.midX
         if screen.safeAreaInsets.top > 0,
            let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-            notch = screen.frame.width - left.width - right.width
+            notch = right.minX - left.maxX
             notchHeight = screen.safeAreaInsets.top
+            notchMid = (left.maxX + right.minX) / 2
         }
         hasNotch = notch > 40 && notchHeight > 0
         notchWidth = hasNotch ? notch : 0
+        centerX = hasNotch ? notchMid : screen.frame.midX
 
         let menuBar = screen.frame.maxY - screen.visibleFrame.maxY
         if hasNotch {
@@ -64,8 +70,9 @@ struct IslandGeometry {
 
         let canvasWidth = expandedSize.width + 2 * Self.canvasMargin
         let canvasHeight = expandedSize.height + Self.canvasMargin
+        // Centred on the notch, on whole points (the body inside is centred on the canvas).
         canvasRect = CGRect(
-            x: (screenFrame.midX - canvasWidth / 2).rounded(),
+            x: centerX - canvasWidth / 2,
             y: screenFrame.maxY - canvasHeight,
             width: canvasWidth,
             height: canvasHeight
