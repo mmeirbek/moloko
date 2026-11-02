@@ -262,6 +262,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/standing-approvals/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Take back a «больше не спрашивать»: this kind of action needs approval again */
+        delete: operations["remove_standing_approval_api_v1_agents__agent_id__standing_approvals__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/stop": {
         parameters: {
             query?: never;
@@ -357,7 +374,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve this ONE operation */
+        /**
+         * Approve this ONE operation
+         * @description With ``{"always": true}``: approve and don't ask again — this agent may do this kind
+         *     of action from now on (see ``always`` on the approval for what it covers).
+         */
         post: operations["approve_api_v1_approvals__approval_id__approve_post"];
         delete?: never;
         options?: never;
@@ -2229,6 +2250,14 @@ export interface components {
             /** Voice Model */
             voice_model: string | null;
         };
+        /** ApprovalDecision */
+        ApprovalDecision: {
+            /**
+             * Always
+             * @default false
+             */
+            always?: boolean;
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /**
@@ -2238,6 +2267,8 @@ export interface components {
             agent_id: string;
             /** Agent Name */
             agent_name: string | null;
+            /** Always */
+            always?: string[] | null;
             /** Args */
             args: {
                 [key: string]: unknown;
@@ -4732,6 +4763,38 @@ export interface operations {
             };
         };
     };
+    remove_standing_approval_api_v1_agents__agent_id__standing_approvals__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     stop_agent_api_v1_agents__agent_id__stop_post: {
         parameters: {
             query?: never;
@@ -4922,7 +4985,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecision"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

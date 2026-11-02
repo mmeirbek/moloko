@@ -14,6 +14,7 @@ from app.models.task import Task
 from app.models.tooling import ToolCall
 from app.repositories.audit_logs import AuditLogRepository
 from app.schemas.tooling import (
+    ApprovalDecision,
     ApprovalOut,
     AuditOut,
     AuditPage,
@@ -110,10 +111,21 @@ async def get_approval(
     "/{approval_id}/approve", response_model=ApprovalOut, summary="Approve this ONE operation"
 )
 async def approve(
-    approval_id: uuid.UUID, ctx: CurrentAuth, db: DbSession, settings: SettingsDep, queue: QueueDep
+    approval_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    queue: QueueDep,
+    body: ApprovalDecision | None = None,
 ) -> ApprovalOut:
+    """With ``{"always": true}``: approve and don't ask again — this agent may do this kind
+    of action from now on (see ``always`` on the approval for what it covers)."""
+    always = bool(body and body.always)
     return await _one(
-        db, await ApprovalService(db, settings, queue).decide(ctx.user.id, approval_id, True)
+        db,
+        await ApprovalService(db, settings, queue).decide(
+            ctx.user.id, approval_id, True, always=always
+        ),
     )
 
 

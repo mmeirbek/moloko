@@ -28,6 +28,7 @@ import { hasFullAccess } from "./agent-form-model";
 import { FullAccessBadge } from "./agent-full-access";
 import { AgentMessages } from "./agent-messages";
 import { AgentTaskControl } from "@/features/tasks/task-control";
+import { StandingApprovals } from "./standing-approvals";
 import { asTab, TABS, type Tab } from "./agent-tabs";
 import { SaveTemplateButton } from "./save-template";
 import { StatusBadge } from "./status-badge";
@@ -195,6 +196,7 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
         )}
         {!isSub && <AgentTaskControl agentId={agentId} currentTaskId={live.current_task_id ?? null} />}
         <AgentBudget agentId={agentId} busy={busy} />
+        <StandingApprovals agentId={agentId} permissions={live.permissions} />
         {live.agent_type === "autonomous" && <SaveTemplateButton agent={{ id: agentId, name: live.name ?? "" }} />}
       </div>
 

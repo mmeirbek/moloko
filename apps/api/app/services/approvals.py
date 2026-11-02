@@ -27,6 +27,11 @@ from app.tasks.queue import TaskEnqueuer
 from app.tools.runner import approval_payload
 
 
+class StandingNotOffered(Conflict):
+    code = "standing_not_offered"
+    message = "This action can only be approved once (the owner asked to approve every use)."
+
+
 class ApprovalNotPending(Conflict):
     code = "approval_not_pending"
     message = "This request was already answered or has expired."
@@ -128,7 +133,9 @@ class ApprovalService:
         rows = await self.db.execute(query.order_by(Approval.created_at.desc()).limit(limit))
         return list(rows.scalars())
 
-    async def decide(self, user_id: uuid.UUID, approval_id: uuid.UUID, approve: bool) -> Approval:
+    async def decide(
+        self, user_id: uuid.UUID, approval_id: uuid.UUID, approve: bool, *, always: bool = False
+    ) -> Approval:
         approval = await self.get(user_id, approval_id, lock=True)
         now = datetime.now(UTC)
         if approval.status == "pending" and approval.expires_at <= now:
@@ -141,12 +148,52 @@ class ApprovalService:
         if approve:
             # A fresh window to execute exactly this operation.
             approval.expires_at = now + timedelta(minutes=self.settings.approval_ttl_minutes)
+        if approve and always:
+            await self._remember(user_id, approval)
         task = await _resolve(
             self.db, approval, "approved" if approve else "rejected", actor="user", requeue=True
         )
         await bus.commit(self.db)
         await self._enqueue(task)
         return approval
+
+    async def _remember(self, user_id: uuid.UUID, approval: Approval) -> None:
+        """«Одобрить и больше не спрашивать»: from now on this agent may do this kind of
+        action without asking (app/tools/standing.py)."""
+        from app.agents.engine import agent_payload, lock_agent
+        from app.tools import standing
+        from app.tools.policy import OVERRIDE_REASON
+
+        if (
+            OVERRIDE_REASON in approval.reason
+            or standing.scopes(approval.tool_name, approval.args) is None
+        ):
+            raise StandingNotOffered()
+        agent = await lock_agent(self.db, approval.agent_id)
+        added = standing.add(agent, approval.tool_name, approval.args, approval.id)
+        if not added:
+            return
+        await bus.emit(
+            self.db,
+            user_id=user_id,
+            type="agent.updated",
+            agent_id=agent.id,
+            payload={"changed": ["standing_approvals"], "agent": agent_payload(agent)},
+        )
+        await AuditService(self.db).record(
+            "agent.standing_approval_added",
+            "success",
+            actor_type="user",
+            actor_id=user_id,
+            user_id=user_id,
+            resource_type="agent",
+            resource_id=str(agent.id),
+            details={
+                "tool": approval.tool_name,
+                "scopes": [r["scope"] for r in added],
+                "approval_id": str(approval.id),
+            },
+        )
 
     async def cancel_task(self, user_id: uuid.UUID, approval_id: uuid.UUID) -> Approval:
         from app.services.tasks import TaskService  # tasks → approvals at import time

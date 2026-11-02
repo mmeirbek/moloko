@@ -6,16 +6,17 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Ban, Check, ShieldAlert, X } from "@/components/icons";
+import { Ban, Check, ShieldAlert, ShieldCheck, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, taskKeys } from "@/lib/api/agents";
-import { resolveApproval } from "@/lib/api/tooling";
+import { approveAlways, resolveApproval } from "@/lib/api/tooling";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
 import { opParams, reasonKey } from "./approval-text";
+import { useStandingWhat } from "./standing-text";
 import { minutesLeft } from "./time-left";
 
 const CATEGORY_TONE: Record<string, string> = {
@@ -45,8 +46,10 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, []);
+  const standingWhat = useStandingWhat();
   const act = useMutation({
-    mutationFn: (action: "approve" | "reject" | "cancel-task") => resolveApproval(approval.id, action),
+    mutationFn: (action: "approve" | "always" | "reject" | "cancel-task") =>
+      action === "always" ? approveAlways(approval.id) : resolveApproval(approval.id, action),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["approvals"] });
       void queryClient.invalidateQueries({ queryKey: taskKeys.all });
@@ -64,6 +67,8 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
   const summary = op ? t(`ops.${op}.summary` as "ops.fs_write.summary", params!) : approval.summary;
   const consequences = op ? t(`ops.${op}.consequences` as "ops.fs_write.consequences") : approval.consequences;
   const why = reasonKey(approval);
+  // «Одобрить и больше не спрашивать»: what this agent could then do without asking.
+  const alwaysWhat = approval.always ? standingWhat(approval.tool_name, approval.always) : null;
   const reason = why ? t(`reasons.${why}`) : approval.reason;
 
   return (
@@ -128,6 +133,26 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
           <Button size="sm" onClick={() => act.mutate("approve")} disabled={act.isPending}>
             <Check /> {t("approve")}
           </Button>
+          {alwaysWhat && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={act.isPending}
+              onClick={async () => {
+                const agent = approval.agent_name ?? "—";
+                if (
+                  await confirm({
+                    title: t("always.confirm", { agent, what: alwaysWhat }),
+                    description: t("always.confirmHint"),
+                    confirmLabel: t("always.button"),
+                  })
+                )
+                  act.mutate("always");
+              }}
+            >
+              <ShieldCheck /> {t("always.button")}
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => act.mutate("reject")} disabled={act.isPending}>
             <X /> {t("reject")}
           </Button>
@@ -146,7 +171,12 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
           <span className="ml-auto text-xs text-muted-foreground">{t("expiresIn", { minutes: left })}</span>
         </div>
       )}
-      {pending && <p className="text-xs text-muted-foreground">{t("onlyThis")}</p>}
+      {pending && (
+        <p className="text-xs text-muted-foreground">
+          {t("onlyThis")}
+          {alwaysWhat && ` ${t("always.hint", { what: alwaysWhat })}`}
+        </p>
+      )}
       {act.error && (
         <p role="alert" className="text-sm text-destructive">
           {toMessage(act.error).message}

@@ -1408,6 +1408,18 @@
         "title": "AiServicesOut",
         "type": "object"
       },
+      "ApprovalDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "always": {
+            "default": false,
+            "title": "Always",
+            "type": "boolean"
+          }
+        },
+        "title": "ApprovalDecision",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "agent_id": {
@@ -1425,6 +1437,20 @@
               }
             ],
             "title": "Agent Name"
+          },
+          "always": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Always"
           },
           "args": {
             "additionalProperties": true,
@@ -8023,6 +8049,58 @@
         ]
       }
     },
+    "/api/v1/agents/{agent_id}/standing-approvals/{rule_id}": {
+      "delete": {
+        "operationId": "remove_standing_approval_api_v1_agents__agent_id__standing_approvals__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Take back a «больше не спрашивать»: this kind of action needs approval again",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/agents/{agent_id}/stop": {
       "post": {
         "operationId": "stop_agent_api_v1_agents__agent_id__stop_post",
@@ -8295,6 +8373,7 @@
     },
     "/api/v1/approvals/{approval_id}/approve": {
       "post": {
+        "description": "With ``{\"always\": true}``: approve and don't ask again — this agent may do this kind\nof action from now on (see ``always`` on the approval for what it covers).",
         "operationId": "approve_api_v1_approvals__approval_id__approve_post",
         "parameters": [
           {
@@ -8308,6 +8387,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApprovalDecision"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {

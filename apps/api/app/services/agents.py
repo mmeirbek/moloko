@@ -474,6 +474,39 @@ class AgentService:
 
     # --- «Полный доступ» (owner's decision, see docs/decisions.md) ------------------------
 
+    async def remove_standing_approval(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, rule_id: str
+    ) -> Agent:
+        """The owner takes back a «больше не спрашивать»: this kind of action asks again."""
+        from app.tools import standing
+
+        agent = await lock_agent(self.db, agent_id)
+        if agent.user_id != user_id:
+            raise NotFound("Agent not found.")
+        gone = standing.remove(agent, rule_id)
+        if gone is None:
+            raise NotFound("This permission is not there any more.")
+        self._touch(agent)
+        await bus.emit(
+            self.db,
+            user_id=user_id,
+            type="agent.updated",
+            agent_id=agent.id,
+            payload={"changed": ["standing_approvals"], "agent": agent_payload(agent)},
+        )
+        await self.audit.record(
+            "agent.standing_approval_removed",
+            "success",
+            actor_type="user",
+            actor_id=user_id,
+            user_id=user_id,
+            resource_type="agent",
+            resource_id=str(agent.id),
+            details={"tool": gone.get("tool"), "scope": gone.get("scope", "")},
+        )
+        await bus.commit(self.db)
+        return agent
+
     async def set_full_access(
         self,
         user: User,

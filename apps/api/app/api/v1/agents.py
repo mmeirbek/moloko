@@ -146,6 +146,18 @@ async def set_full_access(
     return AgentOut.model_validate(agent)
 
 
+@router.delete(
+    "/{agent_id}/standing-approvals/{rule_id}",
+    response_model=AgentOut,
+    summary="Take back a «больше не спрашивать»: this kind of action needs approval again",
+)
+async def remove_standing_approval(
+    agent_id: uuid.UUID, rule_id: str, ctx: CurrentAuth, db: DbSession, queue: QueueDep
+) -> AgentOut:
+    agent = await AgentService(db, queue).remove_standing_approval(ctx.user.id, agent_id, rule_id)
+    return AgentOut.model_validate(agent)
+
+
 @router.post(
     "/{agent_id}/save-template",
     response_model=AgentTemplateOut,

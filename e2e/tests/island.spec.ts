@@ -9,23 +9,6 @@ async function researchers(request: APIRequestContext): Promise<Agent[]> {
   return agents.filter((a) => a.name.startsWith("Исследователь")).sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-test("island: opens over the page; a template dragged onto the map joins the office", async ({ page, request }) => {
-  const errors = watchErrors(page);
-  await page.goto("/tasks");
-  const island = page.getByTestId("dynamic-island");
-  await island.getByRole("button", { name: "Открыть островок" }).click();
-  const map = island.getByTestId("pixel-office");
-  await expect(map).toBeVisible();
-
-  const before = (await researchers(request)).length;
-  await island.getByTestId("template-researcher").dragTo(map);
-  await expect.poll(async () => (await researchers(request)).length).toBe(before + 1);
-
-  await page.keyboard.press("Escape");
-  await expect(map).toHaveCount(0);
-  expect(errors).toEqual([]);
-});
-
 test("island page (Mac notch app): an agent removed from the office is dragged back in", async ({ page, request }) => {
   const errors = watchErrors(page);
   await page.goto("/island");

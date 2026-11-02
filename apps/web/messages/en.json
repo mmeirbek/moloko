@@ -732,6 +732,13 @@
       "allTools": "All tools",
       "allToolsHint": "Full access: the agent may use every enabled tool, including ones added later. On the right you can block a tool or always be asked before it.",
       "overrideDefault": "on its own, no approval"
+    },
+    "standing": {
+      "title": "Allowed without asking",
+      "hint": "You chose “Approve and don't ask again” — the agent does these without your approval.",
+      "since": "since {date}",
+      "remove": "Remove",
+      "removeConfirm": "Ask again before it may {what}?"
     }
   },
   "runs": {
@@ -917,7 +924,28 @@
       "sensitive": "Sensitive actions always need approval.",
       "write": "Changes need approval at this agent's autonomy level."
     },
-    "noneHint": "When an agent wants to do something important (delete a file, open a pull request), the request appears here and you get a notification."
+    "noneHint": "When an agent wants to do something important (delete a file, open a pull request), the request appears here and you get a notification.",
+    "always": {
+      "button": "Approve and don't ask again",
+      "hint": "“Don't ask again” — the agent may then {what} without asking.",
+      "confirm": "{agent} may {what} without your approval — from now on, for good?",
+      "confirmHint": "This also approves the current action. You can take it back on the agent's page, under “Allowed without asking”.",
+      "scope": {
+        "terminal_run": "run {scope}",
+        "fs_write": "write files in its folder",
+        "fs_move": "move files in its folder",
+        "fs_delete": "delete files in its folder",
+        "github_create_branch": "create branches in {scope}",
+        "github_write_file": "save files to {scope}",
+        "github_create_pull_request": "open pull requests in {scope}",
+        "memory_save": "save to memory",
+        "browser_screenshot": "open {scope}",
+        "agent_ask": "ask the agent {scope}",
+        "agent_tell": "message the agent {scope}",
+        "other": "use “{tool}”",
+        "otherIn": "use “{tool}” for {scope}"
+      }
+    }
   },
   "tools": {
     "title": "Tools",
@@ -1467,8 +1495,6 @@
     "working": "{count, plural, one {# agent working} other {# agents working}}",
     "quiet": "Agents are resting",
     "pendingCount": "{count, plural, one {# waits for you} other {# wait for you}}",
-    "expand": "Open the island",
-    "collapse": "Fold the island",
     "task": {
       "label": "Task",
       "to": "To",

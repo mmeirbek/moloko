@@ -40,6 +40,7 @@ from app.providers.base import ToolCall as ModelToolCall
 from app.runtimes.base import RunContext
 from app.services.audit import AuditService
 from app.services.workspaces import workspace_for_task
+from app.tools import standing
 from app.tools.base import (
     AwaitingAgent,
     ScopeError,
@@ -50,6 +51,7 @@ from app.tools.base import (
     args_hash,
 )
 from app.tools.policy import (
+    OVERRIDE_REASON,
     CatalogEntry,
     Decision,
     Verdict,
@@ -108,6 +110,9 @@ def approval_payload(a: Approval, agent_name: str | None = None) -> dict[str, An
         "resources": a.resources,
         "consequences": a.consequences,
         "reason": a.reason,
+        # what «Одобрить и больше не спрашивать» would cover ("" = the whole tool); None
+        # when it cannot be offered (the owner asked to approve every use of this tool)
+        "always": None if OVERRIDE_REASON in a.reason else standing.scopes(a.tool_name, a.args),
         "status": a.status,
         "expires_at": a.expires_at.isoformat(),
         "created_at": a.created_at.isoformat() if a.created_at else None,

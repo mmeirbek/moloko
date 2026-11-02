@@ -16,7 +16,9 @@
    ============  ======  =================  =================
 
    Per-tool overrides in ``agent.permissions["tools"]`` can only be stricter
-   (``"approve"`` or ``"deny"``).
+   (``"approve"`` or ``"deny"``). A standing approval the owner gave this agent
+   («Одобрить и больше не спрашивать», ``app/tools/standing.py``) turns "approval" into
+   "allow" for what it covers — never "deny", never past an "approve" override.
 4. ``sensitive`` always needs approval (or is denied) — except under full access.
 5. The decision and its reason are written to ``audit_logs``.
 
@@ -44,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.state import AutonomyLevel
 from app.models.agent import Agent
 from app.services.audit import AuditService
+from app.tools import standing
 from app.tools.base import BaseTool, ScopeError, ToolCategory, ToolContext
 
 
@@ -58,6 +61,7 @@ class Decision:
     verdict: Verdict
     reason: str
     category: ToolCategory | None = None
+    standing_rule: str | None = None  # the standing approval that allowed it
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,8 @@ class CatalogEntry:
 # what was done). Every agent may use them without listing them in ``allowed_tools``; the
 # owner can still switch them off for everyone, or block them for one agent ("deny").
 ALWAYS_ALLOWED: tuple[str, ...] = ("work_search", "work_read")
+
+OVERRIDE_REASON = "The owner wants to approve every use of this tool."
 
 
 def may_use(agent: Agent, name: str) -> bool:
@@ -150,10 +156,18 @@ async def authorize(
         )
     else:
         decision = _by_autonomy(agent.autonomy_level, category)
+    if decision.verdict == Verdict.REQUIRE_APPROVAL and override != "approve":
+        rule = standing.covering(agent, name, args)
+        if rule is not None:
+            decision = Decision(
+                Verdict.ALLOW,
+                "Allowed by the owner's standing approval for this agent "
+                f"(since {str(rule.get('since', ''))[:10]}).",
+                category,
+                standing_rule=str(rule.get("id")),
+            )
     if override == "approve" and decision.verdict == Verdict.ALLOW:
-        decision = Decision(
-            Verdict.REQUIRE_APPROVAL, "The owner wants to approve every use of this tool.", category
-        )
+        decision = Decision(Verdict.REQUIRE_APPROVAL, OVERRIDE_REASON, category)
     return decision
 
 
@@ -187,6 +201,7 @@ async def audit_decision(
             "category": decision.category.value if decision.category else None,
             "autonomy": agent.autonomy_level,
             **full_access_mark(agent),
+            **({"standing_approval": decision.standing_rule} if decision.standing_rule else {}),
             "args_hash": args_digest,
             "task_id": str(task_id),
             "run_id": str(run_id),

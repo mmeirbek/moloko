@@ -100,6 +100,9 @@ export const restoreAgent = (id: string, body: AgentRestore = {}) =>
   api.request<AgentOut>(`/agents/${id}/restore`, { method: "POST", body });
 export const runAgent = (id: string, body: AgentRunRequest) =>
   api.request<StartedRun>(`/agents/${id}/run`, { method: "POST", body });
+/** Take back a «больше не спрашивать»: this kind of action needs approval again. */
+export const removeStandingApproval = (agentId: string, ruleId: string) =>
+  api.request<AgentOut>(`/agents/${agentId}/standing-approvals/${ruleId}`, { method: "DELETE" });
 export const agentAction = (id: string, action: "pause" | "resume" | "stop") =>
   api.request<AgentOut>(`/agents/${id}/${action}`, { method: "POST" });
 

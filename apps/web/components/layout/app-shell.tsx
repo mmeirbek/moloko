@@ -13,7 +13,6 @@ import { ConfirmProvider } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
 import { ApprovalsBadge, usePendingApprovalCount } from "@/features/approvals/approvals-badge";
 import { ChatList } from "@/features/chat/chat-list";
-import { DynamicIsland } from "@/features/island/dynamic-island";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { PixelCow, WalkingCow } from "@/features/mascot/pixel-cow";
 import { Notifier } from "@/features/notifications/notifier";
@@ -265,7 +264,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     </Dialog>
-    <DynamicIsland />
     <NewTaskDialog open={newTask} onClose={() => setNewTask(false)} />
     <Notifier />
     <RegisterServiceWorker />

@@ -36,8 +36,8 @@ test("tools: every action is approved once, runs in the sandbox, is visible and 
   await expect(first.getByText("workspace:hello.py")).toBeVisible();
   await expect(first.getByText(`Просит: ${agent.name}`)).toBeVisible();
   const taskHref = await first.locator("a[href^='/tasks/']").getAttribute("href");
-  await first.getByRole("button", { name: "Одобрить" }).click();
-  await pending.filter({ hasText: "Выполнить: python hello.py" }).getByRole("button", { name: "Одобрить" }).click();
+  await first.getByRole("button", { name: "Одобрить", exact: true }).click();
+  await pending.filter({ hasText: "Выполнить: python hello.py" }).getByRole("button", { name: "Одобрить", exact: true }).click();
   await expect(page.getByText("Сейчас ничего не ждёт одобрения.")).toBeVisible();
   await expect(page.getByTestId("approvals-badge")).toHaveCount(0);
 

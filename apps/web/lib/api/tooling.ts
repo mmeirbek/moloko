@@ -40,6 +40,9 @@ export const listApprovals = (status: string, signal?: AbortSignal) =>
   api.request<ApprovalOut[]>(`/approvals?${new URLSearchParams(status ? { status } : {})}`, { signal });
 export const resolveApproval = (id: string, action: "approve" | "reject" | "cancel-task") =>
   api.request<ApprovalOut>(`/approvals/${id}/${action}`, { method: "POST" });
+/** Approve and don't ask again: the agent may do this kind of action from now on. */
+export const approveAlways = (id: string) =>
+  api.request<ApprovalOut>(`/approvals/${id}/approve`, { method: "POST", body: { always: true } });
 
 export const integrationsStatus = (signal?: AbortSignal) =>
   api.request<IntegrationsStatus>("/integrations/status", { signal });
