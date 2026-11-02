@@ -22,13 +22,10 @@ import { AgentPalette } from "./agent-palette";
 import { OfficeBus, type CameraAction, type OfficeAgent, type ZoomState } from "./engine/bus";
 import { officeHud, type HudWords } from "./engine/hud";
 
-export type OfficeMode = "subagents" | "agents";
-
-/** Which agents a mode shows (spec 2.1: one map, mode switch). */
-export function agentsForMode(agents: AgentOut[], mode: OfficeMode): AgentOut[] {
-  const visible = agents.filter((a) => !a.archived_at);
-  if (mode === "agents") return visible.filter((a) => a.agent_type !== "subagent");
-  return visible.filter((a) => a.agent_type === "subagent" || a.agent_type === "orchestrator");
+/** Who is in the office: the owner's agents and the Orchestrator (old temporary subagents
+ *  from before 2026-11-02 never come back). */
+export function officeAgents(agents: AgentOut[]): AgentOut[] {
+  return agents.filter((a) => !a.archived_at && a.agent_type !== "subagent");
 }
 
 /** The zoom chosen on this device (CSS px per art pixel); null = automatic. */
@@ -86,19 +83,13 @@ function toOfficeAgent(a: AgentOut): OfficeAgent {
 }
 
 /**
- * The pixel office. `compact` (the island): only the map and its zoom, the mode chosen by the
- * caller. Saved agents can be dragged onto the map (AgentPalette) — they join the agents' office.
+ * The pixel office: the owner's agents and the Orchestrator cow. `compact` (the island): only
+ * the map and its zoom. Saved agents can be dragged onto the map (AgentPalette).
  */
 export function OfficeView({
-  initialMode,
-  mode: controlledMode,
-  onModeChange,
   compact = false,
   onSelect,
 }: {
-  initialMode: OfficeMode;
-  mode?: OfficeMode;
-  onModeChange?: (mode: OfficeMode) => void;
   compact?: boolean;
   /** A character was clicked (the island gives that agent the next task). */
   onSelect?: (agentId: string | null) => void;
@@ -109,12 +100,6 @@ export function OfficeView({
   const [bus] = useState(() => new OfficeBus());
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [ownMode, setOwnMode] = useState<OfficeMode>(initialMode);
-  const mode = controlledMode ?? ownMode;
-  const setMode = (m: OfficeMode) => {
-    setOwnMode(m);
-    onModeChange?.(m);
-  };
   const [dropping, setDropping] = useState(false);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
@@ -137,7 +122,7 @@ export function OfficeView({
   }, []);
   const shownHour = forcedHour !== null && /^\d{1,2}$/.test(forcedHour) ? Number(forcedHour) % 24 : hour;
 
-  const shown = useMemo(() => agentsForMode(Object.values(agentsById), mode), [agentsById, mode]);
+  const shown = useMemo(() => officeAgents(Object.values(agentsById)), [agentsById]);
   // Progress over the heads: task %, step, what it does now, waiting for approval (engine/hud.ts).
   const tasks = useRealtimeStore((s) => s.tasks);
   const runs = useRealtimeStore((s) => s.runs);
@@ -151,9 +136,8 @@ export function OfficeView({
     () => officeHud(shown, { tasks, runs, lastMessage, approvals }, hudWords),
     [shown, tasks, runs, lastMessage, approvals, hudWords],
   );
-  // A dropped agent belongs to the agents' office: switch there and show who came in.
+  // Show who came in.
   const addToOffice = useAddToOffice((id) => {
-    if (mode !== "agents") setMode("agents");
     if (!compact) setSelected(id);
   });
 
@@ -232,38 +216,14 @@ export function OfficeView({
   return (
     <div className={cn("flex flex-col gap-3", compact && "h-full min-h-0")}>
       {!compact && (
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {/* A two-way switch (not tabs: there is no separate panel per choice). */}
-        <div role="group" aria-label={t("mode")} className="inline-flex border-2 p-0.5 text-sm">
-          {(["subagents", "agents"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={mode === m}
-              onClick={() => {
-                setMode(m);
-                setSelected(null);
-              }}
-              className={cn(
-                "min-h-9 px-3",
-                mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(`modes.${m}`)}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1">
-          {mode === "agents" && (
-            <Button variant="outline" onClick={() => setAdding((v) => !v)} aria-expanded={adding} data-testid="add-agent">
-              <UserPlus /> <span className="hidden sm:inline">{t("addAgent")}</span>
-            </Button>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" onClick={() => setAdding((v) => !v)} aria-expanded={adding} data-testid="add-agent">
+          <UserPlus /> <span className="hidden sm:inline">{t("addAgent")}</span>
+        </Button>
       </div>
       )}
 
-      {!compact && adding && mode === "agents" && (
+      {!compact && adding && (
         <AgentPalette
           onClose={() => setAdding(false)}
           onAdded={(id) => {
@@ -355,7 +315,7 @@ export function OfficeView({
         )}
         {ready && shown.length === 0 && !compact && (
           <p className="pointer-events-none absolute inset-x-0 bottom-3 px-3 text-center text-sm text-[#f6efdc]/80 md:top-3 md:bottom-auto">
-            {t(mode === "agents" ? "emptyAgents" : "emptySubagents")}
+            {t("emptyAgents")}
           </p>
         )}
         {selectedAgent && !compact && (

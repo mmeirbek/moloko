@@ -20,8 +20,8 @@ import {
 const LIMITS: SystemLimits = {
   max_steps_per_run: 50,
   run_timeout_seconds: 1800,
-  max_active_subagents_per_run: 5,
-  max_subagent_depth: 2,
+  max_active_parts_per_run: 5,
+  orchestrator_max_new_agents: 3,
   memory_context_max_chars: 8000,
   memory_entry_max_chars: 4000,
 };

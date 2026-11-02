@@ -55,6 +55,11 @@ function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, t
       return t("ev.approvalResolved", {
         status: String((p.approval as { status?: string } | undefined)?.status ?? ""),
       });
+    case "agent.created":
+      // the Orchestrator created an agent for a part of this task (none of the owner's fitted)
+      return t("ev.agentCreated", {
+        name: String((p.agent as { name?: string } | undefined)?.name ?? ""),
+      });
     case "task.owner_message":
       return t("ev.ownerMessage", { text: String(p.text ?? "") });
     case "task.owner_message_read":
@@ -85,6 +90,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   const task = live ?? detail.data?.task;
   useDocumentTitle(task?.title);
   const agentName = useRealtimeStore((s) => (task?.agent_id ? s.agents[task.agent_id]?.name : undefined));
+  const agentsById = useRealtimeStore((s) => s.agents);
   const lastMessage = useRealtimeStore((s) => (task?.run_id ? s.lastMessage[task.run_id] : undefined));
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: taskKeys.all });
@@ -198,7 +204,14 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
                   href={`/tasks/${s.id}`}
                   className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-accent/60"
                 >
-                  <span className="truncate text-sm">{s.title}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm">{s.title}</span>
+                    {s.agent_id && agentsById[s.agent_id] && (
+                      <span className="block truncate text-xs text-muted-foreground" data-testid="part-agent">
+                        {agentsById[s.agent_id]!.name}
+                      </span>
+                    )}
+                  </span>
                   <StatusBadge status={s.status} />
                 </Link>
               </li>

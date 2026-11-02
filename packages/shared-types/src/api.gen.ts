@@ -1245,7 +1245,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Orchestrated runs (Subagent Office) */
+        /** Orchestrated runs */
         get: operations["list_runs_api_v1_runs_get"];
         put?: never;
         /** Give a task to the Orchestrator */
@@ -1263,7 +1263,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Plan, subagents, subtasks and messages */
+        /** Plan, parts, the agents and messages */
         get: operations["get_run_tree_api_v1_runs__run_id__get"];
         put?: never;
         post?: never;
@@ -3513,8 +3513,6 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["AgentMessageOut"][];
             run: components["schemas"]["RunOut"];
-            /** Subagents */
-            subagents: unknown[];
             /** Subtasks */
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
@@ -3860,16 +3858,16 @@ export interface components {
         };
         /** SystemLimits */
         SystemLimits: {
-            /** Max Active Subagents Per Run */
-            max_active_subagents_per_run: number;
+            /** Max Active Parts Per Run */
+            max_active_parts_per_run: number;
             /** Max Steps Per Run */
             max_steps_per_run: number;
-            /** Max Subagent Depth */
-            max_subagent_depth: number;
             /** Memory Context Max Chars */
             memory_context_max_chars: number;
             /** Memory Entry Max Chars */
             memory_entry_max_chars: number;
+            /** Orchestrator Max New Agents */
+            orchestrator_max_new_agents: number;
             /** Run Timeout Seconds */
             run_timeout_seconds: number;
         };

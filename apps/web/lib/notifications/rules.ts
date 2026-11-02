@@ -94,7 +94,7 @@ export function noticeFor(event: EventEnvelope, now: number = Date.now()): Notic
     };
   }
   if (event.type === "budget.warning" && p.scope === "agent") {
-    // One agent's own monthly budget (subagents count against it).
+    // One agent's own monthly budget.
     const percent = Number(p.percent ?? 0);
     const agentId = String(p.agent_id ?? event.agent_id ?? "");
     return {

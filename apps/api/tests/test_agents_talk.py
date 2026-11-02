@@ -704,14 +704,12 @@ def _agent(kind: str, *, run: uuid.UUID | None = None, status: str = "idle", **k
 
 
 def test_who_may_talk_to_whom() -> None:
-    run, other_run = uuid.uuid4(), uuid.uuid4()
+    run = uuid.uuid4()
+    # an old temporary subagent (before 2026-11-02) is nobody's colleague, either way
     sub, sibling = _agent("subagent", run=run), _agent("subagent", run=run)
-    assert team.contact_problem(sub, sibling) is None  # siblings of one run
-    assert team.contact_problem(sub, _agent("subagent", run=other_run)) == "different_run"
-    assert team.contact_problem(sub, _agent("autonomous")) == "different_run"
-    finished = _agent("subagent", run=run, status="completed")
-    assert team.contact_problem(sub, finished) == "agent_unavailable"
+    assert team.contact_problem(sub, sibling) == "not_a_colleague"
     me, colleague = _agent("autonomous"), _agent("autonomous")
+    assert team.contact_problem(sub, me) == "not_a_colleague"
     assert team.contact_problem(me, colleague) is None
     assert team.contact_problem(me, me) == "self"
     assert team.contact_problem(me, _agent("orchestrator")) == "orchestrator"

@@ -60,6 +60,21 @@ def ids(agents: list[dict[str, Any]]) -> list[str]:
     return [a["id"] for a in agents]
 
 
+async def old_subagent(app: FastAPI, owner: User) -> None:
+    """A temporary subagent row as runs before 2026-11-02 left them (archived)."""
+    async with app.state.db.sessionmaker() as s:
+        s.add(
+            Agent(
+                user_id=owner.id,
+                name="Research · part-1",
+                agent_type="subagent",
+                status="completed",
+                archived_at=datetime.now(UTC),
+            )
+        )
+        await s.commit()
+
+
 async def test_archived_lists_only_own_persistent_agents_newest_first(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:
@@ -72,18 +87,17 @@ async def test_archived_lists_only_own_persistent_agents_newest_first(
 
         await archive(client, first["id"])
         await archive(client, second["id"])
-        # An orchestrated run leaves archived subagents behind; then the Orchestrator itself
-        # is removed. Neither can come back, so neither is listed.
+        # An old temporary subagent (before 2026-11-02) and the removed Orchestrator cannot
+        # come back, so neither is listed.
+        await old_subagent(app, owner)
         resp = await client.post(
             "/api/v1/runs",
-            json={"title": "Split", "description": "[[mock:plan:2]]"},
+            json={"title": "Hi", "description": ""},
             headers=await csrf_headers(client),
         )
         assert resp.status_code == 200, resp.text
         await drain(app, queue)
         everyone = (await client.get("/api/v1/agents?include_archived=true")).json()
-        subagents = [a for a in everyone if a["agent_type"] == "subagent"]
-        assert subagents and all(a["archived_at"] for a in subagents)
         orchestrator = next(a for a in everyone if a["agent_type"] == "orchestrator")
         await archive(client, orchestrator["id"])
 
@@ -206,9 +220,10 @@ async def test_restore_refuses_subagents_orchestrators_and_others_agents(
 
     async with logged_in_client(app) as client:
         await add_mock_model(client)
+        await old_subagent(app, owner)
         resp = await client.post(
             "/api/v1/runs",
-            json={"title": "Split", "description": "[[mock:plan:1]]"},
+            json={"title": "Hi", "description": ""},
             headers=await csrf_headers(client),
         )
         assert resp.status_code == 200, resp.text

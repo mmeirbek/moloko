@@ -84,7 +84,7 @@ function UserMessage() {
       )}
       {runId && (
         <Link
-          href={`/office/subagents?run=${runId}`}
+          href={`/runs/${runId}`}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
         >
           <Network className="size-3.5" />

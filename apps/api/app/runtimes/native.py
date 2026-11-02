@@ -30,7 +30,7 @@ from app.agents.engine import (
     set_agent_status,
     set_task_status,
 )
-from app.agents.state import AgentStatus, AgentType, InvalidTransition, TaskStatus, TaskType
+from app.agents.state import AgentStatus, InvalidTransition, TaskStatus, TaskType
 from app.agents.team import consult_prompt, read_inbox
 from app.core.errors import AppError, new_error_id
 from app.events import bus
@@ -217,14 +217,6 @@ def pending_tool_calls(transcript: list[ChatMessage]) -> tuple[ToolCall, ...]:
     return ()
 
 
-def released_to(agent: Agent, task: Task, default: AgentStatus) -> AgentStatus:
-    """A subagent that answered a sibling's question (agent_ask) goes back to idle: its own
-    part of the plan may still be ahead of it."""
-    if task.task_type == TaskType.CONSULT.value and agent.agent_type == AgentType.SUBAGENT.value:
-        return AgentStatus.IDLE
-    return default
-
-
 def effective_limit(agent_value: Any, global_value: int) -> int:
     """Per-agent limits may only be stricter than the global ones."""
     try:
@@ -235,14 +227,13 @@ def effective_limit(agent_value: Any, global_value: int) -> int:
 
 class NativeRuntime:
     name = "native"
-    # Unread notes from colleagues (agent_tell) open a fresh run. Subagents get their inputs
-    # through ``extra_system`` instead (see SubagentRuntime).
+    # Unread notes from colleagues (agent_tell) open a fresh run.
     reads_inbox = True
 
     async def cancel(self, run_id: uuid.UUID) -> None:  # cooperative: see RunControl
         return None
 
-    # Subclasses (orchestrator, subagent) extend this hook.
+    # Subclasses (the orchestrator) extend this hook.
     async def extra_system(
         self, ctx: RunContext, db: AsyncSession, agent: Agent, task: Task
     ) -> str:
@@ -613,7 +604,7 @@ class NativeRuntime:
             await release_agent(
                 db,
                 agent,
-                to=released_to(agent, task, AgentStatus.COMPLETED),
+                to=AgentStatus.COMPLETED,
                 reason="task_completed",
             )
             await bus.commit(db)
@@ -645,9 +636,7 @@ class NativeRuntime:
                 payload={"error_code": code, "error_message": message, "error_id": error[2]},
             )
             if agent.current_task_id == task.id:
-                await release_agent(
-                    db, agent, to=released_to(agent, task, AgentStatus.FAILED), reason=code
-                )
+                await release_agent(db, agent, to=AgentStatus.FAILED, reason=code)
             await bus.commit(db)
 
     async def _requeue_on_shutdown(self, ctx: RunContext) -> None:

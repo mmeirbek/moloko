@@ -8,19 +8,18 @@ import { ExternalLink } from "@/components/icons";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { usePendingApprovals } from "@/features/approvals/approvals-view";
 import { AgentPalette } from "@/features/office/agent-palette";
-import { OfficeView, type OfficeMode } from "@/features/office/office-view";
+import { OfficeView } from "@/features/office/office-view";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
 import { IslandTask, type TaskTarget } from "./island-task";
 
 /**
- * The island's content (site and Mac notch app): the office — agents' or subagents' — on a
- * small map, the approvals waiting for the owner, and the saved agents to drag into the office.
+ * The island's content (the Mac notch app): the office on a small map, the approvals waiting
+ * for the owner, and the saved agents to drag into the office.
  */
 export function IslandPanel({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const t = useTranslations("island");
-  const [mode, setMode] = useState<OfficeMode>("agents");
   const [target, setTarget] = useState<TaskTarget>("orchestrator");
   const { pending } = usePendingApprovals();
   const agents = useRealtimeStore((s) => s.agents);
@@ -34,26 +33,11 @@ export function IslandPanel({ className, onNavigate }: { className?: string; onN
   return (
     <div className={cn("flex min-h-0 flex-col gap-3 p-3", className)}>
       <header className="flex items-center gap-3">
-        <div role="group" aria-label={t("officeSwitch")} className="inline-flex gap-1">
-          {(["agents", "subagents"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={mode === m}
-              onClick={() => setMode(m)}
-              className={cn(
-                "h-9 px-3 text-sm",
-                mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
-              )}
-            >
-              {t(m)}
-            </button>
-          ))}
-        </div>
+        <h2 className="font-pixel text-lg">{t("agents")}</h2>
         <span className="flex-1" />
         {pending.length === 0 && <span className="text-xs text-muted-foreground">{t("noApprovals")}</span>}
         <Link
-          href={mode === "agents" ? "/office/agents" : "/office/subagents"}
+          href="/office/agents"
           onClick={onNavigate}
           className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
         >
@@ -63,7 +47,7 @@ export function IslandPanel({ className, onNavigate }: { className?: string; onN
 
       {/* Approvals take a column only while something waits; otherwise the map has the whole width. */}
       <div className={cn("grid min-h-0 flex-1 grid-cols-1 gap-5", pending.length > 0 && "sm:grid-cols-[minmax(0,1fr)_15rem]")}>
-        <OfficeView compact initialMode="agents" mode={mode} onModeChange={setMode} onSelect={pick} />
+        <OfficeView compact onSelect={pick} />
         {pending.length > 0 && (
           <section aria-labelledby="island-approvals" className="flex min-h-0 flex-col gap-3">
             <h2 id="island-approvals" className="flex items-center gap-2 font-pixel text-lg">
@@ -80,7 +64,7 @@ export function IslandPanel({ className, onNavigate }: { className?: string; onN
       </div>
 
       <IslandTask target={target} onTargetChange={setTarget} className="px-(--px)" />
-      <AgentPalette variant="strip" onAdded={() => setMode("agents")} />
+      <AgentPalette variant="strip" />
     </div>
   );
 }

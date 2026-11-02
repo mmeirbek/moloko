@@ -1,4 +1,4 @@
-"""Starting orchestrated runs and reading run trees (Subagent Office, chat hand-off)."""
+"""Starting orchestrated runs and reading run trees (task page, chat hand-off)."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ async def ensure_orchestrator(db: AsyncSession, user_id: uuid.UUID) -> Agent:
     agent = Agent(
         user_id=user_id,
         name=ORCHESTRATOR_NAME,
-        description="Splits complex tasks and coordinates subagents.",
+        description="Splits complex tasks and hands the parts to the agents of the office.",
         agent_type=AgentType.ORCHESTRATOR.value,
         system_prompt="",
         autonomy_level="supervised",
@@ -156,16 +156,18 @@ async def get_run(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> Ag
 async def run_tree(
     db: AsyncSession, run: AgentRun
 ) -> tuple[list[Agent], list[Task], list[AgentMessage]]:
-    agents = list(
-        (
-            await db.execute(
-                select(Agent)
-                .where(Agent.run_id == run.id, Agent.agent_type == AgentType.SUBAGENT.value)
-                .order_by(Agent.created_at)
-            )
-        ).scalars()
-    )
+    """The plan's parts, the agents doing them, and what they sent each other."""
     tasks = await tree_tasks(db, run.id)
+    ids = {t.agent_id for t in tasks if t.agent_id}
+    agents = (
+        list(
+            (
+                await db.execute(select(Agent).where(Agent.id.in_(ids)).order_by(Agent.created_at))
+            ).scalars()
+        )
+        if ids
+        else []
+    )
     messages = list(
         (
             await db.execute(

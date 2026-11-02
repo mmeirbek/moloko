@@ -32,7 +32,7 @@ export function NewTaskDialog({ open, onClose }: { open: boolean; onClose: () =>
       setText("");
       void queryClient.invalidateQueries({ queryKey: runKeys.list });
       onClose();
-      router.push(`/office/subagents?run=${started.run.id}`);
+      router.push(`/tasks/${started.task.id}`);
     },
   });
 

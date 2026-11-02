@@ -10,8 +10,6 @@
   "nav": {
     "label": "Main navigation",
     "chat": "Chat",
-    "subagentOffice": "Subagent Office",
-    "subagentOfficeShort": "Subagents",
     "agentOffice": "Agent Office",
     "agentOfficeShort": "Agents",
     "tasks": "Tasks",
@@ -36,7 +34,6 @@
       "approvals": "Agent actions waiting for your yes",
       "search": "Find things in agent memory and files",
       "agentOffice": "Your permanent agents at their desks",
-      "subagentOffice": "How the Orchestrator splits a big task",
       "integrations": "GitHub, MCP servers and agent tools",
       "settings": "AI providers, notifications, costs, backups"
     },
@@ -149,11 +146,11 @@
     "agent_not_restorable": "This agent cannot be brought back.",
     "agent_not_archived": "The agent is already in the office.",
     "agent_name_taken": "An agent with this name is already in the office.",
-    "invalid_contacts": "“Who it may talk to” can only list your own agents (not subagents or the Orchestrator).",
+    "invalid_contacts": "“Who it may talk to” can only list your own agents (not the Orchestrator).",
     "agent_budget_exceeded": "The agent's monthly budget is used up. Raise it on the agent's page (\"Monthly budget, $\").",
     "template_name_taken": "You already have a template with this name. Choose another one.",
     "template_limit_reached": "You have reached the limit of own templates. Delete one first.",
-    "agent_not_templatable": "Only your own persistent agents can be saved as a template — not the Orchestrator or a subagent.",
+    "agent_not_templatable": "Only your own persistent agents can be saved as a template — not the Orchestrator.",
     "invalid_recurrence": "The schedule is incomplete: check the time, the days and the date.",
     "invalid_timezone": "Unknown time zone.",
     "interval_too_short": "It cannot run that often.",
@@ -166,7 +163,7 @@
     "passkey_invalid": "The new passkey could not be checked. Try again.",
     "passkey_limit_reached": "Too many passkeys. Delete one you no longer use first.",
     "passkey_already_registered": "This passkey is already added.",
-    "full_access_not_allowed": "Only your own persistent agents can get full access — not subagents or the Orchestrator.",
+    "full_access_not_allowed": "Only your own persistent agents can get full access — not the Orchestrator.",
     "password_required": "Enter your moloko password to confirm."
   },
   "preferences": {
@@ -184,10 +181,6 @@
     "chat": {
       "title": "Chat",
       "description": "Conversations with AI models, with streaming and history."
-    },
-    "subagentOffice": {
-      "title": "Subagent Office",
-      "description": "Temporary subagents the Orchestrator spawns for a task."
     },
     "agentOffice": {
       "title": "Agent Office",
@@ -464,7 +457,8 @@
       "scheduled": "Started by its schedule",
       "scheduledNow": "Started by hand from its schedule",
       "ownerMessage": "You wrote to the agent: “{text}”",
-      "ownerMessageRead": "The agent read your message"
+      "ownerMessageRead": "The agent read your message",
+      "agentCreated": "The Orchestrator created the agent “{name}” — none fitted"
     },
     "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
     "emptyFiltered": "Nothing found. Try another filter or search.",
@@ -560,7 +554,7 @@
       "projectsHint": "Comma-separated: the agent sees the shared notes of these projects.",
       "maxContextChars": "Memory in the prompt, characters",
       "memoryNote": "Memory is given to the model as data, not as instructions.",
-      "orchestratorNote": "The Orchestrator also uses this model for its subagents.",
+      "orchestratorNote": "Agents the Orchestrator creates itself (when none fits) get this model too.",
       "save": "Save",
       "saved": "Saved",
       "errors": {
@@ -582,7 +576,7 @@
       "workspacePerTask": "A new folder for every task",
       "monthlyBudget": "Monthly budget, $",
       "monthlyBudgetHint": "Empty — no limit of its own. When the budget runs out, the agent stops.",
-      "monthlyBudgetHintOrchestrator": "Empty — no limit of its own. Its subagents count here too.",
+      "monthlyBudgetHintOrchestrator": "Empty — no limit of its own.",
       "monthlyBudgetPlaceholder": "e.g. 5",
       "contacts": {
         "title": "Who it may talk to",
@@ -622,7 +616,7 @@
       "delete": "Delete",
       "deleteBusy": "Stop the agent first.",
       "deleteConfirm": "Delete the agent \"{name}\"? It leaves the office and the lists. Its task history and memory are kept.",
-      "subagentReadOnly": "A subagent is temporary: the Orchestrator creates and configures it for one subtask.",
+      "subagentReadOnly": "A temporary subagent from older runs (before 2 November 2026) — it cannot be changed.",
       "subagentNoMemory": "Subagents have no memory of their own: the Orchestrator passes them their context.",
       "archived": "This agent was deleted. Its task history is kept.",
       "dangerTitle": "Delete this agent",
@@ -716,7 +710,7 @@
       "title": "Full access — permanent, no approvals",
       "body": "The agent does everything itself, including deleting files, pushing to GitHub and running commands: it may use every enabled tool (also ones you add later) and needs no approvals. Everything is recorded in the audit log; you can switch it off at any time.",
       "stillApplies": "Still in force: «Stop everything», budgets, step and time limits, the sandbox, tools you switched off and MCP tools you have not enabled.",
-      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Subagents and colleagues it asks for help do not get full access.",
+      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Colleagues it asks for help and agents the Orchestrator creates do not get full access.",
       "turnOn": "Turn on full access…",
       "turnOff": "Turn off",
       "on": "Full access is on.",
@@ -741,31 +735,7 @@
       "removeConfirm": "Ask again before it may {what}?"
     }
   },
-  "runs": {
-    "newRun": "New task for the Orchestrator",
-    "newRunHint": "Describe a complex task. Simple questions get a direct answer.",
-    "start": "Start",
-    "untitled": "Task",
-    "runs": "Runs",
-    "empty": "No runs yet.",
-    "openTask": "Open task",
-    "directAnswer": "Answered directly — no subagents needed.",
-    "plan": "Plan: {summary}",
-    "subagents": "Subagents ({count})",
-    "waitsFor": "waits for {count} other part(s)",
-    "result": "Result",
-    "messages": "Messages between agents",
-    "orchestrator": "Orchestrator",
-    "team": "Your agents on the team ({count})",
-    "emptyHint": "Describe a bigger job in the form above — the Orchestrator makes a plan and hires temporary subagents. You will see here who does what.",
-    "orchestratorBusy": "The Orchestrator is finishing the previous task — the button turns on as soon as it is free. You can type already."
-  },
   "office": {
-    "mode": "Office view",
-    "modes": {
-      "subagents": "Subagents",
-      "agents": "Agents"
-    },
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "fit": "Fit to screen",
@@ -777,7 +747,6 @@
     "list": "Agents in the office",
     "failed": "The office could not start (WebGL/Canvas unavailable). The list below shows the same state.",
     "emptyAgents": "No agents at their desks yet.",
-    "emptySubagents": "No subagents right now — start a run below.",
     "hud": {
       "step": "step {step}",
       "approval": "needs approval"
@@ -1374,7 +1343,7 @@
       "saved": "Saved",
       "none": "No enabled models."
     },
-    "withSubagents": "incl. subagents: {cost}",
+    "withSubagents": "incl. old subagents: {cost}",
     "agentLimit": "limit {limit}",
     "agentLimitLine": "{percent}% of {limit}"
   },
@@ -1487,8 +1456,6 @@
   "island": {
     "title": "Island",
     "agents": "Agents",
-    "subagents": "Subagents",
-    "officeSwitch": "Which office to show",
     "openOffice": "Open the office",
     "approvals": "Approvals",
     "noApprovals": "Nothing to approve",

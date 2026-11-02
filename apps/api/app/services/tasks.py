@@ -280,12 +280,6 @@ class TaskService:
             agent = await lock_agent(self.db, task.agent_id)
             if agent.current_task_id == task.id:
                 await release_agent(self.db, agent, to=AgentStatus.IDLE, reason=reason)
-            if (
-                task.parent_task_id is None
-                and agent.agent_type == AgentType.ORCHESTRATOR.value
-                and run
-            ):
-                await archive_subagents(self.db, run.id)
 
     async def retry(self, user_id: uuid.UUID, task_id: uuid.UUID, *, start: bool = True) -> Task:
         """failed/cancelled → a NEW task (attempt + 1); the old one keeps its history."""
@@ -421,28 +415,6 @@ async def after_cancel(db: AsyncSession, queue: TaskEnqueuer | None, user_id: uu
     from app.agents.team import after_change  # team → tasks at import time
 
     await after_change(db, queue, user_id)
-
-
-async def archive_subagents(db: AsyncSession, root_run_id: uuid.UUID) -> None:
-    """A finished run's subagents leave the office; their history stays."""
-    rows = await db.execute(
-        select(Agent).where(
-            Agent.run_id == root_run_id,
-            Agent.agent_type == AgentType.SUBAGENT.value,
-            Agent.archived_at.is_(None),
-        )
-    )
-    now = datetime.now(UTC)
-    for sub in rows.scalars():
-        sub.archived_at = now
-        await bus.emit(
-            db,
-            user_id=sub.user_id,
-            type="agent.updated",
-            agent_id=sub.id,
-            run_id=root_run_id,
-            payload={"changed": ["archived_at"], "agent": agent_payload(sub)},
-        )
 
 
 async def prepare_start(

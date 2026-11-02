@@ -1,14 +1,15 @@
-"""Orchestrator runtime (spec 14.3) and the subagent runtime.
+"""Orchestrator runtime (spec 14.3).
 
-    planning ── direct answer ──────────────────────────────► reviewing → completed
+    planning ── direct answer ──────────────────────────────────────► completed
         │
-        └─ delegate: create subagents + subtasks, wait (task ``waiting``) ─┐
-                                                                         │ scheduler
-    aggregating ◄── all subtasks finished (task re-queued) ◄─────────────┘
-        ├─ plan.review and not reviewed yet → Reviewer subagent, wait again
-        └─ synthesis → completed (or failed if no subtask succeeded)
+        └─ delegate: new agents (if the plan needs them) + one part per agent,
+           wait (task ``waiting``) ──────────────────────────────────┐ scheduler
+    aggregating ◄── all parts finished (task re-queued) ◄────────────┘
+        └─ synthesis (checked critically when plan.review) → completed
+           (or failed if no part succeeded)
 
-Limits (subagent count, depth, active subagents, steps, time) are enforced in code.
+Every part goes to one of the owner's persistent agents (no temporary subagents). Limits
+(parts, new agents, active parts, steps, time) are enforced in code.
 """
 
 from __future__ import annotations
@@ -22,16 +23,16 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import lock_agent, lock_run, lock_task, set_agent_status, set_task_status
-from app.agents.state import AgentStatus, AgentType, TaskStatus, TaskType
+from app.agents.state import AgentStatus, TaskStatus, TaskType
 from app.events import bus
 from app.models.agent import Agent, AgentRun
 from app.models.chat import Conversation, Message
 from app.models.task import Task
 from app.orchestrator.messaging import format_inputs, inbox
+from app.orchestrator.parts import create_subtasks, owner_agents
 from app.orchestrator.plan import Plan, PlanError, parse_plan
 from app.orchestrator.prompts import planning_system, synthesis_system
 from app.orchestrator.scheduler import WAITING_FOR_SUBTASKS
-from app.orchestrator.subagents import create_review_task, create_subtasks, owner_agents
 from app.providers.base import ChatMessage, ChatRequest, ChatResult
 from app.providers.gateway import ModelTarget
 from app.runtimes.base import RunContext
@@ -57,18 +58,6 @@ def with_owner_context(system: str, setup: RunSetup) -> str:
     """The Orchestrator's protocol prompt, then the owner's form of address (an
     instruction), then saved memory (data, always last)."""
     return "\n\n".join(p for p in (system, setup.address, setup.memory) if p)
-
-
-class SubagentRuntime(NativeRuntime):
-    """A native agent whose context includes the results passed to it by other agents."""
-
-    name = "subagent"
-    reads_inbox = False  # its inbox (results it depends on, notes) is in the system prompt
-
-    async def extra_system(
-        self, ctx: RunContext, db: AsyncSession, agent: Agent, task: Task
-    ) -> str:
-        return await inputs_for(db, agent)
 
 
 class OrchestratorRuntime(NativeRuntime):
@@ -123,16 +112,16 @@ class OrchestratorRuntime(NativeRuntime):
     async def _plan(self, ctx: RunContext, setup: RunSetup, segment_started: float) -> None:
         settings = ctx.settings
         agent, task = setup.agent, setup.task
-        can_create = agent.depth + 1 <= settings.max_subagent_depth
-        can_delegate_further = agent.depth + 2 <= settings.max_subagent_depth
         async with ctx.sessionmaker() as db:
             roster = await owner_agents(db, agent.user_id)
+        # A new agent may only get tools the Orchestrator itself may use; every agent has
+        # the read-only history tools anyway (not part of the plan).
+        tools = tuple(t.name for t in setup.tools if t.name not in ALWAYS_ALLOWED)
         system = planning_system(
             max_subtasks=settings.max_subtasks_per_plan,
-            max_active=settings.max_active_subagents_per_run,
-            can_delegate=can_delegate_further,
-            # Every subagent has the read-only history tools anyway: not part of the plan.
-            tools=tuple(t.name for t in setup.tools if t.name not in ALWAYS_ALLOWED),
+            max_active=settings.max_active_parts_per_run,
+            max_new_agents=settings.orchestrator_max_new_agents,
+            tools=tools,
             agents=tuple((a.name, a.specialization or "", a.description) for a in roster),
         )
         system = with_owner_context(system, setup)
@@ -147,11 +136,10 @@ class OrchestratorRuntime(NativeRuntime):
                 plan, warnings = parse_plan(
                     result.text,
                     max_subtasks=settings.max_subtasks_per_plan,
-                    can_delegate_further=can_delegate_further,
                     agents=[a.name for a in roster],
+                    max_new_agents=settings.orchestrator_max_new_agents,
+                    tools=list(tools),
                 )
-                if plan.mode == "delegate" and not can_create:
-                    raise PlanError("delegation is not allowed at this depth; answer directly")
                 break
             except PlanError as exc:
                 attempts += 1
@@ -189,9 +177,15 @@ class OrchestratorRuntime(NativeRuntime):
                     "mode": plan.mode,
                     "summary": plan.summary,
                     "subtasks": [
-                        {"key": s.key, "title": s.title, "depends_on": s.depends_on}
+                        {
+                            "key": s.key,
+                            "title": s.title,
+                            "agent": s.agent,
+                            "depends_on": s.depends_on,
+                        }
                         for s in plan.subtasks
                     ],
+                    "new_agents": [a.name for a in plan.new_agents],
                     "review": plan.review,
                     "warnings": warnings,
                 },
@@ -205,16 +199,10 @@ class OrchestratorRuntime(NativeRuntime):
             run = await lock_run(db, ctx.run_id)
             if TaskStatus(task.status) != TaskStatus.RUNNING:
                 return
-            await create_subtasks(
-                db, orchestrator=agent, parent_task=task, plan=plan, settings=ctx.settings
-            )
+            await create_subtasks(db, orchestrator=agent, parent_task=task, plan=plan)
             run.phase = "delegating"
-            if agent.agent_type == AgentType.ORCHESTRATOR.value:
-                # The root run fixes the active-subagent limit for the whole tree.
-                run.state = {
-                    **run.state,
-                    "max_active_subagents": ctx.settings.max_active_subagents_per_run,
-                }
+            # The run fixes the active-parts limit for the whole plan.
+            run.state = {**run.state, "max_active_parts": ctx.settings.max_active_parts_per_run}
             await self._wait_for_subtasks(db, agent, task, run)
             await bus.commit(db)
 
@@ -248,25 +236,6 @@ class OrchestratorRuntime(NativeRuntime):
                 for c in children
                 if c.status == TaskStatus.COMPLETED.value and c.task_type == TaskType.SUBTASK.value
             ]
-            reviewed = any(c.task_type == TaskType.REVIEW.value for c in children)
-            if plan.review and not reviewed and completed:
-                agent = await lock_agent(db, ctx.agent_id)
-                task = await lock_task(db, ctx.task_id)
-                run = await lock_run(db, ctx.run_id)
-                if TaskStatus(task.status) != TaskStatus.RUNNING:
-                    return
-                await create_review_task(
-                    db,
-                    orchestrator=agent,
-                    parent_task=task,
-                    inputs=completed,
-                    settings=ctx.settings,
-                )
-                run.phase = "reviewing"
-                await self._ensure_working_in(db, agent)
-                await self._wait_for_subtasks(db, agent, task, run)
-                await bus.commit(db)
-                return
             inputs = await inputs_for(db, setup.agent)
         if not completed:
             raise LimitExceeded("subtasks_failed", "None of the subtasks finished successfully.")
@@ -276,13 +245,9 @@ class OrchestratorRuntime(NativeRuntime):
             run.phase = "aggregating"
             await bus.commit(db)
         transcript = [ChatMessage(role="user", content=f"{task_prompt(setup.task)}\n\n{inputs}")]
-        system = with_owner_context(synthesis_system(), setup)
+        system = with_owner_context(synthesis_system(review=plan.review), setup)
         result = await self._call(ctx, setup, system, transcript, segment_started)
         await self._complete(ctx, result.text)
-
-    async def _ensure_working_in(self, db: AsyncSession, agent: Agent) -> None:
-        if AgentStatus(agent.status) == AgentStatus.WAITING:
-            await set_agent_status(db, agent, AgentStatus.WORKING)
 
     # --- results -----------------------------------------------------------------------------
 
@@ -359,4 +324,4 @@ class OrchestratorRuntime(NativeRuntime):
             await bus.commit(db)
 
 
-__all__ = ["ModelTarget", "OrchestratorRuntime", "SubagentRuntime"]
+__all__ = ["ModelTarget", "OrchestratorRuntime"]

@@ -48,8 +48,6 @@ class Executor:
         native = self.runtimes["native"]
         if agent.agent_type == "orchestrator" or agent.runtime == "orchestrator":
             return self.runtimes.get("orchestrator", native)
-        if agent.agent_type == "subagent":
-            return self.runtimes.get("subagent", native)
         return self.runtimes.get(agent.runtime, native)
 
     async def _claim(self, task_id: uuid.UUID) -> tuple[RunContext, AgentRuntime] | None:

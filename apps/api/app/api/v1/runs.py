@@ -3,11 +3,9 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Header, Query
-from sqlalchemy import select
 
 from app.api.deps import CurrentAuth, DbSession, QueueDep
 from app.core.errors import NotFound
-from app.models.agent import Agent
 from app.models.task import Task
 from app.orchestrator.service import (
     get_run,
@@ -22,7 +20,7 @@ from app.services.idempotency import idempotent
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 
-@router.get("", response_model=list[RunOut], summary="Orchestrated runs (Subagent Office)")
+@router.get("", response_model=list[RunOut], summary="Orchestrated runs")
 async def list_runs(
     ctx: CurrentAuth,
     db: DbSession,
@@ -58,24 +56,17 @@ async def create_run(
     )
 
 
-@router.get("/{run_id}", response_model=RunTree, summary="Plan, subagents, subtasks and messages")
+@router.get("/{run_id}", response_model=RunTree, summary="Plan, parts, the agents and messages")
 async def get_run_tree(run_id: uuid.UUID, ctx: CurrentAuth, db: DbSession) -> RunTree:
     run = await get_run(db, ctx.user.id, run_id)
     task = await db.get(Task, run.task_id)
     if task is None:
         raise NotFound("Run task not found.")
     agents, tasks, messages = await run_tree(db, run)
-    team_ids = {t.agent_id for t in tasks if (t.extra or {}).get("assigned") and t.agent_id}
-    team = (
-        list((await db.execute(select(Agent).where(Agent.id.in_(team_ids)))).scalars())
-        if team_ids
-        else []
-    )
     return RunTree(
         run=RunOut.model_validate(run),
         task=TaskOut.model_validate(task),
-        subagents=[AgentOut.model_validate(a).model_dump(mode="json") for a in agents],
-        team=[AgentOut.model_validate(a).model_dump(mode="json") for a in team],
+        team=[AgentOut.model_validate(a).model_dump(mode="json") for a in agents],
         subtasks=[TaskOut.model_validate(t) for t in tasks],
         messages=[AgentMessageOut.model_validate(m) for m in messages],
     )

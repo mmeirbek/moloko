@@ -1,4 +1,4 @@
-"""A monthly budget per agent: the warning, the hard stop, subagents counting against the
+"""A monthly budget per agent: the warning, the hard stop, (old) subagents counting against the
 Orchestrator, the agent page's numbers and the per-agent rows on the Costs page."""
 
 from __future__ import annotations
@@ -148,7 +148,7 @@ async def test_warning_then_hard_stop_at_the_agents_limit(
     assert all("monthly_budget_usd" in u.details["changed"] for u in updates)
 
 
-async def test_subagents_count_against_the_orchestrators_budget(
+async def test_parts_count_against_the_budgets_of_the_agents_that_did_them(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:
     async with logged_in_client(app) as client:
@@ -158,35 +158,25 @@ async def test_subagents_count_against_the_orchestrators_budget(
         t = await tree(client, started["run"]["id"])
         assert t["task"]["status"] == "completed"
         orchestrator_id = t["run"]["agent_id"]
-        subagent_ids = [a["id"] for a in t["subagents"]]
-        assert len(subagent_ids) == 2
+        team_ids = [a["id"] for a in t["team"]]
+        assert len(team_ids) == 2
 
         async with app.state.db.sessionmaker() as db:
             rows = (await db.execute(select(UsageRecord))).scalars().all()
-        assert {str(r.agent_id) for r in rows} >= {orchestrator_id, *subagent_ids}
-        assert {str(r.budget_agent_id) for r in rows} == {orchestrator_id}
-
-        sub_budget = await budget_of(client, subagent_ids[0])
-        assert sub_budget["budget_agent_id"] == orchestrator_id
+        # every agent's calls count against its own budget (no "the one above" any more)
+        assert {(str(r.agent_id), str(r.budget_agent_id)) for r in rows} == {
+            (i, i) for i in [orchestrator_id, *team_ids]
+        }
         own = await budget_of(client, orchestrator_id)
-        assert Decimal(own["spent_usd"]) == sum(Decimal(str(r.cost_usd)) for r in rows)
-        assert sub_budget["spent_usd"] == own["spent_usd"]
+        helper = await budget_of(client, team_ids[0])
+        assert helper["budget_agent_id"] == team_ids[0]
+        assert Decimal(own["spent_usd"]) + Decimal(helper["spent_usd"]) < sum(
+            Decimal(str(r.cost_usd)) for r in rows
+        ) + Decimal("0.000001")
+        assert (await set_budget(client, team_ids[0], "5.00")).status_code == 200
 
-        # Subagents have no budget of their own (and they leave the office after the run).
-        assert sub_budget["monthly_budget_usd"] == own["monthly_budget_usd"]
-        assert (await set_budget(client, subagent_ids[0], "5.00")).status_code == 404
-
-        # The Costs page: one row for the Orchestrator, its subagents' share and its limit.
-        double = limit_for(Decimal(own["spent_usd"]), 0.5)
-        assert (await set_budget(client, orchestrator_id, double)).status_code == 200
         costs = (await client.get("/api/v1/costs")).json()
-        rows_by_id = {r["agent_id"]: r for r in costs["by_agent"]}
-        assert set(rows_by_id) == {orchestrator_id}
-        row = rows_by_id[orchestrator_id]
-        assert row["source"] == "orchestrator"
-        assert Decimal(row["cost_usd"]) == Decimal(own["spent_usd"])
-        assert 0 < Decimal(row["subagents_cost_usd"]) < Decimal(row["cost_usd"])
-        assert row["monthly_budget_usd"] is not None and 45 < row["percent"] < 55
+        assert {r["agent_id"] for r in costs["by_agent"]} == {orchestrator_id, *team_ids}
 
         # Once the Orchestrator's budget is used up, its next run fails at planning.
         assert (await set_budget(client, orchestrator_id, "1.00")).status_code == 200
@@ -198,28 +188,21 @@ async def test_subagents_count_against_the_orchestrators_budget(
         assert t2["subtasks"] == []
 
 
-async def test_a_subagent_stops_when_the_orchestrators_budget_runs_out(
+async def test_an_agent_doing_a_part_stops_at_its_own_budget(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:
-    """The Orchestrator's own planning call fits; its subagents push it over the limit."""
     async with logged_in_client(app) as client:
         await priced_model(client)
-        agents = (await client.get("/api/v1/agents")).json()
-        orchestrator = next((a for a in agents if a["agent_type"] == "orchestrator"), None)
-        if orchestrator is None:  # created on the first run
-            await start_run(client, "Warm up")
-            await drain(app, queue)
-            agents = (await client.get("/api/v1/agents")).json()
-            orchestrator = next(a for a in agents if a["agent_type"] == "orchestrator")
-        spent = Decimal((await budget_of(client, orchestrator["id"]))["spent_usd"])
-        # Room for the plan (20 tokens = $20) but not for both subagents and the synthesis.
-        assert (await set_budget(client, orchestrator["id"], str(spent + 25))).status_code == 200
-        started = await start_run(client, "Big", "[[mock:chain]] [[mock:plan:3]]")
+        writer = await create_agent(client, name="Writer")
+        assert (await run_agent(client, writer["id"], "Warm up")).status_code == 200
+        await drain(app, queue)  # it has spent something this month
+        assert (await set_budget(client, writer["id"], "1.00")).status_code == 200
+        started = await start_run(client, "Big", "[[mock:plan:1]] [[mock:assign:Writer]]")
         await drain(app, queue)
         t = await tree(client, started["run"]["id"])
     codes = [s["error_code"] for s in t["subtasks"] if s["status"] == "failed"]
-    assert "agent_budget_exceeded" in codes
-    assert t["task"]["status"] == "failed"
+    assert codes == ["agent_budget_exceeded"]
+    assert (t["task"]["status"], t["task"]["error_code"]) == ("failed", "subtasks_failed")
 
 
 async def test_budget_validation(app: FastAPI, owner: User, queue: RecordingQueue) -> None:

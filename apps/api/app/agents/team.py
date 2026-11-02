@@ -5,9 +5,9 @@ this module holds the rules and the mechanics.
 
 Who may talk to whom
     Only agents of the same owner. A persistent agent may contact another persistent agent
-    when BOTH ``contacts`` settings allow it ({} = everyone, a list of ids, or nobody). A
-    subagent may contact only its siblings (same run tree). The Orchestrator keeps its plan
-    messaging (app/orchestrator/messaging.py) and is never a contact.
+    when BOTH ``contacts`` settings allow it ({} = everyone, a list of ids, or nobody). The
+    Orchestrator keeps its plan messaging (app/orchestrator/messaging.py) and is never a
+    contact.
 
 agent_ask — ask and wait
     The receiver gets a "consult" task (parent = the asker's task, ``requested_by_agent_id``
@@ -92,7 +92,6 @@ REFUSALS: dict[str, str] = {
     "different_owner": "that agent belongs to someone else",
     "agent_unavailable": "that agent was deleted or has finished its work",
     "orchestrator": "the Orchestrator is not a contact: it hands out work through its plan",
-    "different_run": "a subagent can only contact the other subagents of its own run",
     "not_a_colleague": "only the owner's own agents can be contacted",
     "not_in_contacts": "that agent is not in your contacts (the owner's setting)",
     "receiver_refuses": "that agent does not accept messages from you (the owner's setting)",
@@ -148,18 +147,10 @@ def contact_problem(sender: Agent, receiver: Agent) -> str | None:
         return "agent_unavailable"
     if AgentType.ORCHESTRATOR.value in (sender.agent_type, receiver.agent_type):
         return "orchestrator"
-    if sender.agent_type == AgentType.SUBAGENT.value:
-        if (
-            receiver.agent_type != AgentType.SUBAGENT.value
-            or sender.run_id is None
-            or receiver.run_id != sender.run_id
-        ):
-            return "different_run"
-        if receiver.status in (AgentStatus.COMPLETED.value, AgentStatus.FAILED.value):
-            return "agent_unavailable"  # its part is done; it will not work again
-        return None
-    if receiver.agent_type != AgentType.AUTONOMOUS.value:
-        return "not_a_colleague"
+    if AgentType.AUTONOMOUS.value != sender.agent_type or (
+        receiver.agent_type != AgentType.AUTONOMOUS.value
+    ):
+        return "not_a_colleague"  # (old temporary subagents included)
     if not allows(sender, receiver):
         return "not_in_contacts"
     if not allows(receiver, sender):
@@ -168,10 +159,6 @@ def contact_problem(sender: Agent, receiver: Agent) -> str | None:
 
 
 def _pool(query: Any, agent: Agent) -> Any:
-    if agent.agent_type == AgentType.SUBAGENT.value:
-        return query.where(
-            Agent.agent_type == AgentType.SUBAGENT.value, Agent.run_id == agent.run_id
-        )
     return query.where(Agent.agent_type == AgentType.AUTONOMOUS.value)
 
 
@@ -513,7 +500,6 @@ async def ask(ctx: ToolContext, args: dict[str, Any]) -> ToolOutput:
         refs = file_refs(settings, sender_ws, paths) if sender_ws is not None else []
         now = utcnow()
         chain = [*chain_of(asker_task), str(asker.id)]
-        own_workspace = receiver.agent_type != AgentType.SUBAGENT.value
         consult = Task(
             user_id=asker.user_id,
             title=title_of(request),
@@ -544,7 +530,7 @@ async def ask(ctx: ToolContext, args: dict[str, Any]) -> ToolOutput:
                     "result_max_chars": settings.tool_output_max_chars * 2,
                 },
                 # A persistent agent answers in its own workspace, not in the asker's.
-                **({"own_workspace": True} if own_workspace else {}),
+                "own_workspace": True,  # the receiver answers in its own workspace
             },
         )
         db.add(consult)
@@ -852,15 +838,6 @@ async def settle_all(
     return queued
 
 
-async def _tree_has_slot(db: AsyncSession, root_run_id: uuid.UUID) -> bool:
-    """Subagent receivers share their run's MAX_ACTIVE_SUBAGENTS_PER_RUN."""
-    from app.orchestrator.scheduler import active_in_tree
-
-    root = await lock_run(db, root_run_id)  # the same lock the scheduler takes
-    limit = int((root.state or {}).get("max_active_subagents", 0) or 0)
-    return not limit or await active_in_tree(db, root_run_id) < limit
-
-
 async def dispatch(
     sessionmaker: async_sessionmaker[AsyncSession], user_id: uuid.UUID | None = None
 ) -> list[uuid.UUID]:
@@ -882,18 +859,11 @@ async def dispatch(
             receiver = await db.get(Agent, consult.agent_id)
             if receiver is None:
                 continue
-            subagent = receiver.agent_type == AgentType.SUBAGENT.value
-            if subagent and receiver.run_id and not await _tree_has_slot(db, receiver.run_id):
-                continue
             locked = await lock_task(db, consult.id)
             agent = await lock_agent(db, consult.agent_id)
             if locked.status != TaskStatus.CREATED.value:
                 continue
-            gone = agent.archived_at is not None or (
-                agent.agent_type == AgentType.SUBAGENT.value
-                and agent.status in (AgentStatus.COMPLETED.value, AgentStatus.FAILED.value)
-            )
-            if gone:
+            if agent.archived_at is not None:
                 await TaskService(db, None)._cancel_tree(locked, AGENT_UNAVAILABLE)
                 await bus.commit(db)
                 tried.discard(consult.agent_id)

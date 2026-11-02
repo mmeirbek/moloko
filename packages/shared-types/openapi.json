@@ -5173,11 +5173,6 @@
           "run": {
             "$ref": "#/components/schemas/RunOut"
           },
-          "subagents": {
-            "items": {},
-            "title": "Subagents",
-            "type": "array"
-          },
           "subtasks": {
             "items": {
               "$ref": "#/components/schemas/TaskOut"
@@ -5197,7 +5192,6 @@
         "required": [
           "run",
           "task",
-          "subagents",
           "subtasks",
           "messages"
         ],
@@ -6182,16 +6176,12 @@
       },
       "SystemLimits": {
         "properties": {
-          "max_active_subagents_per_run": {
-            "title": "Max Active Subagents Per Run",
+          "max_active_parts_per_run": {
+            "title": "Max Active Parts Per Run",
             "type": "integer"
           },
           "max_steps_per_run": {
             "title": "Max Steps Per Run",
-            "type": "integer"
-          },
-          "max_subagent_depth": {
-            "title": "Max Subagent Depth",
             "type": "integer"
           },
           "memory_context_max_chars": {
@@ -6202,6 +6192,10 @@
             "title": "Memory Entry Max Chars",
             "type": "integer"
           },
+          "orchestrator_max_new_agents": {
+            "title": "Orchestrator Max New Agents",
+            "type": "integer"
+          },
           "run_timeout_seconds": {
             "title": "Run Timeout Seconds",
             "type": "integer"
@@ -6210,8 +6204,8 @@
         "required": [
           "max_steps_per_run",
           "run_timeout_seconds",
-          "max_active_subagents_per_run",
-          "max_subagent_depth",
+          "max_active_parts_per_run",
+          "orchestrator_max_new_agents",
           "memory_context_max_chars",
           "memory_entry_max_chars"
         ],
@@ -11273,7 +11267,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Orchestrated runs (Subagent Office)",
+        "summary": "Orchestrated runs",
         "tags": [
           "runs"
         ]
@@ -11373,7 +11367,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Plan, subagents, subtasks and messages",
+        "summary": "Plan, parts, the agents and messages",
         "tags": [
           "runs"
         ]

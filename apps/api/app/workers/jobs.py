@@ -14,7 +14,7 @@ from app.core.logging import configure_logging
 from app.core.redis import create_redis
 from app.events.bus import EventPublisher, set_publisher
 from app.orchestrator import mock_script  # noqa: F401 — registers offline mock replies
-from app.orchestrator.runtime import OrchestratorRuntime, SubagentRuntime
+from app.orchestrator.runtime import OrchestratorRuntime
 from app.orchestrator.scheduler import after_task as scheduler_after_task
 from app.providers.gateway import ModelGateway
 from app.push.dispatcher import dispatch as dispatch_push
@@ -60,7 +60,6 @@ def build_executor(
         settings,
         runtimes={
             "native": NativeRuntime(),
-            "subagent": SubagentRuntime(),
             "orchestrator": OrchestratorRuntime(),
         },
         after_task=after_task,

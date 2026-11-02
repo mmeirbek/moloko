@@ -152,8 +152,11 @@ class Settings(BaseSettings):
     )
 
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
-    max_active_subagents_per_run: int = Field(5, ge=1, le=50)
-    max_subagent_depth: int = Field(2, ge=1, le=5)
+    # Parts of one Orchestrator plan running at the same time (each on one of the agents).
+    max_active_parts_per_run: int = Field(5, ge=1, le=50)
+    # New agents the Orchestrator may create in one plan when none of the owner's fits
+    # (they join the office and stay); 0 = it only uses the owner's agents.
+    orchestrator_max_new_agents: int = Field(3, ge=0, le=10)
     max_steps_per_run: int = Field(50, ge=1, le=1000)
     run_timeout_seconds: int = Field(1800, ge=10)
     max_retries_per_step: int = Field(2, ge=0, le=10)
@@ -166,8 +169,8 @@ class Settings(BaseSettings):
     # most AGENT_MAX_CUT_OFFS times in a row before the task fails with `output_truncated`.
     agent_max_output_tokens: int = Field(16_000, ge=256, le=200_000)
     agent_max_cut_offs: int = Field(3, ge=0, le=20)
-    # Per-agent monthly budgets: the owner is warned when an agent (with its subagents)
-    # has spent this share of its own limit; at 100 % its new model calls are refused.
+    # Per-agent monthly budgets: the owner is warned when an agent has spent this share of
+    # its own limit; at 100 % its new model calls are refused.
     agent_budget_warn_percent: int = Field(80, ge=10, le=99)
     # How many own templates ("Save as template") the owner may keep.
     agent_templates_max: int = Field(50, ge=1, le=1000)

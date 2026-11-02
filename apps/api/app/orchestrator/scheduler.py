@@ -1,18 +1,18 @@
-"""Runs a plan: starts ready subtasks within MAX_ACTIVE_SUBAGENTS_PER_RUN, passes results
-along dependencies, wakes an orchestrator when all its subtasks are done.
+"""Runs a plan: starts ready parts within MAX_ACTIVE_PARTS_PER_RUN, passes results along
+dependencies, wakes the Orchestrator when all its parts are done.
 
-All scheduling of one run tree is serialised by a row lock on the root run, so the
-active-subagent limit can never be exceeded by concurrent completions. "Active" means
-queued or running; an orchestrating subagent waiting for its own children does not hold
-a slot (no deadlock when every slot is held by waiting orchestrators).
+Every part belongs to one of the owner's persistent agents; a busy agent takes its part
+when it is free. All scheduling of one plan is serialised by a row lock on the
+Orchestrator's run, so the active-parts limit is never exceeded by concurrent completions.
 """
 
 from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import agent_is_busy, lock_run, lock_task, set_task_status
@@ -21,7 +21,7 @@ from app.events import bus
 from app.models.agent import Agent
 from app.models.task import Task
 from app.orchestrator.messaging import send_message
-from app.services.tasks import archive_subagents, prepare_start
+from app.services.tasks import prepare_start
 from app.tasks.queue import TaskEnqueuer
 
 logger = logging.getLogger("moloko.scheduler")
@@ -35,9 +35,8 @@ FAILED = (TaskStatus.FAILED.value, TaskStatus.CANCELLED.value)
 async def tree_tasks(db: AsyncSession, root_run_id: uuid.UUID) -> list[Task]:
     rows = await db.execute(
         select(Task)
-        .join(Agent, Agent.id == Task.agent_id)
         .where(
-            or_(Agent.run_id == root_run_id, Task.extra["root_run"].astext == str(root_run_id)),
+            Task.extra["root_run"].astext == str(root_run_id),
             Task.task_type.in_(SUBTASK_TYPES),
         )
         .order_by(Task.created_at, Task.id)
@@ -48,31 +47,16 @@ async def tree_tasks(db: AsyncSession, root_run_id: uuid.UUID) -> list[Task]:
 DEFAULT_MAX_ACTIVE = 5
 
 
-async def consults_in_tree(db: AsyncSession, root_run_id: uuid.UUID) -> int:
-    """Questions (agent_ask) the tree's subagents are answering right now: they hold an
-    active slot like a subtask does."""
-    return int(
-        (
-            await db.execute(
-                select(func.count())
-                .select_from(Task)
-                .join(Agent, Agent.id == Task.agent_id)
-                .where(
-                    Agent.run_id == root_run_id,
-                    Agent.agent_type == AgentType.SUBAGENT.value,
-                    Task.task_type == TaskType.CONSULT.value,
-                    Task.status.in_(ACTIVE_SLOT),
-                )
-            )
-        ).scalar_one()
-    )
+def max_active(root_run_state: dict[str, Any] | None) -> int:
+    state = root_run_state or {}
+    # "max_active_subagents": runs planned before subagents were removed
+    value = state.get("max_active_parts", state.get("max_active_subagents", DEFAULT_MAX_ACTIVE))
+    return int(value)
 
 
 async def active_in_tree(db: AsyncSession, root_run_id: uuid.UUID) -> int:
     tasks = await tree_tasks(db, root_run_id)
-    return sum(1 for t in tasks if t.status in ACTIVE_SLOT) + await consults_in_tree(
-        db, root_run_id
-    )
+    return sum(1 for t in tasks if t.status in ACTIVE_SLOT)
 
 
 async def schedule_tree(
@@ -80,16 +64,14 @@ async def schedule_tree(
 ) -> list[uuid.UUID]:
     """One scheduling pass. Returns the ids it enqueued.
 
-    The active-subagent limit is read from the root run (snapshotted from settings when
-    the run delegated), so one run always uses one consistent limit."""
+    The active-parts limit is read from the run (snapshotted from settings when it
+    delegated), so one run always uses one consistent limit."""
     to_enqueue: list[uuid.UUID] = []
     root_run = await lock_run(db, root_run_id)  # serialises every pass of this tree
     root_task = await db.get(Task, root_run.task_id)
     if root_task is None:
         return []
     if TaskStatus(root_task.status) in TERMINAL_TASK:
-        await archive_subagents(db, root_run_id)
-        await bus.commit(db)
         return []
 
     tasks = await tree_tasks(db, root_run_id)
@@ -103,12 +85,12 @@ async def schedule_tree(
         ).scalars()
     }
 
-    # 1. Report finished subtasks to their orchestrator (once).
+    # 1. Report finished parts to the Orchestrator (once).
     for task in tasks:
         if TaskStatus(task.status) in TERMINAL_TASK and not (task.extra or {}).get("reported"):
             await _report(db, task, agents)
 
-    # 2. Dependants of failed/cancelled subtasks cannot run.
+    # 2. Dependants of failed/cancelled parts cannot run.
     for task in tasks:
         if task.status == TaskStatus.CREATED.value and any(
             by_id.get(dep) is not None and by_id[dep].status in FAILED for dep in task.depends_on
@@ -117,7 +99,7 @@ async def schedule_tree(
             await set_task_status(db, locked, TaskStatus.CANCELLED, reason="dependency_failed")
             await _report(db, locked, agents)
 
-    # 3. Wake orchestrators (root or nested) whose subtasks are all finished.
+    # 3. Wake the Orchestrator when all its parts are finished.
     parents = {t.parent_task_id for t in tasks if t.parent_task_id is not None}
     for parent_id in parents:
         parent = await lock_task(db, parent_id)
@@ -131,14 +113,11 @@ async def schedule_tree(
             to_enqueue.append(parent.id)
         _update_progress(parent, children)
 
-    # 4. Start ready subtasks within the active limit.
+    # 4. Start ready parts within the active limit.
     orchestrator = await db.get(Agent, root_run.agent_id)
     paused = orchestrator is not None and orchestrator.status == AgentStatus.PAUSED.value
-    active = sum(1 for t in tasks if t.status in ACTIVE_SLOT) + await consults_in_tree(
-        db, root_run_id
-    )
-    max_active = int((root_run.state or {}).get("max_active_subagents", DEFAULT_MAX_ACTIVE))
-    slots = max_active - active
+    active = sum(1 for t in tasks if t.status in ACTIVE_SLOT)
+    slots = max_active(root_run.state) - active
     if not paused and slots > 0:
         for task in tasks:
             if slots <= 0:
@@ -149,37 +128,18 @@ async def schedule_tree(
             if any(d.status != TaskStatus.COMPLETED.value for d in deps):
                 continue
             locked = await lock_task(db, task.id)
-            consumer = agents[locked.agent_id]  # type: ignore[index]
-            assigned = bool((locked.extra or {}).get("assigned"))
-            if assigned:
-                # A persistent agent: it may be busy with its own work — then the part waits
-                # and is picked up when that agent finishes (see after_task).
-                if consumer.archived_at is not None:
-                    await set_task_status(
-                        db, locked, TaskStatus.CANCELLED, reason="agent_unavailable"
-                    )
-                    await _report(db, locked, agents)
-                    continue
-                if agent_is_busy(consumer):
-                    continue
-            elif agent_is_busy(consumer):
-                continue  # a subagent answering a sibling's question (agent_ask): later
+            consumer = agents.get(locked.agent_id) if locked.agent_id else None
+            # The agent may have been removed meanwhile, or be busy with its own work — then
+            # the part waits and is picked up when that agent finishes (see after_task).
+            if consumer is None or consumer.archived_at is not None:
+                await set_task_status(db, locked, TaskStatus.CANCELLED, reason="agent_unavailable")
+                await _report(db, locked, agents)
+                continue
+            if agent_is_busy(consumer):
+                continue
             await prepare_start(db, locked, parent_run_id=root_run_id)
-            if assigned:  # its own runtime reads no inbox: the inputs go into the task text
-                locked.description = with_inputs(locked.description, deps, agents)
-            else:
-                for dep in deps:  # ⟨C⟩: pass the inputs this subtask depends on
-                    producer = agents[dep.agent_id]  # type: ignore[index]
-                    await send_message(
-                        db,
-                        sender=producer,
-                        receiver=consumer,
-                        message_type="task_result",
-                        summary=f"Result of '{dep.title}'",
-                        result=dep.result,
-                        task_id=dep.id,
-                        tree_run=root_run_id,
-                    )
+            # ⟨C⟩: the inputs this part depends on go into its text, fenced as data
+            locked.description = with_inputs(locked.description, deps, agents)
             to_enqueue.append(locked.id)
             slots -= 1
 
@@ -190,11 +150,9 @@ async def schedule_tree(
     return to_enqueue
 
 
-def _tree_of(task: Task, receiver: Agent) -> uuid.UUID | None:
+def _tree_of(task: Task) -> uuid.UUID | None:
     root = (task.extra or {}).get("root_run")
-    if root:
-        return uuid.UUID(str(root))
-    return receiver.run_id if receiver.agent_type == AgentType.SUBAGENT.value else None
+    return uuid.UUID(str(root)) if root else None
 
 
 def with_inputs(description: str, deps: list[Task], agents: dict[uuid.UUID, Agent]) -> str:
@@ -235,7 +193,7 @@ async def _report(db: AsyncSession, task: Task, agents: dict[uuid.UUID, Agent]) 
             summary=f"{task.title}: {task.status}",
             result=task.result if ok else (task.error_message or task.status_reason or task.status),
             task_id=task.id,
-            tree_run=_tree_of(task, receiver),
+            tree_run=_tree_of(task),
         )
     task.extra = {**(task.extra or {}), "reported": True}
 
@@ -249,13 +207,11 @@ async def after_task(sessionmaker: object, task_id: uuid.UUID, queue: TaskEnqueu
         agent = await db.get(Agent, task.agent_id)
         if agent is None:
             return
-        if agent.agent_type == AgentType.SUBAGENT.value:
-            roots = {agent.run_id}
-        elif agent.agent_type == AgentType.ORCHESTRATOR.value and task.parent_task_id is None:
+        if agent.agent_type == AgentType.ORCHESTRATOR.value and task.parent_task_id is None:
             roots = {task.run_id}
         else:
-            # A persistent agent: the tree of the part it just did, and the trees of parts
-            # that waited for it to be free.
+            # An agent: the plan of the part it just did, and the plans of parts that
+            # waited for it to be free.
             roots = set()
             if (task.extra or {}).get("root_run"):
                 roots.add(uuid.UUID(str(task.extra["root_run"])))

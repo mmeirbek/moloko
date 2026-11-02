@@ -16,14 +16,10 @@ from fastapi import FastAPI
 from sqlalchemy import select, update
 
 from app.models import Agent, AuditLog, Task
-from app.orchestrator.plan import SubtaskSpec
-from app.orchestrator.subagents import create_subagent
 from app.providers import mock_provider
 from app.services.auth import login_subject_key
 from app.services.users import UserService
 from app.tools.builtin import files as files_module
-from app.tools.policy import Verdict, authorize
-from app.tools.registry import catalog, specs_for
 from tests.conftest import (
     OWNER_PASSWORD,
     OWNER_USERNAME,
@@ -367,43 +363,35 @@ async def test_the_budget_still_stops_it(fa_app: FastAPI, monkeypatch: pytest.Mo
 # --- nobody inherits it ---------------------------------------------------------------------
 
 
-async def test_subagents_never_inherit_it(fa_app: FastAPI) -> None:
-    async with logged_in_client(fa_app) as client:
-        parent = await trusted_agent(client)
-        # The parent's own list (its floor) is what a subagent can get at most.
-        resp = await client.patch(
-            f"/api/v1/agents/{parent['id']}",
-            json={"allowed_tools": ["fs_read"]},
-            headers=await csrf_headers(client),
-        )
-        assert resp.status_code == 200 and resp.json()["full_access"] is True
-    settings = fa_app.state.settings
-    async with fa_app.state.db.sessionmaker() as db:
-        row = await db.get(Agent, uuid.UUID(parent["id"]))
-        assert row is not None and row.full_access
-        child = await create_subagent(
-            db,
-            parent=row,
-            root_run=uuid.uuid4(),
-            spec=SubtaskSpec(key="a", title="A", tools=["fs_read", "fs_write", "fs_delete"]),
-            settings=settings,
-        )
-        await db.commit()
-        entries = await catalog(db, row.user_id, settings)
-    assert child.full_access is False and child.full_access_since is None
-    assert child.allowed_tools == ["fs_read"]
-    assert child.autonomy_level == "supervised"
-    assert {s.name for s in specs_for(child, entries)} == {"fs_read", "work_search", "work_read"}
-    # Even a subagent row with the column set is not trusted (only persistent agents are).
-    child.full_access_since = row.full_access_since
-    assert child.full_access is False
-    from tests.test_tool_policy import ctx as tool_ctx
+async def test_agents_the_orchestrator_creates_never_get_it(fa_app: FastAPI) -> None:
+    from app.orchestrator.parts import create_agent as orchestrator_creates
+    from app.orchestrator.plan import NewAgentSpec
 
-    for name in ("fs_write", "fs_delete"):
-        decision = await authorize(
-            agent=child, name=name, entry=entries[name], args={"path": "x"}, ctx=tool_ctx(child)
+    async with logged_in_client(fa_app) as client:
+        me = (await client.get("/api/v1/auth/me")).json()["user"]
+    async with fa_app.state.db.sessionmaker() as db:
+        boss = Agent(
+            user_id=uuid.UUID(me["id"]),
+            name="Orchestrator",
+            agent_type="orchestrator",
+            allowed_tools=["fs_read"],
+            autonomy_level="supervised",
         )
-        assert decision.verdict == Verdict.DENY
+        task = Task(
+            user_id=boss.user_id,
+            title="t",
+            description="",
+            task_type="user",
+            status="running",
+            depends_on=[],
+            extra={},
+        )
+        db.add_all([boss, task])
+        await db.flush()
+        spec = NewAgentSpec(name="Helper", tools=["fs_read", "fs_write", "fs_delete"])
+        child = await orchestrator_creates(db, orchestrator=boss, spec=spec, task=task)
+    assert child.full_access is False and child.full_access_since is None
+    assert child.allowed_tools == ["fs_read"] and child.autonomy_level == "supervised"
 
 
 async def test_an_asked_agent_acts_under_its_own_settings(

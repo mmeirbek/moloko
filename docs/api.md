@@ -146,7 +146,7 @@ Plan format and limits: see `docs/decisions.md` (Sprint 4). Subtasks are tasks w
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/system/limits` | Global limits: `max_steps_per_run, run_timeout_seconds, max_active_subagents_per_run, max_subagent_depth, memory_context_max_chars, memory_entry_max_chars` |
+| GET | `/system/limits` | Global limits: `max_steps_per_run, run_timeout_seconds, max_active_parts_per_run, orchestrator_max_new_agents, memory_context_max_chars, memory_entry_max_chars` |
 | POST / PATCH | `/agents` · `/agents/{id}` | `limits` and `memory_settings {enabled, include_shared, projects[], max_context_chars}` are validated; values above the global limits → `422 limit_too_high` |
 | GET | `/agents/{id}/memory-context` | `{enabled, text, included[], omitted[], chars, max_chars}` — exactly what the agent's prompt receives |
 | GET | `/memories?agent_id&shared&memory_type&project&q&limit` | Memory entries, pinned first then newest |

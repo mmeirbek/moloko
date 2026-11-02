@@ -76,7 +76,7 @@ export function GettingStarted({ className }: { className?: string }) {
         </Button>
       );
     }
-    const href = { model: "/settings#ai", chat: "/chat/new", task: "/office/subagents", agent: "/office/agents" }[step];
+    const href = { model: "/settings#ai", chat: "/chat/new", task: "/office/agents", agent: "/office/agents" }[step];
     return (
       <Button size="sm" variant={variant} asChild>
         <Link href={href}>{t(`${step}.action`)}</Link>

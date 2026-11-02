@@ -1,4 +1,6 @@
-"""Orchestrator & subagents (Sprint 4). Plans come from the scripted mock provider."""
+"""The Orchestrator (Sprint 4; no temporary subagents since 2026-11-02): it plans, gives
+every part to one of the owner's persistent agents — creating a new agent when none fits —
+and merges the results. Plans come from the scripted mock provider."""
 
 from __future__ import annotations
 
@@ -13,8 +15,8 @@ from sqlalchemy import select
 
 from app.models import Agent, AgentEvent, AgentMessage, AuditLog, Task, User
 from app.orchestrator.messaging import DeliveryRefused, send_message
-from app.orchestrator.plan import PlanError, SubtaskSpec, parse_plan
-from app.orchestrator.subagents import DepthLimitExceeded, create_subagent
+from app.orchestrator.parts import create_agent as orchestrator_creates
+from app.orchestrator.plan import NewAgentSpec, PlanError, parse_plan
 from tests.conftest import (
     AppFactory,
     RecordingQueue,
@@ -70,7 +72,7 @@ async def max_concurrent_active(app: FastAPI, root_task_id: str) -> int:
     return peak
 
 
-async def test_simple_request_is_answered_directly_without_subagents(
+async def test_simple_request_is_answered_directly(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:
     async with logged_in_client(app) as client:
@@ -81,7 +83,7 @@ async def test_simple_request_is_answered_directly_without_subagents(
     assert t["task"]["status"] == "completed"
     assert t["task"]["result"] == "Direct answer: # Task: What is 2+2?"
     assert t["run"]["plan"]["mode"] == "direct"
-    assert t["subagents"] == [] and t["subtasks"] == []
+    assert t["team"] == [] and t["subtasks"] == []
 
 
 async def test_complex_task_is_split_executed_and_merged(
@@ -102,22 +104,58 @@ async def test_complex_task_is_split_executed_and_merged(
     assert t["task"]["result"].startswith("Final answer combining:")
     assert t["task"]["result"].count("(task_result)") == 3
     assert t["task"]["progress"] == 100
-    assert {a["depth"] for a in t["subagents"]} == {1}
-    assert all(a["archived_at"] for a in t["subagents"])  # they leave the office after the run
+    # No agent fitted: the Orchestrator created two persistent agents; they stay in the office
+    team = {a["name"]: a for a in t["team"]}
+    assert set(team) == {"Researcher", "Analyst"}
+    assert all(a["agent_type"] == "autonomous" and a["archived_at"] is None for a in team.values())
+    assert all(a["model_config_id"] == orchestrator["model_config_id"] for a in team.values())
+    assert all(a["autonomy_level"] == orchestrator["autonomy_level"] for a in team.values())
     results = [m for m in t["messages"] if m["message_type"] == "task_result"]
     assert len(results) == 3 and all(m["receiver_agent_id"] == orchestrator["id"] for m in results)
     assert orchestrator["status"] == "idle"
+    async with app.state.db.sessionmaker() as db:
+        created = (
+            (
+                await db.execute(
+                    select(AuditLog).where(
+                        AuditLog.action == "agent.created", AuditLog.actor_type == "agent"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert {a.details["name"] for a in created} == {"Researcher", "Analyst"}
+    assert all(a.details["created_by"] == "orchestrator" for a in created)
 
 
-async def test_active_subagent_limit_is_enforced_under_parallel_completion(
+async def test_the_next_plan_reuses_the_agents_it_created(
+    app: FastAPI, owner: User, queue: RecordingQueue
+) -> None:
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)
+        await start_run(client, "First", "[[mock:plan:2]]")
+        await drain(app, queue)
+        second = await start_run(client, "Second", "[[mock:plan:2]]")
+        await drain(app, queue)
+        t = await tree(client, second["run"]["id"])
+        agents = (await client.get("/api/v1/agents")).json()
+    assert t["task"]["status"] == "completed"
+    names = [a["name"] for a in agents if a["agent_type"] == "autonomous"]
+    assert sorted(names) == ["Analyst", "Researcher"]  # no twins
+
+
+async def test_active_parts_limit_is_enforced_under_parallel_completion(
     app_factory: AppFactory, owner: User
 ) -> None:
-    app = await app_factory(max_active_subagents_per_run=5, max_subtasks_per_plan=8)
+    app = await app_factory(
+        max_active_parts_per_run=5, max_subtasks_per_plan=8, orchestrator_max_new_agents=8
+    )
     queue = RecordingQueue()
     app.state.queue = queue
     async with logged_in_client(app) as client:
         await add_mock_model(client)
-        started = await start_run(client, "Big job", "[[mock:plan:8]]")
+        started = await start_run(client, "Big job", "[[mock:plan:8]] [[mock:spread]]")
         await drain(app, queue, parallel=True)
         t = await tree(client, started["run"]["id"])
     assert t["task"]["status"] == "completed"
@@ -127,12 +165,12 @@ async def test_active_subagent_limit_is_enforced_under_parallel_completion(
 
 
 async def test_limit_of_two_active(app_factory: AppFactory, owner: User) -> None:
-    app = await app_factory(max_active_subagents_per_run=2)
+    app = await app_factory(max_active_parts_per_run=2, orchestrator_max_new_agents=4)
     queue = RecordingQueue()
     app.state.queue = queue
     async with logged_in_client(app) as client:
         await add_mock_model(client)
-        started = await start_run(client, "Job", "[[mock:plan:4]]")
+        started = await start_run(client, "Job", "[[mock:plan:4]] [[mock:spread]]")
         await drain(app, queue, parallel=True)
     assert await max_concurrent_active(app, started["task"]["id"]) == 2
 
@@ -149,11 +187,8 @@ async def test_dependencies_run_in_order_and_pass_results(
     assert all(s["status"] == "completed" for s in subtasks.values())
     assert subtasks["part-1"]["completed_at"] <= subtasks["part-2"]["started_at"]
     assert subtasks["part-2"]["completed_at"] <= subtasks["part-3"]["started_at"]
-    # part-1's result was delivered to part-2's agent as an input.
-    to_part2 = [
-        m for m in t["messages"] if m["receiver_agent_id"] == subtasks["part-2"]["agent_id"]
-    ]
-    assert len(to_part2) == 1 and "Handle part 1." in to_part2[0]["content"]["result"]
+    # part-1's result was passed to part-2 as an input, fenced as data
+    assert '<input from="Researcher" type="task_result">' in subtasks["part-2"]["description"]
 
 
 async def test_failed_dependency_cancels_dependants_and_run_fails_honestly(
@@ -188,69 +223,31 @@ async def test_partial_failure_still_merges_what_succeeded(
     assert t["task"]["result"].count("(error)") == 1  # the gap is reported, not hidden
 
 
-async def test_reviewer_step(app: FastAPI, owner: User, queue: RecordingQueue) -> None:
+async def test_review_is_done_by_the_orchestrator_itself(
+    app: FastAPI, owner: User, queue: RecordingQueue
+) -> None:
     async with logged_in_client(app) as client:
         await add_mock_model(client)
         started = await start_run(client, "Reviewed", "[[mock:plan:2]] [[mock:review]]")
         await drain(app, queue)
         t = await tree(client, started["run"]["id"])
-    review = [s for s in t["subtasks"] if s["task_type"] == "review"]
-    assert (
-        len(review) == 1
-        and review[0]["status"] == "completed"
-        and review[0]["result"] == "No issues"
-    )
-    assert len(review[0]["depends_on"]) == 2
     assert t["task"]["status"] == "completed"
-    assert "Reviewer" in t["task"]["result"]
+    assert not [s for s in t["subtasks"] if s["task_type"] == "review"]  # no reviewer agent
+    assert t["task"]["result"].endswith("(checked)")
 
 
-async def test_nested_delegation_respects_max_depth(
-    app: FastAPI, owner: User, queue: RecordingQueue
-) -> None:
+async def test_a_plan_may_create_only_a_few_agents(app_factory: AppFactory, owner: User) -> None:
+    app = await app_factory(orchestrator_max_new_agents=1)
+    queue = RecordingQueue()
+    app.state.queue = queue
     async with logged_in_client(app) as client:
         await add_mock_model(client)
-        started = await start_run(client, "Deep", "[[mock:plan:2]] [[mock:deep]]")
+        started = await start_run(client, "Two new ones", "[[mock:plan:2]]")
         await drain(app, queue)
         t = await tree(client, started["run"]["id"])
-    depths = sorted(a["depth"] for a in t["subagents"])
-    assert max(depths) == 2  # depth 2 reached, never 3
-    assert depths.count(1) == 2 and depths.count(2) == 4
-    assert t["task"]["status"] == "completed"
-    async with app.state.db.sessionmaker() as db:
-        plans = [
-            e.payload
-            for e in (
-                await db.execute(select(AgentEvent).where(AgentEvent.type == "agent.message"))
-            ).scalars()
-            if e.payload.get("kind") == "plan"
-        ]
-    assert any("maximum subagent depth" in w for p in plans for w in p["warnings"])
-
-
-async def test_depth_limit_holds_even_if_code_tries_to_go_deeper(app: FastAPI, owner: User) -> None:
-    async with app.state.db.sessionmaker() as db:
-        deep = Agent(
-            user_id=owner.id,
-            name="d",
-            agent_type="subagent",
-            depth=2,
-            allowed_tools=[],
-            permissions={},
-            limits={},
-            memory_settings={},
-            status="idle",
-        )
-        db.add(deep)
-        await db.flush()
-        with pytest.raises(DepthLimitExceeded):
-            await create_subagent(
-                db,
-                parent=deep,
-                root_run=uuid.uuid4(),
-                spec=SubtaskSpec(key="x", title="x"),
-                settings=app.state.settings,
-            )
+        agents = (await client.get("/api/v1/agents")).json()
+    assert (t["task"]["status"], t["task"]["error_code"]) == ("failed", "invalid_plan")
+    assert [a for a in agents if a["agent_type"] == "autonomous"] == []
 
 
 async def test_plan_with_too_many_subtasks_is_rejected(
@@ -265,7 +262,7 @@ async def test_plan_with_too_many_subtasks_is_rejected(
         await drain(app, queue)
         t = await tree(client, started["run"]["id"])
     assert (t["task"]["status"], t["task"]["error_code"]) == ("failed", "invalid_plan")
-    assert t["subagents"] == []
+    assert t["team"] == []
 
 
 async def test_invalid_plan_is_retried_once(
@@ -286,52 +283,81 @@ async def test_invalid_plan_is_retried_once(
 
 
 def test_plan_validation_rejects_cycles_and_unknown_deps() -> None:
+    def plan(*parts: dict[str, Any]) -> str:
+        return json.dumps({"mode": "delegate", "subtasks": list(parts)})
+
+    def part(key: str, *deps: str, agent: str = "W") -> dict[str, Any]:
+        return {"key": key, "title": key.upper(), "agent": agent, "depends_on": list(deps)}
+
     bad = [
-        '{"mode":"delegate","subtasks":[{"key":"a","title":"A","depends_on":["b"]},{"key":"b","title":"B","depends_on":["a"]}]}',
-        '{"mode":"delegate","subtasks":[{"key":"a","title":"A","depends_on":["zzz"]}]}',
-        '{"mode":"delegate","subtasks":[{"key":"a","title":"A"},{"key":"a","title":"A2"}]}',
-        '{"mode":"delegate","subtasks":[]}',
+        plan(part("a", "b"), part("b", "a")),
+        plan(part("a", "zzz")),
+        plan(part("a"), part("a")),
+        plan(),
         '{"mode":"direct","answer":""}',
+        plan(part("a", agent="")),  # nobody does it
         "no json here",
     ]
     for text in bad:
         with pytest.raises(PlanError):
-            parse_plan(text, max_subtasks=8, can_delegate_further=True)
-    plan, _ = parse_plan(
-        'Sure! ```json\n{"mode":"direct","answer":"hi"}\n```',
-        max_subtasks=8,
-        can_delegate_further=True,
-    )
-    assert plan.answer == "hi"
+            parse_plan(text, max_subtasks=8, agents=["W"])
+    direct, _ = parse_plan('Sure! ```json\n{"mode":"direct","answer":"hi"}\n```', max_subtasks=8)
+    assert direct.answer == "hi"
 
 
-async def test_subagents_never_get_tools_their_orchestrator_lacks(
-    app: FastAPI, owner: User
-) -> None:
+async def test_new_agents_never_get_more_than_the_orchestrator(app: FastAPI, owner: User) -> None:
     async with app.state.db.sessionmaker() as db:
         parent = Agent(
             user_id=owner.id,
             name="o",
             agent_type="orchestrator",
             depth=0,
-            allowed_tools=["file_read"],
-            permissions={},
-            limits={},
+            allowed_tools=["fs_read"],
+            autonomy_level="supervised",
+            permissions={
+                "tools": {"fs_read": "approve"},
+                "always": [{"id": "x", "tool": "fs_read"}],
+            },
+            limits={"max_steps": 7},
             memory_settings={},
             status="idle",
         )
         db.add(parent)
-        await db.flush()
-        sub = await create_subagent(
-            db,
-            parent=parent,
-            root_run=uuid.uuid4(),
-            settings=app.state.settings,
-            spec=SubtaskSpec(
-                key="k", title="t", tools=["file_read", "terminal_exec", "github_publish"]
-            ),
+        task = Task(
+            user_id=owner.id,
+            title="t",
+            description="",
+            task_type="user",
+            status="running",
+            depends_on=[],
+            extra={},
         )
-    assert sub.allowed_tools == ["file_read"]
+        db.add(task)
+        await db.flush()
+        spec = NewAgentSpec(name="Helper", tools=["fs_read", "terminal_run", "github_write_file"])
+        agent = await orchestrator_creates(db, orchestrator=parent, spec=spec, task=task)
+    assert agent.agent_type == "autonomous" and agent.allowed_tools == ["fs_read"]
+    assert agent.autonomy_level == "supervised" and agent.limits == {"max_steps": 7}
+    assert agent.permissions == {"tools": {"fs_read": "approve"}}  # never its standing approvals
+    assert agent.full_access is False
+
+
+def test_new_agent_tools_are_limited_to_the_orchestrators_in_the_plan() -> None:
+    text = json.dumps(
+        {
+            "mode": "delegate",
+            "new_agents": [{"name": "Coder", "tools": ["fs_write", "github_write_file"]}],
+            "subtasks": [{"key": "a", "title": "A", "agent": "coder"}],
+        }
+    )
+    plan, warnings = parse_plan(text, max_subtasks=8, max_new_agents=1, tools=["fs_write"])
+    assert plan.new_agents[0].tools == ["fs_write"] and plan.subtasks[0].agent == "Coder"
+    assert any("github_write_file" in w for w in warnings)
+    # an existing agent of that name is used instead of a twin
+    plan, warnings = parse_plan(text, max_subtasks=8, agents=["Coder"], max_new_agents=1)
+    assert plan.new_agents == [] and plan.subtasks[0].agent == "Coder"
+    with pytest.raises(PlanError, match="new agents"):
+        parse_plan(text, max_subtasks=8, max_new_agents=0)
 
 
 async def test_messages_between_different_runs_are_refused(app: FastAPI, owner: User) -> None:
@@ -376,7 +402,7 @@ async def test_messages_between_different_runs_are_refused(app: FastAPI, owner: 
     assert "agent.message_refused" in audit
 
 
-async def test_cancelling_the_run_stops_and_archives_everything(
+async def test_cancelling_the_run_stops_every_part(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:
     async with logged_in_client(app) as client:
@@ -394,7 +420,7 @@ async def test_cancelling_the_run_stops_and_archives_everything(
         t = await tree(client, started["run"]["id"])
     assert t["task"]["status"] == "cancelled"
     assert {s["status"] for s in t["subtasks"]} == {"cancelled"}
-    assert all(a["archived_at"] for a in t["subagents"])
+    assert all(a["archived_at"] is None for a in t["team"])  # the agents stay in the office
 
 
 async def test_chat_handoff_posts_the_result_back(
@@ -434,11 +460,10 @@ def test_plan_can_name_only_the_owners_agents() -> None:
             ],
         }
     )
-    plan, _ = parse_plan(text, max_subtasks=8, can_delegate_further=True, agents=["Writer"])
-    assert plan.subtasks[0].agent == "Writer"  # canonical name
-    assert plan.subtasks[0].tools == [] and plan.subtasks[0].delegate is False  # its own config
-    with pytest.raises(PlanError, match="unknown agent"):
-        parse_plan(text, max_subtasks=8, can_delegate_further=True, agents=["Reviewer"])
+    plan, _ = parse_plan(text, max_subtasks=8, agents=["Writer"])
+    assert plan.subtasks[0].agent == "Writer"  # canonical name; extra fields are ignored
+    with pytest.raises(PlanError, match="must name the agent"):
+        parse_plan(text, max_subtasks=8, agents=["Reviewer"])
 
 
 async def test_orchestrator_gives_a_part_to_an_existing_agent_with_inputs(
@@ -458,8 +483,7 @@ async def test_orchestrator_gives_a_part_to_an_existing_agent_with_inputs(
     part2 = subtasks["part-2"]
     assert part2["agent_id"] == writer["id"] and part2["status"] == "completed"
     assert '<input from="' in part2["description"]  # the dependency's result was passed as data
-    assert len(tree_resp["subagents"]) == 1  # only part-1 needed a temporary subagent
-    assert [a["name"] for a in tree_resp["team"]] == ["Writer"]
+    assert sorted(a["name"] for a in tree_resp["team"]) == ["Researcher", "Writer"]
     assert writer_after["archived_at"] is None and writer_after["status"] in ("idle", "completed")
     assert "Writer (task_result)" in tree_resp["run"]["result"]  # its result reached the merge
     async with app.state.db.sessionmaker() as db:

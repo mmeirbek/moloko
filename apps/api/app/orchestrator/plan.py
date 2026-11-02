@@ -1,9 +1,10 @@
 """The Orchestrator's plan (spec 14.3), parsed and validated in code.
 
-Each subtask concretises a subagent as ⟨instructions, context, tools, model⟩ (idea from
-AOrchestra, re-implemented): instructions = ``instructions``; context = the root task +
-results of ``depends_on``; tools = ``tools`` ∩ what the orchestrator may use; model =
-the orchestrator's model (a plan can never pick an arbitrary model name).
+Every part of a plan goes to one of the owner's persistent agents — an existing one, or a
+new one the plan describes in ``new_agents`` when none fits (owner's decision, see
+docs/decisions.md: no temporary subagents). A new agent gets the Orchestrator's model and
+autonomy level and only tools the Orchestrator itself may use (a plan can never pick a
+model name or grant itself more rights).
 """
 
 from __future__ import annotations
@@ -21,19 +22,36 @@ class PlanError(ValueError):
     pass
 
 
+class NewAgentSpec(BaseModel):
+    """A persistent agent the Orchestrator creates because none of the owner's fits."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1, max_length=100)
+    specialization: str = Field(default="generalist", max_length=64)
+    description: str = Field(default="", max_length=500)
+    instructions: str = Field(default="", max_length=4000)  # its role: the system prompt
+    tools: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if not value:
+            raise ValueError("a new agent needs a name")
+        return value
+
+
 class SubtaskSpec(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     key: str
     title: str = Field(min_length=1, max_length=200)
-    specialization: str = Field(default="generalist", max_length=64)
     instructions: str = Field(default="", max_length=8000)
     depends_on: list[str] = Field(default_factory=list)
-    tools: list[str] = Field(default_factory=list)
-    delegate: bool = False  # may this subagent plan and delegate further (depth permitting)?
-    # Give this part to one of the owner's persistent agents (exact name) instead of a new
-    # subagent. That agent works with its own model, tools, autonomy and memory.
-    agent: str | None = Field(default=None, max_length=100)
+    # Exact name of the agent that does this part: one of the owner's agents or one of the
+    # plan's ``new_agents``.
+    agent: str = Field(default="", max_length=100)
 
     @field_validator("key")
     @classmethod
@@ -50,15 +68,16 @@ class Plan(BaseModel):
     mode: Literal["direct", "delegate"]
     answer: str | None = None
     summary: str = Field(default="", max_length=2000)
+    new_agents: list[NewAgentSpec] = Field(default_factory=list)
     subtasks: list[SubtaskSpec] = Field(default_factory=list)
-    review: bool = False
+    review: bool = False  # the Orchestrator checks the combined result itself
 
     @model_validator(mode="after")
     def _consistent(self) -> Plan:
         if self.mode == "direct":
             if not (self.answer or "").strip():
                 raise ValueError("a direct plan needs an answer")
-            self.subtasks = []
+            self.subtasks, self.new_agents = [], []
             return self
         if not self.subtasks:
             raise ValueError("a delegate plan needs at least one subtask")
@@ -108,10 +127,14 @@ def parse_plan(
     text: str,
     *,
     max_subtasks: int,
-    can_delegate_further: bool,
     agents: list[str] | None = None,
+    max_new_agents: int = 0,
+    tools: list[str] | None = None,
 ) -> tuple[Plan, list[str]]:
-    """Parse + validate. Returns the plan and warnings about what was adjusted."""
+    """Parse + validate. Returns the plan and warnings about what was adjusted.
+
+    ``agents``: the owner's agents (exact names); ``tools``: what a new agent may get (the
+    Orchestrator's own tools)."""
     try:
         plan = Plan.model_validate(extract_json(text))
     except ValidationError as exc:
@@ -123,22 +146,35 @@ def parse_plan(
     if len(plan.subtasks) > max_subtasks:
         raise PlanError(f"the plan has {len(plan.subtasks)} subtasks; the limit is {max_subtasks}")
     roster = {name.casefold(): name for name in agents or []}
-    for sub in plan.subtasks:
-        if sub.agent is None or not sub.agent.strip():
-            sub.agent = None
+    allowed_tools = set(tools or [])
+    new: list[NewAgentSpec] = []
+    for spec in plan.new_agents:
+        key = spec.name.casefold()
+        if key in roster:  # it exists already: use it instead of a twin
+            warnings.append(f"'{spec.name}' already exists: that agent takes its parts")
             continue
-        canonical = roster.get(sub.agent.strip().casefold())
+        if any(n.name.casefold() == key for n in new):
+            continue
+        dropped = [t for t in spec.tools if t not in allowed_tools]
+        if dropped:
+            warnings.append(f"'{spec.name}': tools not available to it: {', '.join(dropped)}")
+        spec.tools = [t for t in dict.fromkeys(spec.tools) if t in allowed_tools]
+        new.append(spec)
+    if len(new) > max_new_agents:
+        raise PlanError(
+            f"the plan creates {len(new)} new agents; at most {max_new_agents} — give parts "
+            "to the owner's agents or let one new agent do several parts"
+        )
+    plan.new_agents = new
+    names = {**roster, **{n.name.casefold(): n.name for n in new}}
+    for sub in plan.subtasks:
+        canonical = names.get(" ".join(sub.agent.split()).casefold()) if sub.agent else None
         if canonical is None:
-            available = ", ".join(sorted(roster.values())) or "none"
+            available = ", ".join(sorted(names.values())) or "none"
             raise PlanError(
-                f"subtask '{sub.key}' names an unknown agent '{sub.agent}' (available: {available})"
+                f"subtask '{sub.key}' must name the agent that does it (available: {available}"
+                + ("; or describe a new one in new_agents" if max_new_agents else "")
+                + ")"
             )
-        sub.agent, sub.delegate, sub.tools = canonical, False, []
-    if not can_delegate_further:
-        for sub in plan.subtasks:
-            if sub.delegate:
-                sub.delegate = False
-                warnings.append(
-                    f"'{sub.key}': further delegation refused (maximum subagent depth reached)"
-                )
+        sub.agent = canonical
     return plan, warnings

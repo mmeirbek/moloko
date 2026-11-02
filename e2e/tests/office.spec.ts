@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-import { newAgent, unique, waitForOffice, watchErrors } from "./helpers";
+import { api, newAgent, unique, waitForOffice, watchErrors } from "./helpers";
 
-test("pixel office: real agents, status after reload, inspector, pause freezes, subagents come and go", async ({ page, request }) => {
+test("pixel office: real agents, status after reload, inspector, pause freezes, the Orchestrator's helpers join and work", async ({ page, request }) => {
   const errors = watchErrors(page);
   const agent = await newAgent(request, { name: unique("Office") });
   await page.goto("/office/agents");
@@ -32,10 +32,13 @@ test("pixel office: real agents, status after reload, inspector, pause freezes, 
   await inspector.getByRole("button", { name: "Продолжить" }).click();
   await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.status === "idle", 60_000);
 
-  await page.goto("/office/subagents");
-  await page.getByLabel("Новая задача для Оркестратора").fill("Office crew [[mock:plan:3]] [[mock:slowparts]]");
-  await page.getByRole("button", { name: "Запустить" }).click();
-  await waitForOffice(page, (s) => s.filter((a) => a.status === "working").length >= 3, 40_000);
+  // Parts of a plan are done by agents of this office (here: two new helpers it creates).
+  await api(request, "POST", "/runs", { title: "Office crew", description: "[[mock:plan:2]] [[mock:spread]] [[mock:slowparts]]" });
+  const helpers = async () =>
+    (await api<{ id: string; name: string }[]>(request, "GET", "/agents")).filter((a) => /^Helper \d$/.test(a.name)).map((a) => a.id);
+  await expect.poll(async () => (await helpers()).length, { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+  const ids = await helpers();
+  await waitForOffice(page, (s) => s.filter((a) => ids.includes(a.id) && a.status === "working").length >= 2, 40_000);
   await waitForOffice(page, (s) => s.filter((a) => a.status !== "idle").length === 0, 90_000);
   expect(errors).toEqual([]);
 });

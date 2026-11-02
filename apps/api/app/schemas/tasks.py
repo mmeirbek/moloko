@@ -196,8 +196,8 @@ class StorageStatus(BaseModel):
 class SystemLimits(BaseModel):
     max_steps_per_run: int
     run_timeout_seconds: int
-    max_active_subagents_per_run: int
-    max_subagent_depth: int
+    max_active_parts_per_run: int
+    orchestrator_max_new_agents: int
     memory_context_max_chars: int
     memory_entry_max_chars: int
 
@@ -235,8 +235,7 @@ class RunCreate(BaseModel):
 class RunTree(BaseModel):
     run: RunOut
     task: TaskOut
-    subagents: list[Any]  # AgentOut
-    team: list[Any] = Field(default_factory=list)  # the owner's own agents that took parts
+    team: list[Any] = Field(default_factory=list)  # AgentOut: the agents doing the parts
     subtasks: list[TaskOut]
     messages: list[AgentMessageOut]
 
