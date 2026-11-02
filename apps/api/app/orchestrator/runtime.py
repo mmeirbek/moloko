@@ -62,6 +62,7 @@ class SubagentRuntime(NativeRuntime):
     """A native agent whose context includes the results passed to it by other agents."""
 
     name = "subagent"
+    reads_inbox = False  # its inbox (results it depends on, notes) is in the system prompt
 
     async def extra_system(
         self, ctx: RunContext, db: AsyncSession, agent: Agent, task: Task

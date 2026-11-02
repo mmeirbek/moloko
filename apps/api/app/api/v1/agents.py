@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Header, Query, Response, status
 
@@ -10,6 +11,7 @@ from app.schemas.agents import (
     AgentBudgetOut,
     AgentCreate,
     AgentFromTemplate,
+    AgentMessageItem,
     AgentOut,
     AgentRestore,
     AgentRunRequest,
@@ -18,10 +20,12 @@ from app.schemas.agents import (
     SaveAsTemplate,
     StartedRun,
 )
+from app.schemas.common import Page
 from app.schemas.memories import MemoryContextOut
 from app.schemas.tasks import RunOut, TaskOut
 from app.services.agent_templates import AgentTemplateService, own_out
 from app.services.agents import AgentService
+from app.services.correspondence import list_for_agent
 from app.services.idempotency import idempotent
 from app.services.memories import MemoryService
 from app.services.usage import agent_budget_status, month_key
@@ -161,6 +165,27 @@ async def agent_budget(
         percent=budget.percent,
         exceeded=budget.exceeded,
     )
+
+
+@router.get(
+    "/{agent_id}/messages",
+    response_model=Page[AgentMessageItem],
+    summary="Correspondence with other agents: questions, answers, notes (newest first)",
+)
+async def agent_messages(
+    agent_id: uuid.UUID,
+    ctx: CurrentAuth,
+    db: DbSession,
+    queue: QueueDep,
+    direction: Literal["all", "in", "out"] = "all",
+    limit: int = Query(50, ge=1, le=200),
+    cursor: str | None = None,
+) -> Page[AgentMessageItem]:
+    await AgentService(db, queue).get(ctx.user.id, agent_id)
+    items, next_cursor = await list_for_agent(
+        db, ctx.user.id, agent_id, direction=direction, limit=limit, cursor=cursor
+    )
+    return Page(items=items, next_cursor=next_cursor)
 
 
 @router.get(

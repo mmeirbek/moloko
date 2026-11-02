@@ -11,6 +11,20 @@ from app.agents.state import AgentType, AutonomyLevel
 from app.schemas.tasks import RunOut, TaskOut
 
 
+class AgentContacts(BaseModel):
+    """Who a persistent agent may talk to directly (agent_ask / agent_tell). Both sides
+    must allow it. Subagents only talk to their siblings; the Orchestrator is no contact."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["all", "list", "none"] = Field(
+        default="all", description="all = every own agent, list = only agent_ids, none = nobody"
+    )
+    agent_ids: list[uuid.UUID] = Field(
+        default_factory=list, max_length=100, description="Used when mode = list."
+    )
+
+
 class AgentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,6 +51,7 @@ class AgentOut(BaseModel):
     config_version: int
     archived_at: datetime | None
     monthly_budget_usd: Decimal | None
+    contacts: AgentContacts
     created_at: datetime
     updated_at: datetime
 
@@ -96,6 +111,7 @@ class AgentCreate(BaseModel):
     tool_overrides: dict[str, ToolOverride] = Field(default_factory=dict, max_length=100)
     workspace_id: uuid.UUID | None = None  # a project workspace; None = one per task
     monthly_budget_usd: MonthlyBudget = None
+    contacts: AgentContacts = Field(default_factory=AgentContacts)
 
 
 class AgentUpdate(BaseModel):
@@ -113,6 +129,7 @@ class AgentUpdate(BaseModel):
     tool_overrides: dict[str, ToolOverride] | None = Field(default=None, max_length=100)
     workspace_id: uuid.UUID | None = None
     monthly_budget_usd: MonthlyBudget = None  # sent as null = remove the limit
+    contacts: AgentContacts | None = None  # omitted / null = unchanged
 
 
 class AgentTemplateOut(BaseModel):
@@ -185,6 +202,32 @@ class AgentRestore(BaseModel):
         max_length=100,
         description="Come back under this name (when another agent took the old one).",
     )
+
+
+class AgentMessageItem(BaseModel):
+    """One message in an agent's correspondence (agent page → «Переписка»)."""
+
+    id: uuid.UUID
+    created_at: datetime
+    direction: Literal["in", "out"] = Field(description="Relative to the agent asked about.")
+    sender_agent_id: uuid.UUID
+    sender_name: str | None
+    receiver_agent_id: uuid.UUID
+    receiver_name: str | None
+    message_type: str = Field(
+        description="request = agent_ask question, task_result = its answer, error = no "
+        "answer (failed / cancelled / timed out), note = agent_tell, context = Orchestrator "
+        "plan input"
+    )
+    status: str = Field(description="delivered | refused")
+    error: str | None = Field(description="Why it was refused (a reason code).")
+    summary: str
+    text: str | None = Field(description="The full text; null when refused.")
+    files: list[str]
+    task_id: uuid.UUID | None
+    consult_task_id: uuid.UUID | None = Field(description="The receiver's task of a question.")
+    asker_task_id: uuid.UUID | None = Field(description="The asking agent's task.")
+    read_at: datetime | None
 
 
 class AgentRunRequest(BaseModel):

@@ -35,6 +35,7 @@ from app.models.provider import ModelConfig
 from app.models.task import Task
 from app.providers.gateway import ModelUnavailable
 from app.schemas.agents import (
+    AgentContacts,
     AgentCreate,
     AgentFromTemplate,
     AgentLimits,
@@ -45,7 +46,7 @@ from app.schemas.agents import (
 from app.schemas.tasks import TaskCreate
 from app.services.audit import AuditService
 from app.services.system import ensure_engine_running
-from app.services.tasks import AgentBusy, TaskService
+from app.services.tasks import AgentBusy, TaskService, after_cancel
 from app.tasks.queue import TaskEnqueuer
 
 
@@ -63,6 +64,12 @@ class AgentNotArchived(Conflict):
 class AgentNotRestorable(Conflict):
     code = "agent_not_restorable"
     message = "Only your own agents can be brought back; subagents and the Orchestrator cannot."
+
+
+class InvalidContacts(AppError):
+    status_code = 422
+    code = "invalid_contacts"
+    message = "Contacts can only be your own other agents (not subagents or the Orchestrator)."
 
 
 class AgentNameTaken(Conflict):
@@ -174,6 +181,34 @@ class AgentService:
         if ws is None or ws.user_id != user_id or ws.kind != "project":
             raise NotFound("Project workspace not found.")
 
+    async def _contacts(
+        self, user_id: uuid.UUID, contacts: AgentContacts, self_id: uuid.UUID | None
+    ) -> dict[str, object]:
+        """Stored compactly: {} = everyone. A list may only name the owner's persistent
+        agents (deleted ones may stay in it; they cannot be contacted anyway)."""
+        if contacts.mode == "all":
+            return {}
+        if contacts.mode == "none":
+            return {"mode": "none"}
+        ids = list(dict.fromkeys(contacts.agent_ids))
+        if self_id is not None and self_id in ids:
+            raise InvalidContacts("An agent is always allowed to talk to itself; remove it.")
+        found = set(
+            (
+                await self.db.execute(
+                    select(Agent.id).where(
+                        Agent.id.in_(ids),
+                        Agent.user_id == user_id,
+                        Agent.agent_type == AgentType.AUTONOMOUS.value,
+                    )
+                )
+            ).scalars()
+        )
+        unknown = [str(i) for i in ids if i not in found]
+        if unknown:
+            raise InvalidContacts(details={"agent_ids": unknown})
+        return {"mode": "list", "agent_ids": [str(i) for i in ids]}
+
     async def _free_name(self, user_id: uuid.UUID, base: str) -> str:
         """``base``, or ``base 2``, ``base 3``… when an agent in the office has that name."""
         taken = set(
@@ -276,6 +311,7 @@ class AgentService:
         await self._check_model(user_id, data.model_config_id)
         await self._check_tools(user_id, [*data.allowed_tools, *data.tool_overrides])
         await self._check_workspace(user_id, data.workspace_id)
+        contacts = await self._contacts(user_id, data.contacts, None)
         agent = Agent(
             user_id=user_id,
             name=data.name,
@@ -292,6 +328,7 @@ class AgentService:
             limits=data.limits.model_dump(exclude_none=True),
             memory_settings=data.memory_settings.model_dump(exclude_defaults=True),
             monthly_budget_usd=data.monthly_budget_usd,
+            contacts=contacts,
         )
         self.db.add(agent)
         await self.db.flush()
@@ -374,6 +411,11 @@ class AgentService:
             if memory_settings != agent.memory_settings:
                 agent.memory_settings = memory_settings
                 changed.append("memory_settings")
+        if data.contacts is not None:
+            contacts = await self._contacts(user_id, data.contacts, agent.id)
+            if contacts != (agent.contacts or {}):
+                agent.contacts = contacts
+                changed.append("contacts")
         old_budget = agent.monthly_budget_usd
         if "monthly_budget_usd" in fields and data.monthly_budget_usd != old_budget:
             if agent.agent_type == AgentType.SUBAGENT.value and data.monthly_budget_usd:
@@ -437,6 +479,7 @@ class AgentService:
             resource_id=str(agent.id),
         )
         await bus.commit(self.db)
+        await after_cancel(self.db, self.queue, user_id)  # its waiting questions are withdrawn
 
     async def restore(
         self, user_id: uuid.UUID, agent_id: uuid.UUID, name: str | None = None
@@ -619,5 +662,6 @@ class AgentService:
             resource_id=str(agent.id),
         )
         await bus.commit(self.db)
+        await after_cancel(self.db, self.queue, user_id)
         await self.db.refresh(agent)
         return agent

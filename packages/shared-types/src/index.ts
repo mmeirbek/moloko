@@ -75,6 +75,10 @@ export type * from "./events";
 export type RunCreate = Schemas["RunCreate"];
 export type RunTree = Schemas["RunTree"];
 export type AgentMessageOut = Schemas["AgentMessageOut"];
+// Agents talking directly (agent_ask / agent_tell): contacts and the agent's correspondence
+export type AgentContacts = Schemas["AgentContacts"];
+export type AgentMessageItem = Schemas["AgentMessageItem"];
+export type AgentMessagePage = Schemas["Page_AgentMessageItem_"];
 export type HandoffRequest = Schemas["HandoffRequest"];
 
 // Sprint 6 — autonomous agents, memory

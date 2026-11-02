@@ -52,6 +52,8 @@ class TaskOut(BaseModel):
     error_message: str | None
     error_id: str | None
     created_by: str
+    # A "consult" task (agent_ask): the agent that asked; parent_task_id is its task.
+    requested_by_agent_id: uuid.UUID | None = None
     extra: dict[str, Any]
     created_at: datetime
     updated_at: datetime

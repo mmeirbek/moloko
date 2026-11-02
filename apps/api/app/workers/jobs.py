@@ -6,6 +6,7 @@ import logging
 import uuid
 from typing import Any
 
+from app.agents import team
 from app.agents.executor import Executor
 from app.core.config import Settings
 from app.core.db import Database
@@ -44,6 +45,15 @@ def build_executor(
     sandbox: Sandbox | None = None,
 ) -> Executor:
     """Executor with every runtime this server supports."""
+
+    async def after_task(task_id: uuid.UUID) -> None:
+        # Each hook on its own: a failing one must not stop the other.
+        for hook in (scheduler_after_task, team.after_task):
+            try:
+                await hook(db.sessionmaker, task_id, queue)
+            except Exception:
+                logger.exception("after_task_hook_failed", extra={"task_id": str(task_id)})
+
     return Executor(
         db.sessionmaker,
         gateway,
@@ -53,7 +63,7 @@ def build_executor(
             "subagent": SubagentRuntime(),
             "orchestrator": OrchestratorRuntime(),
         },
-        after_task=lambda task_id: scheduler_after_task(db.sessionmaker, task_id, queue),
+        after_task=after_task,
         sandbox=sandbox if sandbox is not None else make_sandbox(settings),
     )
 
@@ -99,6 +109,10 @@ async def sweep(ctx: dict[str, Any]) -> None:
     expired = await expire_due(ctx["db"].sessionmaker, ctx["queue"])
     if expired:
         logger.info("approvals_expired", extra={"count": expired})
+    # Agents asking agents: late questions withdrawn, answers delivered, waiting ones started.
+    moved = await team.sweep(ctx["db"].sessionmaker, ctx["queue"])
+    if moved:
+        logger.info("agent_questions_moved", extra={"count": moved})
 
 
 async def schedules(ctx: dict[str, Any]) -> None:

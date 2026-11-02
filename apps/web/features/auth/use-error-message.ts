@@ -14,6 +14,7 @@ const KNOWN = new Set([
   "agent_not_restorable",
   "agent_not_archived",
   "agent_name_taken",
+  "invalid_contacts",
   "network_error",
   "csrf_failed",
   "validation_error",

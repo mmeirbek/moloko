@@ -143,6 +143,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Correspondence with other agents: questions, answers, notes (newest first) */
+        get: operations["agent_messages_api_v1_agents__agent_id__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/pause": {
         parameters: {
             query?: never;
@@ -1682,6 +1699,25 @@ export interface components {
             warn_percent: number;
         };
         /**
+         * AgentContacts
+         * @description Who a persistent agent may talk to directly (agent_ask / agent_tell). Both sides
+         *     must allow it. Subagents only talk to their siblings; the Orchestrator is no contact.
+         */
+        AgentContacts: {
+            /**
+             * Agent Ids
+             * @description Used when mode = list.
+             */
+            agent_ids?: string[];
+            /**
+             * Mode
+             * @description all = every own agent, list = only agent_ids, none = nobody
+             * @default all
+             * @enum {string}
+             */
+            mode?: "all" | "list" | "none";
+        };
+        /**
          * AgentCost
          * @description One budget holder: an agent with its subagents' calls, or the chat.
          */
@@ -1724,6 +1760,7 @@ export interface components {
             allowed_tools?: string[];
             /** @default supervised */
             autonomy_level?: components["schemas"]["AutonomyLevel"];
+            contacts?: components["schemas"]["AgentContacts"];
             /**
              * Description
              * @default
@@ -1776,6 +1813,80 @@ export interface components {
             /** Run Timeout Seconds */
             run_timeout_seconds?: number | null;
         };
+        /**
+         * AgentMessageItem
+         * @description One message in an agent's correspondence (agent page → «Переписка»).
+         */
+        AgentMessageItem: {
+            /**
+             * Asker Task Id
+             * @description The asking agent's task.
+             */
+            asker_task_id: string | null;
+            /**
+             * Consult Task Id
+             * @description The receiver's task of a question.
+             */
+            consult_task_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Direction
+             * @description Relative to the agent asked about.
+             * @enum {string}
+             */
+            direction: "in" | "out";
+            /**
+             * Error
+             * @description Why it was refused (a reason code).
+             */
+            error: string | null;
+            /** Files */
+            files: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Message Type
+             * @description request = agent_ask question, task_result = its answer, error = no answer (failed / cancelled / timed out), note = agent_tell, context = Orchestrator plan input
+             */
+            message_type: string;
+            /** Read At */
+            read_at: string | null;
+            /**
+             * Receiver Agent Id
+             * Format: uuid
+             */
+            receiver_agent_id: string;
+            /** Receiver Name */
+            receiver_name: string | null;
+            /**
+             * Sender Agent Id
+             * Format: uuid
+             */
+            sender_agent_id: string;
+            /** Sender Name */
+            sender_name: string | null;
+            /**
+             * Status
+             * @description delivered | refused
+             */
+            status: string;
+            /** Summary */
+            summary: string;
+            /** Task Id */
+            task_id: string | null;
+            /**
+             * Text
+             * @description The full text; null when refused.
+             */
+            text: string | null;
+        };
         /** AgentMessageOut */
         AgentMessageOut: {
             /** Content */
@@ -1826,6 +1937,7 @@ export interface components {
             autonomy_level: string;
             /** Config Version */
             config_version: number;
+            contacts: components["schemas"]["AgentContacts"];
             /**
              * Created At
              * Format: date-time
@@ -1949,6 +2061,7 @@ export interface components {
             /** Allowed Tools */
             allowed_tools?: string[] | null;
             autonomy_level?: components["schemas"]["AutonomyLevel"] | null;
+            contacts?: components["schemas"]["AgentContacts"] | null;
             /** Description */
             description?: string | null;
             limits?: components["schemas"]["AgentLimits"] | null;
@@ -2791,6 +2904,13 @@ export interface components {
             output_price_per_mtok?: number | string | null;
             params?: components["schemas"]["ModelParams"] | null;
         };
+        /** Page[AgentMessageItem] */
+        Page_AgentMessageItem_: {
+            /** Items */
+            items: components["schemas"]["AgentMessageItem"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** Page[ConversationOut] */
         Page_ConversationOut_: {
             /** Items */
@@ -3536,6 +3656,8 @@ export interface components {
             priority: number;
             /** Progress */
             progress: number;
+            /** Requested By Agent Id */
+            requested_by_agent_id?: string | null;
             /** Result */
             result: string | null;
             /** Retry Of Id */
@@ -4071,6 +4193,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryContextOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    agent_messages_api_v1_agents__agent_id__messages_get: {
+        parameters: {
+            query?: {
+                direction?: "all" | "in" | "out";
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AgentMessageItem_"];
                 };
             };
             /** @description Validation Error */

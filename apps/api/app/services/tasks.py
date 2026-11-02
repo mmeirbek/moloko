@@ -262,6 +262,7 @@ class TaskService:
             details={"reason": reason},
         )
         await bus.commit(self.db)
+        await after_cancel(self.db, self.queue, user_id)
         return task
 
     async def _cancel_tree(self, task: Task, reason: str) -> None:
@@ -320,6 +321,14 @@ class TaskService:
         if task.agent_id is not None:
             task, _ = await self.start(user_id, task.id)
         return task
+
+
+async def after_cancel(db: AsyncSession, queue: TaskEnqueuer | None, user_id: uuid.UUID) -> None:
+    """Questions between agents (agent_ask): a cancelled question answers its asker with an
+    error, a cancelled asker frees the agents it asked — now, not at the next sweep."""
+    from app.agents.team import after_change  # team → tasks at import time
+
+    await after_change(db, queue, user_id)
 
 
 async def archive_subagents(db: AsyncSession, root_run_id: uuid.UUID) -> None:

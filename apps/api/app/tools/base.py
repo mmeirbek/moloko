@@ -49,6 +49,16 @@ class ToolFailed(Exception):
     """An expected failure with a message that is safe to show to the model and the owner."""
 
 
+class AwaitingAgent(Exception):
+    """``agent_ask``: the run stops here until another agent answers (the task is
+    ``waiting``, reason ``waiting_for_agent``; no worker is held). ``task_id`` = the
+    consult task."""
+
+    def __init__(self, task_id: uuid.UUID) -> None:
+        self.task_id = task_id
+        super().__init__(str(task_id))
+
+
 @dataclass(frozen=True)
 class OperationInfo:
     """What the owner sees in an approval request (spec 15.4)."""
@@ -83,7 +93,7 @@ class BaseTool(ABC):
     name: str
     title: str
     description: str
-    group: str  # files | terminal | web | github | memory | mcp
+    group: str  # files | terminal | web | github | memory | team | mcp
     category: ToolCategory
     input_schema: dict[str, Any]
     timeout_seconds: float | None = None  # None = TOOL_TIMEOUT_SECONDS

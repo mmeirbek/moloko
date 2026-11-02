@@ -149,6 +149,7 @@
     "agent_not_restorable": "This agent cannot be brought back.",
     "agent_not_archived": "The agent is already in the office.",
     "agent_name_taken": "An agent with this name is already in the office.",
+    "invalid_contacts": "“Who it may talk to” can only list your own agents (not subagents or the Orchestrator).",
     "agent_budget_exceeded": "The agent's monthly budget is used up. Raise it on the agent's page (\"Monthly budget, $\").",
     "template_name_taken": "You already have a template with this name. Choose another one.",
     "template_limit_reached": "You have reached the limit of own templates. Delete one first.",
@@ -791,6 +792,7 @@
       "web": "Web",
       "github": "GitHub",
       "memory": "Memory",
+      "team": "Team",
       "mcp": "MCP"
     },
     "calls": {
@@ -800,6 +802,7 @@
       "status": {
         "pending": "pending",
         "awaiting_approval": "waiting for approval",
+        "awaiting_agent": "waiting for a colleague's answer",
         "running": "running",
         "succeeded": "done",
         "failed": "failed",
@@ -829,7 +832,10 @@
       "github_create_pull_request": "Open a pull request",
       "memory_save": "Remember",
       "browser_screenshot": "Open a website in the browser",
-      "knowledge_search": "Search memory and files"
+      "knowledge_search": "Search memory and files",
+      "agents_list": "List colleagues",
+      "agent_ask": "Ask a colleague",
+      "agent_tell": "Message a colleague"
     },
     "hints": {
       "fs_list": "Sees which files are in the task's work folder.",
@@ -851,7 +857,10 @@
       "github_create_pull_request": "Opens a pull request — always with your approval.",
       "memory_save": "Saves a short note to its own memory for later.",
       "browser_screenshot": "Opens a site in a real browser and takes a screenshot — always with approval.",
-      "knowledge_search": "Searches its memory and task files by meaning."
+      "knowledge_search": "Searches its memory and task files by meaning.",
+      "agents_list": "Sees which agents it may contact and who is free right now.",
+      "agent_ask": "Asks another agent a question or hands it part of the work, and waits for the answer.",
+      "agent_tell": "Leaves another agent a note (and files); it reads it at the start of its next task."
     }
   },
   "integrations": {

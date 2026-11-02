@@ -30,7 +30,8 @@ from app.agents.engine import (
     set_agent_status,
     set_task_status,
 )
-from app.agents.state import AgentStatus, InvalidTransition, TaskStatus
+from app.agents.state import AgentStatus, AgentType, InvalidTransition, TaskStatus, TaskType
+from app.agents.team import consult_prompt, read_inbox
 from app.core.errors import AppError, new_error_id
 from app.events import bus
 from app.memory.context import build_memory_context
@@ -47,6 +48,7 @@ from app.providers.base import (
 from app.providers.gateway import ModelTarget, estimate_cost
 from app.runtimes.base import RunContext
 from app.services.addressing import owner_address_instruction
+from app.tools.base import AwaitingAgent
 from app.tools.registry import specs_for
 from app.tools.runner import AwaitingApproval, ToolRunner
 
@@ -114,6 +116,8 @@ def load_messages(raw: list[dict[str, Any]] | None) -> list[ChatMessage]:
 
 
 def task_prompt(task: Task) -> str:
+    if task.task_type == TaskType.CONSULT.value:  # another agent's request, fenced as data
+        return consult_prompt(task)
     text = f"# Task: {task.title}"
     if task.description.strip():
         text += f"\n\n{task.description.strip()}"
@@ -143,6 +147,14 @@ def pending_tool_calls(transcript: list[ChatMessage]) -> tuple[ToolCall, ...]:
     return ()
 
 
+def released_to(agent: Agent, task: Task, default: AgentStatus) -> AgentStatus:
+    """A subagent that answered a sibling's question (agent_ask) goes back to idle: its own
+    part of the plan may still be ahead of it."""
+    if task.task_type == TaskType.CONSULT.value and agent.agent_type == AgentType.SUBAGENT.value:
+        return AgentStatus.IDLE
+    return default
+
+
 def effective_limit(agent_value: Any, global_value: int) -> int:
     """Per-agent limits may only be stricter than the global ones."""
     try:
@@ -153,6 +165,9 @@ def effective_limit(agent_value: Any, global_value: int) -> int:
 
 class NativeRuntime:
     name = "native"
+    # Unread notes from colleagues (agent_tell) open a fresh run. Subagents get their inputs
+    # through ``extra_system`` instead (see SubagentRuntime).
+    reads_inbox = True
 
     async def cancel(self, run_id: uuid.UUID) -> None:  # cooperative: see RunControl
         return None
@@ -177,6 +192,11 @@ class NativeRuntime:
             logger.info(
                 "run_awaits_approval",
                 extra={"run_id": str(ctx.run_id), "approval_id": str(waiting.approval_id)},
+            )
+        except AwaitingAgent as waiting:  # the task is waiting for another agent's answer
+            logger.info(
+                "run_awaits_agent",
+                extra={"run_id": str(ctx.run_id), "consult_task_id": str(waiting.task_id)},
             )
         except asyncio.CancelledError:
             await asyncio.shield(self._requeue_on_shutdown(ctx))
@@ -236,7 +256,7 @@ class NativeRuntime:
         setup = await self.setup(ctx)
         system = system_prompt(setup.agent, setup.extra_system, setup.memory, setup.address)
         transcript = load_messages(setup.run.state.get("messages")) or [
-            ChatMessage(role="user", content=task_prompt(setup.task))
+            ChatMessage(role="user", content=await self._first_prompt(ctx, setup))
         ]
         async with asyncio.timeout(setup.remaining):
             final = await self._loop(
@@ -252,6 +272,29 @@ class NativeRuntime:
                 segment_started,
             )
         await self._complete(ctx, final)
+
+    async def _first_prompt(self, ctx: RunContext, setup: RunSetup) -> str:
+        """The task, then unread notes from colleagues (fenced as data). The notes are marked
+        read in the same transaction that checkpoints this first message, so a restart
+        neither loses nor repeats them."""
+        prompt = task_prompt(setup.task)
+        if not self.reads_inbox:
+            return prompt
+        async with ctx.sessionmaker() as db:
+            agent = await db.get(Agent, ctx.agent_id)
+            task = await db.get(Task, ctx.task_id)
+            assert agent is not None and task is not None
+            notes = await read_inbox(db, ctx.settings, agent, task)
+            if not notes:
+                return prompt
+            prompt = f"{prompt}\n\n{notes}"
+            run = await lock_run(db, ctx.run_id)
+            run.state = {
+                **run.state,
+                "messages": dump_messages([ChatMessage(role="user", content=prompt)]),
+            }
+            await bus.commit(db)
+        return prompt
 
     async def _loop(
         self,
@@ -430,7 +473,12 @@ class NativeRuntime:
                 run_id=run.id,
                 payload={"steps": run.steps, "usage": run.usage},
             )
-            await release_agent(db, agent, to=AgentStatus.COMPLETED, reason="task_completed")
+            await release_agent(
+                db,
+                agent,
+                to=released_to(agent, task, AgentStatus.COMPLETED),
+                reason="task_completed",
+            )
             await bus.commit(db)
 
     async def _fail(
@@ -460,7 +508,9 @@ class NativeRuntime:
                 payload={"error_code": code, "error_message": message, "error_id": error[2]},
             )
             if agent.current_task_id == task.id:
-                await release_agent(db, agent, to=AgentStatus.FAILED, reason=code)
+                await release_agent(
+                    db, agent, to=released_to(agent, task, AgentStatus.FAILED), reason=code
+                )
             await bus.commit(db)
 
     async def _requeue_on_shutdown(self, ctx: RunContext) -> None:
