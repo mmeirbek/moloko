@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BEHAVIOR } from "./behavior";
-import { FRAME, FRAMES, ICONS, paletteFor, POSE_FRAMES } from "./sprites";
+import { BADGES, FRAME, FRAMES, ICONS, paletteFor, POSE_FRAMES } from "./sprites";
 
 describe("pixel art", () => {
   it("every frame is 16×16 and only uses palette keys", () => {
@@ -23,6 +23,17 @@ describe("pixel art", () => {
       expect(rows, name).toHaveLength(8);
       for (const row of rows) expect(row, name).toHaveLength(8);
     }
+  });
+
+  it("every status indicator has its own badge colour", () => {
+    const indicators = new Set(Object.values(BEHAVIOR).map((b) => b.indicator));
+    indicators.delete("none");
+    for (const indicator of indicators) {
+      expect(ICONS[indicator as keyof typeof ICONS], indicator).toBeDefined();
+      expect(BADGES[indicator as keyof typeof BADGES], indicator).toBeDefined();
+    }
+    const fills = Object.values(BADGES).map((b) => b.fill);
+    expect(new Set(fills).size).toBe(fills.length);
   });
 
   it("palettes are deterministic per agent and mark the orchestrator", () => {

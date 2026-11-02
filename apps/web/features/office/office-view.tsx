@@ -4,7 +4,7 @@ import type { AgentOut } from "@moloko/shared-types";
 import { Maximize, Minus, Plus, UserPlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { AgentTemplates } from "@/features/agents/agent-templates";
@@ -17,7 +17,7 @@ import { pendingApprovals, useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
 import { AgentInspector } from "./agent-inspector";
-import { OfficeBus, type OfficeAgent } from "./engine/bus";
+import { OfficeBus, type CameraAction, type OfficeAgent, type ZoomState } from "./engine/bus";
 
 export type OfficeMode = "subagents" | "agents";
 
@@ -26,6 +26,51 @@ export function agentsForMode(agents: AgentOut[], mode: OfficeMode): AgentOut[] 
   const visible = agents.filter((a) => !a.archived_at);
   if (mode === "agents") return visible.filter((a) => a.agent_type !== "subagent");
   return visible.filter((a) => a.agent_type === "subagent" || a.agent_type === "orchestrator");
+}
+
+/** The zoom chosen on this device (CSS px per art pixel); null = automatic. */
+const ZOOM_KEY = "moloko.office.zoom";
+
+function loadZoom(): number | null {
+  try {
+    const value = Number(window.localStorage.getItem(ZOOM_KEY));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveZoom(value: number | null): void {
+  try {
+    if (value === null) window.localStorage.removeItem(ZOOM_KEY);
+    else window.localStorage.setItem(ZOOM_KEY, String(Math.round(value * 1000) / 1000));
+  } catch {
+    // private mode or blocked storage: the zoom is simply not remembered
+  }
+}
+
+/** Keys on the focused map: + / − / 0 zoom, arrows move the view. */
+export function cameraActionForKey(key: string): CameraAction | null {
+  switch (key) {
+    case "+":
+    case "=":
+      return "in";
+    case "-":
+    case "_":
+      return "out";
+    case "0":
+      return "fit";
+    case "ArrowLeft":
+      return "left";
+    case "ArrowRight":
+      return "right";
+    case "ArrowUp":
+      return "up";
+    case "ArrowDown":
+      return "down";
+    default:
+      return null;
+  }
 }
 
 function toOfficeAgent(a: AgentOut): OfficeAgent {
@@ -46,6 +91,7 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   const [mode, setMode] = useState<OfficeMode>(initialMode);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [zoom, setZoom] = useState<ZoomState | null>(null);
   const agentsById = useRealtimeStore((s) => s.agents);
   const realtime = useRealtimeClient();
   const locale = useLocale();
@@ -71,9 +117,13 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
     const offMoo = bus.on("moo", () => {
       if (mascotSnapshot().sound) playMoo();
     });
+    const offZoom = bus.on("zoom", (state) => {
+      setZoom(state);
+      saveZoom(state.chosen);
+    });
     void import("./engine/createGame")
       .then(({ createOfficeGame }) => {
-        if (!cancelled && container.current) game = createOfficeGame(container.current, bus);
+        if (!cancelled && container.current) game = createOfficeGame(container.current, bus, { zoom: loadZoom() });
       })
       .catch(() => setFailed(true));
     return () => {
@@ -81,6 +131,7 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
       offReady();
       offSelected();
       offMoo();
+      offZoom();
       game?.destroy(true);
     };
   }, [bus]);
@@ -114,6 +165,14 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
 
   const selectedAgent = selected ? agentsById[selected] : undefined;
 
+  const onMapKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // leave browser zoom and shortcuts alone
+    const action = cameraActionForKey(e.key);
+    if (!action || !ready) return;
+    e.preventDefault();
+    bus.emit("camera", action);
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -143,15 +202,6 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
               <UserPlus /> <span className="hidden sm:inline">{t("addAgent")}</span>
             </Button>
           )}
-          <Button size="icon" variant="outline" aria-label={t("zoomOut")} onClick={() => bus.emit("camera", "out")}>
-            <Minus />
-          </Button>
-          <Button size="icon" variant="outline" aria-label={t("fit")} onClick={() => bus.emit("camera", "fit")}>
-            <Maximize />
-          </Button>
-          <Button size="icon" variant="outline" aria-label={t("zoomIn")} onClick={() => bus.emit("camera", "in")}>
-            <Plus />
-          </Button>
         </div>
       </div>
 
@@ -166,20 +216,60 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
       )}
 
       <div className="relative">
+        {/* Focusable so + / − / 0 and the arrows work; the same state is listed below as text. */}
         <div
           ref={container}
           data-testid="pixel-office"
-          role="img"
+          role="group"
+          aria-roledescription={t("mapRole")}
           aria-label={t("canvasLabel", { count: shown.length })}
-          className="aspect-[4/3] max-h-[70vh] w-full touch-none overflow-hidden rounded-lg border bg-[#0c1024] select-none sm:aspect-video"
+          aria-describedby="office-keys"
+          aria-keyshortcuts="Plus - 0 ArrowLeft ArrowRight ArrowUp ArrowDown"
+          tabIndex={0}
+          onKeyDown={onMapKey}
+          className="aspect-[4/3] max-h-[70vh] w-full touch-none overflow-hidden rounded-lg border bg-[#0c1024] outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:aspect-video"
         />
+        <p id="office-keys" className="sr-only">
+          {t("keysHint")}
+        </p>
+        {ready && zoom && (
+          <div
+            role="group"
+            aria-label={t("zoom")}
+            className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg border border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg backdrop-blur-sm md:top-auto md:right-auto md:bottom-2 md:left-2"
+          >
+            <MapButton label={t("zoomOut")} shortcut="-" disabled={!zoom.canZoomOut} onClick={() => bus.emit("camera", "out")}>
+              <Minus />
+            </MapButton>
+            <output
+              aria-live="polite"
+              aria-label={t("zoomLevel", { percent: zoom.percent })}
+              className="min-w-11 text-center font-mono text-xs tabular-nums"
+              data-testid="office-zoom-level"
+            >
+              {zoom.percent}%
+            </output>
+            <MapButton label={t("zoomIn")} shortcut="Plus" disabled={!zoom.canZoomIn} onClick={() => bus.emit("camera", "in")}>
+              <Plus />
+            </MapButton>
+            <span aria-hidden className="mx-0.5 h-5 w-px bg-[#f5ecd6]/20" />
+            <MapButton
+              label={t("fit")}
+              shortcut="0"
+              pressed={zoom.fitted && zoom.chosen === null}
+              onClick={() => bus.emit("camera", "fit")}
+            >
+              <Maximize />
+            </MapButton>
+          </div>
+        )}
         {failed && (
           <p className="absolute inset-0 flex items-center justify-center p-4 text-sm text-muted-foreground">
             {t("failed")}
           </p>
         )}
         {ready && shown.length === 0 && (
-          <p className="pointer-events-none absolute inset-x-0 top-3 text-center text-sm text-[#f6efdc]/80">
+          <p className="pointer-events-none absolute inset-x-0 bottom-3 px-3 text-center text-sm text-[#f6efdc]/80 md:top-3 md:bottom-auto">
             {t(mode === "agents" ? "emptyAgents" : "emptySubagents")}
           </p>
         )}
@@ -211,5 +301,42 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** A button on the dark map: always light-on-navy, whatever the theme; 40 px on phones. */
+function MapButton({
+  label,
+  shortcut,
+  disabled,
+  pressed,
+  onClick,
+  children,
+}: {
+  label: string;
+  shortcut: string;
+  disabled?: boolean;
+  pressed?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-keyshortcuts={shortcut}
+      aria-pressed={pressed}
+      title={`${label} (${shortcut === "Plus" ? "+" : shortcut === "-" ? "−" : shortcut})`}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "inline-flex size-10 items-center justify-center rounded-md outline-none transition-colors md:size-8",
+        "hover:bg-[#f5ecd6]/15 focus-visible:ring-2 focus-visible:ring-[#f5ecd6] disabled:pointer-events-none disabled:opacity-35",
+        "[&_svg]:size-4",
+        pressed && "bg-[#f5ecd6]/15",
+      )}
+    >
+      {children}
+    </button>
   );
 }

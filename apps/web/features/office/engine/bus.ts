@@ -24,8 +24,8 @@ export interface OfficeEnv {
 export interface OfficeEvents {
   /** React → scene: the agents to show (already filtered by mode) */
   agents: OfficeAgent[];
-  /** React → scene: camera actions */
-  camera: "in" | "out" | "fit";
+  /** React → scene: camera actions (buttons, keyboard) */
+  camera: CameraAction;
   /** React → scene: highlight an agent */
   select: string | null;
   /** React → scene: an agent sent a message to another (animated envelope) */
@@ -38,6 +38,21 @@ export interface OfficeEvents {
   selected: string | null;
   /** scene → React: the scene is ready to receive agents */
   ready: undefined;
+  /** scene → React: the current zoom (for the on-map controls and to remember it) */
+  zoom: ZoomState;
+}
+
+export type CameraAction = "in" | "out" | "fit" | "left" | "right" | "up" | "down";
+
+export interface ZoomState {
+  /** size of the office in % of its base 640×360 (CSS pixels) */
+  percent: number;
+  canZoomIn: boolean;
+  canZoomOut: boolean;
+  /** the whole office is in view */
+  fitted: boolean;
+  /** CSS scale the owner chose, to remember per device; null = automatic (fit) */
+  chosen: number | null;
 }
 
 type Listener<T> = (payload: T) => void;
