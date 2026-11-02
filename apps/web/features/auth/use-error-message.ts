@@ -7,6 +7,8 @@ import { ApiError } from "@/lib/api/errors";
 const KNOWN = new Set([
   "invalid_credentials",
   "too_many_attempts",
+  "invalid_password",
+  "session_ttl_out_of_range",
   "network_error",
   "csrf_failed",
   "validation_error",

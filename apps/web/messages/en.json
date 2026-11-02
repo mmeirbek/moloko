@@ -96,7 +96,9 @@
     "ai_service_unavailable": "Voice and smart search need an OpenAI provider (Settings → AI providers).",
     "audio_too_large": "The recording is too long.",
     "pdf_unavailable": "PDF is not available on the server: build the sandbox browser. Printing opens instead — choose “Save as PDF”.",
-    "nothing_to_export": "This task has no result yet."
+    "nothing_to_export": "This task has no result yet.",
+    "invalid_password": "That password is not right.",
+    "session_ttl_out_of_range": "This server does not allow that length."
   },
   "preferences": {
     "theme": "Theme",
@@ -275,6 +277,26 @@
       "provider": "Provider",
       "modelId": "Model id",
       "add": "Add model"
+    },
+    "session": {
+      "title": "How long a sign-in lasts",
+      "description": "How long moloko remembers a sign-in on each device. Shorter is safer, longer means typing the password less often.",
+      "current": "Now: {duration}.",
+      "currentDefault": "Now: {duration} (the default).",
+      "expires": "This sign-in lasts until {date}.",
+      "duration": "Sign-in lasts",
+      "defaultOption": "Default — {duration}",
+      "custom": "Another length…",
+      "amount": "How long",
+      "unit": "Hours or days",
+      "hours": "hours",
+      "days": "days",
+      "range": "From {min} to {max}.",
+      "password": "Your moloko password",
+      "passwordHint": "So that nobody but you can change how long sign-ins last.",
+      "otherDevices": "The new length applies to this sign-in at once. On other devices a sign-in becomes no longer than the new length — it is never extended.",
+      "save": "Save",
+      "saved": "Saved. This sign-in now lasts until {date}."
     }
   },
   "realtime": {

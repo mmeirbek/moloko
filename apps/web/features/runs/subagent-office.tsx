@@ -29,12 +29,13 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
   const [text, setText] = useState("");
   const busy = useOrchestratorBusy();
   const start = useMutation({
-    mutationFn: () => {
-      const title = text.split("\n")[0]!.slice(0, 120).trim() || t("untitled");
-      return startRun({ title, description: text });
+    mutationFn: (submitted: string) => {
+      const title = submitted.split("\n")[0]!.slice(0, 120).trim() || t("untitled");
+      return startRun({ title, description: submitted });
     },
-    onSuccess: (started) => {
-      setText("");
+    onSuccess: (started, submitted) => {
+      // Only the text that was sent: the owner may already be typing the next task.
+      setText((current) => (current === submitted ? "" : current));
       void queryClient.invalidateQueries({ queryKey: runKeys.list });
       onStarted(started.run.id);
     },
@@ -44,7 +45,7 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
       className="flex flex-col gap-2 rounded-lg border bg-card p-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (text.trim() && !busy) start.mutate();
+        if (text.trim() && !busy) start.mutate(text);
       }}
     >
       <label htmlFor="run-text" className="text-sm font-medium">
