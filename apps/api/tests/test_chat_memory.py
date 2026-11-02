@@ -320,9 +320,13 @@ async def test_recall_brings_other_chats_and_memory_but_not_this_chat(
         assert system.startswith(RECALL_HEADER)
         assert 'title="Zebra note"' in system and 'title="a.txt"' in system
         assert "chat B" not in system and "Not yours" not in system
-        assert system.count("<recalled ") == 2
+        # memory + chat A's file + chat A's answer (chat messages are indexed too, 0016a);
+        # nothing from chat B itself.
+        assert system.count("<recalled ") == 3
         recalled = {(s["type"], s["id"]) for s in answer["recalled_sources"]}
-        assert recalled == {("memory", note["id"]), ("attachment", file_a["id"])}
+        assert {("memory", note["id"]), ("attachment", file_a["id"])} <= recalled
+        chats = [s for s in answer["recalled_sources"] if s["type"] == "chat_message"]
+        assert len(chats) == 1 and chats[0]["conversation_id"] == chat_a
         by_type = {s["type"]: s for s in answer["recalled_sources"]}
         assert by_type["attachment"]["conversation_id"] == chat_a
         assert by_type["memory"]["date"] is not None
