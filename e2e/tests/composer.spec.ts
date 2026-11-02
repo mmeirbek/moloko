@@ -1,0 +1,65 @@
+import path from "node:path";
+
+import { expect, test, type Page } from "@playwright/test";
+
+import { watchErrors } from "./helpers";
+
+const fixture = (name: string) => path.resolve(__dirname, "../fixtures", name);
+
+async function newChat(page: Page) {
+  await page.goto("/chat/new");
+  return page.getByPlaceholder("Сообщение для moloko…");
+}
+
+test("composer: any number of files of any type and size go with one message", async ({ page }) => {
+  const errors = watchErrors(page);
+  const input = await newChat(page);
+  const files = [
+    ...Array.from({ length: 6 }, (_, i) => ({ name: `note-${i + 1}.md`, mimeType: "text/markdown", buffer: Buffer.from(`# Note ${i + 1}`) })),
+    // a 3 MB binary of an unknown type: stored, shown, and given to the model as a short note
+    { name: "archive.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(3 * 1024 * 1024, 7) },
+    { name: "data.csv", mimeType: "text/csv", buffer: Buffer.from("a,b\n1,2\n") },
+  ];
+  await page.locator("input[type=file]").setInputFiles(files);
+  const chips = page.getByTestId("composer-files").locator("li");
+  await expect(chips).toHaveCount(files.length);
+  await expect(page.getByTestId("composer-files").locator("li[data-status=done]")).toHaveCount(files.length, { timeout: 30_000 });
+
+  await input.fill("Что в файлах?");
+  await input.press("Enter");
+  await page.waitForURL(/\/chat\/[0-9a-f-]{36}$/);
+  const sent = page.getByRole("list", { name: "Прикреплённые файлы" }).first();
+  for (const f of files) await expect(sent.getByText(f.name)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+for (const [lang, file, words] of [
+  ["Russian", "speech-ru.wav", /проверк/i],
+  ["English", "speech-en.wav", /test/i],
+] as const) {
+  test.describe(`voice input in ${lang}`, () => {
+    // Chromium plays the file as the microphone.
+    test.use({
+      permissions: ["microphone"],
+      launchOptions: {
+        args: [
+          "--use-fake-ui-for-media-stream",
+          "--use-fake-device-for-media-stream",
+          `--use-file-for-fake-audio-capture=${fixture(file)}`,
+        ],
+      },
+    });
+
+    test(`voice: a ${lang} phrase becomes text in the composer`, async ({ page }) => {
+      const errors = watchErrors(page);
+      const input = await newChat(page);
+      await page.getByTestId("mic").click();
+      const strip = page.getByTestId("mic-recording");
+      await expect(strip).toBeVisible();
+      await page.waitForTimeout(4500); // the phrase is ~3 s
+      await strip.getByRole("button", { name: /Готово/ }).click();
+      await expect(input).toHaveValue(words, { timeout: 60_000 });
+      expect(errors).toEqual([]);
+    });
+  });
+}
