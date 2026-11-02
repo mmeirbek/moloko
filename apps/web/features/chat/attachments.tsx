@@ -239,11 +239,11 @@ export function useComposerAttachments({ ensureChat }: { ensureChat: () => Promi
             )}
             <span className="flex min-w-0 flex-col">
               <span className="truncate">{i.name}</span>
-              <span className="text-muted-foreground">
+              <span className={cn("truncate", i.status === "failed" ? "text-destructive" : "text-muted-foreground")}>
                 {i.status === "uploading"
                   ? t("uploading", { percent: Math.round(i.progress * 100) })
                   : i.status === "failed"
-                    ? t("uploadFailed")
+                    ? toMessage(i.error).message || t("uploadFailed") // the reason, also on phones (no hover)
                     : fileSize(i.size)}
               </span>
             </span>
