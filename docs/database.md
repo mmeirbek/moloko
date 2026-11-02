@@ -125,6 +125,10 @@ An assistant reply is created as `streaming` in the same transaction as the ques
 - `attachments.kind` (`text|image|pdf`), `data bytea` (picture/PDF bytes, deferred), `pages` (PDF).
 - **`search_chunks`** (0011, pgvector) — derived, rebuilt from sources: `user_id, source_type (memory|file|attachment), source_id, agent_id?, memory_type?, project?, workspace_id?, conversation_id?, title, chunk_index, text, content_hash, model?, embedding vector?`; index `(user_id, source_type, source_id)`. Migration 0011 also creates the `vector` extension and re-indexes all tables once (Alpine → Debian image).
 
+## Tables (revision 0014b — scheduled tasks, owner request 2026-11-02)
+
+- **`schedules`** — the owner's scheduled tasks: `user_id → users (cascade), title, description, target (orchestrator|agent), agent_id? → agents (SET NULL)`; the rule in local time: `kind (once|hourly|daily|weekly|monthly), at_time "HH:MM"?, weekdays jsonb (ISO 1 = Monday…7), day_of_month?, interval_hours?, run_at? (once), timezone (IANA)`; state: `enabled, next_run_at?, busy_since? (waiting for a busy agent), last_run_at?, last_task_id? → tasks (SET NULL), last_outcome? (started|skipped|failed), last_reason?`. Indexes `(enabled, next_run_at)` (the worker's due query, `FOR UPDATE SKIP LOCKED`), `(user_id, created_at)`, `agent_id`. A started task is an ordinary top-level task with `created_by = "schedule"` and `extra.schedule_id`.
+
 ## Tables (revision 0014c — own templates, per-agent budgets)
 
 - **`agent_templates`** — the owner's own templates ("Save as template"): `user_id → users (cascade), name (unique per user), description, specialization?, model_config_id? (SET NULL), system_prompt, autonomy_level, allowed_tools jsonb, permissions jsonb, limits jsonb, memory_settings jsonb, monthly_budget_usd numeric(12,2)?, source_agent_id? → agents (SET NULL), created_at, updated_at`. No memory, history or workspace.
