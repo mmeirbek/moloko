@@ -1,16 +1,26 @@
 """GitHub tools (spec 15.6). Reading is ``read``; creating a branch or committing to a
 non-default branch is ``write``; committing to the default branch and opening a pull
-request (publishing) are ``sensitive``."""
+request (publishing) are ``sensitive``.
+
+``github_checkout`` downloads a repository into the agent's workspace (``write``, like
+``fs_write``; ``sensitive`` when it replaces files in a folder that already has some, like
+an ``fs_move`` that replaces a file). ``github_commit_files`` publishes many workspace
+files as ONE commit (``sensitive``). Both run on the server with the owner's token: the
+token never enters the sandbox."""
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import tempfile
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.integrations import github as gh
+from app.services.workspaces import record_changes, workspace_dir
 from app.tools.base import (
     BaseTool,
     OperationInfo,
@@ -22,6 +32,8 @@ from app.tools.base import (
     object_schema,
     string_prop,
 )
+from app.workspaces.archive import ArchiveError, unpack_repository
+from app.workspaces.paths import resolve
 
 REPO = string_prop("Repository as owner/name", pattern=gh.REPO_RE.pattern)
 REF = string_prop("Branch, tag or commit (default: the repository's default branch)", maxLength=200)
@@ -346,6 +358,150 @@ class CreatePullRequest(GitHubTool):
         return ToolOutput(f"Opened pull request #{data['number']}: {data['html_url']}")
 
 
+async def _workspace_root(ctx: ToolContext) -> Path:
+    return workspace_dir(ctx.settings, (await ctx.workspace()).id)
+
+
+def _untracked(settings: Settings, path: str) -> bool:
+    skip = set(settings.workspace_untracked_dirs)
+    return any(part in skip for part in PurePosixPath(path).parts[:-1])
+
+
+async def _record(ctx: ToolContext, changed: list[str]) -> None:
+    ws = await ctx.workspace()
+    async with ctx.sessionmaker() as db:
+        await record_changes(
+            db,
+            ctx.settings,
+            workspace=ws,
+            changed=changed,
+            deleted=[],
+            task_id=ctx.task_id,
+            agent_id=ctx.agent.id,
+            tool_call_id=ctx.tool_call_id,
+        )
+        await db.commit()
+
+
+def _has_files(path: Path) -> bool:
+    return path.is_dir() and any(path.iterdir())
+
+
+class Checkout(GitHubTool):
+    name = "github_checkout"
+    title = "Download a repository"
+    description = (
+        "Download a whole repository (a branch, tag or commit) into a folder of your "
+        "workspace in one step, instead of reading files one by one. Then read and change "
+        "it with the fs_* tools, run checks with terminal_run (for example `npm --prefix "
+        '<folder> ci` with network "packages", then `npm --prefix <folder> run lint`), and '
+        "publish your changes with github_commit_files (same folder). The folder must be "
+        "new or empty, unless overwrite is true: then the repository's files replace "
+        "files with the same path, and other files (node_modules, your new files) stay."
+    )
+    category = ToolCategory.WRITE
+    input_schema = object_schema(
+        {
+            "repo": REPO,
+            "ref": REF,
+            "folder": string_prop(
+                "Workspace folder to put it in (default: the repository name)", maxLength=200
+            ),
+            "overwrite": {
+                "type": "boolean",
+                "description": "Replace files in a folder that is not empty",
+            },
+        },
+        ["repo"],
+    )
+
+    def timeout_for(self, settings: Settings) -> float:
+        return settings.github_transfer_timeout_seconds
+
+    @staticmethod
+    def _folder(args: dict[str, Any]) -> str:
+        folder = str(args.get("folder") or "").strip().rstrip("/")  # "/x" stays absolute
+        return folder or args["repo"].split("/")[-1]
+
+    async def check_scope(self, ctx: ToolContext, args: dict[str, Any]) -> None:
+        await super().check_scope(ctx, args)
+        if args.get("ref") and not gh.BRANCH_RE.match(args["ref"]):
+            raise ScopeError(f"invalid branch, tag or commit: {args['ref']}")
+        root = await _workspace_root(ctx)
+        if resolve(root, self._folder(args)) == root:
+            raise ScopeError("choose a folder inside the workspace, not the workspace itself")
+
+    async def category_for(self, ctx: ToolContext, args: dict[str, Any]) -> ToolCategory:
+        dest = resolve(await _workspace_root(ctx), self._folder(args))
+        replaces = args.get("overwrite") and await asyncio.to_thread(_has_files, dest)
+        return ToolCategory.SENSITIVE if replaces else ToolCategory.WRITE
+
+    def describe(self, args: dict[str, Any]) -> OperationInfo:
+        folder = self._folder(args)
+        ref = args.get("ref") or "the default branch"
+        return OperationInfo(
+            summary=f"Download {args['repo']} ({ref}) into the workspace folder {folder}/",
+            resources=[f"github:{args['repo']}", f"workspace:{folder}/"],
+            consequences=(
+                "The repository's files are written into this folder; files there with "
+                "the same path are replaced. Nothing changes on GitHub."
+                if args.get("overwrite")
+                else "The repository's files are written into this new folder. "
+                "Nothing changes on GitHub."
+            ),
+        )
+
+    async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolOutput:
+        access = await _access(ctx)
+        repo, folder = args["repo"], self._folder(args)
+        root = await _workspace_root(ctx)
+        dest = resolve(root, folder)
+        if dest.exists() and not dest.is_dir():
+            raise ToolFailed(f"{folder} is a file, not a folder.")
+        if not args.get("overwrite") and await asyncio.to_thread(_has_files, dest):
+            raise ToolFailed(
+                f"The folder {folder}/ is not empty: set overwrite to replace the files in "
+                "it with the repository's, or choose another folder."
+            )
+        settings = ctx.settings
+        try:
+            ref = args.get("ref") or await gh.default_branch(settings, access.token, repo)
+            # Downloaded next to the workspaces, never into one (the sandbox cannot see it).
+            with tempfile.TemporaryDirectory(dir=settings.workspace_root, prefix=".gh-") as tmp:
+                archive = Path(tmp) / "repo.tar.gz"
+                await gh.download_archive(
+                    settings, access.token, repo, ref, archive, settings.github_checkout_max_bytes
+                )
+                result = await asyncio.to_thread(
+                    unpack_repository,
+                    archive,
+                    root,
+                    folder,
+                    max_files=settings.github_checkout_max_files,
+                    max_bytes=settings.github_checkout_max_bytes,
+                )
+        except (gh.GitHubError, ArchiveError) as exc:
+            raise ToolFailed(str(exc)) from None
+        tracked = [p for p in result.files if not _untracked(settings, p)]
+        if tracked:
+            await _record(ctx, tracked)
+        commit = f", commit {result.commit[:10]}" if result.commit else ""
+        lines = [
+            f"Downloaded {repo} ({ref}{commit}) into {folder}/: {len(result.files)} files, "
+            f"{result.total_bytes} bytes."
+        ]
+        if result.skipped:
+            lines.append(
+                f"Skipped {result.skipped} symbolic link(s) or special file(s): they are not "
+                "unpacked."
+            )
+        lines.append(
+            f"Run commands in it with terminal_run (e.g. `npm --prefix {folder} ci` with "
+            f'network "packages"); publish changes with github_commit_files, folder "{folder}".'
+        )
+        return ToolOutput("\n".join(lines))
+
+
 GITHUB_TOOLS: tuple[BaseTool, ...] = (
     ListRepos(),
     ListDir(),
@@ -353,6 +509,7 @@ GITHUB_TOOLS: tuple[BaseTool, ...] = (
     ListIssues(),
     GetIssue(),
     ListCommits(),
+    Checkout(),
     CreateBranch(),
     WriteFile(),
     CreatePullRequest(),

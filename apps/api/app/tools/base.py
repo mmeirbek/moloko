@@ -102,6 +102,10 @@ class BaseTool(ABC):
         """False when the tool cannot work right now (integration not configured, …)."""
         return True
 
+    def timeout_for(self, settings: Settings) -> float:
+        """How long one call may run in all."""
+        return self.timeout_seconds or settings.tool_timeout_seconds
+
     async def category_for(self, ctx: ToolContext, args: dict[str, Any]) -> ToolCategory:
         return self.category
 

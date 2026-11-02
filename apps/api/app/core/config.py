@@ -362,6 +362,15 @@ class Settings(BaseSettings):
         ]
     )
 
+    # github_checkout: a repository unpacked into the workspace (archive and its files).
+    github_checkout_max_bytes: int = Field(300_000_000, ge=1_000_000, le=10_000_000_000)
+    github_checkout_max_files: int = Field(10_000, ge=10, le=200_000)
+    # github_commit_files: files in one commit, and their total size.
+    github_commit_max_files: int = Field(300, ge=1, le=5000)
+    github_commit_max_bytes: int = Field(20_000_000, ge=10_000, le=500_000_000)
+    # How long one checkout or multi-file commit may take in all.
+    github_transfer_timeout_seconds: float = Field(300.0, gt=0, le=3600)
+
     # The official GitHub MCP server (github/github-mcp-server, hosted by GitHub).
     github_mcp_url: str = "https://api.githubcopilot.com/mcp/"
 

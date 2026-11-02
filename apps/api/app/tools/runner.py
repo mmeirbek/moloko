@@ -438,9 +438,7 @@ class ToolRunner:
                 },
             )
             await bus.commit(db)
-        timeout = entry.tool.timeout_seconds or self.ctx.settings.tool_timeout_seconds
-        if entry.tool.group == "terminal":
-            timeout = self.ctx.settings.sandbox_timeout_seconds + 30
+        timeout = entry.tool.timeout_for(self.ctx.settings)
         started = time.monotonic()
         try:
             output = await asyncio.wait_for(entry.tool.run(tctx, args), timeout=timeout)

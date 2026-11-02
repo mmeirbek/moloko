@@ -100,6 +100,9 @@ class TerminalRun(BaseTool):
     async def available(self, db: AsyncSession, user_id: Any, settings: Settings) -> bool:
         return bool(settings.sandbox_url and settings.sandbox_runner_token)
 
+    def timeout_for(self, settings: Settings) -> float:
+        return settings.sandbox_timeout_seconds + 30  # the sandbox enforces its own limit
+
     async def check_scope(self, ctx: ToolContext, args: dict[str, Any]) -> None:
         parse_command(args["command"], ctx.settings.sandbox_allowed_commands)
 
