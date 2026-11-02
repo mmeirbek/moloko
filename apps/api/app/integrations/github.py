@@ -96,6 +96,55 @@ async def call(
     return resp.json() if resp.content else None
 
 
+WHERE_PERMISSIONS = (
+    "GitHub → Settings → Developer settings → Fine-grained tokens → this token → "
+    "Repository permissions"
+)
+
+
+def _message(resp: httpx2.Response) -> str:
+    """GitHub's own short explanation (safe: it never repeats the token)."""
+    with contextlib.suppress(Exception):  # not JSON, or a streamed body not read
+        return str(resp.json().get("message", ""))[:200]
+    return ""
+
+
+def _refused(resp: httpx2.Response) -> GitHubError:
+    """A 403: rate limit, or what the token is missing — in words the owner can act on."""
+    message = _message(resp)
+    if resp.headers.get("x-ratelimit-remaining") == "0" or "rate limit" in message.lower():
+        return GitHubError("GitHub rate limit reached. Try again later.")
+    said = f" (GitHub: {message})" if message else ""
+    request = resp.request
+    if "workflow" in message.lower():
+        return GitHubError(
+            "GitHub refused: the token may not change GitHub Actions workflows "
+            '(.github/workflows). Give it "Workflows: Read and write" in '
+            f"{WHERE_PERMISSIONS}, or leave those files out.{said}"
+        )
+    if request.method == "GET":
+        return GitHubError(f"The token is not allowed to read this (check its permissions).{said}")
+    fine_grained = request.headers.get("authorization", "").startswith("Bearer github_pat_")
+    if not fine_grained:  # a classic token: scopes, not permissions
+        return GitHubError(
+            "GitHub refused to write: the token may read but not change this repository. "
+            'A classic token needs the "repo" scope; a fine-grained token needs '
+            f'"Contents: Read and write" (and "Pull requests: Read and write").{said}'
+        )
+    if request.url.path.endswith("/pulls"):
+        return GitHubError(
+            "GitHub refused to open the pull request: the token may read this repository "
+            'but not create pull requests. Give the fine-grained token "Pull requests: Read '
+            f'and write" (and "Contents: Read and write" to push commits) in {WHERE_PERMISSIONS}, '
+            f"then try again.{said}"
+        )
+    return GitHubError(
+        "GitHub refused to write: the token can read this repository but may not change it. "
+        'Give the fine-grained token "Contents: Read and write" (and "Pull requests: Read '
+        f'and write" for pull requests) in {WHERE_PERMISSIONS}, then try again.{said}'
+    )
+
+
 def raise_for(resp: httpx2.Response) -> None:
     """A safe, user-facing GitHubError for an error answer (never the token or URL)."""
     if resp.status_code < 400:
@@ -103,17 +152,13 @@ def raise_for(resp: httpx2.Response) -> None:
     if resp.status_code == 401:
         raise GitHubError("GitHub rejected the token. Check it in Integrations.")
     if resp.status_code == 403:
-        if resp.headers.get("x-ratelimit-remaining") == "0":
-            raise GitHubError("GitHub rate limit reached. Try again later.")
-        raise GitHubError("The token is not allowed to do this (check its permissions).")
+        raise _refused(resp)
     if resp.status_code == 404:
         raise GitHubError("Not found on GitHub (or the token cannot see it).")
     if resp.status_code == 409:
         raise GitHubError("GitHub reported a conflict (for example, the branch changed).")
     if resp.status_code == 422:
-        message = ""
-        with contextlib.suppress(ValueError):
-            message = str(resp.json().get("message", ""))[:200]
+        message = _message(resp)
         raise GitHubError(f"GitHub refused the request: {message or 'validation failed'}.")
     raise GitHubError(f"GitHub answered HTTP {resp.status_code}.")
 

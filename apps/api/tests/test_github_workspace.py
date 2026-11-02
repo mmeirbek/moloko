@@ -507,3 +507,56 @@ async def test_the_commit_limits_come_from_the_settings(
     )
     call = (await tool_calls(tool_app, task_id))[1]
     assert call.status == "denied" and "more than 2 files" in (call.decision_reason or "")
+
+
+# --- a refused write says what the token lacks ----------------------------------------------
+
+
+def refused(method: str, path: str, token: str = "github_pat_" + "a" * 40, **body: Any) -> str:
+    request = httpx2.Request(
+        method, f"https://api.github.com{path}", headers={"Authorization": f"Bearer {token}"}
+    )
+    message = body.pop("message", "Resource not accessible by personal access token")
+    resp = httpx2.Response(403, json={"message": message}, request=request, **body)
+    with pytest.raises(gh.GitHubError) as exc:
+        gh.raise_for(resp)
+    assert token not in str(exc.value)
+    return str(exc.value)
+
+
+def test_a_read_only_fine_grained_token_is_explained() -> None:
+    write = refused("PUT", "/repos/me/app/contents/a.md")
+    assert "can read this repository but may not change it" in write
+    assert '"Contents: Read and write"' in write and "Fine-grained tokens" in write
+    assert "Resource not accessible by personal access token" in write  # GitHub's words too
+    pull = refused("POST", "/repos/me/app/pulls")
+    assert '"Pull requests: Read and write"' in pull and "pull request" in pull
+    assert "not allowed to read" in refused("GET", "/repos/me/app/contents/a.md")
+    assert '"repo" scope' in refused("POST", "/repos/me/app/git/trees", token="ghp_" + "c" * 36)
+    workflow = refused(
+        "POST",
+        "/repos/me/app/git/refs",
+        message="refusing to allow a Personal Access Token to create or update workflow",
+    )
+    assert '"Workflows: Read and write"' in workflow
+    limited = refused("POST", "/repos/me/app/git/trees", headers={"x-ratelimit-remaining": "0"})
+    assert limited == "GitHub rate limit reached. Try again later."
+
+
+async def test_a_refused_commit_reaches_the_agent_in_plain_words(
+    tool_app: FastAPI, monkeypatch: pytest.MonkeyPatch, handlers: None
+) -> None:
+    fake = FakeGitHub(tarball(REPO_TAR))
+    fake.refuse_writes = True
+    monkeypatch.setattr(gh, "TRANSPORT", httpx2.MockTransport(fake.handler))
+    args = {**COMMIT, "paths": ["src/index.ts"], "delete": []}
+    task_id, _ = await run_tools(
+        tool_app,
+        [("github_checkout", {"repo": "me/app"}), ("github_commit_files", args), "done"],
+        ["github_checkout", "github_commit_files"],
+        approve=True,
+    )
+    call = (await tool_calls(tool_app, task_id))[1]
+    assert call.status == "failed"
+    assert '"Contents: Read and write"' in (call.result or "")
+    assert "github_pat_" not in (call.result or "")
