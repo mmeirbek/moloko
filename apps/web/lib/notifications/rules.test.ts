@@ -96,3 +96,34 @@ describe("budget notices", () => {
   });
 });
 
+
+describe("plain words, not code", () => {
+  it("says what the agent wants to do without the command or the whole path", async () => {
+    const { approvalOp, shortText } = await import("./text");
+    expect(approvalOp("terminal_run", { command: 'python3 -c "\ndef L(h):\n  return 1\n"' })).toEqual({
+      key: "terminal_run",
+      params: { program: "python3" },
+    });
+    expect(approvalOp("fs_write", { path: "moloko-mobile-polish/apps/web/app/(app)/chat/layout.tsx", content: "…" })).toEqual({
+      key: "fs_write",
+      params: { file: "layout.tsx" },
+    });
+    expect(approvalOp("github_write_file", { repo: "mmeirbek/moloko", path: "a/b/page-header.tsx" }).params).toEqual({
+      file: "page-header.tsx",
+      repo: "mmeirbek/moloko",
+    });
+    expect(approvalOp("weird_tool", {})).toEqual({ key: "other", params: { tool: "weird tool" } });
+    expect(shortText("[[mock:sleep:1]] Отчёт ```py\nprint(1)\n```")).toBe("Отчёт");
+    expect(shortText("слово ".repeat(40)).endsWith("…")).toBe(true);
+  });
+
+  it("groups one task's approvals and keeps the agent", () => {
+    const n = noticeFor(
+      ev("approval.required", {
+        approval: { id: "a", summary: "Run: python3 -c ...", tool_name: "terminal_run", args: { command: "python3 -V" }, agent_name: "Кодер", task_id: "t1" },
+      }),
+      now,
+    );
+    expect(n).toMatchObject({ agentName: "Кодер", tag: "approval:task:t1", op: { key: "terminal_run" } });
+  });
+});

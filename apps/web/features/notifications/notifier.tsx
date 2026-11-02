@@ -8,6 +8,7 @@ import { X } from "@/components/icons";
 import { syncPush } from "@/lib/notifications/push";
 import { loadPrefs, noticeFor, type Notice } from "@/lib/notifications/rules";
 import { useRealtimeClient } from "@/lib/realtime/provider";
+import { useRealtimeStore } from "@/lib/realtime/store";
 
 type Toast = Notice & { text: string; heading: string };
 
@@ -33,8 +34,12 @@ export function Notifier() {
       const prefs = loadPrefs();
       if (!prefs[notice.kind]) return;
       seen.current.add(notice.key);
-      const heading = t(`${notice.kind}.title`);
-      const text = t(`${notice.kind}.body`, { subject: notice.subject });
+      // Who, and what in plain words (never a raw command or path).
+      const name = notice.agentName || (notice.agentId ? useRealtimeStore.getState().agents[notice.agentId]?.name : undefined);
+      const heading =
+        notice.kind === "approval" && name ? t("approval.titleNamed", { name }) : t(`${notice.kind}.title`);
+      const subject = notice.op ? t(`ops.${notice.op.key}` as "ops.other", notice.op.params) : notice.subject;
+      const text = name && notice.kind !== "approval" ? `${name}: ${subject}` : subject;
       setToasts((list) => [...list.slice(-3), { ...notice, heading, text }]);
       window.setTimeout(() => setToasts((list) => list.filter((x) => x.key !== notice.key)), 10_000);
       if (
@@ -44,7 +49,7 @@ export function Notifier() {
         Notification.permission === "granted" &&
         document.visibilityState === "hidden"
       ) {
-        const options = { body: text, tag: notice.key, icon: "/icons/icon-192.png", badge: "/icons/badge-96.png", data: { url: notice.url } };
+        const options = { body: text, tag: notice.tag ?? notice.key, icon: "/icons/icon-192.png", badge: "/icons/badge-96.png", data: { url: notice.url } };
         void navigator.serviceWorker?.ready
           .then((reg) => reg.showNotification(heading, options))
           .catch(() => new Notification(heading, options));

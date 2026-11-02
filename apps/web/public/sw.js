@@ -64,8 +64,14 @@ self.addEventListener("push", (event) => {
     data = { title: "moloko", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
-      if (windows.some((w) => w.focused && w.visibilityState === "visible")) return undefined;
+    Promise.all([
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }),
+      self.registration.pushManager.getSubscription().catch(() => null),
+    ]).then(([windows, subscription]) => {
+      // Apple (iPhone, iPad, Safari) revokes the subscription when a push shows nothing,
+      // so there it is always shown; elsewhere an open, focused moloko shows its own toast.
+      const apple = Boolean(subscription && /push\.apple\.com/.test(subscription.endpoint));
+      if (!apple && windows.some((w) => w.focused && w.visibilityState === "visible")) return undefined;
       return self.registration.showNotification(data.title || "moloko", {
         body: data.body || "",
         tag: data.tag,

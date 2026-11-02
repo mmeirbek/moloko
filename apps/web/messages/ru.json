@@ -1127,7 +1127,8 @@
     "dismiss": "Скрыть уведомление",
     "approval": {
       "title": "Нужно ваше одобрение",
-      "body": "{subject}"
+      "body": "{subject}",
+      "titleNamed": "{name} ждёт вашего одобрения"
     },
     "taskDone": {
       "title": "Задача выполнена",
@@ -1165,6 +1166,22 @@
     "budget": {
       "title": "Расходы у лимита",
       "body": "{subject}"
+    },
+    "ops": {
+      "fs_write": "Записать файл {file}",
+      "fs_append": "Дописать файл {file}",
+      "fs_move": "Переместить файл {file}",
+      "fs_delete": "Удалить файл {file}",
+      "terminal_run": "Выполнить команду {program}",
+      "terminal_run_plain": "Выполнить команду",
+      "github_create_branch": "Создать ветку {branch} в {repo}",
+      "github_write_file": "Сохранить файл {file} в GitHub ({repo})",
+      "github_create_pull_request": "Открыть pull request в {repo}",
+      "memory_save": "Сохранить в память: {title}",
+      "browser_screenshot": "Открыть страницу {host}",
+      "agent_ask": "Спросить агента {agent}",
+      "agent_tell": "Написать агенту {agent}",
+      "other": "Действие: {tool}"
     }
   },
   "backups": {

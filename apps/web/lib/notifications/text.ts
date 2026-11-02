@@ -1,0 +1,71 @@
+/**
+ * Notification wording: who, and what in plain words — never a raw command, file contents
+ * or a long path. The same rules as the server's pushes (apps/api/app/push/texts.py).
+ */
+
+const TITLE_MAX = 90;
+
+/** One readable line: no code blocks or [[markers]], whitespace collapsed, cut at a word. */
+export function shortText(text: string, limit = TITLE_MAX): string {
+  const clean = (text || "")
+    .replace(/```[\s\S]*?(```|$)/g, " ")
+    .replace(/\[\[[^\]]*\]\]/g, " ")
+    .replace(/[`#]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(" ");
+  if (clean.length <= limit) return clean;
+  let cut = clean.slice(0, limit - 1);
+  const space = cut.lastIndexOf(" ");
+  if (space > limit / 2) cut = cut.slice(0, space);
+  return `${cut.replace(/[ ,.;:—-]+$/, "")}…`;
+}
+
+const fileName = (path: unknown) => shortText(String(path ?? "").trim().split("/").pop() ?? "", 50) || "?";
+
+function program(command: unknown): string {
+  const first = String(command ?? "").trim().split(/\s+/)[0] ?? "";
+  const word = first.split("/").pop() ?? "";
+  return /^[A-Za-z0-9_.+-]{1,24}$/.test(word) ? word : "";
+}
+
+/** `notifications.ops.<key>` and its params for what an agent asks to do. */
+export function approvalOp(tool: string, args: Record<string, unknown> | undefined): { key: string; params: Record<string, string> } {
+  const a = args ?? {};
+  const s = (k: string, max = 60) => shortText(String(a[k] ?? ""), max);
+  switch (tool) {
+    case "fs_write":
+      return { key: a.mode === "append" ? "fs_append" : "fs_write", params: { file: fileName(a.path) } };
+    case "fs_append":
+    case "fs_delete":
+      return { key: tool, params: { file: fileName(a.path) } };
+    case "fs_move":
+      return { key: tool, params: { file: fileName(a.source) } };
+    case "terminal_run": {
+      const p = program(a.command);
+      return p ? { key: "terminal_run", params: { program: p } } : { key: "terminal_run_plain", params: {} };
+    }
+    case "github_create_branch":
+      return { key: tool, params: { branch: s("branch", 40), repo: s("repo") } };
+    case "github_write_file":
+      return { key: tool, params: { file: fileName(a.path), repo: s("repo") } };
+    case "github_create_pull_request":
+      return { key: tool, params: { repo: s("repo") } };
+    case "memory_save":
+      return { key: tool, params: { title: s("title") } };
+    case "browser_screenshot": {
+      let host = "";
+      try {
+        host = new URL(String(a.url ?? "")).hostname;
+      } catch {
+        host = s("url", 40);
+      }
+      return { key: tool, params: { host } };
+    }
+    case "agent_ask":
+    case "agent_tell":
+      return { key: tool, params: { agent: s("agent", 40) } };
+    default:
+      return { key: "other", params: { tool: shortText(tool.replaceAll("_", " "), 40) } };
+  }
+}

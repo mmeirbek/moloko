@@ -1127,7 +1127,8 @@
     "dismiss": "Dismiss notification",
     "approval": {
       "title": "Your approval is needed",
-      "body": "{subject}"
+      "body": "{subject}",
+      "titleNamed": "{name} needs your approval"
     },
     "taskDone": {
       "title": "Task done",
@@ -1165,6 +1166,22 @@
     "budget": {
       "title": "Costs near the limit",
       "body": "{subject}"
+    },
+    "ops": {
+      "fs_write": "Write the file {file}",
+      "fs_append": "Append to the file {file}",
+      "fs_move": "Move the file {file}",
+      "fs_delete": "Delete the file {file}",
+      "terminal_run": "Run a {program} command",
+      "terminal_run_plain": "Run a command",
+      "github_create_branch": "Create the branch {branch} in {repo}",
+      "github_write_file": "Save {file} to GitHub ({repo})",
+      "github_create_pull_request": "Open a pull request in {repo}",
+      "memory_save": "Save to memory: {title}",
+      "browser_screenshot": "Open the page {host}",
+      "agent_ask": "Ask the agent {agent}",
+      "agent_tell": "Message the agent {agent}",
+      "other": "Action: {tool}"
     }
   },
   "backups": {

@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -19,9 +19,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.models.agent import Agent
 from app.models.event import AgentEvent
 from app.models.system import SystemSetting
 from app.models.tooling import PushSubscription
+from app.push import texts
 from app.push.webpush import host_allowed, push_subject, send
 from app.services.push import PushUnavailable, vapid_keys
 
@@ -33,6 +35,7 @@ TYPES = ("approval.required", "task.completed", "task.failed", "budget.warning")
 TITLES = {
     "ru": {
         "approval": "Нужно ваше одобрение",
+        "approvalNamed": "{name} ждёт вашего одобрения",
         "taskDone": "Задача выполнена",
         "taskFailed": "Задача не выполнена",
         "budget": "Расходы: {percent}% месячного лимита",
@@ -40,6 +43,7 @@ TITLES = {
     },
     "en": {
         "approval": "Your approval is needed",
+        "approvalNamed": "{name} needs your approval",
         "taskDone": "Task done",
         "taskFailed": "Task failed",
         "budget": "Costs: {percent}% of the monthly limit",
@@ -52,11 +56,16 @@ TITLES = {
 class Notice:
     kind: str
     key: str
-    subject: str
+    subject: str  # task title / costs line (the raw text; shortened when sent)
     url: str
     percent: int = 0
     title: str = ""  # TITLES key when it differs from ``kind``
-    name: str = ""  # an agent's name (agent budgets)
+    name: str = ""  # the agent's name
+    tool: str = ""  # approvals: which tool, and its arguments (worded in texts.py)
+    args: dict[str, Any] = field(default_factory=dict)
+    error_code: str = ""  # failed tasks
+    agent_id: str = ""  # tasks: whose name to look up
+    tag: str = ""  # notifications with one tag replace each other (default: the key)
 
 
 def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
@@ -68,11 +77,18 @@ def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
         approval = payload.get("approval") or {}
         if not approval.get("id"):
             return None
-        who = approval.get("agent_name")
-        subject = (
-            f"{who}: {approval.get('summary', '')}" if who else str(approval.get("summary", ""))
+        task_id = approval.get("task_id")
+        return Notice(
+            "approval",
+            f"approval:{approval['id']}",
+            str(approval.get("summary", "")),
+            "/approvals",
+            name=str(approval.get("agent_name") or "")[:100],
+            tool=str(approval.get("tool_name") or ""),
+            args=dict(approval.get("args") or {}),
+            # one notification per task: the next request replaces the previous one
+            tag=f"approval:task:{task_id}" if task_id else "",
         )
-        return Notice("approval", f"approval:{approval['id']}", subject, "/approvals")
     if event.type == "budget.warning" and payload.get("scope") == "agent":
         percent = int(payload.get("percent", 0))
         agent_id = str(payload.get("agent_id", ""))
@@ -104,6 +120,8 @@ def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
             f"task:{task['id']}:{event.type}",
             str(task.get("title", "")),
             f"/tasks/{task['id']}",
+            error_code="" if done else str(task.get("error_code") or ""),
+            agent_id=str(task.get("agent_id") or event.agent_id or ""),
         )
     return None
 
@@ -159,6 +177,7 @@ async def dispatch(sessionmaker: async_sessionmaker[AsyncSession], settings: Set
             )
             now = datetime.now(UTC)
             notices = [n for n in (notice_for(e, now) for e in events) if n is not None]
+            notices = await _with_agent_names(db, notices)
             try:
                 keys = await vapid_keys(db, settings, user_id) if notices else None
             except PushUnavailable:
@@ -184,19 +203,57 @@ async def dispatch(sessionmaker: async_sessionmaker[AsyncSession], settings: Set
     return sent
 
 
+async def _with_agent_names(db: AsyncSession, notices: list[Notice]) -> list[Notice]:
+    """Task notices say whose task it was."""
+    ids: set[uuid.UUID] = set()
+    for n in notices:
+        try:
+            if n.agent_id and not n.name:
+                ids.add(uuid.UUID(n.agent_id))
+        except ValueError:
+            continue
+    if not ids:
+        return notices
+    rows = await db.execute(select(Agent.id, Agent.name).where(Agent.id.in_(ids)))
+    names = {str(i): name for i, name in rows.all()}
+    return [
+        replace(n, name=names.get(n.agent_id, n.name)[:100]) if n.agent_id else n for n in notices
+    ]
+
+
+def render(notice: Notice, locale: str) -> tuple[str, str]:
+    """The notification's title and text in the owner's language: who, and what in plain
+    words — never a raw command, file contents or a long path."""
+    titles = TITLES.get(texts.lang(locale), TITLES["ru"])
+    if notice.kind == "approval":
+        title = (
+            titles["approvalNamed"].format(name=notice.name) if notice.name else titles["approval"]
+        )
+        body = (
+            texts.approval_text(locale, notice.tool, notice.args)
+            if notice.tool
+            else texts.short_text(notice.subject)
+        )
+        return title, body
+    if notice.kind in ("taskDone", "taskFailed"):
+        body = texts.short_text(notice.subject)
+        if notice.name:
+            body = f"{notice.name}: {body}"
+        reason = (
+            texts.failure_reason(locale, notice.error_code) if notice.kind == "taskFailed" else ""
+        )
+        return titles[notice.kind], f"{body} — {reason}" if reason else body
+    title = titles[notice.title or notice.kind].format(percent=notice.percent, name=notice.name)
+    return title, texts.short_text(notice.subject, 300)
+
+
 async def _deliver(
     db: AsyncSession, sub: PushSubscription, notice: Notice, keys: Any, settings: Settings
 ) -> int:
-    title = TITLES.get(sub.locale, TITLES["ru"])[notice.title or notice.kind].format(
-        percent=notice.percent, name=notice.name
-    )
-    payload: dict[str, object] = {
-        "title": title,
-        "body": notice.subject[:300],
-        "url": notice.url,
-        "tag": notice.key,
-    }
-    topic = hashlib.sha256(notice.key.encode()).hexdigest()[:32]
+    title, body = render(notice, sub.locale)
+    tag = notice.tag or notice.key
+    payload: dict[str, object] = {"title": title, "body": body[:300], "url": notice.url, "tag": tag}
+    topic = hashlib.sha256(tag.encode()).hexdigest()[:32]
     try:
         status = await send(
             sub.endpoint,
