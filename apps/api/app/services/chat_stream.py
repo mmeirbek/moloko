@@ -25,6 +25,7 @@ from app.models.chat import Conversation, Message
 from app.providers.base import ChatRequest, ChatResult, ProviderError
 from app.providers.gateway import ModelGateway, ModelTarget, estimate_cost
 from app.schemas.chat import MessageOut
+from app.services import chat_memory
 
 logger = logging.getLogger("moloko.chat")
 
@@ -76,6 +77,10 @@ class ChatStreamManager:
         self.gateway = gateway
         self.hook = hook
         self._streams: dict[uuid.UUID, StreamState] = {}
+        # Rolling summaries run after an answer, in the background (services/chat_memory).
+        self._background: set[asyncio.Task[None]] = set()
+        self._summarizing: set[uuid.UUID] = set()
+        self._summarize_again: set[uuid.UUID] = set()
 
     def get(self, message_id: uuid.UUID) -> StreamState | None:
         return self._streams.get(message_id)
@@ -130,6 +135,59 @@ class ChatStreamManager:
                 tasks.append(state.task)
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        for task in list(self._background):  # a summary is redone after the next answer
+            task.cancel()
+        await self.idle()
+
+    async def idle(self) -> None:
+        """Wait until background work (summaries) is done — for tests and shutdown."""
+        while self._background:
+            await asyncio.gather(*list(self._background), return_exceptions=True)
+
+    def after_answer(self, conversation_id: uuid.UUID, target: ModelTarget) -> None:
+        """Start the conversation's summary in the background (one at a time per chat;
+        an answer that finishes meanwhile makes it run once more)."""
+        if not self.gateway.settings.chat_summary_enabled:
+            return
+        if conversation_id in self._summarizing:
+            self._summarize_again.add(conversation_id)
+            return
+        self._summarizing.add(conversation_id)
+        task = asyncio.create_task(
+            self._summarize(conversation_id, target), name=f"chat-summary:{conversation_id}"
+        )
+        self._background.add(task)
+        task.add_done_callback(self._background.discard)
+
+    async def _summarize(self, conversation_id: uuid.UUID, target: ModelTarget) -> None:
+        try:
+            while True:
+                self._summarize_again.discard(conversation_id)
+                try:
+                    await chat_memory.summarize_conversation(
+                        self.sessionmaker,
+                        self.gateway,
+                        self.gateway.settings,
+                        conversation_id,
+                        target,
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:  # noqa: BLE001 — retried after the next answer
+                    logger.warning(
+                        "chat_summary_failed",
+                        extra={
+                            "conversation_id": str(conversation_id),
+                            "error": type(exc).__name__,
+                            "kind": getattr(exc, "kind", None),
+                        },
+                    )
+                    return
+                if conversation_id not in self._summarize_again:
+                    return
+        finally:
+            self._summarizing.discard(conversation_id)
+            self._summarize_again.discard(conversation_id)
 
     async def _emit(self, state: StreamState, event: StreamEvent) -> None:
         state.publish(event)
@@ -261,6 +319,8 @@ class ChatStreamManager:
             return
         name = "message.completed" if status == "completed" else "message.failed"
         await self._emit(state, (name, {"message": payload}))
+        if status == "completed":
+            self.after_answer(state.conversation_id, target)
 
 
 async def fail_orphaned_generations(db: AsyncSession) -> int:

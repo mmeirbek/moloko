@@ -1926,6 +1926,23 @@
             ],
             "title": "Model Config Id"
           },
+          "summary_messages": {
+            "default": 0,
+            "title": "Summary Messages",
+            "type": "integer"
+          },
+          "summary_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Updated At"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -1945,6 +1962,58 @@
           "last_message_at"
         ],
         "title": "ConversationOut",
+        "type": "object"
+      },
+      "ConversationSummaryOut": {
+        "description": "The rolling summary of a chat's older messages, as the model gets it.",
+        "properties": {
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "summary_messages": {
+            "title": "Summary Messages",
+            "type": "integer"
+          },
+          "summary_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Updated At"
+          },
+          "summary_upto_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Upto At"
+          }
+        },
+        "required": [
+          "summary",
+          "summary_messages",
+          "summary_upto_at",
+          "summary_updated_at"
+        ],
+        "title": "ConversationSummaryOut",
         "type": "object"
       },
       "ConversationUpdate": {
@@ -3291,6 +3360,13 @@
             ],
             "title": "Provider Kind"
           },
+          "recalled_sources": {
+            "items": {
+              "$ref": "#/components/schemas/RecalledSourceOut"
+            },
+            "title": "Recalled Sources",
+            "type": "array"
+          },
           "role": {
             "title": "Role",
             "type": "string"
@@ -4593,6 +4669,67 @@
           "public_key"
         ],
         "title": "PushKey",
+        "type": "object"
+      },
+      "RecalledSourceOut": {
+        "description": "An earlier chat, task or memory that recall gave the model for this answer.",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "title"
+        ],
+        "title": "RecalledSourceOut",
         "type": "object"
       },
       "RecurrenceIn": {
@@ -9319,6 +9456,50 @@
           }
         },
         "summary": "Re-attach to an answer that is still being generated",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/chats/{chat_id}/summary": {
+      "get": {
+        "description": "The rolling summary of the chat's older messages — exactly what the model gets.",
+        "operationId": "get_chat_summary_api_v1_chats__chat_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chat_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Chat Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Chat Summary",
         "tags": [
           "chats"
         ]

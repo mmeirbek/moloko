@@ -38,6 +38,9 @@ export type MessageOut = Schemas["MessageOut"];
 export type MessageCreate = Schemas["MessageCreate"];
 export type CancelResult = Schemas["CancelResult"];
 export type ConversationPage = Schemas["Page_ConversationOut_"];
+// Chats never forget: the summary of older messages, recall from earlier chats and work
+export type ConversationSummaryOut = Schemas["ConversationSummaryOut"];
+export type RecalledSourceOut = Schemas["RecalledSourceOut"];
 export type MessagePage = Schemas["Page_MessageOut_"];
 export type ProviderOut = Schemas["ProviderOut"];
 export type ProviderCreate = Schemas["ProviderCreate"];

@@ -66,6 +66,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         refresh(chatKeys.messages(conversationId));
         refresh(chatKeys.list);
       }
+      if (e.type === "chat.summary_updated") {
+        // Older messages were condensed: the chat's notice and its summary dialog.
+        refresh(chatKeys.detail(String(e.payload.conversation_id ?? "")));
+      }
       if (e.type === "chat.message_delta") {
         // Another device started an answer we don't know yet: load it (we then re-attach).
         const conversationId = String(e.payload.conversation_id ?? "");

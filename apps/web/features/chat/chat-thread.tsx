@@ -27,6 +27,7 @@ import { useDocumentTitle } from "@/lib/hooks";
 
 import { AttachmentChip } from "./attachment-chip";
 import { useComposerAttachments } from "./attachments";
+import { RecalledSources, SummaryNotice } from "./chat-memory";
 import { useChatTitle } from "./chat-title";
 import { Composer, Suggestions } from "./composer";
 import { MarkdownText } from "./markdown";
@@ -153,6 +154,7 @@ function AssistantMessage() {
             )}
           </ActionBarPrimitive.Root>
         )}
+        {message && !failed && message.recalled_sources && <RecalledSources sources={message.recalled_sources} />}
       </div>
     </MessagePrimitive.Root>
   );
@@ -300,6 +302,8 @@ export function ChatThread({ chatId }: { chatId: string }) {
               <h1 className="mx-auto w-full max-w-3xl truncate px-1 pb-2 font-sans text-base font-medium text-muted-foreground">
                 {chat.data ? chatTitle(chat.data.title) : ""}
               </h1>
+              {/* Older messages no longer fit the model's context: they live on as a summary. */}
+              {chat.data?.summary_updated_at && <SummaryNotice chatId={chatId} count={chat.data.summary_messages ?? 0} />}
 
               {/* A log: screen readers read new messages; aria-busy holds them while an answer streams. */}
               <ThreadPrimitive.Viewport

@@ -314,7 +314,24 @@
     "retryUpload": "Upload “{name}” again",
     "dropFiles": "Drop — the files will be attached",
     "someUploadsFailed": "{count, plural, one {# file failed to upload} other {# files failed to upload}} — retry or remove.",
-    "uploadingFiles": "Files are uploading — the message goes as soon as they are done."
+    "uploadingFiles": "Files are uploading — the message goes as soon as they are done.",
+    "memory": {
+      "summarised": "Earlier messages are condensed into a summary — the model remembers them ({count, plural, one {# message} other {# messages}})",
+      "showSummary": "Show summary",
+      "summaryTitle": "Summary of earlier messages",
+      "summaryHint": "This is how the model remembers the start of the chat: it gets this summary together with the latest messages. Stored on your server.",
+      "summaryMeta": "Covers {count, plural, one {# message} other {# messages}} · updated {when}",
+      "noSummary": "No summary yet.",
+      "loading": "Loading…",
+      "close": "Close",
+      "recalled": "Taken into account from the past:",
+      "kinds": {
+        "chat": "chat",
+        "task": "task",
+        "memory": "memory",
+        "other": "other"
+      }
+    }
   },
   "settings": {
     "providers": {

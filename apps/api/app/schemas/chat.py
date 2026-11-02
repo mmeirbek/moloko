@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ConversationOut(BaseModel):
@@ -16,6 +17,19 @@ class ConversationOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_message_at: datetime
+    # Set when older messages are condensed into a summary the model gets (the text itself:
+    # GET /chats/{id}/summary). NULL = no summary (or summaries are turned off).
+    summary_updated_at: datetime | None = None
+    summary_messages: int = 0
+
+
+class ConversationSummaryOut(BaseModel):
+    """The rolling summary of a chat's older messages, as the model gets it."""
+
+    summary: str | None
+    summary_messages: int
+    summary_upto_at: datetime | None
+    summary_updated_at: datetime | None
 
 
 class ConversationCreate(BaseModel):
@@ -44,6 +58,17 @@ class AttachmentOut(BaseModel):
     created_at: datetime
 
 
+class RecalledSourceOut(BaseModel):
+    """An earlier chat, task or memory that recall gave the model for this answer."""
+
+    type: str  # a search source type: memory | attachment | task | conversation | …
+    id: uuid.UUID
+    title: str
+    date: datetime | None = None
+    conversation_id: uuid.UUID | None = None
+    agent_id: uuid.UUID | None = None
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,6 +90,12 @@ class MessageOut(BaseModel):
     created_at: datetime
     completed_at: datetime | None
     attachments: list[AttachmentOut] = Field(default_factory=list)
+    recalled_sources: list[RecalledSourceOut] = Field(default_factory=list)
+
+    @field_validator("recalled_sources", mode="before")
+    @classmethod
+    def _none_is_empty(cls, value: Any) -> Any:
+        return [] if value is None else value
 
 
 class MessageCreate(BaseModel):
