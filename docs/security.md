@@ -59,7 +59,7 @@ This file tracks what is implemented and what is still open.
 | Backups: integrity checks, restore drill, owner-only files, off-disk warning | ✅ | `backup.sh`, `restore-check.sh`, `tests/test_storage.py`; manual end-to-end restore |
 | Dependencies | ✅ | npm prod: 0 known vulnerabilities; Python runtime: 0 (`pip-audit`); dev-only ESLint findings accepted |
 
-Residual risks (accepted, documented): the sandbox runner holds the Docker socket (root-equivalent; kept minimal); the home laptop is a single machine (power/disk loss → restore from off-disk backups); notifications with the app closed are not available (no Web Push).
+Residual risks (accepted, documented): the sandbox runner holds the Docker socket (root-equivalent; kept minimal); the home laptop is a single machine (power/disk loss → restore from off-disk backups); Web Push messages pass through Apple/Google/Mozilla/Microsoft push services — the payload (title, short text, link) is encrypted end to end (RFC 8291), the service sees only ciphertext, timing and size; subscriptions may only point to `PUSH_ALLOWED_HOSTS`.
 
 ## Open items
 
@@ -72,7 +72,8 @@ Residual risks (accepted, documented): the sandbox runner holds the Docker socke
 | Redis password | Not needed for sandbox containers (they have no network); revisit if anything new joins the internal network |
 | Sandbox network egress (e.g. for `pip install`) | Later, only through an allow-listing proxy |
 | Automated backups off the primary disk | ✅ Sprint 8 (BACKUP_DIR must be set to another disk by the owner) |
-| Web Push for notifications with the app closed | Owner decision (third-party push services) |
+| Web Push for notifications with the app closed | ✅ after Sprint 8 (owner approved; encrypted, allow-listed push hosts) |
+| Official GitHub MCP server | ✅ after Sprint 8 (read-only by default, tools start disabled, token from Integrations → GitHub) |
 
 ## Reporting
 

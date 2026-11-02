@@ -51,6 +51,8 @@ export const testGitHub = () => api.request<GitHubIntegrationOut>("/integrations
 export const listMcpServers = (signal?: AbortSignal) => api.request<McpServerOut[]>("/mcp-servers", { signal });
 export const addMcpServer = (body: McpServerCreate) =>
   api.request<McpServerOut>("/mcp-servers", { method: "POST", body });
+export const addGitHubMcp = (body: { readonly: boolean; toolsets: string[] }) =>
+  api.request<McpServerOut>("/mcp-servers/github", { method: "POST", body });
 export const updateMcpServer = (id: string, body: McpServerUpdate) =>
   api.request<McpServerOut>(`/mcp-servers/${id}`, { method: "PATCH", body });
 export const refreshMcpServer = (id: string) =>

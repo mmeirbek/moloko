@@ -1,10 +1,11 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { disablePush, enablePush, needsHomeScreen, pushSupported, syncPush } from "@/lib/notifications/push";
 import {
   DEFAULT_PREFS,
   prefsSnapshot,
@@ -15,6 +16,7 @@ import {
 
 const noop = () => () => {};
 const permissionNow = () => (typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+const supportNow = () => (pushSupported() ? (needsHomeScreen() ? "homescreen" : "yes") : "no");
 
 export function NotificationsSection() {
   const t = useTranslations("notifications.settings");
@@ -22,7 +24,28 @@ export function NotificationsSection() {
   const browserPermission = useSyncExternalStore(noop, permissionNow, () => "default");
   const [asked, setAsked] = useState<string | null>(null);
   const permission = asked ?? browserPermission;
-  const update = (next: NotificationPrefs) => savePrefs(next);
+  const locale = useLocale();
+  const pushSupport = useSyncExternalStore(noop, supportNow, () => "no");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(false);
+  const update = (next: NotificationPrefs) => {
+    savePrefs(next);
+    void syncPush(next, locale).catch(() => undefined); // the server knows which kinds this device wants
+  };
+  async function togglePush(on: boolean) {
+    setPushBusy(true);
+    setPushError(false);
+    try {
+      if (on) await enablePush(prefs, locale);
+      else await disablePush();
+      savePrefs({ ...prefs, push: on });
+      if (on) setAsked("granted");
+    } catch {
+      setPushError(true);
+    } finally {
+      setPushBusy(false);
+    }
+  }
   async function allowSystem() {
     if (typeof Notification === "undefined") return;
     const result = await Notification.requestPermission();
@@ -64,7 +87,29 @@ export function NotificationsSection() {
             </Button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">{t("closedNote")}</p>
+        <div className="flex flex-col gap-1 border-t pt-3" data-testid="push-settings">
+          {pushSupport === "yes" ? (
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={prefs.push}
+                disabled={pushBusy || permission === "denied"}
+                onChange={(e) => void togglePush(e.target.checked)}
+              />
+              {t("push")}
+            </label>
+          ) : (
+            <p className="text-muted-foreground">
+              {pushSupport === "homescreen" ? t("pushHomeScreen") : t("pushUnsupported")}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">{t("pushNote")}</p>
+          {pushError && (
+            <p role="alert" className="text-xs text-destructive">
+              {t("pushError")}
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

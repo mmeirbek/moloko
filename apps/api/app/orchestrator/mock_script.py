@@ -22,6 +22,7 @@ from app.providers.mock_provider import last_user_text, register_scripted_handle
 
 _PLAN = re.compile(r"\[\[mock:plan:(\d+)\]\]")
 _FAIL = re.compile(r"\[\[mock:failpart:(\d+)\]\]")
+_ASSIGN = re.compile(r"\[\[mock:assign:([^\]]+)\]\]")  # the last part goes to this agent
 
 
 def _plan(task_text: str, already_retried: bool) -> str:
@@ -59,6 +60,9 @@ def _plan(task_text: str, already_retried: bool) -> str:
                 "delegate": delegate,
             }
         )
+    assign = _ASSIGN.search(task_text)
+    if assign and subtasks:
+        subtasks[-1]["agent"] = assign.group(1).strip()
     return json.dumps(
         {
             "mode": "delegate",

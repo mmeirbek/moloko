@@ -1,9 +1,15 @@
 import type { EventEnvelope } from "@moloko/shared-types";
 
 export type NotificationKind = "approval" | "taskDone" | "taskFailed";
-export type NotificationPrefs = Record<NotificationKind, boolean> & { system: boolean };
+export type NotificationPrefs = Record<NotificationKind, boolean> & { system: boolean; push: boolean };
 
-export const DEFAULT_PREFS: NotificationPrefs = { approval: true, taskDone: true, taskFailed: true, system: false };
+export const DEFAULT_PREFS: NotificationPrefs = {
+  approval: true,
+  taskDone: true,
+  taskFailed: true,
+  system: false,
+  push: false,
+};
 const KEY = "moloko.notifications";
 const MAX_AGE_MS = 15 * 60_000; // replayed events older than this are not announced
 

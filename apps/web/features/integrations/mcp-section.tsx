@@ -12,8 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import {
+  addGitHubMcp,
   addMcpServer,
   deleteMcpServer,
+  integrationsStatus,
   listMcpServers,
   refreshMcpServer,
   toolingKeys,
@@ -164,10 +166,59 @@ function ServerCard({ server }: { server: McpServerOut }) {
   );
 }
 
+const TOOLSETS = ["repos", "issues", "pull_requests", "actions", "code_security", "notifications"] as const;
+
+/** One click: the official GitHub MCP server with the token from Integrations → GitHub. */
+function GitHubMcp({ connected, present }: { connected: boolean; present: boolean }) {
+  const t = useTranslations("integrations.mcp.github");
+  const toMessage = useErrorMessage();
+  const invalidate = useInvalidate();
+  const [readonly, setReadonly] = useState(true);
+  const [toolsets, setToolsets] = useState<string[]>(["repos", "issues", "pull_requests"]);
+  const add = useMutation({ mutationFn: () => addGitHubMcp({ readonly, toolsets }), onSuccess: invalidate });
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed p-4 text-sm" data-testid="github-mcp">
+      <p className="font-medium">{t("title")}</p>
+      <p className="text-xs text-muted-foreground">{connected ? t("hint") : t("needsToken")}</p>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={readonly} onChange={(e) => setReadonly(e.target.checked)} />
+        {t("readonly")}
+      </label>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {TOOLSETS.map((ts) => (
+          <label key={ts} className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={toolsets.includes(ts)}
+              onChange={(e) => setToolsets((list) => (e.target.checked ? [...list, ts] : list.filter((x) => x !== ts)))}
+            />
+            {ts}
+          </label>
+        ))}
+      </div>
+      <Button
+        size="sm"
+        className="self-start"
+        disabled={!connected || toolsets.length === 0 || add.isPending}
+        onClick={() => add.mutate()}
+      >
+        {present ? t("update") : t("connect")}
+      </Button>
+      {add.error && (
+        <p role="alert" className="text-destructive">
+          {toMessage(add.error).message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function McpSection() {
   const t = useTranslations("integrations.mcp");
   const [adding, setAdding] = useState(false);
   const servers = useQuery({ queryKey: toolingKeys.mcp, queryFn: ({ signal }) => listMcpServers(signal) });
+  const status = useQuery({ queryKey: toolingKeys.status, queryFn: ({ signal }) => integrationsStatus(signal) });
+  const hasGitHub = servers.data?.some((s) => s.auth_source === "github") ?? false;
   return (
     <Card id="mcp">
       <CardHeader>
@@ -175,6 +226,7 @@ export function McpSection() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <GitHubMcp connected={status.data?.github.connected ?? false} present={hasGitHub} />
         {!adding && (
           <Button variant="outline" className="self-start" onClick={() => setAdding(true)}>
             <Plus /> {t("addServer")}

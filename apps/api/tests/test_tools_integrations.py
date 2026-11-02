@@ -422,3 +422,51 @@ async def test_sandbox_unavailable_is_reported_not_crashed() -> None:
     with pytest.raises(SandboxUnavailable):
         await RunnerSandbox(settings).run(uuid.uuid4(), ["ls"], timeout_seconds=1)
     assert (await RunnerSandbox(settings).health()) == {"ok": False}
+
+
+async def test_official_github_mcp_server_uses_the_saved_token(
+    tool_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from mcp_types import ToolAnnotations
+
+    seen: dict[str, Any] = {}
+    server = MCPServer("github")
+
+    @server.tool(description="Get a file", annotations=ToolAnnotations(read_only_hint=True))
+    def get_file_contents(owner: str, repo: str, path: str) -> str:
+        return f"{owner}/{repo}/{path}"
+
+    @server.tool(description="Create a PR")
+    def create_pull_request(owner: str, repo: str, title: str) -> str:
+        return "PR"
+
+    def factory(row: Any, token: str | None, settings: Any) -> Client:
+        seen.update(url=row.url, token=token, headers=dict(row.headers))
+        return Client(server)
+
+    monkeypatch.setattr(mcp_module, "CLIENT_FACTORY", factory)
+    monkeypatch.setattr(gh, "TRANSPORT", github_mock([]))
+    pat = "github_pat_" + "m" * 40
+    async with logged_in_client(tool_app) as client:
+        early = await client.post(
+            "/api/v1/mcp-servers/github", json={}, headers=await csrf_headers(client)
+        )
+        assert early.status_code == 409 and early.json()["error"]["code"] == "github_not_connected"
+        await client.put(
+            "/api/v1/integrations/github", json={"token": pat}, headers=await csrf_headers(client)
+        )
+        resp = await client.post(
+            "/api/v1/mcp-servers/github",
+            json={"readonly": True, "toolsets": ["repos", "pull_requests"]},
+            headers=await csrf_headers(client),
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+    assert body["auth_source"] == "github" and body["has_token"] is False  # no second copy
+    assert seen["token"] == pat and seen["url"] == "https://api.githubcopilot.com/mcp/"
+    assert seen["headers"] == {"X-MCP-Readonly": "true", "X-MCP-Toolsets": "repos,pull_requests"}
+    tools = {t["name"]: t for t in body["tools"]}
+    assert all(not t["enabled"] for t in tools.values())  # never auto-trusted
+    assert tools["mcp_github_get_file_contents"]["category"] == "read"  # from the read-only hint
+    assert tools["mcp_github_create_pull_request"]["category"] == "sensitive"
+    assert pat not in json.dumps(body)

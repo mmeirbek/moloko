@@ -42,6 +42,11 @@ class McpServer(UUIDPrimaryKey, Timestamps, Base):
     last_error: Mapped[str | None] = mapped_column(String(500))
     last_checked_at: Mapped[datetime | None]
     server_info: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    # Non-secret extra request headers (e.g. X-MCP-Readonly for GitHub's server).
+    headers: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    # Where the bearer token comes from: "token" (stored here) or "github" (the GitHub
+    # integration's token, so it is entered once).
+    auth_source: Mapped[str] = mapped_column(String(16), server_default="token")
 
 
 class Tool(UUIDPrimaryKey, Timestamps, Base):
@@ -173,3 +178,19 @@ class Approval(UUIDPrimaryKey, Timestamps, Base):
     expires_at: Mapped[datetime]
     resolved_at: Mapped[datetime | None]
     used_at: Mapped[datetime | None]
+
+
+class PushSubscription(UUIDPrimaryKey, Timestamps, Base):
+    """A device that receives Web Push notifications while moloko is closed."""
+
+    __tablename__ = "push_subscriptions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    endpoint: Mapped[str] = mapped_column(String(1000), unique=True)
+    p256dh: Mapped[str] = mapped_column(String(200))
+    auth: Mapped[str] = mapped_column(String(100))
+    kinds: Mapped[list[str]] = mapped_column(server_default=text("'[]'::jsonb"))
+    locale: Mapped[str] = mapped_column(String(8), server_default="ru")
+    label: Mapped[str] = mapped_column(String(200), server_default="")
+    failures: Mapped[int] = mapped_column(Integer, server_default="0")
+    last_sent_at: Mapped[datetime | None]

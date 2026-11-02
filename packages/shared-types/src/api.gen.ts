@@ -557,6 +557,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp-servers/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connect the official GitHub MCP server with the saved GitHub token */
+        post: operations["add_github_mcp_api_v1_mcp_servers_github_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mcp-servers/{server_id}": {
         parameters: {
             query?: never;
@@ -762,6 +779,42 @@ export interface paths {
         /** Check credentials */
         post: operations["test_provider_api_v1_providers__provider_id__test_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** VAPID public key for PushManager.subscribe */
+        get: operations["push_key_api_v1_push_key_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Subscriptions */
+        get: operations["list_subscriptions_api_v1_push_subscriptions_get"];
+        put?: never;
+        /** Add or update this device */
+        post: operations["subscribe_api_v1_push_subscriptions_post"];
+        /** Unsubscribe */
+        delete: operations["unsubscribe_api_v1_push_subscriptions_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1580,6 +1633,19 @@ export interface components {
             /** Token */
             token?: string | null;
         };
+        /**
+         * GitHubMcpCreate
+         * @description Connect the official GitHub MCP server with the token saved in Integrations → GitHub.
+         */
+        GitHubMcpCreate: {
+            /**
+             * Readonly
+             * @default true
+             */
+            readonly?: boolean;
+            /** Toolsets */
+            toolsets?: string[];
+        };
         /** HandoffRequest */
         HandoffRequest: {
             /** Content */
@@ -1642,10 +1708,19 @@ export interface components {
         };
         /** McpServerOut */
         McpServerOut: {
+            /**
+             * Auth Source
+             * @default token
+             */
+            auth_source?: string;
             /** Enabled */
             enabled: boolean;
             /** Has Token */
             has_token: boolean;
+            /** Headers */
+            headers?: {
+                [key: string]: unknown;
+            };
             /**
              * Id
              * Format: uuid
@@ -2043,6 +2118,11 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** PushKey */
+        PushKey: {
+            /** Public Key */
+            public_key: string;
+        };
         /** RunCreate */
         RunCreate: {
             /**
@@ -2116,6 +2196,8 @@ export interface components {
             /** Subtasks */
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
+            /** Team */
+            team?: unknown[];
         };
         /** SandboxStatus */
         SandboxStatus: {
@@ -2169,6 +2251,52 @@ export interface components {
             disks: components["schemas"]["DiskStatus"][];
             /** Warnings */
             warnings: string[];
+        };
+        /** SubscriptionIn */
+        SubscriptionIn: {
+            /** Endpoint */
+            endpoint: string;
+            keys: components["schemas"]["SubscriptionKeys"];
+            /** Kinds */
+            kinds?: string[];
+            /**
+             * Label
+             * @default
+             */
+            label?: string;
+            /**
+             * Locale
+             * @default ru
+             */
+            locale?: string;
+        };
+        /** SubscriptionKeys */
+        SubscriptionKeys: {
+            /** Auth */
+            auth: string;
+            /** P256Dh */
+            p256dh: string;
+        };
+        /** SubscriptionOut */
+        SubscriptionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kinds */
+            kinds: string[];
+            /** Label */
+            label: string;
+            /** Last Sent At */
+            last_sent_at: string | null;
+            /** Locale */
+            locale: string;
         };
         /** SyncModelsResult */
         SyncModelsResult: {
@@ -3707,6 +3835,39 @@ export interface operations {
             };
         };
     };
+    add_github_mcp_api_v1_mcp_servers_github_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubMcpCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpServerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     delete_mcp_api_v1_mcp_servers__server_id__delete: {
         parameters: {
             query?: never;
@@ -4255,6 +4416,108 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProviderTestResult"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    push_key_api_v1_push_key_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushKey"];
+                };
+            };
+        };
+    };
+    list_subscriptions_api_v1_push_subscriptions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"][];
+                };
+            };
+        };
+    };
+    subscribe_api_v1_push_subscriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    unsubscribe_api_v1_push_subscriptions_delete: {
+        parameters: {
+            query: {
+                endpoint: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -19,6 +19,7 @@ from app.schemas.tooling import (
     AuditPage,
     GitHubIntegrationOut,
     GitHubIntegrationUpdate,
+    GitHubMcpCreate,
     IntegrationsStatus,
     McpServerCreate,
     McpServerOut,
@@ -184,6 +185,18 @@ async def add_mcp(
     body: McpServerCreate, ctx: CurrentAuth, db: DbSession, settings: SettingsDep
 ) -> McpServerOut:
     return await McpService(db, settings).create(ctx.user.id, body)
+
+
+@mcp_router.post(
+    "/github",
+    response_model=McpServerOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Connect the official GitHub MCP server with the saved GitHub token",
+)
+async def add_github_mcp(
+    body: GitHubMcpCreate, ctx: CurrentAuth, db: DbSession, settings: SettingsDep
+) -> McpServerOut:
+    return await McpService(db, settings).create_github(ctx.user.id, body)
 
 
 @mcp_router.patch("/{server_id}", response_model=McpServerOut)

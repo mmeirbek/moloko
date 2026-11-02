@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
@@ -18,9 +19,12 @@ from tests.conftest import (
     AppFactory,
     RecordingQueue,
     add_mock_model,
+    create_agent,
     csrf_headers,
     drain,
+    executor_for,
     logged_in_client,
+    run_agent,
 )
 
 
@@ -416,3 +420,73 @@ async def test_chat_handoff_posts_the_result_back(
     answer = page["items"][1]
     assert answer["agent_run_id"] == run_id and answer["status"] == "completed"
     assert answer["content"].startswith("Final answer combining:")
+
+
+# --- persistent agents take parts of a plan (spec 14.1) --------------------------------------
+
+
+def test_plan_can_name_only_the_owners_agents() -> None:
+    text = json.dumps(
+        {
+            "mode": "delegate",
+            "subtasks": [
+                {"key": "a", "title": "A", "agent": "writer", "tools": ["x"], "delegate": True}
+            ],
+        }
+    )
+    plan, _ = parse_plan(text, max_subtasks=8, can_delegate_further=True, agents=["Writer"])
+    assert plan.subtasks[0].agent == "Writer"  # canonical name
+    assert plan.subtasks[0].tools == [] and plan.subtasks[0].delegate is False  # its own config
+    with pytest.raises(PlanError, match="unknown agent"):
+        parse_plan(text, max_subtasks=8, can_delegate_further=True, agents=["Reviewer"])
+
+
+async def test_orchestrator_gives_a_part_to_an_existing_agent_with_inputs(
+    app: FastAPI, owner: User, queue: RecordingQueue
+) -> None:
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)
+        writer = await create_agent(client, name="Writer", specialization="texts")
+        started = await start_run(
+            client, "Report", "[[mock:plan:2]] [[mock:chain]] [[mock:assign:Writer]]"
+        )
+        await drain(app, queue)
+        tree_resp = await tree(client, started["run"]["id"])
+        writer_after = (await client.get(f"/api/v1/agents/{writer['id']}")).json()
+    assert tree_resp["task"]["status"] == "completed"
+    subtasks = {t["extra"]["key"]: t for t in tree_resp["subtasks"]}
+    part2 = subtasks["part-2"]
+    assert part2["agent_id"] == writer["id"] and part2["status"] == "completed"
+    assert '<input from="' in part2["description"]  # the dependency's result was passed as data
+    assert len(tree_resp["subagents"]) == 1  # only part-1 needed a temporary subagent
+    assert [a["name"] for a in tree_resp["team"]] == ["Writer"]
+    assert writer_after["archived_at"] is None and writer_after["status"] in ("idle", "completed")
+    assert "Writer (task_result)" in tree_resp["run"]["result"]  # its result reached the merge
+    async with app.state.db.sessionmaker() as db:
+        refused = (
+            (await db.execute(select(AuditLog).where(AuditLog.action == "agent.message_refused")))
+            .scalars()
+            .all()
+        )
+    assert refused == []
+
+
+async def test_a_busy_agent_takes_its_part_when_it_is_free(
+    app: FastAPI, owner: User, queue: RecordingQueue
+) -> None:
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)
+        writer = await create_agent(client, name="Writer")
+        own = await run_agent(client, writer["id"], "Own job")  # reserves the agent (queued)
+        assert own.status_code == 200
+        started = await start_run(client, "Report", "[[mock:plan:2]] [[mock:assign:Writer]]")
+        executor = executor_for(app)
+        orchestrator_task = uuid.UUID(started["task"]["id"])
+        queue.enqueued.remove(orchestrator_task)
+        await executor.execute(orchestrator_task)  # plans while Writer is busy
+        parts = (await tree(client, started["run"]["id"]))["subtasks"]
+        assert {p["extra"]["key"]: p["status"] for p in parts}["part-2"] == "created"  # waits
+        await drain(app, queue)  # Writer finishes its own job, then picks the part up
+        final = await tree(client, started["run"]["id"])
+    assert final["task"]["status"] == "completed"
+    assert all(p["status"] == "completed" for p in final["subtasks"])

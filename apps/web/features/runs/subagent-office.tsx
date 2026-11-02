@@ -51,7 +51,11 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
         placeholder={t("newRunHint")}
         className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
       />
-      {start.error && <p role="alert" className="text-sm text-destructive">{toMessage(start.error).message}</p>}
+      {start.error && (
+        <p role="alert" className="text-sm text-destructive">
+          {toMessage(start.error).message}
+        </p>
+      )}
       <Button type="submit" className="self-start" disabled={!text.trim() || start.isPending}>
         <Send /> {t("start")}
       </Button>
@@ -70,7 +74,10 @@ function SubagentCard({ agent, task }: { agent: AgentOut; task?: TaskOut }) {
         <StatusBadge status={live.status} />
       </div>
       {liveTask && (
-        <Link href={`/tasks/${liveTask.id}`} className="flex items-center justify-between gap-2 text-xs text-muted-foreground hover:underline">
+        <Link
+          href={`/tasks/${liveTask.id}`}
+          className="flex items-center justify-between gap-2 text-xs text-muted-foreground hover:underline"
+        >
           <span className="truncate">{liveTask.title}</span>
           <StatusBadge status={liveTask.status} />
         </Link>
@@ -92,8 +99,9 @@ function RunView({ runId }: { runId: string }) {
   const { run, subagents, subtasks, messages } = tree.data;
   const task = liveTask ?? tree.data.task;
   const agents = subagents as AgentOut[];
+  const team = (tree.data.team ?? []) as AgentOut[]; // the owner's own agents that took parts
   const taskByAgent = new Map(subtasks.map((s) => [s.agent_id, s]));
-  const names = new Map(agents.map((a) => [a.id, a.name]));
+  const names = new Map([...agents, ...team].map((a) => [a.id, a.name]));
   const plan = run.plan as { mode?: string; summary?: string; warnings?: string[] } | null;
 
   return (
@@ -101,7 +109,10 @@ function RunView({ runId }: { runId: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-semibold">{task.title}</h2>
         <StatusBadge status={task.status} />
-        <Link href={`/tasks/${task.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
+        <Link
+          href={`/tasks/${task.id}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
+        >
           {t("openTask")} <ArrowRight className="size-3.5" />
         </Link>
       </div>
@@ -121,6 +132,16 @@ function RunView({ runId }: { runId: string }) {
           <h3 className="mb-2 text-sm font-medium">{t("subagents", { count: agents.length })}</h3>
           <ul className="grid gap-2 sm:grid-cols-2">
             {agents.map((a) => (
+              <SubagentCard key={a.id} agent={a} task={taskByAgent.get(a.id)} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {team.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-sm font-medium">{t("team", { count: team.length })}</h3>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {team.map((a) => (
               <SubagentCard key={a.id} agent={a} task={taskByAgent.get(a.id)} />
             ))}
           </ul>
@@ -147,7 +168,8 @@ function RunView({ runId }: { runId: string }) {
                   {format.dateTime(new Date(m.created_at), { timeStyle: "medium" })}
                 </span>
                 <span>
-                  {names.get(m.sender_agent_id) ?? t("orchestrator")} → {names.get(m.receiver_agent_id) ?? t("orchestrator")}:
+                  {names.get(m.sender_agent_id) ?? t("orchestrator")} →{" "}
+                  {names.get(m.receiver_agent_id) ?? t("orchestrator")}:
                 </span>
                 <span className={cn("text-muted-foreground", m.message_type === "error" && "text-destructive")}>
                   {String((m.content as { summary?: string }).summary ?? m.message_type)}
@@ -203,7 +225,9 @@ function RunListItem({ run, active, onSelect }: { run: RunOut; active: boolean; 
         )}
       >
         <span className="min-w-0">
-          <span className="block truncate">{task?.title ?? format.dateTime(new Date(run.created_at), { dateStyle: "short", timeStyle: "short" })}</span>
+          <span className="block truncate">
+            {task?.title ?? format.dateTime(new Date(run.created_at), { dateStyle: "short", timeStyle: "short" })}
+          </span>
         </span>
         <StatusBadge status={task?.status ?? run.status} />
       </button>

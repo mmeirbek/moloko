@@ -31,6 +31,9 @@ class SubtaskSpec(BaseModel):
     depends_on: list[str] = Field(default_factory=list)
     tools: list[str] = Field(default_factory=list)
     delegate: bool = False  # may this subagent plan and delegate further (depth permitting)?
+    # Give this part to one of the owner's persistent agents (exact name) instead of a new
+    # subagent. That agent works with its own model, tools, autonomy and memory.
+    agent: str | None = Field(default=None, max_length=100)
 
     @field_validator("key")
     @classmethod
@@ -102,7 +105,11 @@ def extract_json(text: str) -> object:
 
 
 def parse_plan(
-    text: str, *, max_subtasks: int, can_delegate_further: bool
+    text: str,
+    *,
+    max_subtasks: int,
+    can_delegate_further: bool,
+    agents: list[str] | None = None,
 ) -> tuple[Plan, list[str]]:
     """Parse + validate. Returns the plan and warnings about what was adjusted."""
     try:
@@ -115,6 +122,18 @@ def parse_plan(
     warnings: list[str] = []
     if len(plan.subtasks) > max_subtasks:
         raise PlanError(f"the plan has {len(plan.subtasks)} subtasks; the limit is {max_subtasks}")
+    roster = {name.casefold(): name for name in agents or []}
+    for sub in plan.subtasks:
+        if sub.agent is None or not sub.agent.strip():
+            sub.agent = None
+            continue
+        canonical = roster.get(sub.agent.strip().casefold())
+        if canonical is None:
+            available = ", ".join(sorted(roster.values())) or "none"
+            raise PlanError(
+                f"subtask '{sub.key}' names an unknown agent '{sub.agent}' (available: {available})"
+            )
+        sub.agent, sub.delegate, sub.tools = canonical, False, []
     if not can_delegate_further:
         for sub in plan.subtasks:
             if sub.delegate:

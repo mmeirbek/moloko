@@ -9,8 +9,25 @@ PROTOCOL_REVIEW = "[protocol: moloko-review/v1]"
 
 
 def planning_system(
-    *, max_subtasks: int, max_active: int, can_delegate: bool, tools: tuple[str, ...] = ()
+    *,
+    max_subtasks: int,
+    max_active: int,
+    can_delegate: bool,
+    tools: tuple[str, ...] = (),
+    agents: tuple[tuple[str, str, str], ...] = (),
 ) -> str:
+    if agents:
+        roster = "; ".join(
+            f"{name}" + (f" ({spec})" if spec else "") + (f": {desc[:120]}" if desc else "")
+            for name, spec, desc in agents
+        )
+        agents_line = (
+            '- "agent": to give a part to one of the owner\'s own agents, put its exact name '
+            "(it works with its own model, tools and memory; it may be busy, then the part "
+            "waits). Leave it out to create a temporary subagent. The owner's agents: " + roster
+        )
+    else:
+        agents_line = '- leave "agent" out (the owner has no agents of their own yet).'
     tools_line = (
         '- "tools" may only name these (give each subagent only what it needs): ' + ", ".join(tools)
         if tools
@@ -33,13 +50,15 @@ Reply with ONE JSON object and nothing else:
 or
 {{"mode": "delegate", "summary": "<one-line plan>", "review": <true|false>,
   "subtasks": [{{"key": "research", "title": "...", "specialization": "research",
-                 "instructions": "...", "depends_on": [], "tools": [], "delegate": false}}]}}
+                 "instructions": "...", "depends_on": [], "tools": [], "delegate": false,
+                 "agent": null}}]}}
 
 Rules:
 - at most {max_subtasks} subtasks; at most {max_active} run at the same time;
 - "key" is a short slug; "depends_on" lists keys whose results this subtask needs;
 - "instructions" must be self-contained: the subagent sees only them, the task and its inputs;
 {tools_line}
+{agents_line}
 {delegate_line}
 - set "review": true when a reviewer should check the combined result."""
 

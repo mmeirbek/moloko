@@ -34,6 +34,9 @@ const KNOWN = new Set([
   "category_fixed",
   "invalid_attachment",
   "attachment_too_large",
+  "github_not_connected",
+  "push_unavailable",
+  "invalid_subscription",
   "server_error",
 ] as const);
 type KnownCode = typeof KNOWN extends Set<infer T> ? T : never;

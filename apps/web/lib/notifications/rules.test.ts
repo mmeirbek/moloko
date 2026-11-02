@@ -36,3 +36,14 @@ describe("notifications", () => {
     expect(noticeFor(old, now)).toBeNull();
   });
 });
+
+describe("web push helpers", () => {
+  it("decodes the VAPID key and picks the chosen kinds", async () => {
+    const { kindsOf, urlBase64ToUint8Array } = await import("./push");
+    expect([...urlBase64ToUint8Array("AQID_-8")]).toEqual([1, 2, 3, 255, 239]);
+    expect(kindsOf({ approval: true, taskDone: false, taskFailed: true, system: false, push: true })).toEqual([
+      "approval",
+      "taskFailed",
+    ]);
+  });
+});

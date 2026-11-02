@@ -16,6 +16,7 @@ from app.orchestrator import mock_script  # noqa: F401 — registers offline moc
 from app.orchestrator.runtime import OrchestratorRuntime, SubagentRuntime
 from app.orchestrator.scheduler import after_task as scheduler_after_task
 from app.providers.gateway import ModelGateway
+from app.push.dispatcher import dispatch as dispatch_push
 from app.runtimes.native import NativeRuntime
 from app.sandbox.base import Sandbox
 from app.sandbox.client import RunnerSandbox
@@ -97,6 +98,13 @@ async def sweep(ctx: dict[str, Any]) -> None:
     expired = await expire_due(ctx["db"].sessionmaker, ctx["queue"])
     if expired:
         logger.info("approvals_expired", extra={"count": expired})
+
+
+async def push_notifications(ctx: dict[str, Any]) -> None:
+    """Every few seconds: Web Push for new approvals and finished tasks."""
+    sent = await dispatch_push(ctx["db"].sessionmaker, ctx["settings"])
+    if sent:
+        logger.info("push_sent", extra={"count": sent})
 
 
 async def housekeeping(ctx: dict[str, Any]) -> None:

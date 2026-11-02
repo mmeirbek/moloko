@@ -1,10 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { syncPush } from "@/lib/notifications/push";
 import { loadPrefs, noticeFor, type Notice } from "@/lib/notifications/rules";
 import { useRealtimeClient } from "@/lib/realtime/provider";
 
@@ -17,6 +18,12 @@ export function Notifier() {
   const client = useRealtimeClient();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seen = useRef(new Set<string>());
+  const locale = useLocale();
+
+  // Keep this device's Web Push subscription known to the server (browsers rotate them).
+  useEffect(() => {
+    void syncPush(loadPrefs(), locale).catch(() => undefined);
+  }, [locale]);
 
   useEffect(() => {
     if (!client) return;
@@ -32,6 +39,7 @@ export function Notifier() {
       window.setTimeout(() => setToasts((list) => list.filter((x) => x.key !== notice.key)), 10_000);
       if (
         prefs.system &&
+        !prefs.push && // with Web Push the service worker shows it (no duplicates)
         typeof Notification !== "undefined" &&
         Notification.permission === "granted" &&
         document.visibilityState === "hidden"

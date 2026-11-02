@@ -57,7 +57,10 @@
     "invalid_path": "This path is not allowed.",
     "category_fixed": "Built-in tools have a fixed category.",
     "invalid_attachment": "This file cannot be attached: a UTF-8 text file is needed.",
-    "attachment_too_large": "The file is too large (up to 200 KB)."
+    "attachment_too_large": "The file is too large (up to 200 KB).",
+    "github_not_connected": "Connect GitHub first (Integrations → GitHub).",
+    "push_unavailable": "Push is unavailable: APP_ENCRYPTION_KEY is not set on the server.",
+    "invalid_subscription": "This push subscription cannot be saved."
   },
   "preferences": {
     "theme": "Theme",
@@ -376,7 +379,8 @@
     "waitsFor": "waits for {count} other part(s)",
     "result": "Result",
     "messages": "Messages between agents",
-    "orchestrator": "Orchestrator"
+    "orchestrator": "Orchestrator",
+    "team": "Your agents on the team ({count})"
   },
   "office": {
     "mode": "Office view",
@@ -627,7 +631,15 @@
       "remove": "Remove server",
       "removeConfirm": "Remove the server \"{name}\" and its tools?",
       "addServer": "Add server",
-      "empty": "No servers yet."
+      "empty": "No servers yet.",
+      "github": {
+        "title": "GitHub — official MCP server",
+        "hint": "Uses the token from the GitHub section above (no need to enter it again). Its tools appear turned off.",
+        "needsToken": "Save a GitHub token in the section above first.",
+        "readonly": "Read-only (recommended)",
+        "connect": "Connect GitHub MCP",
+        "update": "Update GitHub MCP settings"
+      }
     }
   },
   "workspaces": {
@@ -700,7 +712,11 @@
       "allow": "Allow system notifications",
       "blocked": "Notifications are blocked in the browser",
       "unsupported": "This browser does not support notifications.",
-      "closedNote": "Notifications arrive while moloko is open (even in the background). Notifications with the app fully closed need Web Push — not enabled yet."
+      "push": "Notifications while moloko is closed (Web Push)",
+      "pushHomeScreen": "On iPhone and iPad: first add moloko to the Home Screen (Share → Add to Home Screen) and open it from there.",
+      "pushUnsupported": "This browser does not support Web Push.",
+      "pushNote": "Messages travel encrypted through your browser's push service (Apple, Google, Mozilla); it only sees the device address.",
+      "pushError": "Could not turn it on: allow notifications in the browser settings and try again."
     }
   },
   "backups": {

@@ -171,5 +171,9 @@ Realtime: `approval.required` / `approval.resolved` with `{approval}`; `agent.me
 |---|---|---|
 | POST | `/chats/{id}/attachments` | multipart `file` (UTF-8 text) → `{id, filename, content_type, size, created_at}` |
 | POST | `/chats/{id}/messages` | now also `attachment_ids[]` (≤ 5, uploaded to this chat, not yet sent); messages carry `attachments[]` |
+| GET | `/push/key` | VAPID public key for `PushManager.subscribe` (created on first use; `409 push_unavailable` without `APP_ENCRYPTION_KEY`) |
+| GET / POST / DELETE | `/push/subscriptions` | This owner's devices; POST `{endpoint, keys {p256dh, auth}, kinds[], locale, label}` adds/updates (`422 invalid_subscription` for a host outside `PUSH_ALLOWED_HOSTS` or bad keys); DELETE `?endpoint=` |
+| POST | `/mcp-servers/github` | `{readonly = true, toolsets = [repos, issues, pull_requests]}` — the official GitHub MCP server with the Integrations → GitHub token (`409 github_not_connected`); calling again updates the options (tools off again) |
+| GET | `/runs/{id}` | now also `team[]`: the owner's own agents that took parts of the plan |
 | GET | `/system/storage` | `{backups: {configured, last, age_hours, drill, files[], same_disk_as_data}, disks[], warnings[]}` |
 
