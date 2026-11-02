@@ -1,49 +1,19 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { ConfirmProvider } from "@/components/ui/confirm";
-import { usePendingApprovalCount } from "@/features/approvals/approvals-badge";
 import { WalkingCow } from "@/features/mascot/pixel-cow";
 import { authKeys, getMe } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
 import { RealtimeProvider } from "@/lib/realtime/provider";
 
+import { postToNative } from "./bridge";
+import { IslandBridge } from "./island-bridge";
 import { IslandPanel } from "./island-panel";
-import { useActiveAgentCount } from "./status";
-
-type Bridge = { postMessage: (message: unknown) => void };
-
-/** The Mac notch app's web view (apps/mac-island), when this page runs inside it. */
-function nativeBridge(): Bridge | undefined {
-  return (window as unknown as { webkit?: { messageHandlers?: { molokoIsland?: Bridge } } }).webkit?.messageHandlers
-    ?.molokoIsland;
-}
-
-/**
- * Tells the notch app what to show on the collapsed pill: waiting approvals, working agents,
- * signed in. Contract with apps/mac-island: messages `{type: "status", …}`; the app sends the
- * window event `moloko-island` `{open}` when the panel opens or closes.
- */
-function IslandBridge() {
-  const queryClient = useQueryClient();
-  const pendingApprovals = usePendingApprovalCount();
-  const activeAgents = useActiveAgentCount();
-  useEffect(() => {
-    nativeBridge()?.postMessage({ type: "status", pendingApprovals, activeAgents, signedIn: true });
-  }, [pendingApprovals, activeAgents]);
-  useEffect(() => {
-    const onIsland = (e: Event) => {
-      if ((e as CustomEvent<{ open?: boolean }>).detail?.open) void queryClient.invalidateQueries();
-    };
-    window.addEventListener("moloko-island", onIsland);
-    return () => window.removeEventListener("moloko-island", onIsland);
-  }, [queryClient]);
-  return null;
-}
 
 /** /island: the island alone, full window — for the Mac notch app (also works in a browser). */
 export function IslandShell() {
@@ -54,7 +24,7 @@ export function IslandShell() {
 
   useEffect(() => {
     if (!signedOut) return;
-    nativeBridge()?.postMessage({ type: "status", pendingApprovals: 0, activeAgents: 0, signedIn: false });
+    postToNative({ type: "status", pendingApprovals: 0, activeAgents: 0, signedIn: false });
     router.replace("/login?next=/island");
   }, [signedOut, router]);
 

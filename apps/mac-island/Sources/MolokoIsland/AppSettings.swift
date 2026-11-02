@@ -41,6 +41,7 @@ final class AppSettings {
 
     private let defaults = UserDefaults.standard
     private let serverKey = "serverURL"
+    private let hotKeyKey = "hotKey"
 
     var serverURL: URL? {
         get { defaults.string(forKey: serverKey).flatMap(ServerAddress.normalize) }
@@ -51,5 +52,18 @@ final class AppSettings {
                 defaults.removeObject(forKey: serverKey)
             }
         }
+    }
+
+    /// Preset id of the global hotkey (`HotKeyCombo.presets`) or `HotKeyCombo.offID`.
+    var hotKeyID: String {
+        get { defaults.string(forKey: hotKeyKey) ?? HotKeyCombo.defaultID }
+        set { defaults.set(newValue, forKey: hotKeyKey) }
+    }
+
+    /// The hotkey to register at launch: nil when switched off; an unknown id → the default.
+    var hotKeyCombo: HotKeyCombo? {
+        let id = hotKeyID
+        if id == HotKeyCombo.offID { return nil }
+        return HotKeyCombo.preset(id: id) ?? HotKeyCombo.preset(id: HotKeyCombo.defaultID)
     }
 }

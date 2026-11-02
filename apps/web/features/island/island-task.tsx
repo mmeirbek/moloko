@@ -4,7 +4,7 @@ import type { AgentOut } from "@moloko/shared-types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Send } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { runAgent, taskKeys } from "@/lib/api/agents";
 import { startRun } from "@/lib/api/runs";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
+
+import { ISLAND_EVENT, focusRequestOf } from "./bridge";
 
 /** Who gets the task: the Orchestrator (splits it between agents) or one persistent agent. */
 export type TaskTarget = "orchestrator" | string;
@@ -45,6 +47,18 @@ export function IslandTask({
   const busy = agent ? isAgentBusy(agent) : orchestratorBusy;
   const [text, setText] = useState("");
   const [sent, setSent] = useState<{ taskId: string; title: string } | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  // The Mac app's hotkey opens the island with the cursor here. The panel shows the page a
+  // moment after the event, so focus on the next painted frame.
+  useEffect(() => {
+    const onIsland = (e: Event) => {
+      if (focusRequestOf((e as CustomEvent<unknown>).detail) !== "task") return;
+      requestAnimationFrame(() => input.current?.focus());
+    };
+    window.addEventListener(ISLAND_EVENT, onIsland);
+    return () => window.removeEventListener(ISLAND_EVENT, onIsland);
+  }, []);
 
   const start = useMutation({
     mutationFn: (submitted: string) => {
@@ -87,6 +101,7 @@ export function IslandTask({
           ))}
         </select>
         <input
+          ref={input}
           value={text}
           onChange={(e) => setText(e.target.value)}
           aria-label={t("label")}

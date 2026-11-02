@@ -8,7 +8,8 @@ import ServiceManagement
 /// - peek: the pill grows a little and says how many actions wait for approval (3 s), when the
 ///   number of pending approvals goes up while collapsed.
 /// - expanded: the rounded panel with the web page. Folds when the pointer is away for 1 s,
-///   on Escape or on a click outside — unless pinned.
+///   on Escape or on a click outside — unless pinned. Opened from the keyboard (the global
+///   hotkey) or a notification it is "held": the pointer being elsewhere does not fold it.
 @MainActor
 final class IslandController: NSObject, IslandViewDelegate {
     private(set) var mode: IslandMode = .collapsed
@@ -21,6 +22,10 @@ final class IslandController: NSObject, IslandViewDelegate {
     let web: WebIsland
 
     var onChangeAddress: (() -> Void)?
+    /// The page is loaded and signed in (a status message said so).
+    var onPageReady: (() -> Void)?
+    var hotKey: GlobalHotKey?
+    var notifier: ApprovalNotifier?
     /// Whether another window of ours (the address window) currently needs the app active.
     var hasOtherWindowOpen: () -> Bool = { false }
 
@@ -33,6 +38,14 @@ final class IslandController: NSObject, IslandViewDelegate {
     private var lastPending = 0
     private var lastPeek = Date.distantPast
     private var modalDepth = 0
+    /// Opened from the keyboard or a notification: stays open until Escape, a click outside,
+    /// the hotkey or the collapse button, wherever the pointer is.
+    private var heldOpen = false
+    /// Field the page should focus when the panel opens ("task").
+    private var focusOnOpen: String?
+    /// The app that had the keyboard when the hotkey had to activate us; it gets the keyboard
+    /// back when the island folds from the keyboard (Escape, the hotkey, the collapse button).
+    private var returnTo: NSRunningApplication?
     private var clickMonitor: Any?
 
     private static let hoverDelay = 0.2
@@ -88,11 +101,64 @@ final class IslandController: NSObject, IslandViewDelegate {
         if makeKey { panel.makeKey() }
     }
 
+    /// Opens the island with the keyboard in it (hotkey, a click on a notification). `focus`
+    /// names the page field for the cursor ("task").
+    func openHeld(focus: String?) {
+        let wasExpanded = mode == .expanded
+        heldOpen = true
+        focusOnOpen = focus
+        if !wasExpanded { applyMode(.expanded, animated: true) } // tells the page {open, focus}
+        focusOnOpen = nil
+        takeKeyboard()
+        if wasExpanded, let focus { web.focus(focus) }
+        evaluatePointer()
+    }
+
+    /// Usually the non-activating panel simply becomes key and the app in front stays active.
+    /// When that is refused (seen while the app was inactive), activate the app and remember
+    /// which app had the keyboard, to give it back when the island folds from the keyboard.
+    private func takeKeyboard() {
+        panel.makeKey()
+        if !panel.isKeyWindow {
+            let front = NSWorkspace.shared.frontmostApplication
+            if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { returnTo = front }
+            Log.info("activating to take the keyboard")
+            NSApp.activate()
+            panel.makeKey()
+        }
+        panel.makeFirstResponder(web.webView)
+    }
+
+    /// The global hotkey: open with the cursor in the task row, or fold when it already has the keyboard.
+    func toggleFromHotKey() {
+        guard modalDepth == 0 else { return } // an alert of ours is open
+        if mode == .expanded && panel.isKeyWindow {
+            Log.info("hotkey: fold")
+            collapse(force: true, returnKeyboard: true)
+        } else {
+            Log.info("hotkey: open")
+            openHeld(focus: "task")
+        }
+    }
+
+    /// The page can take an approval action right now.
+    var isPageReady: Bool {
+        web.loadState == .loaded && web.pageSignedIn
+    }
+
     /// Folds the island. `force` also unpins (the collapse button, the page's request).
-    func collapse(force: Bool = false) {
+    /// `returnKeyboard` (folded from the keyboard): if the hotkey had to activate the app, the
+    /// app that had the keyboard before gets it back.
+    func collapse(force: Bool = false, returnKeyboard: Bool = false) {
         if force { pinned = false }
         guard !pinned, mode != .collapsed else { return }
-        applyMode(.collapsed, animated: true)
+        let previous = returnTo
+        applyMode(.collapsed, animated: true) // forgets returnTo
+        guard returnKeyboard, let previous, !previous.isTerminated, NSApp.isActive,
+              !hasOtherWindowOpen(), modalDepth == 0 else { return }
+        Log.info("keyboard back to the previous app")
+        NSApp.yieldActivation(to: previous)
+        previous.activate()
     }
 
     func setPinned(_ value: Bool) {
@@ -105,6 +171,7 @@ final class IslandController: NSObject, IslandViewDelegate {
     }
 
     func serverChanged() {
+        notifier?.serverChanged()
         lastPending = 0
         status = IslandStatus()
         renderStatus()
@@ -134,6 +201,7 @@ final class IslandController: NSObject, IslandViewDelegate {
             Log.info("status: pending=\(new.pendingApprovals) active=\(new.activeAgents) signedIn=\(new.signedIn)")
         }
         renderStatus()
+        if isPageReady { onPageReady?() }
         guard increased else { return }
         if mode == .peek || (mode == .collapsed && Date().timeIntervalSince(lastPeek) > 4) {
             peek()
@@ -187,6 +255,10 @@ final class IslandController: NSObject, IslandViewDelegate {
         transitionID += 1
         let id = transitionID
         if new != .peek { peekTask?.cancel() }
+        if new != .expanded {
+            heldOpen = false
+            returnTo = nil
+        }
         cancelTimers()
 
         panel.allowsKey = new == .expanded
@@ -208,7 +280,7 @@ final class IslandController: NSObject, IslandViewDelegate {
         view.setHoverRect(geometry.hoverRect(for: new))
 
         if (old == .expanded) != (new == .expanded) {
-            web.setOpen(new == .expanded)
+            web.setOpen(new == .expanded, focus: new == .expanded ? focusOnOpen : nil)
             Log.info(new == .expanded ? "expanded" : "folded (\(new.rawValue))")
         }
         evaluatePointer()
@@ -278,7 +350,7 @@ final class IslandController: NSObject, IslandViewDelegate {
         case .expanded:
             hoverTask?.cancel()
             hoverTask = nil
-            if inside || pinned {
+            if inside || pinned || heldOpen {
                 leaveTask?.cancel()
                 leaveTask = nil
             } else if leaveTask == nil {
@@ -295,7 +367,7 @@ final class IslandController: NSObject, IslandViewDelegate {
 
     private func leaveFired() {
         leaveTask = nil
-        guard mode == .expanded, !pinned, !pointerInside() else { return }
+        guard mode == .expanded, !pinned, !heldOpen, !pointerInside() else { return }
         // Not while a drag is in flight or an alert is open.
         if modalDepth > 0 || NSEvent.pressedMouseButtons != 0 {
             leaveTask = after(0.5) { [weak self] in self?.leaveFired() }
@@ -313,7 +385,7 @@ final class IslandController: NSObject, IslandViewDelegate {
         if mode == .peek {
             applyMode(.collapsed, animated: true)
         } else {
-            collapse()
+            collapse(returnKeyboard: true)
         }
     }
 
@@ -360,7 +432,7 @@ final class IslandController: NSObject, IslandViewDelegate {
     }
 
     func islandViewCollapse() {
-        collapse(force: true)
+        collapse(force: true, returnKeyboard: true)
     }
 
     // MARK: Context menu
@@ -376,6 +448,18 @@ final class IslandController: NSObject, IslandViewDelegate {
         }
         menu.addItem(.separator())
         menu.addItem(item(pinned ? "Открепить" : "Закрепить", #selector(menuTogglePin)))
+        if let hotKey { menu.addItem(hotKeyMenuItem(hotKey)) }
+        if let notifier {
+            switch notifier.permission {
+            case .denied:
+                menu.addItem(item("Уведомления об одобрениях запрещены — открыть Настройки…", #selector(menuNotificationSettings)))
+            case .notDetermined:
+                menu.addItem(item("Включить уведомления об одобрениях", #selector(menuAskNotifications)))
+            case .allowed, .unknown:
+                break
+            }
+            notifier.refreshPermission() // for the next time the menu opens
+        }
         let login = item("Запускать при входе", #selector(menuToggleLoginItem))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
@@ -421,15 +505,110 @@ final class IslandController: NSObject, IslandViewDelegate {
             let alert = NSAlert()
             alert.messageText = "Не удалось изменить автозапуск"
             alert.informativeText = "\(error.localizedDescription)\n\nПереместите приложение в «Программы» и попробуйте снова."
-            modalDepth += 1
-            NSApp.activate()
-            alert.runModal()
-            modalDepth -= 1
+            _ = runAlert(alert)
         }
     }
 
     @objc private func menuQuit() {
         NSApp.terminate(nil)
+    }
+
+    // MARK: Hotkey and notifications
+
+    private func hotKeyMenuItem(_ hotKey: GlobalHotKey) -> NSMenuItem {
+        let state = hotKey.state
+        let title: String
+        switch state {
+        case .off: title = "Горячая клавиша: выключена"
+        case .active(let combo): title = "Горячая клавиша: \(combo.title)"
+        default: title = "Горячая клавиша: \(state.combo?.title ?? "") — занята"
+        }
+        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        if let problem = state.problem {
+            let note = NSMenuItem(title: problem, action: nil, keyEquivalent: "")
+            note.isEnabled = false
+            submenu.addItem(note)
+            submenu.addItem(.separator())
+        }
+        for combo in HotKeyCombo.presets {
+            let current = state.combo == combo
+            // Enabled macOS shortcuts would swallow the keys before us: offered, but disabled.
+            let system = !current && GlobalHotKey.systemShortcutUses(combo)
+            let choice = item(system ? "\(combo.title) — занято macOS" : combo.title, #selector(menuChooseHotKey(_:)))
+            choice.representedObject = combo.id
+            choice.state = current ? .on : .off
+            choice.isEnabled = !system
+            submenu.addItem(choice)
+        }
+        submenu.addItem(.separator())
+        let off = item("Выключить", #selector(menuChooseHotKey(_:)))
+        off.representedObject = HotKeyCombo.offID
+        off.state = state == .off ? .on : .off
+        submenu.addItem(off)
+        parent.submenu = submenu
+        return parent
+    }
+
+    @objc private func menuChooseHotKey(_ sender: NSMenuItem) {
+        if let id = sender.representedObject as? String { chooseHotKey(id: id) }
+    }
+
+    /// Switches the hotkey to a preset (or off); a combination that is taken keeps the old one.
+    func chooseHotKey(id: String) {
+        guard let hotKey else { return }
+        let previous = hotKey.state.combo
+        let combo = HotKeyCombo.preset(id: id)
+        let state = hotKey.register(combo)
+        if combo == nil || state.isActive {
+            AppSettings.shared.hotKeyID = id
+            return
+        }
+        hotKey.register(previous) // keep what worked before
+        showAlert(
+            title: "Это сочетание занято",
+            text: "\(state.problem ?? "") Выберите другое сочетание."
+        )
+    }
+
+    /// The saved hotkey could not be registered at launch: tell the owner once per launch.
+    func reportHotKeyProblem(_ state: GlobalHotKey.State) {
+        guard let problem = state.problem else { return }
+        let alert = NSAlert()
+        alert.messageText = "Горячая клавиша островка не работает"
+        alert.informativeText = "\(problem)\n\nВыберите другое сочетание: правый щелчок по островку → «Горячая клавиша»."
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Выключить горячую клавишу")
+        if runAlert(alert) == .alertSecondButtonReturn {
+            hotKey?.register(nil)
+            AppSettings.shared.hotKeyID = HotKeyCombo.offID
+        }
+    }
+
+    @objc private func menuNotificationSettings() {
+        notifier?.openSettings()
+    }
+
+    @objc private func menuAskNotifications() {
+        notifier?.askPermission()
+    }
+
+    private func showAlert(title: String, text: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        alert.addButton(withTitle: "OK")
+        _ = runAlert(alert)
+    }
+
+    private func runAlert(_ alert: NSAlert) -> NSApplication.ModalResponse {
+        modalDepth += 1
+        NSApp.activate()
+        let response = alert.runModal()
+        modalDepth -= 1
+        if mode != .expanded, !hasOtherWindowOpen() { NSApp.deactivate() }
+        return response
     }
 
     // MARK: Environment
@@ -454,7 +633,21 @@ final class IslandController: NSObject, IslandViewDelegate {
     var debugState: String {
         "mode=\(mode.rawValue) pinned=\(pinned) key=\(panel.isKeyWindow) ignoresMouse=\(panel.ignoresMouseEvents) frame=\(panel.frame) mouse=\(NSEvent.mouseLocation) "
             + "webVisible=\(view.isWebVisible) load=\(web.loadState) status=\(status) notch=\(geometry.hasNotch) "
-            + "collapsed=\(geometry.collapsedSize) expanded=\(geometry.expandedSize)"
+            + "collapsed=\(geometry.collapsedSize) expanded=\(geometry.expandedSize) held=\(heldOpen) "
+            + "active=\(NSApp.isActive) front=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "-") pageReady=\(isPageReady) hotKey=\(hotKey.map { "\($0.state)" } ?? "none")"
+    }
+
+    /// The context menu as text: one line per item, submenus indented.
+    var debugMenu: String {
+        func lines(_ menu: NSMenu, _ indent: String) -> [String] {
+            menu.items.flatMap { item -> [String] in
+                if item.isSeparatorItem { return [indent + "---"] }
+                let mark = item.state == .on ? "✓ " : ""
+                let off = item.isEnabled ? "" : " (disabled)"
+                return [indent + mark + item.title + off] + (item.submenu.map { lines($0, indent + "    ") } ?? [])
+            }
+        }
+        return lines(makeMenu(), "").joined(separator: " | ")
     }
 
     func debugSnapshot(to path: String) {

@@ -13,10 +13,16 @@ final class IslandWebView: WKWebView {
 ///   { type: "status", pendingApprovals: number, activeAgents: number, signedIn: boolean }
 ///   { type: "openExternal", url: string }   // open in the default browser (http/https/mailto)
 ///   { type: "collapse" }                    // fold the island (also when pinned)
+///   { type: "approval", id, summary, agent }  // a pending approval the page has not reported yet
+///   { type: "approvalGone", id }              // a reported approval is no longer pending
+///   { type: "approvalsPending", ids: [id] }   // once per page load: every pending approval
+///   { type: "approvalResolved", id, ok, message }  // the answer to an `action` event below
 /// Native → page:
 ///   window.molokoIsland = { native: true, version: string, open: boolean }  (from document start)
-///   window.dispatchEvent(new CustomEvent("moloko-island", { detail: { open } }))  on every change
-///   and once after each page load.
+///   window.dispatchEvent(new CustomEvent("moloko-island", { detail }))  where detail is
+///     { open }                         on every open/close and once after each page load,
+///     { open: true, focus: "task" }    opened from the hotkey: put the cursor in the task row,
+///     { action: "approve" | "reject", approvalId }  a notification button: answer that approval.
 /// Messages are accepted only from the main frame of the configured moloko host.
 @MainActor
 final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
@@ -36,9 +42,15 @@ final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMes
     var onStatus: ((IslandStatus) -> Void)?
     var onLoadState: ((LoadState) -> Void)?
     var onCollapseRequest: (() -> Void)?
+    var onApproval: ((_ id: String, _ summary: String, _ agent: String) -> Void)?
+    var onApprovalGone: ((_ id: String) -> Void)?
+    var onApprovalsPending: ((_ ids: [String]) -> Void)?
+    var onApprovalResolved: ((_ id: String, _ ok: Bool, _ message: String) -> Void)?
     /// Called around native alert/confirm/open panels so the island does not fold meanwhile.
     var onModal: ((Bool) -> Void)?
 
+    /// The current document said it is signed in (its bridge listens for actions).
+    private(set) var pageSignedIn = false
     private var isOpen = false
     private var retryTask: Task<Void, Never>?
 
@@ -97,15 +109,32 @@ final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMes
 
     // MARK: Native → page
 
-    func setOpen(_ open: Bool) {
+    /// `focus` ("task") asks the page to put the cursor into that field once it is visible.
+    func setOpen(_ open: Bool, focus: String? = nil) {
         isOpen = open
         installUserScripts() // so a page loaded later starts with the right `open`
-        dispatchOpenState()
+        dispatchOpenState(focus: focus)
     }
 
-    private func dispatchOpenState() {
+    /// The panel is already open: only move the cursor (hotkey while hover-expanded).
+    func focus(_ field: String) {
+        dispatchOpenState(focus: field)
+    }
+
+    /// A notification button: the page answers the approval with its session and CSRF token.
+    func sendApprovalAction(_ action: String, approvalId: String) {
+        guard ["approve", "reject"].contains(action), ApprovalNotifier.isValidID(approvalId) else { return }
+        dispatch(detail: "{ action: \(Self.jsString(action)), approvalId: \(Self.jsString(approvalId)) }")
+    }
+
+    private func dispatchOpenState(focus: String? = nil) {
+        let focusPart = focus.map { ", focus: \(Self.jsString($0))" } ?? ""
+        dispatch(detail: "{ open: \(isOpen)\(focusPart) }")
+    }
+
+    private func dispatch(detail: String) {
         let script = stateScript
-            + "window.dispatchEvent(new CustomEvent(\(Self.jsString(AppInfo.eventName)), { detail: { open: \(isOpen) } }));"
+            + "window.dispatchEvent(new CustomEvent(\(Self.jsString(AppInfo.eventName)), { detail: \(detail) }));"
         webView.evaluateJavaScript(script, completionHandler: nil)
     }
 
@@ -165,6 +194,7 @@ final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMes
             status.activeAgents = Self.count(body["activeAgents"])
             status.signedIn = (body["signedIn"] as? Bool) ?? false
             status.received = true
+            pageSignedIn = status.signedIn
             onStatus?(status)
         case "openExternal":
             if let text = body["url"] as? String, let url = URL(string: text, relativeTo: webView.url)?.absoluteURL {
@@ -172,6 +202,17 @@ final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMes
             }
         case "collapse":
             onCollapseRequest?()
+        case "approval":
+            guard let id = body["id"] as? String else { return }
+            onApproval?(id, (body["summary"] as? String) ?? "", (body["agent"] as? String) ?? "")
+        case "approvalGone":
+            if let id = body["id"] as? String { onApprovalGone?(id) }
+        case "approvalsPending":
+            let ids = (body["ids"] as? [Any])?.compactMap { $0 as? String } ?? []
+            onApprovalsPending?(ids)
+        case "approvalResolved":
+            guard let id = body["id"] as? String else { return }
+            onApprovalResolved?(id, (body["ok"] as? Bool) ?? false, (body["message"] as? String) ?? "")
         default:
             Log.info("unknown bridge message type ignored")
         }
@@ -261,6 +302,7 @@ final class WebIsland: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMes
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        pageSignedIn = false // a new document: wait for its own status message
         if baseURL != nil { loadState = .loaded }
         if let url = webView.url, isOnServer(url), url.path == "/login" || url.path.hasPrefix("/login/") {
             // The login page does not talk to the bridge: we know we are signed out.

@@ -18,7 +18,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let web = WebIsland()
     private let setup = SetupWindowController()
     private var controller: IslandController?
+    private var notifier: ApprovalNotifier?
+    private let hotKey = GlobalHotKey()
     private var debug: DebugCommands?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // The notification delegate must be in place before launching ends: a click on a
+        // notification may be what launched the app.
+        notifier = ApprovalNotifier()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
@@ -26,6 +34,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.controller = controller
         controller.onChangeAddress = { [weak self] in self?.showSetup(firstRun: false) }
         controller.hasOtherWindowOpen = { [weak self] in self?.setup.isVisible ?? false }
+        wireApprovals(controller)
+        controller.hotKey = hotKey
+        hotKey.onPress = { [weak controller] in controller?.toggleFromHotKey() }
+        let hotKeyState = hotKey.register(AppSettings.shared.hotKeyCombo)
+        if hotKeyState.problem != nil {
+            // After launch settles, not in the middle of it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak controller] in
+                controller?.reportHotKeyProblem(hotKeyState)
+            }
+        }
 
         setup.onSave = { [weak self] url in self?.useServer(url) }
         setup.onQuit = { NSApp.terminate(nil) }
@@ -39,8 +57,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let server = override ?? AppSettings.shared.serverURL
         web.load(server: server)
         if server == nil { showSetup(firstRun: true) }
-        if Log.debugEnabled { debug = DebugCommands(controller: controller, setup: setup) }
+        if Log.debugEnabled {
+            debug = DebugCommands(controller: controller, setup: setup, notifier: notifier, hotKey: hotKey)
+        }
         Log.info("started, version \(AppInfo.version), server \(override != nil ? "from MOLOKO_ISLAND_SERVER" : (server == nil ? "not set" : "set"))")
+    }
+
+    /// Approval notifications: the page reports approvals, the notifier shows them and sends the
+    /// owner's answer back through the page.
+    private func wireApprovals(_ controller: IslandController) {
+        guard let notifier else { return }
+        controller.notifier = notifier
+        web.onApproval = { [weak notifier] id, summary, agent in notifier?.approvalAppeared(id: id, summary: summary, agent: agent) }
+        web.onApprovalGone = { [weak notifier] id in notifier?.approvalGone(id: id) }
+        web.onApprovalsPending = { [weak notifier] ids in notifier?.syncPending(ids: ids) }
+        web.onApprovalResolved = { [weak notifier] id, ok, message in notifier?.actionFinished(id: id, ok: ok, message: message) }
+        notifier.sendToPage = { [weak web] id, action in web?.sendApprovalAction(action, approvalId: id) }
+        notifier.isPageReady = { [weak controller] in controller?.isPageReady ?? false }
+        notifier.onOpenIsland = { [weak controller] in controller?.openHeld(focus: nil) }
+        controller.onPageReady = { [weak notifier] in notifier?.pageReady() }
     }
 
     private func showSetup(firstRun: Bool) {

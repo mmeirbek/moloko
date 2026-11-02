@@ -2,6 +2,8 @@
 # Builds "Moloko Island.app" into apps/mac-island/build/ (Command Line Tools only, no Xcode).
 #   apps/mac-island/scripts/bundle.sh            # version 0.1.0
 #   VERSION=0.2.0 BUILD_NUMBER=2 apps/mac-island/scripts/bundle.sh
+#   BUNDLE_ID=kz.moloko.island.dev apps/mac-island/scripts/bundle.sh   # a test build with its own
+#     settings, cookies and notification permission, next to the installed app
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,7 +12,7 @@ VERSION="${VERSION:-0.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
 APP_NAME="Moloko Island"
 EXECUTABLE="MolokoIsland"
-BUNDLE_ID="kz.moloko.island"
+BUNDLE_ID="${BUNDLE_ID:-kz.moloko.island}"
 ICON_SOURCE="$REPO/apps/web/public/icons/icon-512.png"
 
 APP="$ROOT/build/$APP_NAME.app"
@@ -53,6 +55,8 @@ cat > "$STAGED_APP/Contents/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key><string>moloko</string>
   <key>NSLocalNetworkUsageDescription</key><string>Moloko Island подключается к вашему серверу moloko.</string>
   <key>NSMicrophoneUsageDescription</key><string>Чтобы диктовать задачи агентам голосом прямо в островке.</string>
+  <!-- approval requests stay on screen until answered ("Alerts"); the owner can switch to banners -->
+  <key>NSUserNotificationAlertStyle</key><string>alert</string>
   <key>NSAppTransportSecurity</key>
   <dict>
     <!-- the owner chooses the server; an http:// address on the home network must work -->
