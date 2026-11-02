@@ -306,7 +306,10 @@ class WriteFile(CreateBranch):
 class CreatePullRequest(GitHubTool):
     name = "github_create_pull_request"
     title = "Open a pull request"
-    description = "Open a pull request. Publishing: needs the owner's approval (unless the owner gave this agent full access)."
+    description = (
+        "Open a pull request. Publishing: needs the owner's approval "
+        "(unless the owner gave this agent full access)."
+    )
     category = ToolCategory.SENSITIVE
     input_schema = object_schema(
         {
