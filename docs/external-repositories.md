@@ -59,6 +59,13 @@ You are the implementing coding agent for the project "shvluup". The full specif
 ### Not yet verified (check before use)
 - Official Claude Agent SDK and OpenAI Agents SDK for the `AgentRuntime` adapters. Find the official repositories, check license and docs, and use API-key auth only. Do not use these SDKs with consumer-subscription logins.
 
+### Mac island (`apps/mac-island`, added 2026-11-02)
+> Added after the MVP sprints for the owner's "Dynamic Island" request; not part of the original list above.
+- Dependencies: **none**. The app uses only Apple system frameworks (AppKit, SwiftUI, WebKit, ServiceManagement) and builds with the Command Line Tools (`swift build`).
+- REFERENCE: `Lakr233/NotchDrop` (MIT; last push 2026-05-18). Read only for the notch-geometry idea: notch height = `NSScreen.safeAreaInsets.top`, notch width = screen width − `auxiliaryTopLeftArea` − `auxiliaryTopRightArea`. Re-implemented in `IslandGeometry.swift`; no code copied.
+- REFERENCE (evaluated, not used): `mrkai77/DynamicNotchKit` (MIT; v1.1.0, 2026-04-05). A SwiftUI library for notch pop-overs that creates/closes its window on expand/hide. The island must keep one `WKWebView` alive while collapsed and needs its own hit-testing and keyboard handling, so our own native panel fits better than a dependency.
+- AVOID copying: `TheBoredTeam/boring.notch` (GPL-3.0). Ideas only; never copy code or assets. It was not used for this app.
+
 ## What to do now
 1. Read `shvluup-spec.md` fully.
 2. Create `docs/decisions.md` with an empty "Dependency register" table and `THIRD_PARTY_NOTICES.md`.

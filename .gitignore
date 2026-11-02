@@ -36,3 +36,7 @@ Thumbs.db
 
 # Claude Code agent worktrees (local only)
 .claude/worktrees/
+
+# macOS island app (SwiftPM build output + assembled .app)
+apps/mac-island/build/
+.build/
