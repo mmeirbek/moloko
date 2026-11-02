@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -33,6 +34,7 @@ from app.events import bus
 from app.models.agent import Agent, AgentRun
 from app.models.provider import ModelConfig
 from app.models.task import Task
+from app.models.user import User
 from app.providers.gateway import ModelUnavailable
 from app.schemas.agents import (
     AgentContacts,
@@ -45,9 +47,12 @@ from app.schemas.agents import (
 )
 from app.schemas.tasks import TaskCreate
 from app.services.audit import AuditService
+from app.services.auth import AGENT_FULL_ACCESS_GRANTED, AuthService, ClientInfo
 from app.services.system import ensure_engine_running
 from app.services.tasks import AgentBusy, TaskService, after_cancel
 from app.tasks.queue import TaskEnqueuer
+
+logger = logging.getLogger("moloko.agents")
 
 
 class LimitTooHigh(AppError):
@@ -70,6 +75,19 @@ class InvalidContacts(AppError):
     status_code = 422
     code = "invalid_contacts"
     message = "Contacts can only be your own other agents (not subagents or the Orchestrator)."
+
+
+class FullAccessNotAllowed(Conflict):
+    code = "full_access_not_allowed"
+    message = (
+        "Only your own persistent agents can get full access (not subagents or the Orchestrator)."
+    )
+
+
+class PasswordRequired(AppError):
+    status_code = 422
+    code = "password_required"
+    message = "Enter your moloko password to confirm."
 
 
 class AgentNameTaken(Conflict):
@@ -454,6 +472,101 @@ class AgentService:
         await bus.commit(self.db)
         return agent
 
+    # --- «Полный доступ» (owner's decision, see docs/decisions.md) ------------------------
+
+    async def set_full_access(
+        self,
+        user: User,
+        agent_id: uuid.UUID,
+        *,
+        enabled: bool,
+        password: str | None,
+        client: ClientInfo,
+    ) -> Agent:
+        """Turn full access on (confirmed with the owner's password; wrong ones count toward
+        the shared login lockout) or off (no password). Only persistent agents can have it;
+        it has no expiry. Switching to the current state changes nothing."""
+        agent = await lock_agent(self.db, agent_id)
+        if agent.user_id != user.id or agent.archived_at is not None:
+            raise NotFound("Agent not found.")
+        if agent.agent_type != AgentType.AUTONOMOUS.value:
+            raise FullAccessNotAllowed()
+        if not enabled:
+            await self._revoke_full_access(agent, user.id, "owner", client.ip_address)
+            await bus.commit(self.db)
+            return agent
+        if not password:
+            raise PasswordRequired(details={"field": "password"})
+        assert self.settings is not None
+        subject_key = await AuthService(self.db, self.settings).confirm_password(
+            user, password, client, purpose="agent_full_access"
+        )
+        if agent.full_access_since is not None:
+            return agent
+        agent.full_access_since = datetime.now(UTC)
+        self._touch(agent)
+        await bus.emit(
+            self.db,
+            user_id=user.id,
+            type="agent.updated",
+            agent_id=agent.id,
+            payload={"changed": ["full_access"], "agent": agent_payload(agent)},
+        )
+        await self.audit.record(
+            AGENT_FULL_ACCESS_GRANTED,
+            "success",
+            actor_type="user",
+            actor_id=user.id,
+            user_id=user.id,
+            resource_type="agent",
+            resource_id=str(agent.id),
+            ip_address=client.ip_address,
+            # subject_key: a correct password restarts the lockout count (app.services.auth)
+            details={
+                "subject_key": subject_key,
+                "name": agent.name,
+                "autonomy": agent.autonomy_level,
+            },
+        )
+        await bus.commit(self.db)
+        logger.info("agent_full_access_granted", extra={"agent_id": str(agent.id)})
+        return agent
+
+    async def _revoke_full_access(
+        self, agent: Agent, user_id: uuid.UUID, reason: str, ip_address: str | None = None
+    ) -> None:
+        if agent.full_access_since is None:
+            return
+        since = agent.full_access_since
+        agent.full_access_since = None
+        self._touch(agent)
+        await bus.emit(
+            self.db,
+            user_id=user_id,
+            type="agent.updated",
+            agent_id=agent.id,
+            payload={"changed": ["full_access"], "agent": agent_payload(agent)},
+        )
+        await self.audit.record(
+            "agent.full_access_revoked",
+            "success",
+            actor_type="user",
+            actor_id=user_id,
+            user_id=user_id,
+            resource_type="agent",
+            resource_id=str(agent.id),
+            ip_address=ip_address,
+            details={"name": agent.name, "since": since.isoformat(), "reason": reason},
+        )
+        logger.info(
+            "agent_full_access_revoked", extra={"agent_id": str(agent.id), "reason": reason}
+        )
+
+    @staticmethod
+    def _touch(agent: Agent) -> None:
+        agent.config_version += 1
+        agent.updated_at = datetime.now(UTC)
+
     async def archive(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> None:
         """DELETE keeps history: the profile is archived, its runs and tasks stay."""
         agent = await lock_agent(self.db, agent_id)
@@ -461,6 +574,8 @@ class AgentService:
             raise NotFound("Agent not found.")
         if agent_is_busy(agent):
             raise AgentBusy("Stop the agent before deleting it.")
+        # A removed agent loses full access; brought back, it needs the password again.
+        await self._revoke_full_access(agent, user_id, "archived")
         agent.archived_at = datetime.now(UTC)
         await bus.emit(
             self.db,

@@ -1,4 +1,4 @@
-import type { AgentCreate, AgentOut, SystemLimits } from "@moloko/shared-types";
+import type { AgentCreate, AgentFullAccessUpdate, AgentOut, SystemLimits } from "@moloko/shared-types";
 
 export const AUTONOMY = ["supervised", "balanced", "restricted"] as const;
 export type Autonomy = (typeof AUTONOMY)[number];
@@ -24,9 +24,33 @@ export type AgentFormValues = {
   workspaceId: string;
   contactMode: ContactMode;
   contactIds: string[];
+  /**
+   * «Полный доступ» is on (read-only here: it is switched with the password through its own
+   * endpoint, never sent with a normal save). Every enabled tool is then allowed.
+   */
+  fullAccess: boolean;
 };
 
 export type ToolOverride = "approve" | "deny";
+
+/** Full access is something only the owner's persistent agents can have. */
+export function canHaveFullAccess(agent?: Pick<AgentOut, "agent_type">): boolean {
+  return agent?.agent_type === "autonomous";
+}
+
+export function hasFullAccess(agent?: Pick<AgentOut, "agent_type" | "full_access">): boolean {
+  return canHaveFullAccess(agent) && agent?.full_access === true;
+}
+
+/** The body of PUT /agents/{id}/full-access: the password only when turning it on. */
+export function fullAccessBody(enabled: boolean, password = ""): AgentFullAccessUpdate {
+  return enabled ? { enabled, password } : { enabled };
+}
+
+/** Whether the agent may use a tool, as the form shows it. */
+export function toolAllowed(values: AgentFormValues, tool: { name: string; always_allowed?: boolean }): boolean {
+  return values.fullAccess || tool.always_allowed === true || values.tools.includes(tool.name);
+}
 
 /** Which colleagues an agent may talk to directly (agents_list / agent_ask / agent_tell). */
 export const CONTACT_MODES = ["all", "list", "none"] as const;
@@ -78,6 +102,7 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
     workspaceId: agent?.workspace_id ?? "",
     contactMode: contactsOf(agent).mode,
     contactIds: contactsOf(agent).agent_ids,
+    fullAccess: hasFullAccess(agent),
   };
 }
 
@@ -86,8 +111,10 @@ export function toggleContact(values: AgentFormValues, id: string, on: boolean):
   return { ...values, contactIds };
 }
 
-/** Allowing a tool or removing it; overrides only matter for allowed tools. */
+/** Allowing a tool or removing it; overrides only matter for allowed tools (under full access
+ * every tool is allowed, so the list stays as it is for when full access is switched off). */
 export function toggleTool(values: AgentFormValues, name: string, allowed: boolean): AgentFormValues {
+  if (values.fullAccess) return values;
   const tools = allowed ? [...new Set([...values.tools, name])] : values.tools.filter((t) => t !== name);
   const overrides = { ...values.overrides };
   if (!allowed) delete overrides[name];
@@ -172,7 +199,8 @@ export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_typ
     },
     allowed_tools: values.tools,
     tool_overrides: Object.fromEntries(
-      Object.entries(values.overrides).filter(([name]) => values.tools.includes(name)),
+      // Under full access an exception may name any tool (every tool is allowed).
+      Object.entries(values.overrides).filter(([name]) => values.fullAccess || values.tools.includes(name)),
     ),
     workspace_id: values.workspaceId || null,
     monthly_budget_usd: money(values.monthlyBudget) || null,

@@ -8,7 +8,7 @@ import { groupTools } from "@/features/integrations/tools-section";
 import { useToolHint, useToolTitle } from "@/features/integrations/use-tool-title";
 import { listTools, listWorkspaces, toolingKeys } from "@/lib/api/tooling";
 
-import { setOverride, toggleTool, type AgentFormValues, type ToolOverride } from "./agent-form-model";
+import { setOverride, toggleTool, toolAllowed, type AgentFormValues, type ToolOverride } from "./agent-form-model";
 
 /** Which tools the agent may use, stricter-only overrides, and its project workspace. */
 export function AgentToolsField({
@@ -20,6 +20,7 @@ export function AgentToolsField({
 }) {
   const t = useTranslations("agents.form");
   const tt = useTranslations("tools");
+  const tf = useTranslations("agents.fullAccess");
   const titleOf = useToolTitle();
   const hintOf = useToolHint();
   const tools = useQuery({ queryKey: toolingKeys.tools, queryFn: ({ signal }) => listTools(signal) });
@@ -29,14 +30,21 @@ export function AgentToolsField({
   });
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground">{t("toolsHint")}</p>
+      {values.fullAccess ? (
+        <p role="note" className="border-2 border-destructive/50 bg-destructive/10 p-2 text-xs" data-testid="tools-full-access">
+          <span className="block font-medium text-destructive">{tf("allTools")}</span>
+          <span className="block text-muted-foreground">{tf("allToolsHint")}</span>
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">{t("toolsHint")}</p>
+      )}
       {groupTools(tools.data ?? []).map(([group, items]) => (
         <fieldset key={group} className="flex flex-col gap-1">
           <legend className="text-sm font-semibold">{tt(`groups.${group as "files"}`)}</legend>
           {items.map((tool) => {
             // Read-only history look-ups: every agent has them (they can only be blocked).
             const always = tool.always_allowed === true;
-            const allowed = always || values.tools.includes(tool.name);
+            const allowed = toolAllowed(values, tool);
             return (
               <div
                 key={tool.name}
@@ -48,7 +56,7 @@ export function AgentToolsField({
                     type="checkbox"
                     className="mt-0.5 size-4 shrink-0"
                     checked={allowed}
-                    disabled={always}
+                    disabled={always || values.fullAccess}
                     onChange={(e) => onChange(toggleTool(values, tool.name, e.target.checked))}
                   />
                   <span className="min-w-0">
@@ -70,7 +78,7 @@ export function AgentToolsField({
                     onChange={(e) => onChange(setOverride(values, tool.name, e.target.value as ToolOverride | ""))}
                     className="h-8 bg-background px-2 text-xs pixel-frame pixel-sunken"
                   >
-                    <option value="">{t("override.default")}</option>
+                    <option value="">{values.fullAccess ? tf("overrideDefault") : t("override.default")}</option>
                     <option value="approve">{t("override.approve")}</option>
                     <option value="deny">{t("override.deny")}</option>
                   </select>

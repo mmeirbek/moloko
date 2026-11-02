@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -128,6 +129,39 @@ async def test_overrides_can_only_be_stricter() -> None:
     # There is no "allow" override: sensitive stays approval-only.
     loose = agent("balanced", ["s"], {"s": "allow"})
     assert (await decide(loose, sensitive, {"x": "a"}))[0] == Verdict.REQUIRE_APPROVAL
+
+
+def trusted(tools: list[str], overrides: dict[str, str] | None = None, *, kind: str = "") -> Agent:
+    a = agent("supervised", tools, overrides)
+    a.agent_type = kind or "autonomous"
+    a.full_access_since = datetime.now(UTC)
+    return a
+
+
+@pytest.mark.parametrize("category", list(ToolCategory))
+async def test_full_access_allows_every_category_without_a_list(category: ToolCategory) -> None:
+    verdict, reason = await decide(trusted([]), Fake("t", category), {"x": "a"})
+    assert verdict == Verdict.ALLOW and reason.startswith("Full access")
+
+
+async def test_full_access_keeps_every_other_check() -> None:
+    tool = Fake("t", ToolCategory.SENSITIVE)
+    a = trusted([])
+    assert (await decide(a, None, {"x": "a"}, name="ghost"))[0] == Verdict.DENY
+    assert "turned off" in (await decide(a, tool, {"x": "a"}, enabled=False))[1]
+    assert "not available" in (await decide(a, tool, {"x": "a"}, available=False))[1]
+    assert (await decide(a, tool, {"y": 1}))[1].startswith("Invalid arguments")
+    assert "scope" in (await decide(a, tool, {"x": "outside"}))[1]
+    # The owner's exceptions for this agent still win.
+    assert (await decide(trusted([], {"t": "deny"}), tool, {"x": "a"}))[0] == Verdict.DENY
+    asks = await decide(trusted([], {"t": "approve"}), tool, {"x": "a"})
+    assert asks[0] == Verdict.REQUIRE_APPROVAL
+    # Only persistent agents can have it: a subagent / the Orchestrator never does.
+    for kind in ("subagent", "orchestrator"):
+        other = trusted(["t"], kind=kind)
+        assert other.full_access is False
+        assert (await decide(other, tool, {"x": "a"}))[0] == Verdict.REQUIRE_APPROVAL
+        assert (await decide(trusted([], kind=kind), tool, {"x": "a"}))[0] == Verdict.DENY
 
 
 def test_args_hash_binds_exact_arguments() -> None:

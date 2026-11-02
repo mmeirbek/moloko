@@ -126,6 +126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/full-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Turn «Полный доступ» on (confirmed with the password) or off for a persistent agent */
+        put: operations["set_full_access_api_v1_agents__agent_id__full_access_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/memory-context": {
         parameters: {
             query?: never;
@@ -1826,6 +1843,20 @@ export interface components {
              */
             template: string;
         };
+        /**
+         * AgentFullAccessUpdate
+         * @description Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
+         *     (wrong ones count toward the login lockout); turning it off does not.
+         */
+        AgentFullAccessUpdate: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Password
+             * @description Required when enabled.
+             */
+            password?: string | null;
+        };
         /** AgentLimits */
         AgentLimits: {
             /** Max Steps */
@@ -1969,6 +2000,16 @@ export interface components {
             depth: number;
             /** Description */
             description: string;
+            /**
+             * Full Access
+             * @description «Полный доступ»: every enabled tool, no approvals (the owner's decision; changed only through PUT /agents/{id}/full-access).
+             */
+            full_access: boolean;
+            /**
+             * Full Access Since
+             * @description When full access was turned on.
+             */
+            full_access_since: string | null;
             /**
              * Id
              * Format: uuid
@@ -4358,6 +4399,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentBudgetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_full_access_api_v1_agents__agent_id__full_access_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentFullAccessUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOut"];
                 };
             };
             /** @description Validation Error */

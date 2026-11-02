@@ -14,6 +14,8 @@ import { agentKeys, listAgents, runAgent, taskKeys } from "@/lib/api/agents";
 import { useRealtimeStore } from "@/lib/realtime/store";
 
 import { AgentControls, isAgentBusy } from "./agent-controls";
+import { hasFullAccess } from "./agent-form-model";
+import { FullAccessBadge } from "./agent-full-access";
 import { StatusBadge } from "./status-badge";
 import { EmptyState } from "@/features/mascot/empty-state";
 
@@ -49,7 +51,10 @@ function AgentCard({ agent }: { agent: AgentOut }) {
             {live.specialization ? ` · ${live.specialization}` : ""}
           </p>
         </div>
-        <StatusBadge status={live.status} />
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={live.status} />
+          {hasFullAccess(live) && <FullAccessBadge />}
+        </div>
       </div>
       {task && (
         <Link href={`/tasks/${task.id}`} className="truncate text-sm underline-offset-2 hover:underline">

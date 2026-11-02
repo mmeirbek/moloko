@@ -54,6 +54,15 @@ class Agent(UUIDPrimaryKey, Timestamps, Base):
     # {} = everyone (default), {"mode": "list", "agent_ids": [...]}, {"mode": "none"}.
     # Both sides must allow it. Subagents only talk to their siblings (same run tree).
     contacts: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    # «Полный доступ» (owner's decision, docs/decisions.md): since when this persistent agent
+    # may use every enabled, available tool without approvals; NULL = off. Set only through
+    # PUT /agents/{id}/full-access (password), never copied to subagents or templates.
+    full_access_since: Mapped[datetime | None]
+
+    @property
+    def full_access(self) -> bool:
+        """Only a persistent autonomous agent can have it (never subagents/the Orchestrator)."""
+        return self.full_access_since is not None and self.agent_type == "autonomous"
 
 
 class SavedAgentTemplate(UUIDPrimaryKey, Timestamps, Base):

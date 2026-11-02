@@ -165,7 +165,9 @@
     "passkey_expired": "The request timed out. Try again.",
     "passkey_invalid": "The new passkey could not be checked. Try again.",
     "passkey_limit_reached": "Too many passkeys. Delete one you no longer use first.",
-    "passkey_already_registered": "This passkey is already added."
+    "passkey_already_registered": "This passkey is already added.",
+    "full_access_not_allowed": "Only your own persistent agents can get full access — not subagents or the Orchestrator.",
+    "password_required": "Enter your moloko password to confirm."
   },
   "preferences": {
     "theme": "Theme",
@@ -681,6 +683,27 @@
       "askedBy": "Asked by agent",
       "openRequest": "Question",
       "openAskerTask": "Its task"
+    },
+    "fullAccess": {
+      "title": "Full access — permanent, no approvals",
+      "body": "The agent does everything itself, including deleting files, pushing to GitHub and running commands: it may use every enabled tool (also ones you add later) and needs no approvals. Everything is recorded in the audit log; you can switch it off at any time.",
+      "stillApplies": "Still in force: «Stop everything», budgets, step and time limits, the sandbox, tools you switched off and MCP tools you have not enabled.",
+      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Subagents and colleagues it asks for help do not get full access.",
+      "turnOn": "Turn on full access…",
+      "turnOff": "Turn off",
+      "on": "Full access is on.",
+      "onSince": "Full access is on since {date}.",
+      "dialogTitle": "Full access for «{name}»",
+      "password": "Your moloko password",
+      "passwordHint": "Needed to turn full access on. A wrong password counts as a failed sign-in.",
+      "confirm": "Turn on full access",
+      "badge": "Full access",
+      "badgeHint": "Does everything itself, without approvals; everything is recorded in the audit log.",
+      "levelPaused": "While full access is on, the level below does not apply. It comes back when you switch full access off.",
+      "afterCreate": "Full access (no approvals) can be turned on once the agent is created.",
+      "allTools": "All tools",
+      "allToolsHint": "Full access: the agent may use every enabled tool, including ones added later. On the right you can block a tool or always be asked before it.",
+      "overrideDefault": "on its own, no approval"
     }
   },
   "runs": {

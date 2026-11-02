@@ -17,7 +17,17 @@ import { memoryKeys } from "@/lib/api/memories";
 import { toolingKeys } from "@/lib/api/tooling";
 import { cn } from "@/lib/utils";
 
-import { AUTONOMY, fromAgent, toPayload, validate, type AgentFormValues, type FormErrors } from "./agent-form-model";
+import {
+  AUTONOMY,
+  canHaveFullAccess,
+  fromAgent,
+  hasFullAccess,
+  toPayload,
+  validate,
+  type AgentFormValues,
+  type FormErrors,
+} from "./agent-form-model";
+import { FullAccessOption } from "./agent-full-access";
 import { AgentToolsField } from "./agent-tools-field";
 import { AgentContactsField } from "./agent-contacts-field";
 
@@ -64,6 +74,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (agent: AgentOut) => void }) {
   const t = useTranslations("agents.form");
   const ta = useTranslations("agents");
+  const tf = useTranslations("agents.fullAccess");
   const toMessage = useErrorMessage();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -171,7 +182,16 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
       </Section>
 
       <Section title={t("autonomy")}>
-        <div role="radiogroup" aria-label={t("autonomy")} className="grid gap-2 sm:grid-cols-3">
+        {values.fullAccess && (
+          <p role="note" className="text-xs text-destructive">
+            {tf("levelPaused")}
+          </p>
+        )}
+        <div
+          role="radiogroup"
+          aria-label={t("autonomy")}
+          className={cn("grid gap-2 sm:grid-cols-3", values.fullAccess && "opacity-60")}
+        >
           {AUTONOMY.map((level) => (
             <label
               key={level}
@@ -195,6 +215,14 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
           ))}
         </div>
         <p className="text-xs text-muted-foreground">{t("autonomyNote")}</p>
+        {agent && canHaveFullAccess(agent) ? (
+          <FullAccessOption
+            agent={agent}
+            onChanged={(result) => setValues((v) => ({ ...v, fullAccess: hasFullAccess(result) }))}
+          />
+        ) : (
+          !agent && <p className="text-xs text-muted-foreground">{tf("afterCreate")}</p>
+        )}
       </Section>
 
       <Section title={t("tools")}>

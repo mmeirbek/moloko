@@ -2,6 +2,7 @@ import type {
   AgentBudgetOut,
   AgentCreate,
   AgentFromTemplate,
+  AgentFullAccessUpdate,
   AgentOut,
   AgentRestore,
   AgentTemplateOut,
@@ -89,6 +90,9 @@ export const getAgentBudget = (id: string, signal?: AbortSignal) =>
   api.request<AgentBudgetOut>(`/agents/${id}/budget`, { signal });
 export const updateAgent = (id: string, body: AgentUpdate) =>
   api.request<AgentOut>(`/agents/${id}`, { method: "PATCH", body });
+/** «Полный доступ»: turning it on needs the owner's password; turning it off does not. */
+export const setAgentFullAccess = (id: string, body: AgentFullAccessUpdate) =>
+  api.request<AgentOut>(`/agents/${id}/full-access`, { method: "PUT", body });
 export const deleteAgent = (id: string) => api.request<void>(`/agents/${id}`, { method: "DELETE" });
 /** Agents removed from the office (newest first) — they can be brought back. */
 export const listArchivedAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents/archived", { signal });
