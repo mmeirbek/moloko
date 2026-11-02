@@ -40,6 +40,8 @@ export function createOfficeGame(parent: HTMLElement, bus: OfficeBus, options: O
         g.registry.set("bus", bus);
         g.registry.set("dpr", dpr);
         g.registry.set("zoom", options.zoom);
+        // the page's text font (the pixel font) for captions on the map
+        g.registry.set("font", window.getComputedStyle(parent).fontFamily);
       },
     },
     scene: [OfficeScene],

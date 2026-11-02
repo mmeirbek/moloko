@@ -8,6 +8,8 @@ export type AgentStatus = "idle" | "planning" | "working" | "waiting" | "reviewi
 
 export type Pose = "rest" | "think" | "type" | "wait" | "read" | "frozen" | "cheer" | "slump";
 export type Indicator = "none" | "thinking" | "hourglass" | "document" | "pause" | "check" | "alert";
+/** The progress bar over the head: "live" = busy with a task, "frozen" = paused (grey, still), "none" = hidden. */
+export type HudMode = "live" | "frozen" | "none";
 
 export interface Behavior {
   /** where the character goes; "desk" = its own workstation */
@@ -16,46 +18,58 @@ export interface Behavior {
   indicator: Indicator;
   /** animate the pose (paused agents are frozen) */
   animated: boolean;
+  /** progress over the head (engine/hud.ts); nothing while resting or done */
+  hud: HudMode;
 }
 
 export const BEHAVIOR: Record<AgentStatus, Behavior> = {
-  idle: { place: "lounge", pose: "rest", indicator: "none", animated: true }, // resting
+  idle: { place: "lounge", pose: "rest", indicator: "none", animated: true, hud: "none" }, // resting
   planning: {
     place: "board",
     pose: "think",
     indicator: "thinking",
     animated: true,
+    hud: "live",
   }, // looking at board
-  working: { place: "desk", pose: "type", indicator: "none", animated: true }, // typing at computer
+  working: { place: "desk", pose: "type", indicator: "none", animated: true, hud: "live" }, // typing at computer
   waiting: {
     place: "waiting",
     pose: "wait",
     indicator: "hourglass",
     animated: true,
+    hud: "live",
   }, // waiting pose
   reviewing: {
     place: "review",
     pose: "read",
     indicator: "document",
     animated: true,
+    hud: "live",
   }, // studying documents
   paused: {
     place: "stay",
     pose: "frozen",
     indicator: "pause",
     animated: false,
+    hud: "frozen",
   }, // frozen + indicator
   completed: {
     place: "desk",
     pose: "cheer",
     indicator: "check",
     animated: true,
+    hud: "none",
   }, // completion gesture
-  failed: { place: "desk", pose: "slump", indicator: "alert", animated: true }, // error indicator
+  failed: { place: "desk", pose: "slump", indicator: "alert", animated: true, hud: "none" }, // error indicator
 };
 
 export function behaviorFor(status: string): Behavior {
   return BEHAVIOR[status as AgentStatus] ?? BEHAVIOR.idle;
+}
+
+/** Whether (and how) the progress bar shows over this status' head — the cow included. */
+export function hudModeFor(status: string): HudMode {
+  return behaviorFor(status).hud;
 }
 
 // --- the cow (the Orchestrator) -----------------------------------------------------------

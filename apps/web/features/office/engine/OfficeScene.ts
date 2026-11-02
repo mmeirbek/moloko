@@ -10,8 +10,8 @@
 import * as Phaser from "phaser";
 
 import { SeatAssigner } from "./assign";
-import { behaviorFor, cowBehaviorFor, type Behavior, type CowBehavior, type Indicator } from "./behavior";
-import type { CameraAction, OfficeAgent, OfficeBus, OfficeEnv } from "./bus";
+import { behaviorFor, cowBehaviorFor, hudModeFor, type Behavior, type CowBehavior, type Indicator } from "./behavior";
+import type { AgentHud, CameraAction, OfficeAgent, OfficeBus, OfficeEnv } from "./bus";
 import {
   BUBBLE_COLORS,
   bubbleRows,
@@ -28,18 +28,47 @@ import {
   PETS,
 } from "./cow";
 import { isNight, skyFor } from "./daynight";
-import { monitorSpot, paintMap, paintOffice, paintWindows, petSpot, PROP_ART, propPlacements } from "./decor";
+import { deskMarkSpot, monitorSpot, paintMap, paintOffice, paintWindows, petSpot, PROP_ART, propPlacements } from "./decor";
+import { BAR_INNER, barFill, hudText } from "./hud";
 import { DESKS, stepsTo, tileCenter, walkable, WORLD_H, WORLD_W, ZONES, type Spot } from "./map";
 import { findPath, type Cell } from "./pathfinding";
-import { BADGE_H, BADGE_W, BADGES, FRAME, FRAME_ORDER, paintBadge, paintSheet, paletteFor, POSE_FRAMES } from "./sprites";
+import {
+  BADGE_H,
+  BADGE_W,
+  BADGES,
+  DESK_MARK_H,
+  DESK_MARK_W,
+  FRAME,
+  FRAME_ORDER,
+  HUD_BAR,
+  HUD_BAR_COLORS,
+  HUD_BAR_H,
+  HUD_BAR_W,
+  HUD_BUSY_FRAMES,
+  HUD_TONES,
+  paintBadge,
+  paintDeskMark,
+  paintHudBusy,
+  paintHudFill,
+  paintSheet,
+  paletteFor,
+  POSE_FRAMES,
+} from "./sprites";
 import { autoLevel, fitZoom, nearestLevel, stepLevel, zoomLevels, zoomPercent } from "./zoom";
 
 const SPEED = 56; // px per second
-/** name tags keep this size on screen (CSS px), whatever the zoom */
-const LABEL_FONT_PX = 10;
+/** name tags and progress captions: the site's pixel text font (Ark Pixel 12) at its own size, CSS px */
+const TEXT_FONT_PX = 12;
 const LABEL_MAX_CHARS = 18;
 /** below this size (CSS px per art px) name tags show only for the hovered or selected agent */
 const LABELS_FROM_SCALE = 1;
+const FALLBACK_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const TAG_STYLES = {
+  plain: { background: "rgba(16,20,43,0.86)", color: "#f5ecd6" },
+  focus: { background: "#f5ecd6", color: "#10142b" },
+  approval: { background: "#f0b43c", color: "#10142b" },
+} as const;
+type TagStyle = keyof typeof TAG_STYLES;
 
 const SHADOW_SMALL = [".xxxxxxxxxx.", "xxxxxxxxxxxx", ".xxxxxxxxxx."];
 const SHADOW_COW = [".xxxxxxxxxxxxxxxxxx.", "xxxxxxxxxxxxxxxxxxxx", ".xxxxxxxxxxxxxxxxxx."];
@@ -72,6 +101,17 @@ interface Character {
   clicks: number[];
   mooUntil: number;
   hovered: boolean;
+  /** progress over the head (from React; null = nothing to show) */
+  hud: AgentHud | null;
+  hudKey: string;
+  bar: Phaser.GameObjects.Image;
+  /** the filled part of the bar, or the running "busy" stripes when progress is unknown */
+  fill: Phaser.GameObjects.Sprite;
+  /** caption over the bar ("42%", "шаг 3", "ждёт одобрения" + what it does when focused) */
+  tag: Phaser.GameObjects.Text;
+  tagStyle: TagStyle | null;
+  /** the caption sits under the name tag (no room above, e.g. at the task board) */
+  tagBelow: boolean;
 }
 
 const DAY_ENV: OfficeEnv = { hour: 12, locale: "ru", season: null, attention: false };
@@ -94,6 +134,11 @@ export class OfficeScene extends Phaser.Scene {
   private shade!: Phaser.GameObjects.Rectangle;
   private glows: Phaser.GameObjects.Image[] = [];
   private monitors: Phaser.GameObjects.Image[] = [];
+  /** amber frames around desks whose agent waits for the owner's approval */
+  private deskMarks: Phaser.GameObjects.Image[] = [];
+  private markTween: Phaser.Tweens.Tween | null = null;
+  private huds: Record<string, AgentHud> = {};
+  private font = FALLBACK_FONT;
   private selected: string | null = null;
   private ring!: Phaser.GameObjects.Image;
   private pinchStart: number | null = null;
@@ -116,6 +161,7 @@ export class OfficeScene extends Phaser.Scene {
   create(): void {
     this.bus = this.game.registry.get("bus") as OfficeBus;
     this.dpr = (this.game.registry.get("dpr") as number | undefined) ?? 1;
+    this.font = (this.game.registry.get("font") as string | undefined) || FALLBACK_FONT;
     const remembered = this.game.registry.get("zoom") as number | null | undefined;
     this.chosen = typeof remembered === "number" && remembered > 0 ? remembered : null;
 
@@ -138,6 +184,8 @@ export class OfficeScene extends Phaser.Scene {
     this.off.push(this.bus.on("select", (id) => this.select(id, true)));
     this.off.push(this.bus.on("message", ({ from, to }) => this.flyEnvelope(from, to)));
     this.off.push(this.bus.on("env", (env) => this.applyEnv(env)));
+    this.off.push(this.bus.on("hud", (huds) => this.applyHuds(huds)));
+    this.whenFontReady();
     // game.destroy() emits DESTROY, not SHUTDOWN: unsubscribe on whichever comes first.
     const unsubscribe = () => this.off.splice(0).forEach((f) => f());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
@@ -178,6 +226,24 @@ export class OfficeScene extends Phaser.Scene {
         key.startsWith("shadow") || key.startsWith("ring") ? paintMap(ctx, rows, colors) : paintRows(ctx, rows, colors),
       );
     }
+    // progress over the heads: the bar's frame, a fill column per tone, "busy" stripes per tone
+    this.canvasTexture("hud:bar", HUD_BAR_W, HUD_BAR_H, (ctx) => paintRows(ctx, HUD_BAR, HUD_BAR_COLORS));
+    this.canvasTexture("hud:desk", DESK_MARK_W, DESK_MARK_H, paintDeskMark);
+    for (const tone of Object.keys(HUD_TONES) as AgentHud["tone"][]) {
+      this.canvasTexture(`hud:fill:${tone}`, 1, 2, (ctx) => paintHudFill(ctx, tone));
+      const key = `hud:busy:${tone}`;
+      if (this.textures.exists(key)) continue;
+      const tex = this.textures.createCanvas(key, BAR_INNER * HUD_BUSY_FRAMES, 2)!;
+      paintHudBusy(tex.context, tone, BAR_INNER);
+      tex.refresh();
+      for (let f = 0; f < HUD_BUSY_FRAMES; f++) tex.add(f, 0, f * BAR_INNER, 0, BAR_INNER, 2);
+      this.anims.create({
+        key,
+        frames: Array.from({ length: HUD_BUSY_FRAMES }, (_, frame) => ({ key, frame })),
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
   }
 
   private placeProps(): void {
@@ -195,6 +261,9 @@ export class OfficeScene extends Phaser.Scene {
           .setDepth(20_001)
           .setVisible(false),
       );
+      // waiting for the owner's approval: an amber frame around the desk (above the night shade)
+      const mark = deskMarkSpot(desk);
+      this.deskMarks.push(this.add.image(mark.x, mark.y, "hud:desk").setOrigin(0, 0).setDepth(20_002).setVisible(false));
     }
   }
 
@@ -247,7 +316,10 @@ export class OfficeScene extends Phaser.Scene {
         existing.agent = agent;
         existing.label.setText(shortName(agent.name));
         if (changed || existing.leaving) {
-          existing.leaving = false;
+          if (existing.leaving) {
+            existing.leaving = false;
+            this.applyHud(existing, this.huds[agent.id] ?? null);
+          }
           this.route(existing);
         }
       } else {
@@ -288,6 +360,13 @@ export class OfficeScene extends Phaser.Scene {
       clicks: [],
       mooUntil: 0,
       hovered: false,
+      hud: null,
+      hudKey: "",
+      bar: this.add.image(x, y, "hud:bar").setOrigin(0.5, 1).setVisible(false),
+      fill: this.add.sprite(x, y, "hud:fill:work").setOrigin(0, 1).setVisible(false),
+      tag: this.makeTag(x, y),
+      tagStyle: null,
+      tagBelow: false,
     };
     sprite.on("pointerdown", (p: Phaser.Input.Pointer) => {
       p.event.stopPropagation();
@@ -321,27 +400,109 @@ export class OfficeScene extends Phaser.Scene {
       });
     }
     this.characters.set(agent.id, character);
+    this.applyHud(character, this.huds[agent.id] ?? null);
     this.route(character);
   }
 
+  /** Name tag under the feet: the site's pixel font, same size on screen at every zoom. */
   private makeLabel(x: number, y: number, name: string): Phaser.GameObjects.Text {
+    const unit = this.textUnit();
     return this.add
       .text(x, y, shortName(name), {
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-        fontSize: `${LABEL_FONT_PX}px`,
-        fontStyle: "bold",
+        fontFamily: this.font,
+        fontSize: `${TEXT_FONT_PX}px`,
         color: "#f5ecd6",
         backgroundColor: "rgba(16,20,43,0.82)",
         padding: { x: 3, y: 1 },
-        resolution: this.dpr,
+        resolution: unit,
       })
       .setOrigin(0.5, 0)
-      .setScale(this.dpr / this.cameras.main.zoom)
+      .setScale(unit / this.cameras.main.zoom)
       .setVisible(false);
+  }
+
+  /** Whole device pixels per pixel of the map's text, so the pixel font stays crisp (1, 2 or 3). */
+  private textUnit(): number {
+    return Math.max(1, Math.round(this.dpr));
+  }
+
+  /**
+   * The caption over the bar: the site's pixel font at a constant size on screen (readable at
+   * every zoom). Its text is set only when it changes (layoutLabels), never per frame.
+   */
+  private makeTag(x: number, y: number): Phaser.GameObjects.Text {
+    const unit = this.textUnit();
+    return this.add
+      .text(x, y, "", {
+        fontFamily: this.font,
+        fontSize: `${TEXT_FONT_PX}px`,
+        color: TAG_STYLES.plain.color,
+        backgroundColor: TAG_STYLES.plain.background,
+        padding: { x: 3, y: 1 },
+        align: "center",
+        lineSpacing: 1,
+        resolution: unit,
+      })
+      .setOrigin(0.5, 1)
+      .setScale(unit / this.cameras.main.zoom)
+      .setVisible(false);
+  }
+
+  /** The pixel font may still be loading when the scene starts: redraw the captions once it is there. */
+  private whenFontReady(): void {
+    const fonts = typeof document !== "undefined" ? document.fonts : undefined;
+    if (!fonts || this.font === FALLBACK_FONT) return;
+    void fonts
+      .load(`${TEXT_FONT_PX}px ${this.font}`)
+      .catch(() => undefined)
+      .then(() => {
+        if (!this.sys.isActive()) return;
+        for (const c of this.characters.values()) {
+          if (c.tag.active) c.tag.updateText();
+          if (c.label.active) c.label.updateText();
+        }
+        this.layoutLabels();
+      });
+  }
+
+  // --- progress over the heads --------------------------------------------------------------
+
+  private applyHuds(huds: Record<string, AgentHud>): void {
+    this.huds = huds;
+    for (const c of this.characters.values()) this.applyHud(c, huds[c.agent.id] ?? null);
+    this.refreshMonitors();
+    this.layoutLabels();
+  }
+
+  /** Draw a HUD on its bar (textures and the fill width only; the caption is set in layoutLabels). */
+  private applyHud(character: Character, hud: AgentHud | null): void {
+    character.hud = hud;
+    const key = hud && !character.leaving ? `${hud.tone}|${hud.percent}|${hud.tag}|${hud.activity}` : "";
+    if (key === character.hudKey) return;
+    character.hudKey = key;
+    const { bar, fill } = character;
+    if (!hud || character.leaving) {
+      bar.setVisible(false);
+      fill.stop().setVisible(false);
+      character.tag.setVisible(false);
+      return;
+    }
+    bar.setVisible(true);
+    if (hud.percent === null) {
+      // unknown progress: stripes run along the bar (still when paused)
+      const busy = `hud:busy:${hud.tone}`;
+      fill.setScale(1, 1).setVisible(true);
+      if (hud.tone === "paused") fill.stop().setTexture(busy, 0);
+      else fill.play(busy, true);
+    } else {
+      const width = barFill(hud.percent);
+      fill.stop().setTexture(`hud:fill:${hud.tone}`).setScale(width, 1).setVisible(width > 0);
+    }
   }
 
   private leave(character: Character): void {
     character.leaving = true;
+    this.applyHud(character, null);
     character.badge.setVisible(false);
     character.bubble?.setVisible(false);
     this.stopPatrol(character);
@@ -409,7 +570,13 @@ export class OfficeScene extends Phaser.Scene {
   private routeCow(character: Character): void {
     const cow = cowBehaviorFor(character.agent.status, this.cowFacts());
     character.cow = cow;
-    character.behavior = { place: "stay", pose: "rest", indicator: cow.indicator, animated: cow.animated };
+    character.behavior = {
+      place: "stay",
+      pose: "rest",
+      indicator: cow.indicator,
+      animated: cow.animated,
+      hud: hudModeFor(character.agent.status),
+    };
     this.stopPatrol(character);
     for (const zone of ["board", "review"] as const) {
       if (cow.place !== zone) this.seats.release(zone, character.agent.id);
@@ -511,6 +678,9 @@ export class OfficeScene extends Phaser.Scene {
       character.shadow.destroy();
       character.badge.destroy();
       character.label.destroy();
+      character.bar.destroy();
+      character.fill.destroy();
+      character.tag.destroy();
       character.bubble?.destroy();
       if (character.pet) {
         this.tweens.killTweensOf(character.pet);
@@ -567,12 +737,33 @@ export class OfficeScene extends Phaser.Scene {
 
   private refreshMonitors(): void {
     const lit = new Set<number>();
+    // whose agent waits for the owner's approval: amber screen and a pulsing frame round the desk
+    const asking = new Set<number>();
     for (const c of this.characters.values()) {
-      if (c.desk !== null && !c.leaving && c.path.length === 0 && c.agent.status === "working") lit.add(c.desk);
+      if (c.desk === null || c.leaving) continue;
+      if (c.hud?.tone === "approval") asking.add(c.desk);
+      else if (c.path.length === 0 && c.agent.status === "working") lit.add(c.desk);
     }
     const dark = skyFor(this.env.hour).tintAlpha > 0.1;
-    this.monitors.forEach((m, i) => m.setTexture(lit.has(i) ? "prop:monitor-on" : "prop:monitor-off"));
+    this.monitors.forEach((m, i) =>
+      m.setTexture(asking.has(i) ? "prop:monitor-wait" : lit.has(i) ? "prop:monitor-on" : "prop:monitor-off"),
+    );
     this.glows.forEach((glow, i) => glow.setVisible(dark && lit.has(i)));
+    this.deskMarks.forEach((mark, i) => mark.setVisible(asking.has(i)));
+    if (asking.size > 0 && !this.markTween) {
+      this.markTween = this.tweens.add({
+        targets: this.deskMarks,
+        alpha: { from: 1, to: 0.35 },
+        duration: 700,
+        ease: "Sine.easeInOut",
+        yoyo: true,
+        repeat: -1,
+      });
+    } else if (asking.size === 0 && this.markTween) {
+      this.markTween.remove();
+      this.markTween = null;
+      this.deskMarks.forEach((mark) => mark.setAlpha(1));
+    }
   }
 
   private flyEnvelope(from: string, to: string): void {
@@ -649,9 +840,25 @@ export class OfficeScene extends Phaser.Scene {
       c.sprite.setDepth(c.sprite.y);
       c.shadow.setPosition(x, y + 2).setDepth(c.sprite.y - 0.5);
       const headX = c.cow ? x + (c.sprite.flipX ? -6 : 6) : x;
-      c.badge.setPosition(headX, y - (c.cow ? 15 : 14)).setDepth(21_000 + c.sprite.y);
-      c.label.setPosition(x, y + 4).setDepth(25_000 + c.sprite.y);
-      c.bubble?.setPosition(x + 4, y - 17).setDepth(30_000);
+      // over the head, bottom up: progress bar, status badge (or the cow's bubble), caption
+      let stack = y - (c.cow ? 15 : 14);
+      if (c.bar.visible) {
+        // seated at its desk: above the monitor, so the lit screen stays in sight (spec 18.4)
+        const desk = c.desk !== null && c.path.length === 0 ? DESKS[c.desk]! : null;
+        if (desk && c.cell.col === desk.seat.col && c.cell.row === desk.seat.row) {
+          stack = Math.min(stack, monitorSpot(desk).y - 1);
+        }
+        c.bar.setPosition(headX, stack).setDepth(21_000 + c.sprite.y);
+        c.fill.setPosition(headX - HUD_BAR_W / 2 + 1, stack - 1).setDepth(21_000 + c.sprite.y + 0.1);
+        stack -= HUD_BAR_H + 1;
+      }
+      c.badge.setPosition(headX, stack).setDepth(21_000 + c.sprite.y);
+      const bubbleBottom = c.bar.visible ? stack : y - 17;
+      c.bubble?.setPosition(x + 4, bubbleBottom).setDepth(30_000);
+      if (c.badge.visible) stack -= BADGE_H;
+      if (c.bubble?.visible) stack = Math.min(stack, bubbleBottom - c.bubble.height);
+      c.label.setPosition(this.inView(x, c.label.displayWidth), y + 4).setDepth(25_000 + c.sprite.y);
+      if (c.hud) this.placeTag(c, x, y, stack - 1);
       if (this.selected === c.agent.id) this.ring.setPosition(x, y + 2).setDepth(c.sprite.y - 0.4);
     }
     this.handlePinch();
@@ -666,29 +873,84 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
+  /** The caption over the bar; when there is no room above (top of the view) it goes under the name. */
+  private placeTag(c: Character, x: number, y: number, above: number): void {
+    const tag = c.tag;
+    const below = above - tag.displayHeight < this.cameras.main.worldView.y + 1;
+    if (below !== c.tagBelow) {
+      c.tagBelow = below;
+      tag.setOrigin(0.5, below ? 0 : 1);
+    }
+    tag.setPosition(this.inView(x, tag.displayWidth), below ? y + 5 + c.label.displayHeight : above);
+    const lift = this.isFocused(c) ? 4000 : c.hud?.tone === "approval" ? 2000 : 1000;
+    tag.setDepth(25_000 + lift + c.sprite.y);
+  }
+
+  /** Centre x for a text of this width so it is not cut off at the left or right of the view. */
+  private inView(x: number, width: number): number {
+    const view = this.cameras.main.worldView;
+    // nothing to do before the first frame, or for someone off screen (it must not float at the edge)
+    if (view.width <= 0 || x < view.x || x > view.right) return x;
+    const half = width / 2 + 1;
+    return half * 2 >= view.width ? view.centerX : Phaser.Math.Clamp(x, view.x + half, view.right - half);
+  }
+
+  private isFocused(c: Character): boolean {
+    return c.agent.id === this.selected || c.hovered;
+  }
+
+  /** Caption text and colours; Phaser redraws a text only when these really change. */
+  private dressTag(c: Character): boolean {
+    const focused = this.isFocused(c);
+    const text = hudText(c.hud, focused);
+    if (text === null) {
+      c.tag.setVisible(false);
+      return false;
+    }
+    c.tag.setText(text);
+    const style: TagStyle = c.hud?.tone === "approval" ? "approval" : focused ? "focus" : "plain";
+    if (style !== c.tagStyle) {
+      c.tagStyle = style;
+      c.tag.setBackgroundColor(TAG_STYLES[style].background).setColor(TAG_STYLES[style].color);
+    }
+    return true;
+  }
+
   /**
-   * Name tags: always for the hovered and the selected agent; for everyone else when the
-   * office is big enough to read them, skipping tags that would overlap a more important one.
+   * Captions and name tags, most important first; one that would overlap an earlier one is
+   * skipped. Order: the selected and the hovered agent (caption with what it is doing, and its
+   * name) — always shown; then "waiting for approval" captions; then progress captions and names,
+   * which need the office at 100 % or more (smaller, a 12 px caption is as tall as a character
+   * and ten of them would cover the office — the bars themselves always show).
    */
   private layoutLabels(): void {
     const all = this.cameras.main.zoom / this.dpr >= LABELS_FROM_SCALE;
-    const rank = (c: Character) =>
-      (c.agent.id === this.selected ? 100 : 0) +
-      (c.hovered ? 50 : 0) +
-      (c.cow ? 5 : 0) +
-      (c.agent.status === "idle" ? 0 : 10);
-    const order = [...this.characters.values()]
-      .filter((c) => !c.leaving && c.sprite.active)
-      .sort((a, b) => rank(b) - rank(a) || a.sprite.y - b.sprite.y);
+    type Item = { c: Character; text: Phaser.GameObjects.Text; below: boolean; forced: boolean; rank: number };
+    const items: Item[] = [];
+    for (const c of this.characters.values()) {
+      if (c.leaving || !c.sprite.active) {
+        c.tag.setVisible(false);
+        continue;
+      }
+      const focus = c.agent.id === this.selected ? 2 : c.hovered ? 1 : 0;
+      if (this.dressTag(c)) {
+        const rank = focus ? 1000 + focus * 100 + 1 : c.hud?.tone === "approval" ? 500 : 300;
+        items.push({ c, text: c.tag, below: c.tagBelow, forced: focus > 0, rank });
+      }
+      const nameRank = focus ? 1000 + focus * 100 : (c.cow ? 5 : 0) + (c.agent.status === "idle" ? 0 : 10);
+      items.push({ c, text: c.label, below: true, forced: focus > 0, rank: nameRank });
+    }
+    items.sort((a, b) => b.rank - a.rank || a.c.sprite.y - b.c.sprite.y);
     const placed: { x1: number; y1: number; x2: number; y2: number }[] = [];
-    for (const c of order) {
-      const label = c.label;
-      const w = label.displayWidth;
-      const h = label.displayHeight;
-      const box = { x1: label.x - w / 2, y1: label.y, x2: label.x + w / 2, y2: label.y + h };
+    for (const { c, text, below, forced } of items) {
+      const w = text.displayWidth;
+      const h = text.displayHeight;
+      const top = below ? text.y : text.y - h;
+      const box = { x1: text.x - w / 2, y1: top, x2: text.x + w / 2, y2: top + h };
       const free = placed.every((p) => box.x2 <= p.x1 || box.x1 >= p.x2 || box.y2 <= p.y1 || box.y1 >= p.y2);
-      const show = c.agent.id === this.selected || c.hovered || (all && free);
-      label.setVisible(show);
+      // small office: names and progress captions only for the focused agent; approvals always
+      const show = forced || (free && (all || (text === c.tag && c.hud?.tone === "approval")));
+      text.setVisible(show);
       if (show) placed.push(box);
     }
   }
@@ -714,6 +976,9 @@ export class OfficeScene extends Phaser.Scene {
             : c.behavior.pose,
         bubble: c.cow && c.bubble?.visible ? c.cow.bubble : undefined,
         pet: c.pet ? petFor(c.agent.id) : undefined,
+        // progress over the head: % (null = unknown, the bar shows "busy"); waiting for approval
+        progress: c.hud ? c.hud.percent : undefined,
+        approval: c.hud?.tone === "approval" || undefined,
         x: Math.round((c.sprite.x - cam.worldView.x) * toCss),
         y: Math.round((c.sprite.y - 6 - cam.worldView.y) * toCss),
       }));
@@ -801,7 +1066,13 @@ export class OfficeScene extends Phaser.Scene {
   private afterZoom(): void {
     const cam = this.cameras.main;
     const zoom = cam.zoom;
-    for (const c of this.characters.values()) c.label.setScale(this.dpr / zoom);
+    const unit = this.textUnit();
+    for (const c of this.characters.values()) {
+      for (const text of [c.label, c.tag]) {
+        if (text.style.resolution !== unit) text.setResolution(unit); // moved to another screen
+        text.setScale(unit / zoom);
+      }
+    }
     const pannable = cam.width / zoom < WORLD_W - 0.5 || cam.height / zoom < WORLD_H - 0.5;
     this.input.setDefaultCursor(pannable ? "grab" : "default");
     this.bus.emit("zoom", {

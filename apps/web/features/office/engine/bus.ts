@@ -10,6 +10,21 @@ export interface OfficeAgent {
   kind: "orchestrator" | "subagent" | "autonomous";
 }
 
+/**
+ * What is shown over a busy agent's head (derived from the store by engine/hud.ts; the
+ * scene only draws it). All text is plain and already shortened.
+ */
+export interface AgentHud {
+  /** 0–100 when the task's progress is known; null = unknown (the bar shows "busy") */
+  percent: number | null;
+  /** the short caption next to the bar: "42%", "шаг 3", "ждёт одобрения"; null = none */
+  tag: string | null;
+  /** what it is doing right now, a few words (shown for the hovered / selected agent) */
+  activity: string | null;
+  /** bar colour: working, waiting for the owner's approval (amber), paused (grey, still) */
+  tone: "work" | "approval" | "paused";
+}
+
 /** What the office is told about the world around it (never decided by the scene). */
 export interface OfficeEnv {
   /** the owner's local hour (0–23): day and night */
@@ -26,6 +41,8 @@ export interface OfficeEvents {
   agents: OfficeAgent[];
   /** React → scene: camera actions (buttons, keyboard) */
   camera: CameraAction;
+  /** React → scene: progress over the heads, by agent id (agents without an entry show none) */
+  hud: Record<string, AgentHud>;
   /** React → scene: highlight an agent */
   select: string | null;
   /** React → scene: an agent sent a message to another (animated envelope) */

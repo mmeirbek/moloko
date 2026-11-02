@@ -20,6 +20,7 @@ import { canDrop, readDrop, useAddToOffice } from "./add-to-office";
 import { AgentInspector } from "./agent-inspector";
 import { AgentPalette } from "./agent-palette";
 import { OfficeBus, type CameraAction, type OfficeAgent, type ZoomState } from "./engine/bus";
+import { officeHud, type HudWords } from "./engine/hud";
 
 export type OfficeMode = "subagents" | "agents";
 
@@ -137,6 +138,19 @@ export function OfficeView({
   const shownHour = forcedHour !== null && /^\d{1,2}$/.test(forcedHour) ? Number(forcedHour) % 24 : hour;
 
   const shown = useMemo(() => agentsForMode(Object.values(agentsById), mode), [agentsById, mode]);
+  // Progress over the heads: task %, step, what it does now, waiting for approval (engine/hud.ts).
+  const tasks = useRealtimeStore((s) => s.tasks);
+  const runs = useRealtimeStore((s) => s.runs);
+  const lastMessage = useRealtimeStore((s) => s.lastMessage);
+  const approvals = useRealtimeStore((s) => s.approvals);
+  const hudWords = useMemo<HudWords>(
+    () => ({ step: (step) => t("hud.step", { step }), approval: t("hud.approval") }),
+    [t],
+  );
+  const hud = useMemo(
+    () => officeHud(shown, { tasks, runs, lastMessage, approvals }, hudWords),
+    [shown, tasks, runs, lastMessage, approvals, hudWords],
+  );
   // A dropped agent belongs to the agents' office: switch there and show who came in.
   const addToOffice = useAddToOffice((id) => {
     if (mode !== "agents") setMode("agents");
@@ -178,6 +192,10 @@ export function OfficeView({
   useEffect(() => {
     if (ready) bus.emit("agents", shown.map(toOfficeAgent));
   }, [bus, ready, shown]);
+
+  useEffect(() => {
+    if (ready) bus.emit("hud", hud);
+  }, [bus, ready, hud]);
 
   useEffect(() => {
     if (ready) bus.emit("select", selected);
@@ -363,6 +381,18 @@ export function OfficeView({
             >
               <span className="max-w-40 truncate">{a.name}</span>
               <StatusBadge status={a.status} />
+              {hud[a.id]?.tag && (
+                <span
+                  className={cn(
+                    "text-xs whitespace-nowrap tabular-nums",
+                    hud[a.id]!.tone === "approval"
+                      ? "bg-amber-400/20 px-1 text-amber-700 dark:text-amber-300"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {hud[a.id]!.tag}
+                </span>
+              )}
             </button>
           </li>
         ))}

@@ -531,6 +531,10 @@
     "failed": "The office could not start (WebGL/Canvas unavailable). The list below shows the same state.",
     "emptyAgents": "No agents at their desks yet.",
     "emptySubagents": "No subagents right now — start a run below.",
+    "hud": {
+      "step": "step {step}",
+      "approval": "needs approval"
+    },
     "inspector": {
       "label": "Agent {name}",
       "close": "Close",

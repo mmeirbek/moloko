@@ -4,6 +4,7 @@
  */
 import { hash } from "./assign";
 import type { Indicator } from "./behavior";
+import type { AgentHud } from "./bus";
 
 export const FRAME = 16;
 
@@ -262,5 +263,71 @@ export function paintBadge(ctx: CanvasRenderingContext2D, indicator: Exclude<Ind
   ctx.fillStyle = glyph;
   ICONS[indicator].forEach((line, y) => {
     for (let x = 0; x < 8; x++) if (line[x] === "x") ctx.fillRect(2 + x, 2 + y, 1, 1);
+  });
+}
+
+// --- progress over the head (engine/hud.ts) ---------------------------------------------------
+
+/** A 16×4 bar (as wide as a character): navy frame with cut corners and a two-tone track. */
+export const HUD_BAR = [
+  ".oooooooooooooo.",
+  "otttttttttttttto",
+  "obbbbbbbbbbbbbbo",
+  ".oooooooooooooo.",
+];
+export const HUD_BAR_W = HUD_BAR[0]!.length;
+export const HUD_BAR_H = HUD_BAR.length;
+export const HUD_BAR_COLORS: Record<string, string> = { o: "#10142b", t: "#2a3566", b: "#1d2447" };
+/** Frames of the "busy" stripes (progress unknown); they run along the bar. */
+export const HUD_BUSY_FRAMES = 4;
+
+/** Fill colours: green while working, amber while it waits for the owner, grey when paused. */
+export const HUD_TONES: Record<AgentHud["tone"], { light: string; base: string }> = {
+  work: { light: "#a6e08a", base: "#5bbf4a" },
+  approval: { light: "#f9d77a", base: "#f0b43c" },
+  paused: { light: "#c3c6d4", base: "#8a8fa8" },
+};
+
+/** One filled column of the bar (1×2), stretched to the filled width. */
+export function paintHudFill(ctx: CanvasRenderingContext2D, tone: AgentHud["tone"]): void {
+  ctx.fillStyle = HUD_TONES[tone].light;
+  ctx.fillRect(0, 0, 1, 1);
+  ctx.fillStyle = HUD_TONES[tone].base;
+  ctx.fillRect(0, 1, 1, 1);
+}
+
+/** Pixels lit in a "busy" frame: diagonal stripes, period 4, one pixel further each frame. Pure. */
+export function busyLit(x: number, y: number, frame: number): boolean {
+  return (x - frame + y + 64) % 4 < 2;
+}
+
+/** All "busy" frames side by side (each `inner`×2; the track shows between the stripes). */
+export function paintHudBusy(ctx: CanvasRenderingContext2D, tone: AgentHud["tone"], inner: number): void {
+  for (let f = 0; f < HUD_BUSY_FRAMES; f++) {
+    for (let y = 0; y < 2; y++) {
+      ctx.fillStyle = y === 0 ? HUD_TONES[tone].light : HUD_TONES[tone].base;
+      for (let x = 0; x < inner; x++) if (busyLit(x, y, f)) ctx.fillRect(f * inner + x, y, 1, 1);
+    }
+  }
+}
+
+/** The frame around a desk whose agent waits for the owner's approval (navy + amber, cut corners). */
+export const DESK_MARK_W = 38;
+export const DESK_MARK_H = 39;
+
+export function paintDeskMark(ctx: CanvasRenderingContext2D): void {
+  const w = DESK_MARK_W;
+  const h = DESK_MARK_H;
+  ctx.fillStyle = "rgba(240,180,60,0.18)";
+  ctx.fillRect(3, 3, w - 6, h - 6);
+  // rings from the outside in: navy, amber, amber, soft navy (outer corners cut)
+  const rings = ["#10142b", "#f0b43c", "#f0b43c", "rgba(16,20,43,0.55)"];
+  rings.forEach((color, i) => {
+    ctx.fillStyle = color;
+    const cut = Math.max(0, 2 - i);
+    ctx.fillRect(i + cut, i, w - 2 * (i + cut), 1);
+    ctx.fillRect(i + cut, h - 1 - i, w - 2 * (i + cut), 1);
+    ctx.fillRect(i, i + cut, 1, h - 2 * (i + cut));
+    ctx.fillRect(w - 1 - i, i + cut, 1, h - 2 * (i + cut));
   });
 }

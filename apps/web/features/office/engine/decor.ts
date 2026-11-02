@@ -824,6 +824,14 @@ function paintCode(ctx: Ctx, ox: number, oy: number): void {
   lines.forEach(([x, w, color], i) => rect(ctx, color, ox + x, oy + 2 + i, w, 1));
 }
 
+/** The screen of an agent that waits for the owner's approval: amber with a "!". */
+function paintMonitorWait(ctx: Ctx): void {
+  paintMap(ctx, MONITOR, { o: PAL.navy, n: PAL.navy2, S: PAL.amber }, 0, 0);
+  rect(ctx, "#f9d77a", 1, 1, 14, 1);
+  rect(ctx, PAL.navy, 7, 2, 2, 3);
+  rect(ctx, PAL.navy, 7, 6, 2, 1);
+}
+
 function paintMonitor(ctx: Ctx, on: boolean): void {
   paintMap(ctx, MONITOR, { o: PAL.navy, n: PAL.navy2, S: on ? PAL.sky : "#28305a" }, 0, 0);
   if (on) paintCode(ctx, 0, 0);
@@ -884,6 +892,7 @@ export const PROP_ART: Record<string, PropArt> = {
   },
   "monitor-on": { w: MONITOR_W, h: MONITOR_H, paint: (ctx) => paintMonitor(ctx, true) },
   "monitor-off": { w: MONITOR_W, h: MONITOR_H, paint: (ctx) => paintMonitor(ctx, false) },
+  "monitor-wait": { w: MONITOR_W, h: MONITOR_H, paint: paintMonitorWait },
   "monitor-glow": {
     w: 28,
     h: 20,
@@ -1000,6 +1009,11 @@ export function propPlacements(): PropPlacement[] {
 /** Where a desk's monitor stands (top-left), centred over the seat. */
 export function monitorSpot(desk: (typeof DESKS)[number]): { x: number; y: number; depth: number } {
   return { x: desk.monitor.col * TILE, y: desk.monitor.row * TILE - 2, depth: desk.monitor.row * TILE + TILE };
+}
+
+/** Top-left of the frame around a desk and its chair (sprites.ts `paintDeskMark`, 38×39). */
+export function deskMarkSpot(desk: (typeof DESKS)[number]): { x: number; y: number } {
+  return { x: desk.monitor.col * TILE - 3, y: desk.monitor.row * TILE - 5 };
 }
 
 /** Where the persistent agent's pet sits on its desk (bottom-left of the pet). */
