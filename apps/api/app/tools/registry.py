@@ -24,7 +24,7 @@ from app.tools.builtin.terminal import TERMINAL_TOOLS
 from app.tools.builtin.web import WEB_TOOLS
 from app.tools.builtin.work import WORK_TOOLS
 from app.tools.mcp import McpTool
-from app.tools.policy import ALWAYS_ALLOWED, CatalogEntry
+from app.tools.policy import ALWAYS_ALLOWED, CatalogEntry, tool_override
 
 BUILTIN: dict[str, BaseTool] = {
     t.name: t
@@ -76,9 +76,13 @@ async def catalog(
 
 def specs_for(agent: Agent, entries: dict[str, CatalogEntry]) -> tuple[ToolSpec, ...]:
     """What the model is told it can call: allowed (or always allowed), enabled and
-    available tools only. (Every call is still authorized again before it runs.)"""
+    available tools only — under full access every such tool except those the owner blocked
+    for this agent. (Every call is still authorized again before it runs.)"""
     specs = []
-    names = dict.fromkeys([*(agent.allowed_tools or []), *ALWAYS_ALLOWED])
+    if agent.full_access:
+        names = dict.fromkeys(n for n in entries if tool_override(agent, n) != "deny")
+    else:
+        names = dict.fromkeys([*(agent.allowed_tools or []), *ALWAYS_ALLOWED])
     for name in names:
         entry = entries.get(name)
         if entry is not None and entry.enabled and entry.available:

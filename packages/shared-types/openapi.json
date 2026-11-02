@@ -339,6 +339,35 @@
         "title": "AgentFromTemplate",
         "type": "object"
       },
+      "AgentFullAccessUpdate": {
+        "additionalProperties": false,
+        "description": "Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password\n(wrong ones count toward the login lockout); turning it off does not.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when enabled.",
+            "title": "Password"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AgentFullAccessUpdate",
+        "type": "object"
+      },
       "AgentLimits": {
         "additionalProperties": false,
         "properties": {
@@ -672,6 +701,24 @@
             "title": "Description",
             "type": "string"
           },
+          "full_access": {
+            "description": "«Полный доступ»: every enabled tool, no approvals (the owner's decision; changed only through PUT /agents/{id}/full-access).",
+            "title": "Full Access",
+            "type": "boolean"
+          },
+          "full_access_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When full access was turned on.",
+            "title": "Full Access Since"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -820,6 +867,8 @@
           "archived_at",
           "monthly_budget_usd",
           "contacts",
+          "full_access",
+          "full_access_since",
           "created_at",
           "updated_at"
         ],
@@ -7475,6 +7524,59 @@
           }
         },
         "summary": "This month's spending against the agent's own budget (subagents: the one above)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/full-access": {
+      "put": {
+        "operationId": "set_full_access_api_v1_agents__agent_id__full_access_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFullAccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Turn «Полный доступ» on (confirmed with the password) or off for a persistent agent",
         "tags": [
           "agents"
         ]

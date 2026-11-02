@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictBool
 
 from app.agents.state import AgentType, AutonomyLevel
 from app.schemas.tasks import RunOut, TaskOut
@@ -52,6 +52,11 @@ class AgentOut(BaseModel):
     archived_at: datetime | None
     monthly_budget_usd: Decimal | None
     contacts: AgentContacts
+    full_access: bool = Field(
+        description="«Полный доступ»: every enabled tool, no approvals (the owner's decision; "
+        "changed only through PUT /agents/{id}/full-access)."
+    )
+    full_access_since: datetime | None = Field(description="When full access was turned on.")
     created_at: datetime
     updated_at: datetime
 
@@ -130,6 +135,18 @@ class AgentUpdate(BaseModel):
     workspace_id: uuid.UUID | None = None
     monthly_budget_usd: MonthlyBudget = None  # sent as null = remove the limit
     contacts: AgentContacts | None = None  # omitted / null = unchanged
+
+
+class AgentFullAccessUpdate(BaseModel):
+    """Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
+    (wrong ones count toward the login lockout); turning it off does not."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: StrictBool
+    password: str | None = Field(
+        default=None, min_length=1, max_length=1024, description="Required when enabled."
+    )
 
 
 class AgentTemplateOut(BaseModel):

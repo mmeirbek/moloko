@@ -48,6 +48,8 @@ SESSION_TTL_CHANGED = "auth.session_ttl_changed"
 # Passkeys (app.services.passkeys): adding and deleting one is confirmed with the password.
 PASSKEY_ADDED = "auth.passkey_added"
 PASSKEY_DELETED = "auth.passkey_deleted"
+# «Полный доступ» for an agent (app.services.agents) is turned on with the password.
+AGENT_FULL_ACCESS_GRANTED = "agent.full_access_granted"
 
 # Every wrong password — at login or when confirming a change — and every failed passkey
 # sign-in counts toward the same per-username lockout, so no endpoint can be used to guess
@@ -55,7 +57,13 @@ PASSKEY_DELETED = "auth.passkey_deleted"
 PASSWORD_FAILURE_ACTIONS = (LOGIN_FAILED, CONFIRM_FAILED)
 # A correct password (or a passkey sign-in) restarts the count (these entries carry the
 # same subject_key).
-PASSWORD_SUCCESS_ACTIONS = (LOGIN_OK, SESSION_TTL_CHANGED, PASSKEY_ADDED, PASSKEY_DELETED)
+PASSWORD_SUCCESS_ACTIONS = (
+    LOGIN_OK,
+    SESSION_TTL_CHANGED,
+    PASSKEY_ADDED,
+    PASSKEY_DELETED,
+    AGENT_FULL_ACCESS_GRANTED,
+)
 
 LoginMethod = Literal["password", "passkey"]
 

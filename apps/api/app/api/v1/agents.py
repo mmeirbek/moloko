@@ -6,11 +6,12 @@ from typing import Literal
 from fastapi import APIRouter, Header, Query, Response, status
 
 from app.agents.state import AgentType
-from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
+from app.api.deps import Client, CurrentAuth, DbSession, QueueDep, SettingsDep
 from app.schemas.agents import (
     AgentBudgetOut,
     AgentCreate,
     AgentFromTemplate,
+    AgentFullAccessUpdate,
     AgentMessageItem,
     AgentOut,
     AgentRestore,
@@ -122,6 +123,26 @@ async def update_agent(
     settings: SettingsDep,
 ) -> AgentOut:
     agent = await AgentService(db, queue, settings).update(ctx.user.id, agent_id, body)
+    return AgentOut.model_validate(agent)
+
+
+@router.put(
+    "/{agent_id}/full-access",
+    response_model=AgentOut,
+    summary="Turn «Полный доступ» on (confirmed with the password) or off for a persistent agent",
+)
+async def set_full_access(
+    agent_id: uuid.UUID,
+    body: AgentFullAccessUpdate,
+    ctx: CurrentAuth,
+    db: DbSession,
+    queue: QueueDep,
+    settings: SettingsDep,
+    client: Client,
+) -> AgentOut:
+    agent = await AgentService(db, queue, settings).set_full_access(
+        ctx.user, agent_id, enabled=body.enabled, password=body.password, client=client
+    )
     return AgentOut.model_validate(agent)
 
 

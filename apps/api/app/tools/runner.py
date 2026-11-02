@@ -49,7 +49,14 @@ from app.tools.base import (
     ToolOutput,
     args_hash,
 )
-from app.tools.policy import CatalogEntry, Decision, Verdict, audit_decision, authorize
+from app.tools.policy import (
+    CatalogEntry,
+    Decision,
+    Verdict,
+    audit_decision,
+    authorize,
+    full_access_mark,
+)
 from app.tools.registry import catalog
 
 logger = logging.getLogger("moloko.tools")
@@ -209,6 +216,7 @@ class ToolRunner:
         tctx = self.tool_context(row.id)
         if row.status == "awaiting_approval":
             return await self._after_approval(row, entry, args, tctx)
+        await self._recheck_full_access()
         decision = await authorize(
             agent=self.agent, name=row.tool_name, entry=entry, args=args, ctx=tctx
         )
@@ -264,6 +272,7 @@ class ToolRunner:
                 row, "denied", "The approval does not match this exact operation.", True
             )
         # The policy is checked again: the tool may have been turned off meanwhile.
+        await self._recheck_full_access()
         decision = await authorize(
             agent=self.agent, name=row.tool_name, entry=entry, args=args, ctx=tctx
         )
@@ -282,6 +291,25 @@ class ToolRunner:
             fresh = await db.get(ToolCall, row.id)
             assert fresh is not None
             return fresh
+
+    async def _recheck_full_access(self) -> None:
+        """Full access is read again before every call, so switching it off (or blocking a
+        tool for this agent) takes effect at the agent's next action, not its next run."""
+        if not self.agent.full_access:
+            return
+        async with self.ctx.sessionmaker() as db:
+            fresh = (
+                await db.execute(
+                    select(Agent.full_access_since, Agent.permissions, Agent.archived_at).where(
+                        Agent.id == self.agent.id
+                    )
+                )
+            ).one_or_none()
+        if fresh is None or fresh.archived_at is not None:
+            self.agent.full_access_since = None
+            return
+        self.agent.full_access_since = fresh.full_access_since
+        self.agent.permissions = fresh.permissions
 
     async def _record_decision(self, row: ToolCall, decision: Decision) -> None:
         async with self.ctx.sessionmaker() as db:
@@ -454,6 +482,7 @@ class ToolRunner:
                         "args_hash": row.args_hash,
                         "task_id": str(self.ctx.task_id),
                         "duration_ms": duration_ms,
+                        **full_access_mark(self.agent),
                     },
                 )
             await bus.emit(

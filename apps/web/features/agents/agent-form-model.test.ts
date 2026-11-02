@@ -1,7 +1,21 @@
 import type { AgentOut, SystemLimits } from "@moloko/shared-types";
 import { describe, expect, it } from "vitest";
 
-import { contactsOf, fromAgent, money, parseProjects, setOverride, toggleContact, toggleTool, toPayload, validate } from "./agent-form-model";
+import {
+  canHaveFullAccess,
+  contactsOf,
+  fromAgent,
+  fullAccessBody,
+  hasFullAccess,
+  money,
+  parseProjects,
+  setOverride,
+  toggleContact,
+  toggleTool,
+  toolAllowed,
+  toPayload,
+  validate,
+} from "./agent-form-model";
 
 const LIMITS: SystemLimits = {
   max_steps_per_run: 50,
@@ -105,6 +119,40 @@ describe("agent form", () => {
     expect(v.overrides).toEqual({});
     expect(toPayload({ ...v, overrides: { ghost: "deny" } }).tool_overrides).toEqual({});
     expect(setOverride(toggleTool(v, "x", true), "x", "").overrides).toEqual({});
+  });
+
+  it("full access: only persistent agents, read-only in the form, never sent with a save", () => {
+    expect(fromAgent().fullAccess).toBe(false);
+    const trusted = { agent_type: "autonomous", full_access: true, allowed_tools: ["fs_read"] } as unknown as AgentOut;
+    expect(canHaveFullAccess(trusted) && hasFullAccess(trusted)).toBe(true);
+    for (const agent_type of ["subagent", "orchestrator"]) {
+      const other = { ...trusted, agent_type } as AgentOut;
+      expect(canHaveFullAccess(other) || hasFullAccess(other) || fromAgent(other).fullAccess).toBe(false);
+    }
+    const v = { ...fromAgent(trusted), name: "A" };
+    expect(v.fullAccess).toBe(true);
+    const payload = toPayload(v) as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("full_access");
+    expect(payload).not.toHaveProperty("password");
+    // the own list is kept as it is, for when full access is switched off
+    expect(payload.allowed_tools).toEqual(["fs_read"]);
+  });
+
+  it("full access: every tool shows as allowed; exceptions may name any tool", () => {
+    const v = { ...fromAgent({ agent_type: "autonomous", full_access: true } as unknown as AgentOut), name: "A" };
+    expect(toolAllowed(v, { name: "fs_delete" })).toBe(true);
+    expect(toolAllowed({ ...v, fullAccess: false }, { name: "fs_delete" })).toBe(false);
+    expect(toolAllowed({ ...v, fullAccess: false }, { name: "work_read", always_allowed: true })).toBe(true);
+    expect(toggleTool(v, "fs_delete", true)).toBe(v); // nothing to tick: all are allowed
+    const blocked = setOverride(setOverride(v, "fs_delete", "deny"), "github_push", "approve");
+    expect(toPayload(blocked).tool_overrides).toEqual({ fs_delete: "deny", github_push: "approve" });
+    // without full access, only exceptions for listed tools are sent
+    expect(toPayload({ ...blocked, fullAccess: false }).tool_overrides).toEqual({});
+  });
+
+  it("full access: the password goes only with turning it on", () => {
+    expect(fullAccessBody(true, "secret")).toEqual({ enabled: true, password: "secret" });
+    expect(fullAccessBody(false, "secret")).toEqual({ enabled: false });
   });
 
   it("splits projects", () => {

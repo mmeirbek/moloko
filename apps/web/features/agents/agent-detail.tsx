@@ -23,6 +23,8 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { AgentBudget } from "./agent-budget";
 import { AgentControls, isAgentBusy } from "./agent-controls";
 import { AgentForm } from "./agent-form";
+import { hasFullAccess } from "./agent-form-model";
+import { FullAccessBadge } from "./agent-full-access";
 import { AgentMessages } from "./agent-messages";
 import { asTab, TABS, type Tab } from "./agent-tabs";
 import { SaveTemplateButton } from "./save-template";
@@ -148,7 +150,10 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
               {live.specialization ? ` · ${live.specialization}` : ""}
             </p>
           </div>
-          <StatusBadge status={live.status ?? "idle"} />
+          <div className="flex flex-wrap items-center gap-2">
+            {hasFullAccess(live) && <FullAccessBadge />}
+            <StatusBadge status={live.status ?? "idle"} />
+          </div>
         </div>
         {task && (
           <Link href={`/tasks/${task.id}`} className="truncate text-sm underline-offset-2 hover:underline">
