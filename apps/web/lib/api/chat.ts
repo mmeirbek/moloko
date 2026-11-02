@@ -10,7 +10,7 @@ import type {
   ModelOut,
 } from "@moloko/shared-types";
 
-import { api } from "./client";
+import { api, type UploadOptions } from "./client";
 import { API_BASE } from "./config";
 import { readSse } from "./sse";
 
@@ -100,18 +100,18 @@ export async function attachStream(
   await consume(response, handlers);
 }
 
-/** Upload a text file; send its id with the next message. */
 /** Where an attached file can be shown or downloaded (same origin; the cookie authorises it). */
 export const attachmentUrl = (chatId: string, attachmentId: string) =>
   `${API_BASE}/chats/${chatId}/attachments/${attachmentId}/content`;
 
-export function uploadAttachment(chatId: string, file: File): Promise<AttachmentOut> {
+/** Upload any file (no type, size or count limit); send its id with the next message. */
+export function uploadAttachment(chatId: string, file: File, opts: UploadOptions = {}): Promise<AttachmentOut> {
   const form = new FormData();
   form.append("file", file, file.name);
-  return api.request<AttachmentOut>(`/chats/${chatId}/attachments`, { method: "POST", body: form });
+  return api.upload<AttachmentOut>(`/chats/${chatId}/attachments`, form, opts);
 }
 
-/** Voice input: the recording goes to the owner's OpenAI-type provider, text comes back. */
+/** Voice input: the recording goes to the speech-to-text engine (local model or provider), text comes back. */
 export function transcribeAudio(audio: Blob, filename: string, language: string): Promise<{ text: string }> {
   const form = new FormData();
   form.append("audio", audio, filename);

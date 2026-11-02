@@ -1,19 +1,24 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { Info, Loader2, Mic, Square, X } from "@/components/icons";
+import { Check, Info, Loader2, Mic, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { transcribeAudio } from "@/lib/api/chat";
 import { getAiServices, searchKeys } from "@/lib/api/search";
 import { cn } from "@/lib/utils";
 
-const MAX_SECONDS = 120;
+const MAX_SECONDS = 15 * 60; // long dictations are fine; the speech engine has no short cap
 const TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+const BARS = 12;
+/** Recognition language: auto-detect (the owner speaks Russian and English), or one of them. */
+const LANGS = ["auto", "ru", "en"] as const;
+type Lang = (typeof LANGS)[number];
+const LANG_KEY = "moloko.voice.lang";
 
 const noop = () => () => {};
 const supported = () =>
@@ -30,38 +35,107 @@ export function extensionFor(type: string): string {
   return "webm";
 }
 
+/** "1:05" */
+export function clock(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function loadLang(): Lang {
+  try {
+    const value = localStorage.getItem(LANG_KEY);
+    return LANGS.includes(value as Lang) ? (value as Lang) : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
 /**
- * Voice input: press to record, press again (or wait 2 minutes) to stop; the speech is
- * turned into text by the owner's provider and handed to `onText`. Without a provider for it,
- * a press explains how to get one (before anything is recorded) instead of failing afterwards.
+ * Voice input. A press starts recording and the button becomes a recording strip: a timer, a
+ * live level meter, «Отменить» (throw the recording away, also Escape) and «Готово» (turn the
+ * speech into text — local Whisper or the owner's provider — and hand it to `onText`). Without
+ * any speech engine a press explains how to get one, before anything is recorded.
  */
 export function MicButton({ onText, className, disabled }: { onText: (text: string) => void; className?: string; disabled?: boolean }) {
   const t = useTranslations("voice");
-  const locale = useLocale();
   const toMessage = useErrorMessage();
   const canRecord = useSyncExternalStore(noop, supported, () => false);
   const [state, setState] = useState<"idle" | "recording" | "sending">("idle");
   const [seconds, setSeconds] = useState(0);
+  const [levels, setLevels] = useState<number[]>(() => Array(BARS).fill(0));
+  // Only shown while recording (client side), so reading storage here never mismatches the server HTML.
+  const [lang, setLang] = useState<Lang>(loadLang);
   const [error, setError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
   const ai = useQuery({ queryKey: searchKeys.ai, queryFn: ({ signal }) => getAiServices(signal), staleTime: 60_000 });
-  const unavailable = ai.data?.available === false;
+  // `voice_available` (local speech engine or a provider) when the server reports it; older servers: `available`.
+  const voice = ai.data as { voice_available?: boolean; available?: boolean } | undefined;
+  const unavailable = voice ? (voice.voice_available ?? voice.available) === false : false;
   const recorder = useRef<MediaRecorder | null>(null);
+  const discard = useRef(false);
   const timer = useRef<number>(0);
+  const frame = useRef<number>(0);
+  const audio = useRef<AudioContext | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       // Closed mid-recording (e.g. Escape on a dialog): stop the mic and send nothing — a
-      // transcription nobody will see would still be a paid call.
+      // transcription nobody will see would still be work for nothing.
       mounted.current = false;
-      window.clearInterval(timer.current);
+      stopMeter();
       recorder.current?.stream.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
+  // Escape while recording = cancel (and it does not close a surrounding dialog).
+  const cancelRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (state !== "recording") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      cancelRef.current();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [state]);
+
   if (!canRecord) return null;
+
+  function stopMeter() {
+    window.clearInterval(timer.current);
+    cancelAnimationFrame(frame.current);
+    void audio.current?.close().catch(() => undefined);
+    audio.current = null;
+  }
+
+  /** A live level meter from the microphone (12 bars, about 15 updates a second). */
+  function startMeter(stream: MediaStream) {
+    try {
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      context.createMediaStreamSource(stream).connect(analyser);
+      audio.current = context;
+      const data = new Uint8Array(analyser.fftSize);
+      let last = 0;
+      const tick = (time: number) => {
+        frame.current = requestAnimationFrame(tick);
+        if (time - last < 66) return;
+        last = time;
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (const v of data) sum += ((v - 128) / 128) ** 2;
+        const level = Math.min(1, Math.sqrt(sum / data.length) * 4);
+        setLevels((prev) => [...prev.slice(1), level]);
+      };
+      frame.current = requestAnimationFrame(tick);
+    } catch {
+      // no Web Audio: recording still works, just without the meter
+    }
+  }
 
   async function start() {
     setError(null);
@@ -79,32 +153,35 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
     const type = pickType((x) => MediaRecorder.isTypeSupported(x));
     const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
     const chunks: Blob[] = [];
+    discard.current = false;
     rec.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
     rec.onstop = async () => {
-      window.clearInterval(timer.current);
+      stopMeter();
       stream.getTracks().forEach((track) => track.stop());
       if (!mounted.current) return;
       const mime = rec.mimeType || type || "audio/webm";
       const blob = new Blob(chunks, { type: mime });
-      if (blob.size === 0) {
+      if (discard.current || blob.size === 0) {
         setState("idle");
         return;
       }
       setState("sending");
       try {
-        const { text } = await transcribeAudio(blob, `voice.${extensionFor(mime)}`, locale);
+        const { text } = await transcribeAudio(blob, `voice.${extensionFor(mime)}`, lang === "auto" ? "" : lang);
         if (text) onText(text);
         else setError(t("nothing"));
       } catch (e) {
         setError(toMessage(e).message);
       } finally {
-        setState("idle");
+        if (mounted.current) setState("idle");
       }
     };
     recorder.current = rec;
-    rec.start();
+    rec.start(1000);
     setSeconds(0);
+    setLevels(Array(BARS).fill(0));
     setState("recording");
+    startMeter(stream);
     const began = Date.now();
     timer.current = window.setInterval(() => {
       const s = Math.floor((Date.now() - began) / 1000);
@@ -113,43 +190,87 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
     }, 250);
   }
 
-  function stop() {
+  function finish() {
     if (recorder.current?.state === "recording") recorder.current.stop();
   }
 
-  const recording = state === "recording";
+  function cancel() {
+    discard.current = true;
+    finish();
+  }
+  cancelRef.current = cancel;
+
+  function nextLang() {
+    const next = LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length]!;
+    setLang(next);
+    try {
+      localStorage.setItem(LANG_KEY, next);
+    } catch {
+      // private mode: the choice lasts for this page only
+    }
+  }
+
+  if (state === "recording") {
+    return (
+      <span
+        role="group"
+        aria-label={t("recording")}
+        className={cn("inline-flex h-10 shrink-0 items-center gap-2 bg-card pr-1 pl-3 pixel-frame [--frame-color:var(--color-destructive)]", className)}
+        data-testid="mic-recording"
+      >
+        <span aria-hidden className="size-2.5 animate-pulse bg-destructive" />
+        <span className="font-mono text-xs tabular-nums" aria-live="off">
+          {clock(seconds)}
+        </span>
+        <span aria-hidden className="flex h-6 items-end gap-[3px]">
+          {levels.map((level, i) => (
+            <span key={i} className="w-[3px] bg-destructive" style={{ height: `${Math.max(3, Math.round(level * 8) * 3)}px` }} />
+          ))}
+        </span>
+        <button
+          type="button"
+          onClick={nextLang}
+          title={t("language")}
+          aria-label={`${t("language")}: ${t(`langs.${lang}`)}`}
+          className="h-8 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {t(`langs.${lang}`)}
+        </button>
+        <Button type="button" size="icon" variant="ghost" className="size-8" aria-label={t("cancel")} title={t("cancel")} onClick={cancel}>
+          <X />
+        </Button>
+        <Button type="button" size="icon" variant="ghost" className="size-8 text-grass" aria-label={t("done")} title={t("done")} onClick={finish}>
+          <Check />
+        </Button>
+      </span>
+    );
+  }
+
   return (
     <span className={cn("relative inline-flex items-center", className)}>
       <Button
         type="button"
         size="icon"
-        variant={recording ? "destructive" : "ghost"}
-        className=""
+        variant="ghost"
         disabled={disabled || state === "sending"}
-        aria-pressed={recording}
-        aria-label={recording ? t("stop") : t("start")}
-        title={recording ? t("stop") : unavailable ? t("needsProvider") : t("start")}
-        onClick={() => (recording ? stop() : void start())}
+        aria-label={state === "sending" ? t("transcribing") : t("start")}
+        title={state === "sending" ? t("transcribing") : unavailable ? t("needsProvider") : t("start")}
+        onClick={() => void start()}
         data-testid="mic"
       >
-        {state === "sending" ? <Loader2 className="animate-spin" /> : recording ? <Square /> : <Mic />}
+        {state === "sending" ? <Loader2 className="animate-spin" /> : <Mic />}
       </Button>
-      {recording && (
-        <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-destructive px-1 text-xs text-white tabular-nums" aria-hidden>
-          ● {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
-        </span>
-      )}
-      {(error || needsSetup) && !recording && (
+      {(error || needsSetup) && (
         // Visible, not only a tooltip: phones have no hover.
         <span
           role="alert"
-          className="absolute right-0 bottom-full z-20 mb-2 flex w-72 max-w-[calc(100vw-2rem)] items-start gap-2 bg-card p-3 text-left text-xs text-card-foreground pixel-frame"
+          className="absolute right-0 bottom-full z-20 mb-2 flex w-72 max-w-[calc(100vw-2rem)] items-start gap-2 bg-card p-3 text-left text-xs text-card-foreground pixel-frame shadow-md"
         >
-          <Info className="mt-0.5 size-4 shrink-0 text-sky" aria-hidden />
+          <Info className="mt-0.5 shrink-0 text-sky" aria-hidden />
           <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
             <span>{needsSetup ? t("needsProvider") : error}</span>
             {needsSetup && (
-              <Link href="/settings#ai" className="font-medium text-sky underline-offset-2 hover:underline">
+              <Link href="/settings#ai" className="text-sky underline-offset-2 hover:underline">
                 {t("openSettings")}
               </Link>
             )}
@@ -163,7 +284,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
               setNeedsSetup(false);
             }}
           >
-            <X className="size-3.5" />
+            <X className="size-3" />
           </button>
         </span>
       )}

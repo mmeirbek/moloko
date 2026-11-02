@@ -219,7 +219,7 @@
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
     "agentsWorking": "Agents are working on it…",
     "handedOff": "Done by agents — open the run",
-    "attach": "Attach a file: text, picture or PDF",
+    "attach": "Attach files — any kind, as many as you like",
     "attachments": "Attached files",
     "removeAttachment": "Remove \"{name}\"",
     "pages": "{count, plural, one {# page} other {# pages}}",
@@ -228,7 +228,6 @@
     "placeholderAgents": "Describe the job for the agents…",
     "agentsModeHint": "The Orchestrator splits the job into steps for agents. For bigger work.",
     "messages": "Messages",
-    "tooManyFiles": "Up to {max} files per message. Not added: {count}.",
     "suggestions": {
       "label": "Example questions",
       "explain": "Explain in simple words how search by meaning works",
@@ -241,7 +240,14 @@
     "copy": "Copy the answer",
     "scrollDown": "Jump to the latest messages",
     "notSent": "The message did not reach the server. Please try again.",
-    "defaultModelNamed": "{name} · default"
+    "defaultModelNamed": "{name} · default",
+    "pastedFile": "Pasted file",
+    "uploading": "uploading {percent}%",
+    "uploadFailed": "upload failed",
+    "retryUpload": "Upload “{name}” again",
+    "dropFiles": "Drop — the files will be attached",
+    "someUploadsFailed": "{count, plural, one {# file failed to upload} other {# files failed to upload}} — retry or remove.",
+    "uploadingFiles": "Files are uploading — the message goes as soon as they are done."
   },
   "settings": {
     "providers": {
@@ -994,9 +1000,19 @@
     "stop": "Stop recording",
     "denied": "No microphone access: allow it in the browser settings.",
     "nothing": "No speech recognised. Try again.",
-    "needsProvider": "Voice input uses your OpenAI key. Add it in the settings and you can speak.",
+    "needsProvider": "Voice input is not set up yet: turn on speech recognition in the settings.",
     "openSettings": "Open the settings",
-    "closeHint": "Close the hint"
+    "closeHint": "Close the hint",
+    "recording": "Recording",
+    "cancel": "Cancel the recording",
+    "done": "Done — turn it into text",
+    "transcribing": "Recognising speech…",
+    "language": "Speech language",
+    "langs": {
+      "auto": "Auto",
+      "ru": "RU",
+      "en": "EN"
+    }
   },
   "search": {
     "title": "Search",

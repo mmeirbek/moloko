@@ -48,7 +48,6 @@ export function NewChat() {
   const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
   const [model, setModel] = useState<string | null>(null);
   const [agentsMode, setAgentsMode] = useState(false);
-  const [chatId, setChatId] = useState<string | null>(null);
   const creating = useRef<Promise<string> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -57,7 +56,6 @@ export function NewChat() {
   function ensureChat(): Promise<string> {
     creating.current ??= createChat({ model_config_id: model }).then(
       (chat) => {
-        setChatId(chat.id);
         void queryClient.invalidateQueries({ queryKey: chatKeys.list });
         return chat.id;
       },
@@ -69,7 +67,7 @@ export function NewChat() {
     return creating.current;
   }
 
-  const files = useComposerAttachments({ chatId, ensureChat });
+  const files = useComposerAttachments({ ensureChat });
 
   async function submit(message: AppendMessage) {
     const text = message.content
@@ -79,7 +77,7 @@ export function NewChat() {
     if (!text || busy) return;
     setBusy(true);
     setError(null);
-    const kept = agentsMode ? [] : files.take();
+    const kept = agentsMode ? [] : await files.take(); // waits for files still uploading
     try {
       const id = await ensureChat();
       if (agentsMode) {
@@ -122,11 +120,12 @@ export function NewChat() {
   });
 
   const noModels = models.data !== undefined && models.data.length === 0;
-  const shownError = error ?? files.error;
+  const shownError = error;
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col overflow-y-auto">
+      <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col overflow-y-auto" {...(agentsMode ? {} : files.dropProps)}>
+        {files.dropOverlay}
         <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-6 px-1 py-8">
           <ChatWelcome noModels={noModels} />
           {shownError ? (
@@ -140,7 +139,6 @@ export function NewChat() {
                 className="text-xs underline"
                 onClick={() => {
                   setError(null);
-                  files.clearError();
                 }}
               >
                 {t("dismiss")}
@@ -154,6 +152,7 @@ export function NewChat() {
             onAgentsChange={setAgentsMode}
             attach={agentsMode ? undefined : files.button({ disabled: noModels || busy })}
             chips={agentsMode ? undefined : files.chips}
+            onPaste={agentsMode ? undefined : files.onPaste}
             model={
               models.data && models.data.length > 0 && !agentsMode ? (
                 <ModelPicker models={models.data} value={model} onChange={setModel} />

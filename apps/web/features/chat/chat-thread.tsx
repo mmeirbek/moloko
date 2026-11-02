@@ -187,7 +187,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const [modelError, setModelError] = useState<unknown>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const clearDraft = useCallback(() => setDraft(null), []);
-  const files = useComposerAttachments({ chatId, ensureChat: async () => chatId });
+  const files = useComposerAttachments({ ensureChat: async () => chatId });
   const selectedModel = modelOverride !== undefined ? modelOverride : (chat.data?.model_config_id ?? null);
 
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
@@ -255,18 +255,19 @@ export function ChatThread({ chatId }: { chatId: string }) {
       void sendToAgents(text).then((ok) => !ok && setDraft(text));
       return;
     }
-    const kept = files.take();
-    void thread.send(
-      text,
-      selectedModel,
-      kept.map((a) => a.id),
-    ).then((accepted) => {
+    void (async () => {
+      const kept = await files.take(); // waits for files still uploading
+      const accepted = await thread.send(
+        text,
+        selectedModel,
+        kept.map((a) => a.id),
+      );
       // Not accepted (network, budget, …): the typed text and the files come back.
       if (!accepted) {
         setDraft(text);
         files.restore(kept);
       }
-    });
+    })();
   }
 
   const runtime = useExternalStoreRuntime<MessageOut>({
@@ -283,7 +284,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
   });
 
   const noModels = models.data !== undefined && models.data.length === 0;
-  const error = thread.sendError ?? handoffError ?? files.error ?? modelError;
+  const error = thread.sendError ?? handoffError ?? modelError;
   const sendError = error ? toMessage(error) : null;
   const loadFailed = Boolean(thread.loadError) && thread.messages.length === 0;
   const disabled = noModels || loadFailed;
@@ -293,7 +294,9 @@ export function ChatThread({ chatId }: { chatId: string }) {
       <AnsweredRuns.Provider value={answeredRuns}>
         <RetryContext.Provider value={retry}>
           <AssistantRuntimeProvider runtime={runtime}>
-            <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+            {/* Files dropped anywhere on the chat are attached. */}
+            <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col" {...(agentsMode ? {} : files.dropProps)}>
+              {files.dropOverlay}
               <h1 className="mx-auto w-full max-w-3xl truncate px-1 pb-2 font-sans text-base font-medium text-muted-foreground">
                 {chat.data ? chatTitle(chat.data.title) : ""}
               </h1>
@@ -352,7 +355,6 @@ export function ChatThread({ chatId }: { chatId: string }) {
                       onClick={() => {
                         thread.clearSendError();
                         setHandoffError(null);
-                        files.clearError();
                         setModelError(null);
                       }}
                     >
@@ -380,6 +382,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   onAgentsChange={setAgentsMode}
                   attach={agentsMode ? undefined : files.button({ disabled })}
                   chips={agentsMode ? undefined : files.chips}
+                  onPaste={agentsMode ? undefined : files.onPaste}
                   model={
                     models.data && models.data.length > 0 && !agentsMode ? (
                       <ModelPicker models={models.data} value={selectedModel} onChange={chooseModel} />

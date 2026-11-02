@@ -2,7 +2,7 @@
 
 import { ComposerPrimitive, ThreadPrimitive, useAui } from "@assistant-ui/react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import type { ClipboardEvent, ReactNode } from "react";
 
 import { ArrowUp, Network, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ export function Composer({
   attach,
   chips,
   model,
+  onPaste,
   className,
 }: {
   disabled?: boolean;
@@ -71,12 +72,15 @@ export function Composer({
   chips?: ReactNode;
   /** The model picker. */
   model?: ReactNode;
+  /** A paste with files in it (screenshots, copied files) attaches them. */
+  onPaste?: (e: ClipboardEvent) => void;
   className?: string;
 }) {
   const t = useTranslations("chat");
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       <ComposerPrimitive.Root
+        onPaste={onPaste}
         className={cn(
           "flex flex-col bg-card transition-colors focus-within:ring-2 focus-within:ring-ring/40 pixel-frame",
           agents && "border-sky/60",
