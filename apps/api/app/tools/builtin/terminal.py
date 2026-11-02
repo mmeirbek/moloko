@@ -80,17 +80,18 @@ class TerminalRun(BaseTool):
             raise ToolFailed("The sandbox is not configured.")
         argv = parse_command(args["command"], ctx.settings.sandbox_allowed_commands)
         timeout = min(
-            int(args.get("timeout_seconds") or ctx.settings.sandbox_timeout_seconds),
+            int(args.get("timeout_seconds") or ctx.settings.sandbox_default_timeout_seconds),
             ctx.settings.sandbox_timeout_seconds,
         )
         ws = await ctx.workspace()
         root = workspace_dir(ctx.settings, ws.id)
-        before = await asyncio.to_thread(snapshot, root, ctx.settings.workspace_max_files)
+        scan = (ctx.settings.workspace_max_files, ctx.settings.workspace_untracked_dirs)
+        before = await asyncio.to_thread(snapshot, root, *scan)
         try:
             result = await ctx.sandbox.run(ws.id, argv, timeout_seconds=timeout)
         except SandboxUnavailable as exc:
             raise ToolFailed(str(exc)) from None
-        after = await asyncio.to_thread(snapshot, root, ctx.settings.workspace_max_files)
+        after = await asyncio.to_thread(snapshot, root, *scan)
         changed, deleted = changed_paths(before, after)
         if changed or deleted:
             async with ctx.sessionmaker() as db:

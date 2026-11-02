@@ -41,6 +41,8 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/0.11.32/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Sandbox command image (the real-Docker sandbox tests run in it)
+        run: docker build -f infrastructure/docker/sandbox-runner.Dockerfile -t moloko-sandbox:local infrastructure/docker
       - name: Backend checks
         run: infrastructure/scripts/test-api.sh
 
@@ -87,3 +89,8 @@ jobs:
           docker build -f infrastructure/docker/api.Dockerfile -t moloko-backend:ci .
           docker build -f infrastructure/docker/web.Dockerfile -t moloko-frontend:ci .
           docker build -f infrastructure/docker/stt.Dockerfile -t moloko-stt:ci .
+          docker build -f infrastructure/docker/sandbox-runner.Dockerfile -t moloko-sandbox:ci infrastructure/docker
+      - name: Sandbox image has Python, Node.js and git (as the sandbox user, no network)
+        run: >-
+          docker run --rm --network none --read-only --user 10001:10001 moloko-sandbox:ci
+          sh -c 'python --version && node --version && npm --version && git --version'

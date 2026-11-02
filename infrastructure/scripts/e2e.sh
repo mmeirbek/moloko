@@ -60,6 +60,9 @@ if [[ "${E2E_STT:-0}" == "1" ]]; then
   docker run --rm --network none -v "$STT_MODELS_FROM:/from:ro" -v "${PROJECT}_stt-models:/to" \
     postgres:17.11-alpine sh -c "rm -rf '/to/$model' && cp -a '/from/$model' /to/"
 fi
+if [[ "${NO_BUILD:-0}" != "1" ]]; then
+  compose --profile sandbox-image build sandbox-image  # the image agents' commands run in
+fi
 if [[ "${NO_BUILD:-0}" == "1" ]]; then compose up -d --no-build --wait "${NO_STT[@]}"; else compose up -d --build --wait "${NO_STT[@]}"; fi
 export E2E_USERNAME=owner E2E_PASSWORD="e2e owner password 123"
 printf '%s\n' "$E2E_PASSWORD" | compose exec -T backend python -m app.cli create-owner \

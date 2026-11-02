@@ -7,6 +7,7 @@ import os
 import shutil
 import stat
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -97,11 +98,15 @@ class FileState:
     mtime_ns: int
 
 
-def snapshot(root: Path, max_files: int) -> dict[str, FileState]:
-    """Regular files under ``root`` (symlinks are not followed) — to detect changes."""
+def snapshot(root: Path, max_files: int, skip_dirs: Iterable[str] = ()) -> dict[str, FileState]:
+    """Regular files under ``root`` (symlinks are not followed) — to detect changes.
+    Folders named in ``skip_dirs`` (``node_modules``, caches…) are left out at any depth."""
+    skip = set(skip_dirs)
     found: dict[str, FileState] = {}
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
-        dirnames[:] = [d for d in dirnames if not os.path.islink(os.path.join(dirpath, d))]
+        dirnames[:] = [
+            d for d in dirnames if d not in skip and not os.path.islink(os.path.join(dirpath, d))
+        ]
         for name in filenames:
             full = os.path.join(dirpath, name)
             st = os.lstat(full)

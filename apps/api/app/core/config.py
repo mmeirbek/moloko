@@ -219,7 +219,24 @@ class Settings(BaseSettings):
     workspace_root: str = "/data/workspaces"
     file_storage_root: str = "/data/files"
     workspace_max_file_bytes: int = Field(1_000_000, ge=1000)  # one file read/written by a tool
-    workspace_max_files: int = Field(5000, ge=10)  # files scanned per workspace
+    workspace_max_files: int = Field(20_000, ge=10)  # files scanned per workspace
+    # Folders whose files a command's change list skips (installed packages, caches, build
+    # output, git internals): `npm ci` must not flood the file records, the search index or
+    # the scan limit above. They stay in the workspace and are still listed and readable.
+    workspace_untracked_dirs: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "node_modules",
+            ".git",
+            ".next",
+            ".cache",
+            ".turbo",
+            "__pycache__",
+            ".venv",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+        ]
+    )
     # Task workspaces of finished tasks are deleted this many days later (0 = never, the
     # default: the work of agents is kept). The task records stay in PostgreSQL either way.
     workspace_task_ttl_days: int = Field(0, ge=0)
@@ -239,11 +256,16 @@ class Settings(BaseSettings):
     # talks to Docker. Unset SANDBOX_URL = the terminal tool is unavailable.
     sandbox_url: str | None = None
     sandbox_runner_token: SecretStr | None = None
-    sandbox_image: str = "python:3.12.16-slim"
+    # Python 3.12 + Node.js 22 + git (infrastructure/docker/sandbox-runner.Dockerfile).
+    sandbox_image: str = "moloko-sandbox:local"
     sandbox_cpus: float = Field(1.0, gt=0, le=16)
-    sandbox_memory_mb: int = Field(512, ge=64, le=65_536)
-    sandbox_pids_limit: int = Field(128, ge=16, le=4096)
-    sandbox_timeout_seconds: int = Field(60, ge=1, le=3600)
+    # Room for `npm ci`, a type check and a Next.js build (512 MB / 128 were too small).
+    sandbox_memory_mb: int = Field(2048, ge=64, le=65_536)
+    sandbox_pids_limit: int = Field(512, ge=16, le=4096)
+    # The longest one command may run; a command that does not say runs at most
+    # SANDBOX_DEFAULT_TIMEOUT_SECONDS (so a hung program does not hold the agent for long).
+    sandbox_timeout_seconds: int = Field(600, ge=1, le=3600)
+    sandbox_default_timeout_seconds: int = Field(120, ge=1, le=3600)
     sandbox_allowed_commands: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "python",
@@ -362,6 +384,7 @@ class Settings(BaseSettings):
     @field_validator(
         "cors_allowed_origins",
         "sandbox_allowed_commands",
+        "workspace_untracked_dirs",
         "web_fetch_allowed_ports",
         "push_allowed_hosts",
         "webauthn_origins",

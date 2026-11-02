@@ -27,6 +27,18 @@ if [[ "${1:-}" == "--add-missing" ]]; then
     echo "SANDBOX_RUNNER_TOKEN=$(gen)" >> .env
     echo "Added SANDBOX_RUNNER_TOKEN."
   fi
+  # Sandbox values copied from an older .env.example → today's defaults (the command image
+  # with Node.js and git, room for npm/builds). A value changed by hand is left alone.
+  new_default() {  # key old new
+    if grep -qxF "$1=$2" .env; then
+      sed -i "s|^$1=$2\$|$1=$3|" .env
+      echo "Updated $1: $2 → $3 (new default)."
+    fi
+  }
+  new_default SANDBOX_IMAGE python:3.12.16-slim moloko-sandbox:local
+  new_default SANDBOX_MEMORY_MB 512 2048
+  new_default SANDBOX_PIDS_LIMIT 128 512
+  new_default SANDBOX_TIMEOUT_SECONDS 60 600
   if ! grep -q '^DOCKER_GID=' .env; then
     echo "DOCKER_GID=$(docker_gid)" >> .env
     echo "Added DOCKER_GID."

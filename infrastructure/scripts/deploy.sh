@@ -4,7 +4,7 @@
 #   infrastructure/scripts/deploy.sh
 #
 # Steps: get the latest `main`, create/complete .env, back up existing data, build the
-# images (including PostgreSQL+pgvector and the agents' browser), start everything,
+# images (including PostgreSQL+pgvector, the agents' sandbox and browser), start everything,
 # wait until every service is healthy, then say what (if anything) is left to do.
 # Options (environment): NO_PULL=1 (keep the current code), NO_BROWSER=1 (skip the
 # browser image), NO_BACKUP=1 (skip the backup before an update — not recommended).
@@ -65,6 +65,9 @@ fi
 # --- 4. build -----------------------------------------------------------------------------------
 say "Сборка образов (первый раз — несколько минут)"
 docker compose build --pull
+# The image agents' commands run in (Python + Node.js + git): without it terminal_run fails.
+docker compose --profile sandbox-image build --pull sandbox-image \
+  || warn "Образ песочницы не собрался: агенты не смогут выполнять команды (terminal_run). Запустите скрипт ещё раз позже."
 if [[ "${NO_BROWSER:-0}" != "1" ]]; then
   docker compose --profile browser build --pull browser \
     || warn "Образ браузера не собрался: агенты не смогут открывать сайты, PDF — через печать браузера. Запустите скрипт ещё раз позже."

@@ -44,6 +44,11 @@ class RunnerSandbox:
                 )
         except httpx2.HTTPError as exc:
             raise SandboxUnavailable("The sandbox service cannot be reached.") from exc
+        if resp.status_code == 503:
+            raise SandboxUnavailable(
+                "The sandbox's command image is not installed on the server yet "
+                "(infrastructure/scripts/deploy.sh builds it)."
+            )
         if resp.status_code != 200:
             raise SandboxUnavailable(f"The sandbox refused the command (HTTP {resp.status_code}).")
         data = resp.json()

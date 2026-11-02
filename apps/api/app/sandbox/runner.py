@@ -39,15 +39,20 @@ LABEL = "moloko.sandbox"
 SANDBOX_UID = "10001:10001"
 
 
+class ImageMissing(DockerError):
+    """The command image is neither present nor pullable (deploy.sh builds it)."""
+
+
 class RunnerSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore", case_sensitive=False)
 
     sandbox_runner_token: SecretStr | None = None  # unset/short = refuse every run
-    sandbox_image: str = "python:3.12.16-slim"
+    # Python + Node.js + git, built from infrastructure/docker/sandbox-runner.Dockerfile.
+    sandbox_image: str = "moloko-sandbox:local"
     sandbox_cpus: float = Field(1.0, gt=0, le=16)
-    sandbox_memory_mb: int = Field(512, ge=64, le=65_536)
-    sandbox_pids_limit: int = Field(128, ge=16, le=4096)
-    sandbox_timeout_seconds: int = Field(60, ge=1, le=3600)
+    sandbox_memory_mb: int = Field(2048, ge=64, le=65_536)
+    sandbox_pids_limit: int = Field(512, ge=16, le=4096)
+    sandbox_timeout_seconds: int = Field(600, ge=1, le=3600)
     sandbox_output_max_bytes: int = Field(64_000, ge=1000, le=10_000_000)
     sandbox_max_concurrent: int = Field(2, ge=1, le=16)
     sandbox_workspaces_volume: str | None = "moloko_workspaces"
@@ -233,8 +238,15 @@ class Runner:
     async def _ensure_image(self) -> None:
         if self._image_ready:
             return
-        if not await self.docker.image_exists(self.settings.sandbox_image):
-            await self.docker.pull(self.settings.sandbox_image)
+        image = self.settings.sandbox_image
+        if not await self.docker.image_exists(image):
+            try:  # a registry image is pulled; our own (…:local) must have been built
+                await self.docker.pull(image)
+            except DockerError:
+                raise ImageMissing(
+                    f"sandbox image {image} is missing "
+                    "(build infrastructure/docker/sandbox-runner.Dockerfile)"
+                ) from None
         self._image_ready = True
 
     async def run(self, req: RunRequest) -> RunResponse:
@@ -356,6 +368,9 @@ def create_runner_app(
     async def run(req: RunRequest) -> RunResponse:
         try:
             return await runner.run(req)
+        except ImageMissing as exc:
+            logger.warning("sandbox_image_missing", extra={"error": str(exc)[:300]})
+            raise HTTPException(status_code=503, detail="sandbox image missing") from None
         except DockerError as exc:
             logger.warning("sandbox_docker_error", extra={"error": str(exc)[:300]})
             raise HTTPException(status_code=502, detail="docker error") from None
