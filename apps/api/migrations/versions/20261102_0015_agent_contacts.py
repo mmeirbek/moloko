@@ -6,7 +6,7 @@
   on the sender for the agent page's correspondence tab.
 
 Revision ID: 0015_agent_contacts
-Revises: 0014d
+Revises: 0014a
 Create Date: 2026-11-02 20:00:00+00:00
 """
 
@@ -17,7 +17,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0015_agent_contacts"
-down_revision: str | Sequence[str] | None = "0014d"
+down_revision: str | Sequence[str] | None = "0014a"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
