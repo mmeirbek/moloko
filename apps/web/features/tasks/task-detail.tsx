@@ -19,6 +19,7 @@ import { useRealtimeStore } from "@/lib/realtime/store";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 import { useDocumentTitle } from "@/lib/hooks";
 import { TeamLine } from "@/features/agents/team-links";
+import { useTaskError } from "@/features/tasks/task-error";
 
 const ACTIVE = new Set(["created", "queued", "running", "waiting", "waiting_approval"]);
 
@@ -65,6 +66,7 @@ function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, t
 
 export function TaskDetailView({ taskId }: { taskId: string }) {
   const t = useTranslations("tasks");
+  const taskError = useTaskError();
   const tc = useTranslations("common");
   const tStatus = useTranslations("status");
   const tSchedules = useTranslations("schedules");
@@ -174,7 +176,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
               </Link>
             </p>
           ) : null}
-          <p>{task.error_message}</p>
+          <p>{taskError(task)}</p>
           <p className="mt-1 font-mono text-xs text-muted-foreground">
             {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}
           </p>

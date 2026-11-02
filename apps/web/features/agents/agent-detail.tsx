@@ -19,6 +19,7 @@ import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 import { useDocumentTitle } from "@/lib/hooks";
+import { useTaskError } from "@/features/tasks/task-error";
 
 import { AgentBudget } from "./agent-budget";
 import { AgentControls, isAgentBusy } from "./agent-controls";
@@ -38,6 +39,7 @@ function AgentTasks({ agentId }: { agentId: string }) {
     queryFn: ({ signal }) => listAgentTasks(agentId, signal),
   });
   const live = useRealtimeStore((s) => s.tasks);
+  const taskError = useTaskError();
   if (tasks.data?.items.length === 0)
     return (
       <p className="border-2 border-dashed p-6 text-center text-sm text-muted-foreground">{t("noTasks")}</p>
@@ -56,7 +58,7 @@ function AgentTasks({ agentId }: { agentId: string }) {
                 <span className="block truncate font-medium">{current.title}</span>
                 <span className="text-xs text-muted-foreground">
                   {format.dateTime(new Date(task.created_at), { dateStyle: "short", timeStyle: "short" })}
-                  {current.error_message ? ` · ${current.error_message}` : ""}
+                  {current.error_message || current.error_code ? ` · ${taskError(current)}` : ""}
                 </span>
               </span>
               <StatusBadge status={current.status} />

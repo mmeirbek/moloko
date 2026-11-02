@@ -467,7 +467,19 @@
     "emptyHint": "Press the cow “Task” button and describe what you need — the Orchestrator splits the work into steps.",
     "emptyFiltered": "Nothing found. Try another filter or search.",
     "agentBudgetExceeded": "The agent's monthly budget is used up — the task was stopped.",
-    "openAgent": "Open the agent"
+    "openAgent": "Open the agent",
+    "errors": {
+      "empty_result": "The agent finished without writing a result. Try again or say what result you need.",
+      "output_truncated": "The model's replies kept getting cut off by the length limit — the task was stopped. Split it into smaller parts.",
+      "max_steps_exceeded": "The agent used all its steps without finishing. Raise the step limit or split the task.",
+      "run_timeout": "The task ran past its time limit.",
+      "subtasks_failed": "None of the parts of the task finished.",
+      "internal_error": "The agent hit an internal error — it was logged.",
+      "invalid_plan": "The Orchestrator made an invalid plan.",
+      "budget_exceeded": "The monthly spending limit was reached.",
+      "agent_budget_exceeded": "The agent used up its monthly budget.",
+      "interrupted": "The task was interrupted by a server restart."
+    }
   },
   "agents": {
     "new": "New agent",

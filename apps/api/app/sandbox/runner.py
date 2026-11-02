@@ -186,7 +186,10 @@ def container_spec(
             "Type": "volume",
             "Source": settings.sandbox_workspaces_volume,
             "Target": "/workspace",
-            "VolumeOptions": {"Subpath": str(workspace_id)},
+            # NoCopy: without it Docker copies the image's (root-owned) /workspace onto the
+            # empty task folder and hands it to root — after a first terminal command the
+            # agent could no longer write its own files (screenshots, fs_write).
+            "VolumeOptions": {"Subpath": str(workspace_id), "NoCopy": True},
         }
     memory = settings.sandbox_memory_mb * 1024 * 1024
     return {

@@ -15,7 +15,7 @@ import asyncio
 import logging
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from sqlalchemy import select
@@ -55,6 +55,20 @@ from app.tools.runner import AwaitingApproval, ToolRunner
 logger = logging.getLogger("moloko.runtime")
 
 ERROR_EXCERPT = 4000
+
+
+# Stop reasons that mean "the reply was cut off by max_tokens" (Anthropic, OpenAI).
+CUT_OFF_REASONS = frozenset({"max_tokens", "length"})
+
+
+def cut_off_note(max_tokens: int) -> str:
+    """Our own runtime notice to the agent (not data): its last reply hit the output limit."""
+    return (
+        f"Your last reply was cut off at the output limit ({max_tokens} tokens) before it was "
+        "finished, so none of its tool calls ran. Continue the task in smaller steps: write "
+        'large files in several parts (fs_write with mode "append", or several smaller '
+        "files), keep each reply short, and give the final answer briefly."
+    )
 
 
 @dataclass
@@ -317,6 +331,8 @@ class NativeRuntime:
         elapsed: float,
         segment_started: float,
     ) -> str:
+        cut_offs = 0  # replies in a row that hit the output limit
+        max_tokens = int(target.params.get("max_tokens") or ctx.settings.agent_max_output_tokens)
         while True:
             await ctx.control.check()
             pending = pending_tool_calls(transcript)
@@ -337,11 +353,35 @@ class NativeRuntime:
                 model=target.model,
                 messages=tuple(transcript),
                 system=system,
-                max_tokens=ctx.settings.agent_max_output_tokens,
+                max_tokens=max_tokens,
                 tools=tools,
             )
             result: ChatResult = await ctx.control.guard(ctx.gateway.complete(target, request))
             steps += 1
+            if result.stop_reason in CUT_OFF_REASONS:
+                # Cut off by the output limit: the last tool call may be half-written, so none
+                # of this reply's calls run. The agent is told to go on in smaller pieces.
+                cut_offs += 1
+                transcript.append(
+                    ChatMessage(role="assistant", content=result.text.strip() or "[reply cut off]")
+                )
+                transcript.append(ChatMessage(role="user", content=cut_off_note(max_tokens)))
+                await self._checkpoint(
+                    ctx,
+                    target,
+                    transcript,
+                    steps,
+                    replace(result, tool_calls=()),
+                    elapsed + time.monotonic() - segment_started,
+                )
+                if cut_offs > ctx.settings.agent_max_cut_offs:
+                    raise LimitExceeded(
+                        "output_truncated",
+                        "The model's replies kept hitting the output limit "
+                        f"({max_tokens} tokens); the task was stopped.",
+                    )
+                continue
+            cut_offs = 0
             transcript.append(
                 ChatMessage(role="assistant", content=result.text, tool_calls=result.tool_calls)
             )

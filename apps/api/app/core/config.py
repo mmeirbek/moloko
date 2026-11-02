@@ -160,7 +160,12 @@ class Settings(BaseSettings):
     max_parallel_tool_calls: int = Field(3, ge=1, le=20)
     approval_ttl_minutes: int = Field(60, ge=1)
     max_subtasks_per_plan: int = Field(8, ge=1, le=50)
-    agent_max_output_tokens: int = Field(4096, ge=1)
+    # Longest reply an agent's model may write in one step (a model's own `max_tokens` param
+    # wins). Code and documents need room: 4096 cut files off mid-way. A reply that still
+    # hits the limit is not executed; the agent is told to continue in smaller parts, at
+    # most AGENT_MAX_CUT_OFFS times in a row before the task fails with `output_truncated`.
+    agent_max_output_tokens: int = Field(16_000, ge=256, le=200_000)
+    agent_max_cut_offs: int = Field(3, ge=0, le=20)
     # Per-agent monthly budgets: the owner is warned when an agent (with its subagents)
     # has spent this share of its own limit; at 100 % its new model calls are refused.
     agent_budget_warn_percent: int = Field(80, ge=10, le=99)

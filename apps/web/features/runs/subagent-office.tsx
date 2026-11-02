@@ -21,6 +21,7 @@ import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ExportMenu } from "@/features/tasks/export-menu";
 import { MicButton } from "@/features/voice/mic-button";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
+import { useTaskError } from "@/features/tasks/task-error";
 
 function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
   const t = useTranslations("runs");
@@ -107,6 +108,7 @@ function SubagentCard({ agent, task }: { agent: AgentOut; task?: TaskOut }) {
 
 function RunView({ runId }: { runId: string }) {
   const t = useTranslations("runs");
+  const taskError = useTaskError();
   const format = useFormatter();
   const tree = useQuery({ queryKey: runKeys.tree(runId), queryFn: ({ signal }) => getRunTree(runId, signal) });
   const liveTask = useRealtimeStore((s) => (tree.data ? s.tasks[tree.data.task.id] : undefined));
@@ -176,7 +178,7 @@ function RunView({ runId }: { runId: string }) {
       )}
       {task.status === "failed" && (
         <p role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-3 text-sm">
-          {task.error_message}
+          {taskError(task)}
         </p>
       )}
       {messages.length > 0 && (
