@@ -1,6 +1,10 @@
 /**
  * Spec 18.4: every backend status has exactly one visual behaviour. The office only
  * *renders* the status it receives — it never decides or changes it.
+ *
+ * Owner's rule (2026-11-02): an agent does not leave its desk until the task is fully done —
+ * thinking, waiting and reviewing are poses at the desk, not trips across the office — and
+ * between tasks it rests at its desk too. The lounge is only for agents without a free desk.
  */
 import type { ZoneName } from "./map";
 
@@ -23,24 +27,24 @@ export interface Behavior {
 }
 
 export const BEHAVIOR: Record<AgentStatus, Behavior> = {
-  idle: { place: "lounge", pose: "rest", indicator: "none", animated: true, hud: "none" }, // resting
+  idle: { place: "desk", pose: "rest", indicator: "none", animated: true, hud: "none" }, // resting at its desk
   planning: {
-    place: "board",
+    place: "desk",
     pose: "think",
     indicator: "thinking",
     animated: true,
     hud: "live",
-  }, // looking at board
+  }, // thinking at its desk
   working: { place: "desk", pose: "type", indicator: "none", animated: true, hud: "live" }, // typing at computer
   waiting: {
-    place: "waiting",
+    place: "desk",
     pose: "wait",
     indicator: "hourglass",
     animated: true,
     hud: "live",
   }, // waiting pose
   reviewing: {
-    place: "review",
+    place: "desk",
     pose: "read",
     indicator: "document",
     animated: true,
@@ -102,12 +106,12 @@ export function cowBehaviorFor(status: string, { night = false, attention = fals
         : { place: "pasture", pose: "graze", indicator: "none", bubble: null, animated: true };
     case "planning":
       return { place: "board", pose: "stand", indicator: "thinking", bubble: null, animated: true };
-    case "working":
-      return { place: "patrol", pose: "carry", indicator: "none", bubble: null, animated: true };
+    case "working": // stays by the task board while its team works (no walking from desk to desk)
+      return { place: "board", pose: "stand", indicator: "none", bubble: null, animated: true };
     case "waiting":
       return { place: "pasture", pose: "stand", indicator: "hourglass", bubble: null, animated: true };
     case "reviewing":
-      return { place: "review", pose: "stand", indicator: "document", bubble: null, animated: true };
+      return { place: "board", pose: "stand", indicator: "document", bubble: null, animated: true };
     case "completed":
       return { place: "pasture", pose: "cheer", indicator: "check", bubble: null, animated: true };
     case "failed":

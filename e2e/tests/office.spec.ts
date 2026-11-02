@@ -49,7 +49,7 @@ test("agent from a template rests in the office until it gets a task", async ({ 
   await expect(inspector).toBeVisible();
   const agents = (await (await request.get("/api/v1/agents")).json()) as { id: string; name: string; created_at: string }[];
   const agent = agents.filter((a) => a.name.startsWith("Переводчик")).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]!;
-  // no task: it just sits in the lounge, at a desk with its own pet waiting for it
+  // no task: it rests at its own desk (with its pet) until it gets one
   await waitForOffice(page, (s) => s.find((a) => a.id === agent.id)?.pose === "rest");
   const tasks = (await (await request.get(`/api/v1/tasks?agent_id=${agent.id}&status=all`)).json()) as { items: unknown[] };
   expect(tasks.items).toEqual([]);

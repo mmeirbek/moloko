@@ -65,6 +65,9 @@ describe("status → behaviour (spec 18.4)", () => {
     const visuals = Object.values(BEHAVIOR).map((b) => `${b.pose}/${b.indicator}`);
     expect(new Set(visuals).size).toBe(visuals.length);
     expect(BEHAVIOR.working.place).toBe("desk");
+    // the owner's rule: no trips away from the desk while there is a task, and rest at the desk
+    for (const status of ["idle", "planning", "working", "waiting", "reviewing", "completed", "failed"] as const)
+      expect(BEHAVIOR[status].place).toBe("desk");
     expect(BEHAVIOR.paused.animated).toBe(false);
   });
 

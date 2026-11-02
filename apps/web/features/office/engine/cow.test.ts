@@ -11,7 +11,7 @@ describe("the cow (Orchestrator)", () => {
       expect(cowBehaviorFor(status).pose).toBeTruthy();
     }
     expect(cowBehaviorFor("idle").pose).toBe("graze");
-    expect(cowBehaviorFor("working").place).toBe("patrol");
+    expect(cowBehaviorFor("working").place).toBe("board"); // by the task board, not walking from desk to desk
     expect(cowBehaviorFor("failed").pose).toBe("sad");
     expect(cowBehaviorFor("completed").pose).toBe("cheer");
     expect(cowBehaviorFor("unknown").pose).toBe("graze");
@@ -19,7 +19,7 @@ describe("the cow (Orchestrator)", () => {
 
   it("sleeps at night only when idle", () => {
     expect(cowBehaviorFor("idle", { night: true })).toMatchObject({ pose: "sleep", bubble: "zzz" });
-    expect(cowBehaviorFor("working", { night: true }).pose).toBe("carry");
+    expect(cowBehaviorFor("working", { night: true }).pose).toBe("stand");
   });
 
   it("moos when an approval waits, unless paused", () => {
