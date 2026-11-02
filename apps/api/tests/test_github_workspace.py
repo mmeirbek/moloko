@@ -29,7 +29,14 @@ from tests.conftest import (
     logged_in_client,
     run_agent,
 )
-from tests.tools_helpers import approvals, audit_actions, scripted, tool_agent, tool_calls
+from tests.tools_helpers import (
+    approvals,
+    audit_actions,
+    decide,
+    scripted,
+    tool_agent,
+    tool_calls,
+)
 
 SHA = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
 TOP = "me-app-7fd1a60"
@@ -206,14 +213,25 @@ async def connect_github(client: Any) -> None:
 
 
 async def run_tools(
-    app: FastAPI, steps: list[Any], tools: list[str], autonomy: str = "balanced"
+    app: FastAPI,
+    steps: list[Any],
+    tools: list[str],
+    autonomy: str = "balanced",
+    *,
+    approve: bool = False,
 ) -> tuple[str, Any]:
+    """Run an agent through ``steps``; with ``approve`` the owner approves each request."""
     mock_provider._handlers[:] = [scripted(*steps)]  # the `handlers` fixture restores them
     async with logged_in_client(app) as client:
         await connect_github(client)
         agent = await tool_agent(client, autonomy=autonomy, tools=tools)
         task_id = (await run_agent(client, agent["id"], "Work on the repo")).json()["task"]["id"]
         await drain(app, app.state.queue)
+        while approve and (
+            pending := [a for a in await approvals(app, task_id) if a.status == "pending"]
+        ):
+            assert (await decide(client, pending[0].id, "approve")).status_code == 200
+            await drain(app, app.state.queue)
     return task_id, agent
 
 
@@ -318,3 +336,174 @@ async def test_archives_stop_at_the_size_limit(
     )
     call = (await tool_calls(tool_app, task_id))[0]
     assert call.status == "failed" and "larger than 1000000 bytes" in (call.result or "")
+
+
+# --- many files, one commit -------------------------------------------------------------------
+
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+
+
+class EditingSandbox:
+    """A sandbox whose one command changes a file and makes a picture in app/."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    async def run(
+        self,
+        workspace_id: Any,
+        argv: list[str],
+        *,
+        timeout_seconds: int,
+        network: str = "none",
+    ) -> Any:
+        from app.sandbox.base import SandboxResult
+
+        app_dir = self.root / str(workspace_id) / "app"
+        (app_dir / "src/index.ts").write_text("export const x = 2;\n")
+        (app_dir / "logo.png").write_bytes(PNG)
+        return SandboxResult(exit_code=0, stdout="built\n", stderr="")
+
+    async def health(self) -> dict[str, object]:
+        return {"ok": True}
+
+
+COMMIT = {
+    "repo": "me/app",
+    "branch": "feature/ui",
+    "message": "Redesign the header",
+    "folder": "app",
+    "paths": ["src/index.ts", "logo.png", "scripts/run.sh"],
+    "delete": ["package.json"],
+}
+
+
+async def test_many_files_go_to_github_as_one_commit_after_approval(
+    tool_app: FastAPI, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, handlers: None
+) -> None:
+    from pydantic import SecretStr
+
+    from app.workers import jobs
+
+    fake = FakeGitHub(tarball(REPO_TAR))
+    monkeypatch.setattr(gh, "TRANSPORT", httpx2.MockTransport(fake.handler))
+    monkeypatch.setattr(jobs, "make_sandbox", lambda settings: EditingSandbox(tmp_path / "ws"))
+    monkeypatch.setattr(tool_app.state.settings, "sandbox_url", "http://sandbox:8090")
+    monkeypatch.setattr(tool_app.state.settings, "sandbox_runner_token", SecretStr("t" * 32))
+    task_id, _ = await run_tools(
+        tool_app,
+        [
+            ("github_checkout", {"repo": "me/app"}),
+            ("terminal_run", {"command": "make logo"}),
+            ("github_commit_files", COMMIT),
+            "done",
+        ],
+        ["github_checkout", "terminal_run", "github_commit_files"],
+        approve=True,
+    )
+    [request] = await approvals(tool_app, task_id)
+    assert request.category == "sensitive"  # publishing: always asks first
+    assert request.resources == [
+        "github:me/app@feature/ui",
+        "src/index.ts",
+        "logo.png",
+        "scripts/run.sh",
+        "delete: package.json",
+    ]
+    commit_call = (await tool_calls(tool_app, task_id))[2]
+    assert commit_call.status == "succeeded", commit_call.result
+    assert "Committed 3 file(s), deleted 1 to me/app@feature/ui (new branch from main)" in (
+        commit_call.result or ""
+    )
+    # one tree on top of the base commit: text inline, the picture as a blob, the deletion
+    assert fake.posted["tree"]["base_tree"] == "base-tree"
+    tree = {e["path"]: e for e in fake.posted["tree"]["tree"]}
+    assert tree["src/index.ts"] == {
+        "path": "src/index.ts",
+        "mode": "100644",
+        "type": "blob",
+        "content": "export const x = 2;\n",
+    }
+    assert tree["scripts/run.sh"]["mode"] == "100755"
+    assert tree["logo.png"]["sha"] == "blob1" and "content" not in tree["logo.png"]
+    assert fake.posted["blobs"][0]["encoding"] == "base64"
+    assert tree["package.json"]["sha"] is None
+    assert fake.posted["commit"] == {
+        "message": "Redesign the header",
+        "tree": "new-tree",
+        "parents": ["base-commit"],
+    }
+    assert fake.posted["new_ref"] == {"ref": "refs/heads/feature/ui", "sha": "c0ffee1234567890"}
+    assert "moved_ref" not in fake.posted
+
+
+async def test_an_existing_branch_is_moved_forward_only(
+    tool_app: FastAPI, monkeypatch: pytest.MonkeyPatch, handlers: None
+) -> None:
+    fake = FakeGitHub(tarball(REPO_TAR))
+    fake.refs["feature/ui"] = "feature-head"
+    monkeypatch.setattr(gh, "TRANSPORT", httpx2.MockTransport(fake.handler))
+    args = {**COMMIT, "paths": ["src/index.ts"], "delete": []}
+    task_id, _ = await run_tools(
+        tool_app,
+        [("github_checkout", {"repo": "me/app"}), ("github_commit_files", args), "done"],
+        ["github_checkout", "github_commit_files"],
+        approve=True,
+    )
+    call = (await tool_calls(tool_app, task_id))[1]
+    assert call.status == "succeeded", call.result
+    assert fake.posted["commit"]["parents"] == ["feature-head"]
+    assert fake.posted["moved_ref"] == ("feature/ui", {"sha": "c0ffee1234567890", "force": False})
+    assert "new_ref" not in fake.posted
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ({"paths": ["../secrets.txt"]}, ".."),
+        ({"paths": [".git/config"]}, "not a file path"),
+        ({"paths": ["missing.ts"]}, "does not exist"),
+        ({"paths": ["src"]}, "not a file"),
+        ({"paths": [], "delete": []}, "give the files"),
+        ({"paths": ["src/index.ts"], "delete": ["src/index.ts"]}, "both"),
+        ({"branch": "bad..name"}, "invalid branch"),
+        ({"repo": "other/repo"}, "allowed repositories"),
+    ],
+)
+async def test_commits_stay_inside_the_workspace_and_the_rules(
+    tool_app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+    handlers: None,
+    change: dict[str, Any],
+    reason: str,
+) -> None:
+    fake = FakeGitHub(tarball(REPO_TAR))
+    monkeypatch.setattr(gh, "TRANSPORT", httpx2.MockTransport(fake.handler))
+    task_id, _ = await run_tools(
+        tool_app,
+        [
+            ("github_checkout", {"repo": "me/app"}),
+            ("github_commit_files", {**COMMIT, "delete": [], **change}),
+            "done",
+        ],
+        ["github_checkout", "github_commit_files"],
+    )
+    call = (await tool_calls(tool_app, task_id))[1]
+    assert call.status == "denied" and reason in (call.decision_reason or ""), call.decision_reason
+    assert await approvals(tool_app, task_id) == []  # the owner is not asked about it
+    assert "tree" not in fake.posted
+
+
+async def test_the_commit_limits_come_from_the_settings(
+    tool_app: FastAPI, monkeypatch: pytest.MonkeyPatch, handlers: None
+) -> None:
+    monkeypatch.setattr(tool_app.state.settings, "github_commit_max_files", 2)
+    fake = FakeGitHub(tarball(REPO_TAR))
+    monkeypatch.setattr(gh, "TRANSPORT", httpx2.MockTransport(fake.handler))
+    task_id, _ = await run_tools(
+        tool_app,
+        [("github_checkout", {"repo": "me/app"}), ("github_commit_files", COMMIT), "done"],
+        ["github_checkout", "github_commit_files"],
+    )
+    call = (await tool_calls(tool_app, task_id))[1]
+    assert call.status == "denied" and "more than 2 files" in (call.decision_reason or "")

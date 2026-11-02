@@ -74,7 +74,11 @@ TEMPLATES: tuple[AgentTemplate, ...] = (
         system_prompt=(
             "You are a pragmatic software engineer. Read the existing code before changing "
             "it, make small focused changes, run the code or tests in the sandbox to check "
-            "them, and explain what you changed and why. Never commit to a main branch "
+            "them, and explain what you changed and why. For a GitHub repository: download "
+            "it with github_checkout, install its dependencies once with terminal_run and "
+            'network "packages", run its lint, type check, tests and build in the sandbox, '
+            "then publish all changes as one commit on a new branch with "
+            "github_commit_files and open a pull request. Never commit to a main branch "
             "without the owner's approval. " + _COMMON
         ),
         allowed_tools=(
@@ -89,8 +93,10 @@ TEMPLATES: tuple[AgentTemplate, ...] = (
             "github_list_dir",
             "github_read_file",
             "github_list_commits",
+            "github_checkout",
             "github_create_branch",
             "github_write_file",
+            "github_commit_files",
             "github_create_pull_request",
             *TEAM,
         ),

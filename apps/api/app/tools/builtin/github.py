@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import os
+import stat
 import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -33,7 +35,7 @@ from app.tools.base import (
     string_prop,
 )
 from app.workspaces.archive import ArchiveError, unpack_repository
-from app.workspaces.paths import resolve
+from app.workspaces.paths import normalise, resolve
 
 REPO = string_prop("Repository as owner/name", pattern=gh.REPO_RE.pattern)
 REF = string_prop("Branch, tag or commit (default: the repository's default branch)", maxLength=200)
@@ -383,6 +385,13 @@ async def _record(ctx: ToolContext, changed: list[str]) -> None:
         await db.commit()
 
 
+def _repo_folder(args: dict[str, Any]) -> str:
+    """The workspace folder that holds the repository (default: the repository name).
+    A leading "/" is kept, so an absolute path is refused, not silently made relative."""
+    folder = str(args.get("folder") or "").strip().rstrip("/")
+    return folder or args["repo"].split("/")[-1]
+
+
 def _has_files(path: Path) -> bool:
     return path.is_dir() and any(path.iterdir())
 
@@ -418,26 +427,21 @@ class Checkout(GitHubTool):
     def timeout_for(self, settings: Settings) -> float:
         return settings.github_transfer_timeout_seconds
 
-    @staticmethod
-    def _folder(args: dict[str, Any]) -> str:
-        folder = str(args.get("folder") or "").strip().rstrip("/")  # "/x" stays absolute
-        return folder or args["repo"].split("/")[-1]
-
     async def check_scope(self, ctx: ToolContext, args: dict[str, Any]) -> None:
         await super().check_scope(ctx, args)
         if args.get("ref") and not gh.BRANCH_RE.match(args["ref"]):
             raise ScopeError(f"invalid branch, tag or commit: {args['ref']}")
         root = await _workspace_root(ctx)
-        if resolve(root, self._folder(args)) == root:
+        if resolve(root, _repo_folder(args)) == root:
             raise ScopeError("choose a folder inside the workspace, not the workspace itself")
 
     async def category_for(self, ctx: ToolContext, args: dict[str, Any]) -> ToolCategory:
-        dest = resolve(await _workspace_root(ctx), self._folder(args))
+        dest = resolve(await _workspace_root(ctx), _repo_folder(args))
         replaces = args.get("overwrite") and await asyncio.to_thread(_has_files, dest)
         return ToolCategory.SENSITIVE if replaces else ToolCategory.WRITE
 
     def describe(self, args: dict[str, Any]) -> OperationInfo:
-        folder = self._folder(args)
+        folder = _repo_folder(args)
         ref = args.get("ref") or "the default branch"
         return OperationInfo(
             summary=f"Download {args['repo']} ({ref}) into the workspace folder {folder}/",
@@ -453,7 +457,7 @@ class Checkout(GitHubTool):
 
     async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolOutput:
         access = await _access(ctx)
-        repo, folder = args["repo"], self._folder(args)
+        repo, folder = args["repo"], _repo_folder(args)
         root = await _workspace_root(ctx)
         dest = resolve(root, folder)
         if dest.exists() and not dest.is_dir():
@@ -502,6 +506,188 @@ class Checkout(GitHubTool):
         return ToolOutput("\n".join(lines))
 
 
+def _repo_path(path: str) -> str:
+    """A repository path from the model: relative, no ``..``, nothing inside ``.git``."""
+    clean = str(normalise(path))
+    if clean == "." or ".git" in PurePosixPath(clean).parts:
+        raise ScopeError(f"not a file path in the repository: {path}")
+    return clean
+
+
+def _commit_lists(args: dict[str, Any]) -> tuple[list[str], list[str]]:
+    paths = [_repo_path(p) for p in args.get("paths") or []]
+    deletes = [_repo_path(p) for p in args.get("delete") or []]
+    if not paths and not deletes:
+        raise ScopeError("give the files to commit (paths) or to delete (delete)")
+    both = set(paths) & set(deletes)
+    if both:
+        raise ScopeError(f"a path cannot be both committed and deleted: {sorted(both)[0]}")
+    return list(dict.fromkeys(paths)), list(dict.fromkeys(deletes))
+
+
+def _read_for_commit(
+    root: Path, folder: str, paths: list[str], max_bytes: int
+) -> list[tuple[str, bytes, str]]:
+    """(repository path, content, git mode) of each file — regular files only, no links."""
+    out: list[tuple[str, bytes, str]] = []
+    total = 0
+    for rel in paths:
+        full = resolve(root, f"{folder}/{rel}", must_exist=True)
+        st = os.lstat(full)
+        if not stat.S_ISREG(st.st_mode):
+            raise ScopeError(f"{rel} is not a file")
+        total += st.st_size
+        if total > max_bytes:
+            raise ToolFailed(
+                f"The files are larger than {max_bytes} bytes in all (GITHUB_COMMIT_MAX_BYTES)."
+            )
+        out.append((rel, full.read_bytes(), "100755" if st.st_mode & 0o111 else "100644"))
+    return out
+
+
+def _as_text(data: bytes) -> str | None:
+    if b"\x00" in data:
+        return None
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+class CommitFiles(GitHubTool):
+    name = "github_commit_files"
+    title = "Commit files to GitHub"
+    description = (
+        "Publish several files from your workspace to a branch as ONE commit (instead of "
+        "one commit per file). The branch is created from base (default: the repository's "
+        "default branch) if it does not exist. folder: the workspace folder holding the "
+        'repository (default: the repository name, as github_checkout uses; "." = the '
+        "workspace itself). paths: the new or changed files, relative to that folder — "
+        "the same paths as in the repository. delete: repository paths to remove. Needs "
+        "the owner's approval (unless the owner gave this agent full access); open a pull "
+        "request afterwards with github_create_pull_request."
+    )
+    category = ToolCategory.SENSITIVE
+    input_schema = object_schema(
+        {
+            "repo": REPO,
+            "branch": string_prop("Branch to commit to (created if it does not exist)"),
+            "base": string_prop("Branch to create it from (default: the default branch)"),
+            "message": string_prop("Commit message", minLength=1, maxLength=5000),
+            "folder": string_prop("Workspace folder that holds the repository", maxLength=200),
+            "paths": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 512},
+                "maxItems": 5000,
+                "description": "Files to add or update, relative to folder",
+            },
+            "delete": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 512},
+                "maxItems": 5000,
+                "description": "Repository paths to delete",
+            },
+        },
+        ["repo", "branch", "message"],
+    )
+
+    def timeout_for(self, settings: Settings) -> float:
+        return settings.github_transfer_timeout_seconds
+
+    async def check_scope(self, ctx: ToolContext, args: dict[str, Any]) -> None:
+        await super().check_scope(ctx, args)
+        paths, deletes = _commit_lists(args)
+        limit = ctx.settings.github_commit_max_files
+        if len(paths) + len(deletes) > limit:
+            raise ScopeError(f"more than {limit} files in one commit (GITHUB_COMMIT_MAX_FILES)")
+        root, folder = await _workspace_root(ctx), _repo_folder(args)
+        resolve(root, folder)
+        for rel in paths:
+            full = resolve(root, f"{folder}/{rel}", must_exist=True)
+            if not full.is_file():
+                raise ScopeError(f"{rel} is not a file")
+
+    def describe(self, args: dict[str, Any]) -> OperationInfo:
+        repo, branch = args["repo"], args["branch"]
+        paths = list(dict.fromkeys(args.get("paths") or []))
+        deletes = list(dict.fromkeys(args.get("delete") or []))
+        what = f"{len(paths)} file(s)" + (f", delete {len(deletes)}" if deletes else "")
+        listed = [*paths, *(f"delete: {p}" for p in deletes)]
+        shown = listed[:18] + ([f"… and {len(listed) - 18} more"] if len(listed) > 18 else [])
+        base = args.get("base") or "the default branch"
+        return OperationInfo(
+            summary=f"Commit {what} to {repo}@{branch}: {args['message'][:120]}",
+            resources=[f"github:{repo}@{branch}", *shown],
+            consequences=(
+                f"One commit with these files is pushed to {branch} (created from {base} if "
+                "it does not exist). It is visible to everyone with access to the repository."
+            ),
+        )
+
+    async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolOutput:
+        access = await _access(ctx)
+        settings, token = ctx.settings, access.token
+        repo, branch = args["repo"], args["branch"]
+        paths, deletes = _commit_lists(args)
+        root, folder = await _workspace_root(ctx), _repo_folder(args)
+        files = await asyncio.to_thread(
+            _read_for_commit, root, folder, paths, settings.github_commit_max_bytes
+        )
+
+        async def api(method: str, path: str, **kw: Any) -> Any:
+            return await gh.call(settings, token, method, f"/repos/{repo}{path}", **kw)
+
+        try:
+            head = await api("GET", f"/git/ref/heads/{branch}", missing_ok=True)
+            created_from = None
+            if head is None:  # a new branch, from base
+                created_from = args.get("base") or await gh.default_branch(settings, token, repo)
+                head = await api("GET", f"/git/ref/heads/{created_from}")
+            parent = head["object"]["sha"]
+            base_tree = (await api("GET", f"/git/commits/{parent}"))["tree"]["sha"]
+            entries: list[dict[str, Any]] = []
+            for rel, data, mode in files:
+                text = _as_text(data)
+                if text is not None:  # GitHub stores inline text as a blob itself
+                    entries.append({"path": rel, "mode": mode, "type": "blob", "content": text})
+                    continue
+                blob = await api(
+                    "POST",
+                    "/git/blobs",
+                    json={"content": base64.b64encode(data).decode(), "encoding": "base64"},
+                )
+                entries.append({"path": rel, "mode": mode, "type": "blob", "sha": blob["sha"]})
+            entries += [{"path": p, "mode": "100644", "type": "blob", "sha": None} for p in deletes]
+            tree = await api("POST", "/git/trees", json={"base_tree": base_tree, "tree": entries})
+            if tree["sha"] == base_tree:
+                where = f"{created_from}, so {branch} was not created" if created_from else branch
+                return ToolOutput(f"Nothing to commit: these files are already so on {where}.")
+            commit = await api(
+                "POST",
+                "/git/commits",
+                json={"message": args["message"], "tree": tree["sha"], "parents": [parent]},
+            )
+            if created_from:
+                await api(
+                    "POST", "/git/refs", json={"ref": f"refs/heads/{branch}", "sha": commit["sha"]}
+                )
+            else:  # fast-forward only: a branch that moved meanwhile is not overwritten
+                await api(
+                    "PATCH",
+                    f"/git/refs/heads/{branch}",
+                    json={"sha": commit["sha"], "force": False},
+                )
+        except gh.GitHubError as exc:
+            raise ToolFailed(str(exc)) from None
+        made = f" (new branch from {created_from})" if created_from else ""
+        gone = f", deleted {len(deletes)}" if deletes else ""
+        link = f" {commit['html_url']}" if commit.get("html_url") else ""
+        return ToolOutput(
+            f"Committed {len(files)} file(s){gone} to {repo}@{branch}{made} as one commit "
+            f"{str(commit['sha'])[:10]}.{link}"
+        )
+
+
 GITHUB_TOOLS: tuple[BaseTool, ...] = (
     ListRepos(),
     ListDir(),
@@ -512,5 +698,6 @@ GITHUB_TOOLS: tuple[BaseTool, ...] = (
     Checkout(),
     CreateBranch(),
     WriteFile(),
+    CommitFiles(),
     CreatePullRequest(),
 )
