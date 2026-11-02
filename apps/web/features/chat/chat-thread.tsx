@@ -13,12 +13,12 @@ import {
 } from "@assistant-ui/react";
 import type { MessageOut } from "@moloko/shared-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, Check, Copy, Network, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { LogoMark } from "@/components/brand/logo";
+import { ArrowDown, Check, Copy, Network, RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
@@ -71,7 +71,7 @@ function UserMessage() {
   const runId = message?.agent_run_id;
   return (
     <MessagePrimitive.Root className="flex flex-col items-end gap-1.5">
-      <div className="max-w-[85%] rounded-3xl bg-muted px-4 py-2.5 whitespace-pre-wrap text-foreground">
+      <div className="max-w-[85%] bg-muted px-4 py-2.5 whitespace-pre-wrap text-foreground">
         <MessagePrimitive.Parts />
       </div>
       {message?.attachments && message.attachments.length > 0 && (
@@ -110,21 +110,21 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex gap-3">
       {/* moloko's own face on its answers: the logo tile. */}
-      <LogoMark size="sm" className="mt-0.5 rounded-md" />
+      <LogoMark size="sm" className="mt-0.5" />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="max-w-full text-[15px] leading-relaxed">
+        <div className="max-w-full text-sm leading-relaxed">
           {streaming && !message?.content ? (
             <span className="inline-flex gap-1 py-2" aria-label={t("thinking")}>
-              <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-              <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:150ms]" />
-              <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:300ms]" />
+              <span className="size-1.5 animate-pulse bg-muted-foreground" />
+              <span className="size-1.5 animate-pulse bg-muted-foreground [animation-delay:150ms]" />
+              <span className="size-1.5 animate-pulse bg-muted-foreground [animation-delay:300ms]" />
             </span>
           ) : (
             <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
           )}
         </div>
         {failed && message && (
-          <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+          <div role="alert" className="border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
             <p>{errorText(message)}</p>
             <div className="mt-1 flex items-center justify-between gap-2">
               {message.error_id && (
@@ -335,7 +335,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                     variant="outline"
                     size="icon"
                     aria-label={t("scrollDown")}
-                    className="absolute -top-11 left-1/2 -translate-x-1/2 rounded-full shadow-md disabled:invisible"
+                    className="absolute -top-11 left-1/2 -translate-x-1/2 shadow-md disabled:invisible"
                   >
                     <ArrowDown />
                   </Button>
@@ -343,7 +343,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                 {sendError && (
                   <div
                     role="alert"
-                    className="flex items-center justify-between gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
+                    className="flex items-center justify-between gap-2 border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
                   >
                     <span>{sendError.message}</span>
                     <button
@@ -361,7 +361,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   </div>
                 )}
                 {looksComplex && !agentsMode && lastUser && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-accent/50 px-3 py-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-2 bg-accent/50 px-3 py-2 text-sm">
                     <span>{t("suggestAgents")}</span>
                     <Button
                       size="sm"

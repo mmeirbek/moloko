@@ -2,6 +2,7 @@ import type {
   AgentCreate,
   AgentFromTemplate,
   AgentOut,
+  AgentRestore,
   AgentTemplateOut,
   AgentRunRequest,
   AgentUpdate,
@@ -24,6 +25,7 @@ export const agentKeys = {
   detail: (id: string) => ["agents", id] as const,
   tasks: (id: string) => ["tasks", "agent", id] as const,
   templates: (locale: string) => ["agents", "templates", locale] as const,
+  archived: ["agents", "archived"] as const,
 };
 export const taskKeys = {
   all: ["tasks"] as const,
@@ -45,6 +47,10 @@ export const createAgentFromTemplate = (body: AgentFromTemplate) =>
 export const updateAgent = (id: string, body: AgentUpdate) =>
   api.request<AgentOut>(`/agents/${id}`, { method: "PATCH", body });
 export const deleteAgent = (id: string) => api.request<void>(`/agents/${id}`, { method: "DELETE" });
+/** Agents removed from the office (newest first) — they can be brought back. */
+export const listArchivedAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents/archived", { signal });
+export const restoreAgent = (id: string, body: AgentRestore = {}) =>
+  api.request<AgentOut>(`/agents/${id}/restore`, { method: "POST", body });
 export const runAgent = (id: string, body: AgentRunRequest) =>
   api.request<StartedRun>(`/agents/${id}/run`, { method: "POST", body });
 export const agentAction = (id: string, action: "pause" | "resume" | "stop") =>

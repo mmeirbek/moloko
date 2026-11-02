@@ -74,14 +74,14 @@ function AddProviderForm({ kinds }: { kinds: string[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 rounded-md border p-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
+    <form onSubmit={onSubmit} className="grid gap-3 border-2 p-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="provider-kind">{t("kind")}</Label>
         <select
           id="provider-kind"
           value={kind}
           onChange={(e) => setKind(e.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
         >
           {kinds.map((k) => (
             <option key={k} value={k}>
@@ -301,7 +301,7 @@ function AddModelForm({ providers }: { providers: ProviderOut[] }) {
         aria-label={t("provider")}
         value={providerId}
         onChange={(e) => setProviderId(e.target.value)}
-        className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+        className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
       >
         {providers.map((p) => (
           <option key={p.id} value={p.id}>
@@ -343,7 +343,7 @@ export function ProvidersSection() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {kinds.data && <AddProviderForm kinds={kinds.data} />}
-          <ul className="divide-y">
+          <ul className="divide-y-2">
             {providers.data?.map((p) => <ProviderRow key={p.id} provider={p} />)}
           </ul>
           {providers.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("providers.none")}</p>}
@@ -355,7 +355,7 @@ export function ProvidersSection() {
           <CardDescription>{t("models.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ul className="max-h-96 divide-y overflow-y-auto">
+          <ul className="max-h-96 divide-y-2 overflow-y-auto">
             {models.data?.map((m) => <ModelRow key={m.id} model={m} />)}
           </ul>
           {models.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("models.none")}</p>}

@@ -80,7 +80,7 @@ export function AuditLog() {
           aria-label={t("area")}
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-9 bg-background px-2 text-sm pixel-frame pixel-sunken"
         >
           {AUDIT_AREAS.map((a) => (
             <option key={a} value={a}>
@@ -92,7 +92,7 @@ export function AuditLog() {
           aria-label={t("outcome")}
           value={outcome}
           onChange={(e) => setOutcome(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-9 bg-background px-2 text-sm pixel-frame pixel-sunken"
         >
           <option value="">{t("outcomes.all")}</option>
           <option value="success">{t("outcomes.success")}</option>
@@ -100,7 +100,7 @@ export function AuditLog() {
           <option value="denied">{t("outcomes.denied")}</option>
         </select>
       </div>
-      <ul className="divide-y rounded-lg border bg-card px-4" aria-label={t("title")}>
+      <ul className="divide-y-2 bg-card px-4 pixel-frame" aria-label={t("title")}>
         {items.map((e) => (
           <Row key={e.id} entry={e} />
         ))}

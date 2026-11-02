@@ -64,7 +64,7 @@ export function AgentToolsField({
                     aria-label={t("overrideFor", { name: titleOf(tool) })}
                     value={values.overrides[tool.name] ?? ""}
                     onChange={(e) => onChange(setOverride(values, tool.name, e.target.value as ToolOverride | ""))}
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                    className="h-8 bg-background px-2 text-xs pixel-frame pixel-sunken"
                   >
                     <option value="">{t("override.default")}</option>
                     <option value="approve">{t("override.approve")}</option>
@@ -84,7 +84,7 @@ export function AgentToolsField({
           id="agent-workspace"
           value={values.workspaceId}
           onChange={(e) => onChange({ ...values, workspaceId: e.target.value })}
-          className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
         >
           <option value="">{t("workspacePerTask")}</option>
           {projects.data?.map((ws) => (

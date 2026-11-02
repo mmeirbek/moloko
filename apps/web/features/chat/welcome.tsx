@@ -13,7 +13,7 @@ import { authKeys, getMe } from "@/lib/api/auth";
 export function ChatWelcome({ noModels }: { noModels: boolean }) {
   const t = useTranslations("chat");
   const me = useQuery({ queryKey: authKeys.me, queryFn: ({ signal }) => getMe(signal) });
-  const name = me.data ? me.data.user.display_name || me.data.user.username : "";
+  const name = me.data ? me.data.user.address_as || me.data.user.display_name || me.data.user.username : "";
 
   if (noModels) {
     return (

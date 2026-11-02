@@ -50,6 +50,12 @@ You are the implementing coding agent for the project "shvluup". The full specif
 - USE selectively: `modelcontextprotocol/servers` reference servers (Filesystem, Git, Fetch, Memory, Time) as optional MCP servers. The repo says they are educational reference implementations, not production-ready. So run them in an isolated config, keep newly discovered tools disabled by default, treat their output as untrusted, and apply our permission system (spec 15.5).
 - Many servers there (GitHub, PostgreSQL, Slack, Google Drive and others) were moved to an archive. Do not use the archived ones. For the GitHub integration, find the currently maintained official GitHub MCP server, verify its license and maintenance, and confirm with the owner before adding it.
 
+### Pixel-style interface (owner request, 2026-11-02: "pixel style everywhere", "use ready repos for reference or copying")
+- USE (copied, with notice): `halfmage/pixelarticons` (MIT) — the SVG paths of the app's icons, generated into `apps/web/components/icons.tsx` at a pinned commit; replaces `lucide-react`.
+- USE (font files, with notice): `TakWolf/ark-pixel-font` (fonts SIL OFL 1.1) — Ark Pixel 12px proportional and monospaced, subset to Latin + Cyrillic, for text and code.
+- REFERENCE: `TheOrcDev/8bitcn-ui` (MIT) — retro shadcn-style components; read for the look (notched pixel borders, bevels, press-down buttons). Re-implemented in CSS (`pixel-frame`, `pixel-raised`, `pixel-sunken` in `globals.css`) instead of its extra decorative `<span>` elements; no code copied.
+- REFERENCE: `nostalgic-css/NES.css` (MIT) — the box-shadow pixel-border technique; idea only.
+
 ### Not yet verified (check before use)
 - Official Claude Agent SDK and OpenAI Agents SDK for the `AgentRuntime` adapters. Find the official repositories, check license and docs, and use API-key auth only. Do not use these SDKs with consumer-subscription logins.
 

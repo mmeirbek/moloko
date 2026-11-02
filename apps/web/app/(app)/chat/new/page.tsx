@@ -1,8 +1,8 @@
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
+import { ArrowLeft } from "@/components/icons";
 import { NewChat } from "@/features/chat/new-chat";
 
 export async function generateMetadata(): Promise<Metadata> {

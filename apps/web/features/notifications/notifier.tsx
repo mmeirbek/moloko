@@ -1,10 +1,10 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { X } from "@/components/icons";
 import { syncPush } from "@/lib/notifications/push";
 import { loadPrefs, noticeFor, type Notice } from "@/lib/notifications/rules";
 import { useRealtimeClient } from "@/lib/realtime/provider";
@@ -62,7 +62,7 @@ export function Notifier() {
       {toasts.map((toast) => (
         <div
           key={toast.key}
-          className="pointer-events-auto flex items-start gap-3 rounded-lg border bg-card p-3 shadow-lg"
+          className="pointer-events-auto flex items-start gap-3 bg-card p-3 pixel-frame"
           data-toast={toast.kind}
         >
           <Link
@@ -76,7 +76,7 @@ export function Notifier() {
           <button
             type="button"
             aria-label={t("dismiss")}
-            className="-m-2 flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+            className="-m-2 flex size-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
             onClick={() => setToasts((l) => l.filter((x) => x.key !== toast.key))}
           >
             <X className="size-4" />

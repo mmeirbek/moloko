@@ -2,10 +2,10 @@
 
 import type { AgentOut } from "@moloko/shared-types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { Pause, Play, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";

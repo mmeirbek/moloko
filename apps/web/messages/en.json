@@ -97,7 +97,12 @@
     "pdf_unavailable": "PDF is not available on the server: build the sandbox browser. Printing opens instead — choose “Save as PDF”.",
     "nothing_to_export": "This task has no result yet.",
     "invalid_password": "That password is not right.",
-    "session_ttl_out_of_range": "This server does not allow that length."
+    "session_ttl_out_of_range": "This server does not allow that length.",
+    "invalid_profile_text": "No line breaks or control characters, please.",
+    "profile_text_too_long": "That is too long.",
+    "agent_not_restorable": "This agent cannot be brought back.",
+    "agent_not_archived": "The agent is already in the office.",
+    "agent_name_taken": "An agent with this name is already in the office."
   },
   "preferences": {
     "theme": "Theme",
@@ -473,10 +478,13 @@
       "dangerHint": "The agent leaves the office. Its task history and memory are kept."
     },
     "templates": {
-      "title": "New agent from a template",
-      "hint": "The agent walks into the office and rests until you give it a task.",
+      "title": "Add to the office",
+      "hint": "Drag a card onto the office map or press its button. The agent rests until it gets a task.",
       "add": "Add",
-      "close": "Close"
+      "close": "Close",
+      "removed": "Removed from the office — can come back",
+      "restore": "Bring back",
+      "dragHint": "Drag onto the office map"
     },
     "confirmStop": "Stop {name} and cancel its task?"
   },
@@ -538,7 +546,8 @@
       "giveTaskHint": "The agent is waiting for work. Describe a task and it starts.",
       "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best"
     },
-    "addAgent": "Add agent"
+    "addAgent": "Add agent",
+    "dropHere": "Drop — the agent walks into the office"
   },
   "memory": {
     "sharedTitle": "Memory",
@@ -1054,5 +1063,26 @@
       "hint": "Researcher, programmer, reviewer or translator — from a ready template.",
       "action": "To the office"
     }
+  },
+  "profile": {
+    "addressAs": "How moloko addresses you",
+    "addressAsPlaceholder": "For example: Dr. Smith",
+    "addressAsHint": "The chat and every agent use it. Empty — no special form of address.",
+    "save": "Save",
+    "saved": "Saved."
+  },
+  "island": {
+    "title": "Island",
+    "agents": "Agents",
+    "subagents": "Subagents",
+    "officeSwitch": "Which office to show",
+    "openOffice": "Open the office",
+    "approvals": "Approvals",
+    "noApprovals": "Nothing to approve",
+    "working": "{count, plural, one {# agent working} other {# agents working}}",
+    "quiet": "Agents are resting",
+    "pendingCount": "{count, plural, one {# waits for you} other {# wait for you}}",
+    "expand": "Open the island",
+    "collapse": "Fold the island"
   }
 }

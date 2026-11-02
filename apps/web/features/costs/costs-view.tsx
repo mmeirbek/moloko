@@ -2,10 +2,10 @@
 
 import type { CostSummary, ModelOut } from "@moloko/shared-types";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronLeft, ChevronRight, OctagonAlert, Save } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 
+import { AlertTriangle, ChevronLeft, ChevronRight, OctagonAlert, Save } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -79,7 +79,7 @@ export function CostsView() {
       <DailyChart data={data} locale={locale} />
 
       {data.calls === 0 ? (
-        <EmptyState title={t("empty")} hint={t("emptyHint")} mood="sleep" className="rounded-lg border border-dashed" />
+        <EmptyState title={t("empty")} hint={t("emptyHint")} mood="sleep" className="border-2 border-dashed" />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <BreakdownTable
@@ -147,11 +147,11 @@ function SpentTile({ data, locale, isThisMonth }: { data: CostSummary; locale: s
               aria-valuemax={100}
               aria-valuenow={Math.round(budget.percent ?? 0)}
               aria-label={t("ofLimit", { percent: Math.round(budget.percent ?? 0) })}
-              className="h-2 overflow-hidden rounded-full bg-muted"
+              className="h-2 overflow-hidden bg-muted"
             >
               <div
                 className={cn(
-                  "h-full rounded-full",
+                  "h-full",
                   level === "over" ? "bg-destructive" : level === "warning" ? "bg-amber-500" : "bg-[var(--chart-bar)]",
                 )}
                 style={{ width: `${width}%` }}
@@ -217,7 +217,7 @@ function DailyChart({ data, locale }: { data: CostSummary; locale: string }) {
                   />
                 )}
                 {(i === 0 || (i + 1) % 10 === 0 || i === days.length - 1) && (
-                  <text x={pad.left + i * slot + slot / 2} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+                  <text x={pad.left + i * slot + slot / 2} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-xs">
                     {i + 1}
                   </text>
                 )}
@@ -228,7 +228,7 @@ function DailyChart({ data, locale }: { data: CostSummary; locale: string }) {
         {shown && (
           <div
             role="tooltip"
-            className="pointer-events-none absolute top-0 rounded-md border bg-card px-2 py-1 text-xs shadow"
+            className="pointer-events-none absolute top-0 bg-card px-2 py-1 text-xs pixel-frame"
             style={{ left: `clamp(0px, calc(${((hover! + 0.5) / days.length) * 100}% - 4rem), calc(100% - 8rem))` }}
           >
             <p className="font-medium">{format.dateTime(new Date(`${shown.day}T12:00:00Z`), { day: "numeric", month: "long" })}</p>
@@ -269,7 +269,7 @@ function BreakdownTable({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} className="border-t">
+              <tr key={r.key} className="border-t-2">
                 <td className="py-1.5">
                   <span className="block max-w-56 truncate">{r.name}</span>
                   {r.hint && <span className="text-xs text-muted-foreground">{r.hint}</span>}
@@ -384,7 +384,7 @@ function PriceRow({ model }: { model: ModelOut }) {
   });
   return (
     <form
-      className="grid items-end gap-2 border-t pt-2 sm:grid-cols-[1fr_8rem_8rem_auto]"
+      className="grid items-end gap-2 border-t-2 pt-2 sm:grid-cols-[1fr_8rem_8rem_auto]"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate();

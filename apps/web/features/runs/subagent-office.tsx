@@ -2,12 +2,12 @@
 
 import type { AgentOut, RunOut, TaskOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Send } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { ArrowRight, Send } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useOrchestratorBusy } from "@/features/agents/agent-controls";
 import { StatusBadge } from "@/features/agents/status-badge";
@@ -42,7 +42,7 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
   });
   return (
     <form
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4"
+      className="flex flex-col gap-2 bg-card p-4 pixel-frame"
       onSubmit={(e) => {
         e.preventDefault();
         if (text.trim() && !busy) start.mutate(text);
@@ -57,7 +57,7 @@ function NewRun({ onStarted }: { onStarted: (runId: string) => void }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={t("newRunHint")}
-        className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
+        className="bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken"
       />
       {start.error && (
         <p role="alert" className="text-sm text-destructive">
@@ -84,7 +84,7 @@ function SubagentCard({ agent, task }: { agent: AgentOut; task?: TaskOut }) {
   const live = useRealtimeStore((s) => s.agents[agent.id]) ?? agent;
   const liveTask = useRealtimeStore((s) => (task ? s.tasks[task.id] : undefined)) ?? task;
   return (
-    <li className="flex flex-col gap-1.5 rounded-lg border bg-card p-3" style={{ marginLeft: (live.depth - 1) * 16 }}>
+    <li className="flex flex-col gap-1.5 bg-card p-3 pixel-frame" style={{ marginLeft: (live.depth - 1) * 16 }}>
       <div className="flex items-center justify-between gap-2">
         <p className="truncate text-sm font-medium">{live.name}</p>
         <StatusBadge status={live.status} />
@@ -166,7 +166,7 @@ function RunView({ runId }: { runId: string }) {
         </section>
       )}
       {task.result && (
-        <section className="print-area rounded-lg border bg-card p-4">
+        <section className="print-area bg-card p-4 pixel-frame">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-muted-foreground">{t("result")}</h3>
             <ExportMenu taskId={task.id} title={task.title} />
@@ -175,7 +175,7 @@ function RunView({ runId }: { runId: string }) {
         </section>
       )}
       {task.status === "failed" && (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+        <p role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-3 text-sm">
           {task.error_message}
         </p>
       )}
@@ -254,7 +254,7 @@ function RunListItem({ run, active, onSelect }: { run: RunOut; active: boolean; 
         onClick={onSelect}
         aria-current={active ? "true" : undefined}
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm",
+          "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm",
           active ? "bg-accent" : "hover:bg-accent/60",
         )}
       >

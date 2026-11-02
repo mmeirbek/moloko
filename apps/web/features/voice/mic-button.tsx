@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Info, Loader2, Mic, Square, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { Info, Loader2, Mic, Square, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { transcribeAudio } from "@/lib/api/chat";
@@ -124,7 +124,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
         type="button"
         size="icon"
         variant={recording ? "destructive" : "ghost"}
-        className="rounded-full"
+        className=""
         disabled={disabled || state === "sending"}
         aria-pressed={recording}
         aria-label={recording ? t("stop") : t("start")}
@@ -135,7 +135,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
         {state === "sending" ? <Loader2 className="animate-spin" /> : recording ? <Square /> : <Mic />}
       </Button>
       {recording && (
-        <span className="absolute -top-5 left-1/2 -translate-x-1/2 rounded bg-destructive px-1 text-[10px] text-white tabular-nums" aria-hidden>
+        <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-destructive px-1 text-xs text-white tabular-nums" aria-hidden>
           ● {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
         </span>
       )}
@@ -143,7 +143,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
         // Visible, not only a tooltip: phones have no hover.
         <span
           role="alert"
-          className="absolute right-0 bottom-full z-20 mb-2 flex w-72 max-w-[calc(100vw-2rem)] items-start gap-2 rounded-lg border bg-card p-3 text-left text-xs text-card-foreground shadow-lg"
+          className="absolute right-0 bottom-full z-20 mb-2 flex w-72 max-w-[calc(100vw-2rem)] items-start gap-2 bg-card p-3 text-left text-xs text-card-foreground pixel-frame"
         >
           <Info className="mt-0.5 size-4 shrink-0 text-sky" aria-hidden />
           <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
@@ -157,7 +157,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
           <button
             type="button"
             aria-label={t("closeHint")}
-            className="-m-1.5 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+            className="-m-1.5 flex size-7 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
             onClick={() => {
               setError(null);
               setNeedsSetup(false);

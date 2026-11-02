@@ -1,10 +1,10 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
+import { Monitor, Moon, Sun } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +50,7 @@ export function ThemeSwitcher() {
     { value: "system", label: t("themeSystemShort"), Icon: Monitor },
   ] as const;
   return (
-    <div role="group" aria-label={t("theme")} className="grid grid-cols-3 gap-1 rounded-lg border p-1">
+    <div role="group" aria-label={t("theme")} className="grid grid-cols-3 gap-1 border-2 p-1">
       {options.map(({ value, label, Icon }) => (
         <button
           key={value}
@@ -59,7 +59,7 @@ export function ThemeSwitcher() {
           title={value === "system" ? t("themeSystem") : undefined}
           onClick={() => setTheme(value)}
           className={cn(
-            "flex min-h-10 items-center justify-center gap-1.5 rounded-md px-2 text-sm transition-colors",
+            "flex min-h-10 items-center justify-center gap-1.5 px-2 text-sm transition-colors",
             current === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
           )}
         >

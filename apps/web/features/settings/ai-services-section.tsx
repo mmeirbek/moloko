@@ -67,7 +67,7 @@ function AiServicesForm({ data, title }: { data: NonNullable<Awaited<ReturnType<
                 id="ai-provider"
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
-                className="h-10 rounded-md border border-input bg-background px-2 text-base md:text-sm"
+                className="h-10 bg-background px-2 text-base md:text-sm pixel-frame pixel-sunken"
               >
                 <option value="">{t("auto")}</option>
                 {capable.map((p) => (

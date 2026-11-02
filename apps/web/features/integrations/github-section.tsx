@@ -93,7 +93,7 @@ export function GitHubSection() {
               value={reposText}
               onChange={(e) => setRepos(e.target.value)}
               placeholder="owner/repository"
-              className="rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+              className="bg-background px-3 py-2 font-mono text-sm pixel-frame pixel-sunken"
             />
             <p className="text-xs text-muted-foreground">{t("reposHint")}</p>
           </div>

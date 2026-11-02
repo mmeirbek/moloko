@@ -42,7 +42,7 @@ export function BackupsSection() {
             <p
               key={w}
               role="alert"
-              className="rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-amber-800 dark:text-amber-200"
+              className="border-2 border-amber-400/50 bg-amber-400/10 px-3 py-2 text-amber-800 dark:text-amber-200"
             >
               {t(`warnings.${w}`)}
             </p>

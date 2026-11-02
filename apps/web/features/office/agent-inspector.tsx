@@ -2,11 +2,11 @@
 
 import type { AgentOut, EventOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Send, Settings2, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { ExternalLink, Send, Settings2, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { AgentControls } from "@/features/agents/agent-controls";
 import { StatusBadge } from "@/features/agents/status-badge";
@@ -81,7 +81,7 @@ export function AgentInspector({
     <aside
       aria-label={t("label", { name: agent.name })}
       className={cn(
-        "flex max-h-[70%] flex-col gap-3 overflow-y-auto rounded-lg border bg-card/95 p-4 text-sm shadow-lg backdrop-blur",
+        "flex max-h-[70%] flex-col gap-3 overflow-y-auto bg-card p-4 text-sm pixel-frame",
         className,
       )}
     >
@@ -120,7 +120,7 @@ export function AgentInspector({
         <dd className="truncate">{agent.allowed_tools.length ? agent.allowed_tools.join(", ") : t("noTools")}</dd>
       </dl>
 
-      {task?.result && <p className="line-clamp-4 rounded-md bg-muted p-2 text-xs">{task.result}</p>}
+      {task?.result && <p className="line-clamp-4 bg-muted p-2 text-xs">{task.result}</p>}
 
       {canTakeTask && (
         <form
@@ -140,7 +140,7 @@ export function AgentInspector({
             value={taskText}
             onChange={(e) => setTaskText(e.target.value)}
             placeholder={t("giveTaskPlaceholder")}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-sm"
+            className="bg-background px-2 py-1.5 text-base md:text-sm pixel-frame pixel-sunken"
           />
           {give.error && (
             <p role="alert" className="text-xs text-destructive">
@@ -180,7 +180,7 @@ export function AgentInspector({
         <ApprovalCard key={a.id} approval={a} compact />
       ))}
       {showLogs && (
-        <ol className="flex flex-col gap-0.5 border-t pt-2 text-xs">
+        <ol className="flex flex-col gap-0.5 border-t-2 pt-2 text-xs">
           {events.data?.map((e) => (
             <li key={e.id} className="flex gap-2">
               <span className="text-muted-foreground tabular-nums">

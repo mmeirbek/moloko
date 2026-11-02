@@ -1,14 +1,14 @@
 "use client";
 
 import type { AgentOut } from "@moloko/shared-types";
-import { Maximize, Minus, Plus, UserPlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
+import { Maximize, Minus, Plus, UserPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { AgentTemplates } from "@/features/agents/agent-templates";
 import { StatusBadge } from "@/features/agents/status-badge";
+import { useErrorMessage } from "@/features/auth/use-error-message";
 import { playMoo } from "@/features/mascot/moo";
 import { useSeason } from "@/features/mascot/pixel-cow";
 import { mascotSnapshot } from "@/features/mascot/prefs";
@@ -16,7 +16,9 @@ import { useRealtimeClient } from "@/lib/realtime/provider";
 import { pendingApprovals, useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
+import { canDrop, readDrop, useAddToOffice } from "./add-to-office";
 import { AgentInspector } from "./agent-inspector";
+import { AgentPalette } from "./agent-palette";
 import { OfficeBus, type CameraAction, type OfficeAgent, type ZoomState } from "./engine/bus";
 
 export type OfficeMode = "subagents" | "agents";
@@ -82,13 +84,34 @@ function toOfficeAgent(a: AgentOut): OfficeAgent {
   };
 }
 
-export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
+/**
+ * The pixel office. `compact` (the island): only the map and its zoom, the mode chosen by the
+ * caller. Saved agents can be dragged onto the map (AgentPalette) — they join the agents' office.
+ */
+export function OfficeView({
+  initialMode,
+  mode: controlledMode,
+  onModeChange,
+  compact = false,
+}: {
+  initialMode: OfficeMode;
+  mode?: OfficeMode;
+  onModeChange?: (mode: OfficeMode) => void;
+  compact?: boolean;
+}) {
   const t = useTranslations("office");
+  const toMessage = useErrorMessage();
   const container = useRef<HTMLDivElement>(null);
   const [bus] = useState(() => new OfficeBus());
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [mode, setMode] = useState<OfficeMode>(initialMode);
+  const [ownMode, setOwnMode] = useState<OfficeMode>(initialMode);
+  const mode = controlledMode ?? ownMode;
+  const setMode = (m: OfficeMode) => {
+    setOwnMode(m);
+    onModeChange?.(m);
+  };
+  const [dropping, setDropping] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
@@ -107,6 +130,11 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   const shownHour = forcedHour !== null && /^\d{1,2}$/.test(forcedHour) ? Number(forcedHour) % 24 : hour;
 
   const shown = useMemo(() => agentsForMode(Object.values(agentsById), mode), [agentsById, mode]);
+  // A dropped agent belongs to the agents' office: switch there and show who came in.
+  const addToOffice = useAddToOffice((id) => {
+    if (mode !== "agents") setMode("agents");
+    if (!compact) setSelected(id);
+  });
 
   // Mount Phaser on the client only (it needs window/canvas).
   useEffect(() => {
@@ -174,10 +202,11 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={cn("flex flex-col gap-3", compact && "h-full min-h-0")}>
+      {!compact && (
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* A two-way switch (not tabs: there is no separate panel per choice). */}
-        <div role="group" aria-label={t("mode")} className="inline-flex rounded-md border p-0.5 text-sm">
+        <div role="group" aria-label={t("mode")} className="inline-flex border-2 p-0.5 text-sm">
           {(["subagents", "agents"] as const).map((m) => (
             <button
               key={m}
@@ -188,7 +217,7 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
                 setSelected(null);
               }}
               className={cn(
-                "min-h-9 rounded-sm px-3",
+                "min-h-9 px-3",
                 mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -204,18 +233,19 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
           )}
         </div>
       </div>
+      )}
 
-      {adding && mode === "agents" && (
-        <AgentTemplates
+      {!compact && adding && mode === "agents" && (
+        <AgentPalette
           onClose={() => setAdding(false)}
-          onCreated={(id) => {
+          onAdded={(id) => {
             setAdding(false);
             setSelected(id);
           }}
         />
       )}
 
-      <div className="relative">
+      <div className={cn("relative", compact && "min-h-0 flex-1")}>
         {/* Focusable so + / − / 0 and the arrows work; the same state is listed below as text. */}
         <div
           ref={container}
@@ -227,8 +257,35 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
           aria-keyshortcuts="Plus - 0 ArrowLeft ArrowRight ArrowUp ArrowDown"
           tabIndex={0}
           onKeyDown={onMapKey}
-          className="aspect-[4/3] max-h-[70vh] w-full touch-none overflow-hidden rounded-lg border bg-[#0c1024] outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:aspect-video"
+          onDragOver={(e) => {
+            if (!canDrop(e)) return;
+            e.preventDefault(); // allow the drop
+            e.dataTransfer.dropEffect = "copy";
+            setDropping(true);
+          }}
+          onDragLeave={() => setDropping(false)}
+          onDrop={(e) => {
+            setDropping(false);
+            const item = readDrop(e);
+            if (!item) return;
+            e.preventDefault();
+            addToOffice.mutate(item);
+          }}
+          className={cn(
+            "w-full touch-none overflow-hidden bg-[#0c1024] pixel-frame outline-none select-none focus-visible:[--frame-color:var(--color-ring)]",
+            compact ? "h-full min-h-48" : "aspect-[4/3] max-h-[70vh] sm:aspect-video",
+            dropping && "[--frame-color:var(--color-sky)]",
+          )}
+          data-dropping={dropping || undefined}
         />
+        {dropping && (
+          <p className="pointer-events-none absolute inset-x-0 top-3 text-center text-sm text-[#f6efdc]">{t("dropHere")}</p>
+        )}
+        {addToOffice.error && (
+          <p role="alert" className="absolute inset-x-3 top-3 bg-[#10142b] px-3 py-2 text-xs text-[#f6efdc] pixel-frame [--frame-color:var(--color-destructive)]">
+            {toMessage(addToOffice.error).message}
+          </p>
+        )}
         <p id="office-keys" className="sr-only">
           {t("keysHint")}
         </p>
@@ -236,7 +293,7 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
           <div
             role="group"
             aria-label={t("zoom")}
-            className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg border border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg backdrop-blur-sm md:top-auto md:right-auto md:bottom-2 md:left-2"
+            className="absolute top-2 right-2 flex items-center gap-0.5 border-2 border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg md:top-auto md:right-auto md:bottom-2 md:left-2"
           >
             <MapButton label={t("zoomOut")} shortcut="-" disabled={!zoom.canZoomOut} onClick={() => bus.emit("camera", "out")}>
               <Minus />
@@ -268,12 +325,12 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
             {t("failed")}
           </p>
         )}
-        {ready && shown.length === 0 && (
+        {ready && shown.length === 0 && !compact && (
           <p className="pointer-events-none absolute inset-x-0 bottom-3 px-3 text-center text-sm text-[#f6efdc]/80 md:top-3 md:bottom-auto">
             {t(mode === "agents" ? "emptyAgents" : "emptySubagents")}
           </p>
         )}
-        {selectedAgent && (
+        {selectedAgent && !compact && (
           <AgentInspector
             agent={selectedAgent}
             onClose={() => setSelected(null)}
@@ -283,14 +340,14 @@ export function OfficeView({ initialMode }: { initialMode: OfficeMode }) {
       </div>
 
       {/* The same information as text: for screen readers and for a quick overview. */}
-      <ul className="flex flex-wrap gap-2" aria-label={t("list")}>
+      <ul className={cn("flex flex-wrap gap-2", compact && "sr-only")} aria-label={t("list")}>
         {shown.map((a) => (
           <li key={a.id}>
             <button
               type="button"
               onClick={() => setSelected(a.id)}
               className={cn(
-                "flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
+                "flex items-center gap-2 border-2 px-3 py-1 text-sm",
                 selected === a.id ? "border-primary" : "hover:bg-accent/60",
               )}
             >
@@ -330,9 +387,8 @@ function MapButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex size-10 items-center justify-center rounded-md outline-none transition-colors md:size-8",
+        "inline-flex size-10 items-center justify-center outline-none transition-colors md:size-8",
         "hover:bg-[#f5ecd6]/15 focus-visible:ring-2 focus-visible:ring-[#f5ecd6] disabled:pointer-events-none disabled:opacity-35",
-        "[&_svg]:size-4",
         pressed && "bg-[#f5ecd6]/15",
       )}
     >

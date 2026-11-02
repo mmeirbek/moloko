@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, File, Folder, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ChevronLeft, File, Folder, RefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { toolingKeys, workspaceFile, workspaceFiles, workspaceRawUrl } from "@/lib/api/tooling";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
@@ -48,7 +48,7 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
         </Button>
       </div>
       {entries.data?.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
-      <ul className="flex flex-col divide-y rounded-md border">
+      <ul className="flex flex-col divide-y-2 border-2">
         {entries.data?.map((e) => (
           <li key={e.path}>
             <button
@@ -80,7 +80,7 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
               <img
                 src={workspaceRawUrl(workspaceId, file.data.path)}
                 alt={file.data.path}
-                className="max-h-96 rounded-md border object-contain"
+                className="max-h-96 border-2 object-contain"
               />
             </a>
           ) : /\.pdf$/i.test(file.data.path) ? (
@@ -88,7 +88,7 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
               {t("downloadPdf")}
             </a>
           ) : (
-            <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
+            <pre className="max-h-96 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap break-all">
               {file.data.content}
             </pre>
           )}

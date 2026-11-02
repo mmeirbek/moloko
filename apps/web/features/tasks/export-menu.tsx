@@ -1,9 +1,9 @@
 "use client";
 
-import { Check, FileDown, FileText, Link2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { Check, FileDown, FileText, Link2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { ApiError } from "@/lib/api/errors";

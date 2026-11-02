@@ -2,11 +2,11 @@
 
 import type { ApprovalOut } from "@moloko/shared-types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ban, Check, ShieldAlert, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Ban, Check, ShieldAlert, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -27,7 +27,7 @@ const CATEGORY_TONE: Record<string, string> = {
 export function CategoryBadge({ category }: { category: string }) {
   const t = useTranslations("tools.categories");
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", CATEGORY_TONE[category])}>
+    <span className={cn("px-2 py-0.5 text-xs font-medium", CATEGORY_TONE[category])}>
       {t(category as "read")}
     </span>
   );
@@ -68,7 +68,7 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
 
   return (
     <article
-      className={cn("flex flex-col gap-3 rounded-lg border bg-card p-4", pending && "border-amber-400/60")}
+      className={cn("flex flex-col gap-3 bg-card p-4 pixel-frame", pending && "[--frame-color:var(--color-amber-400)]")}
       data-approval-id={approval.id}
       aria-label={t("label", { action: summary })}
     >
@@ -119,7 +119,7 @@ export function ApprovalCard({ approval, compact = false }: { approval: Approval
       )}
       <details className="text-sm">
         <summary className="cursor-pointer text-muted-foreground">{t("exactArgs")}</summary>
-        <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
+        <pre className="mt-2 max-h-64 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap break-all">
           {JSON.stringify(approval.args, null, 2)}
         </pre>
       </details>

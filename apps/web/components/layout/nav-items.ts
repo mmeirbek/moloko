@@ -7,8 +7,8 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 
 type LabelKey =
   | "chat"
@@ -26,7 +26,7 @@ export interface NavItem {
   labelKey: LabelKey;
   /** Shorter label for the phone tab bar, where space is tight. */
   shortLabelKey?: "subagentOfficeShort" | "agentOfficeShort";
-  icon: LucideIcon;
+  icon: IconComponent;
 }
 
 const CHAT: NavItem = { href: "/chat", labelKey: "chat", icon: MessageSquare };

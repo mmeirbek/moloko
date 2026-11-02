@@ -104,7 +104,7 @@ function SessionLifetimeForm({ data }: { data: SessionSettingsOut }) {
             id="session-ttl"
             value={choice}
             onChange={(e) => setChoice(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-base md:text-sm"
+            className="h-10 bg-background px-2 text-base md:text-sm pixel-frame pixel-sunken"
           >
             <option value="default">{t("defaultOption", { duration: duration(data.default_ttl_hours) })}</option>
             {presets.map((h) => (
@@ -135,7 +135,7 @@ function SessionLifetimeForm({ data }: { data: SessionSettingsOut }) {
                 aria-label={t("unit")}
                 value={unit}
                 onChange={(e) => setUnit(e.target.value as Unit)}
-                className="h-10 rounded-md border border-input bg-background px-2 text-base md:text-sm"
+                className="h-10 bg-background px-2 text-base md:text-sm pixel-frame pixel-sunken"
               >
                 <option value="hours">{t("hours")}</option>
                 <option value="days">{t("days")}</option>

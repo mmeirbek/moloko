@@ -2,11 +2,11 @@
 
 import type { TaskOut } from "@moloko/shared-types";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { Plus, Search } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ function NewTaskForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <form onSubmit={submit} className="flex flex-col gap-3 bg-card p-4 pixel-frame">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="task-title">{t("title")}</Label>
         <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
@@ -56,7 +56,7 @@ function NewTaskForm({ onDone }: { onDone: () => void }) {
           rows={4}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
+          className="bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken"
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -65,7 +65,7 @@ function NewTaskForm({ onDone }: { onDone: () => void }) {
           id="task-agent"
           value={agentId}
           onChange={(e) => setAgentId(e.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
         >
           <option value="">{t("noAgent")}</option>
           {runnable.map((a) => (
@@ -104,7 +104,7 @@ function TaskRow({ task, now }: { task: TaskOut; now: Date }) {
     <li>
       <Link
         href={`/tasks/${task.id}`}
-        className="flex items-center justify-between gap-3 rounded-md px-3 py-3 hover:bg-accent/60"
+        className="flex items-center justify-between gap-3 px-3 py-3 hover:bg-accent/60"
       >
         <div className="min-w-0">
           <p className="truncate font-medium">{live.title}</p>
@@ -150,7 +150,7 @@ export function TasksView() {
               aria-pressed={filter === f}
               onClick={() => setFilter(f)}
               className={cn(
-                "min-h-9 shrink-0 rounded-full px-3.5 text-sm whitespace-nowrap",
+                "min-h-9 shrink-0 px-3.5 text-sm whitespace-nowrap",
                 filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
               )}
             >
@@ -173,11 +173,11 @@ export function TasksView() {
           placeholder={t("search")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="pl-9"
+          className="pl-12"
         />
       </div>
       {tasks.isError && !tasks.data ? (
-        <div role="alert" className="flex flex-col items-start gap-2 rounded-lg border p-4 text-sm">
+        <div role="alert" className="flex flex-col items-start gap-2 border-2 p-4 text-sm">
           <p>{toMessage(tasks.error).message}</p>
           <Button variant="outline" size="sm" onClick={() => tasks.refetch()}>
             {tc("retry")}
@@ -185,7 +185,7 @@ export function TasksView() {
         </div>
       ) : (
         <ul
-          className={cn("divide-y rounded-lg border bg-card transition-opacity", tasks.isPlaceholderData && "opacity-60")}
+          className={cn("divide-y-2 bg-card transition-opacity pixel-frame", tasks.isPlaceholderData && "opacity-60")}
           aria-busy={tasks.isFetching}
         >
           {tasks.isPending && <li className="px-3 py-4 text-sm text-muted-foreground">{tc("loading")}</li>}

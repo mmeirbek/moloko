@@ -26,13 +26,13 @@ export function StatusBadge({ status, className }: { status: string; className?:
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium whitespace-nowrap",
         TONE[status] ?? "bg-muted",
         className,
       )}
     >
       {["planning", "working", "running", "reviewing"].includes(status) && (
-        <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+        <span className="size-1.5 animate-pulse bg-current" aria-hidden="true" />
       )}
       {t.has(key) ? t(key) : status}
     </span>

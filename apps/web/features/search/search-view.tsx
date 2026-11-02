@@ -2,12 +2,12 @@
 
 import type { SearchHitOut } from "@moloko/shared-types";
 import { useQuery } from "@tanstack/react-query";
-import { Brain, FileText, MessageSquare, Search as SearchIcon, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { Brain, FileText, MessageSquare, Search as SearchIcon, Sparkles } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/features/mascot/empty-state";
@@ -58,7 +58,7 @@ export function SearchView() {
             onChange={(e) => setText(e.target.value)}
             placeholder={t("placeholder")}
             aria-label={t("label")}
-            className="pl-9"
+            className="pl-12"
             autoFocus
           />
         </div>
@@ -83,7 +83,7 @@ export function SearchView() {
               aria-pressed={on}
               onClick={() => setTypes((list) => (on ? list.filter((x) => x !== type) : [...list, type]))}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm",
+                "inline-flex items-center gap-1.5 border-2 px-3 py-1 text-sm",
                 on ? "bg-accent text-accent-foreground" : "text-muted-foreground",
               )}
             >
@@ -98,7 +98,7 @@ export function SearchView() {
         <ErrorState error={results.error} onRetry={() => results.refetch()} />
       )}
       {query && results.isSuccess && hits.length === 0 && (
-        <EmptyState title={t("nothing")} hint={t("nothingHint")} mood="sad" className="rounded-lg border border-dashed" />
+        <EmptyState title={t("nothing")} hint={t("nothingHint")} mood="sad" className="border-2 border-dashed" />
       )}
       {hits.length > 0 && (
         <>
@@ -115,7 +115,7 @@ export function SearchView() {
             {hits.map((hit) => {
               const Icon = ICON[hit.source_type as keyof typeof ICON] ?? FileText;
               return (
-                <li key={`${hit.source_type}-${hit.source_id}`} className="rounded-lg border bg-card p-3">
+                <li key={`${hit.source_type}-${hit.source_id}`} className="bg-card p-3 pixel-frame">
                   <Link href={hitHref(hit)} className="flex items-center gap-2 font-medium hover:underline">
                     <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
                     <span className="truncate">{hit.title}</span>

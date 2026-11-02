@@ -59,7 +59,7 @@ export function ToolRow({ tool }: { tool: ToolOut }) {
           aria-label={t("category")}
           value={tool.category}
           onChange={(e) => update.mutate({ category: e.target.value as "read" })}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          className="h-8 bg-background px-2 text-xs pixel-frame pixel-sunken"
         >
           {(["read", "write", "sensitive"] as const).map((c) => (
             <option key={c} value={c}>
@@ -90,7 +90,7 @@ export function ToolsSection() {
         {groups.map(([group, items]) => (
           <section key={group} aria-label={t(`groups.${group as "files"}`)}>
             <h3 className="text-sm font-semibold">{t(`groups.${group as "files"}`)}</h3>
-            <ul className="divide-y">
+            <ul className="divide-y-2">
               {items.map((tool) => (
                 <ToolRow key={tool.name} tool={tool} />
               ))}

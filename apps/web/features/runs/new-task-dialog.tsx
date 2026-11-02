@@ -1,11 +1,11 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Send, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Send, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useOrchestratorBusy } from "@/features/agents/agent-controls";
@@ -65,7 +65,7 @@ export function NewTaskDialog({ open, onClose }: { open: boolean; onClose: () =>
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t("placeholder")}
-          className="rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
+          className="bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken"
         />
         {start.error && (
           <p role="alert" className="text-sm text-destructive">

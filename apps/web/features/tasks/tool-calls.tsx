@@ -45,11 +45,11 @@ function CallItem({ call }: { call: ToolCallOut }) {
       )}
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground">{t("details")}</summary>
-        <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap break-all">
+        <pre className="mt-1 max-h-48 overflow-auto bg-muted p-2 whitespace-pre-wrap break-all">
           {JSON.stringify(call.args, null, 2)}
         </pre>
         {call.result && (
-          <pre className="mt-1 max-h-64 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap break-all">
+          <pre className="mt-1 max-h-64 overflow-auto bg-muted p-2 whitespace-pre-wrap break-all">
             {call.result}
           </pre>
         )}
@@ -84,7 +84,7 @@ export function TaskToolActivity({ taskId, status }: { taskId: string; status: s
           <h2 id={`calls-${taskId}`} className="mb-1 font-medium">
             {t("title", { count: calls.data.length })}
           </h2>
-          <ul className="divide-y rounded-lg border bg-card px-4">
+          <ul className="divide-y-2 bg-card px-4 pixel-frame">
             {calls.data.map((c) => (
               <CallItem key={c.id} call={c} />
             ))}
@@ -92,7 +92,7 @@ export function TaskToolActivity({ taskId, status }: { taskId: string; status: s
         </section>
       )}
       {workspace.data && (
-        <section aria-label={t("workspace")} className="rounded-lg border bg-card p-4">
+        <section aria-label={t("workspace")} className="bg-card p-4 pixel-frame">
           <h2 className="mb-2 font-medium">{t("workspace")}</h2>
           <FileBrowser workspaceId={workspace.data.id} />
         </section>

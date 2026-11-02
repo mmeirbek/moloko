@@ -2,8 +2,10 @@ import type {
   HealthResponse,
   LoginRequest,
   MeResponse,
+  ProfileUpdate,
   SessionSettingsOut,
   SessionSettingsUpdate,
+  UserOut,
 } from "@moloko/shared-types";
 
 import { api } from "./client";
@@ -21,6 +23,11 @@ export function login(body: LoginRequest): Promise<MeResponse> {
 
 export function logout(): Promise<void> {
   return api.request<void>("/auth/logout", { method: "POST" });
+}
+
+/** How moloko addresses the owner (in chat and agents' answers) and the display name. */
+export function updateProfile(body: ProfileUpdate): Promise<UserOut> {
+  return api.request<UserOut>("/auth/profile", { method: "PATCH", body });
 }
 
 /** How long a sign-in lasts (the owner's choice within the server's bounds). */

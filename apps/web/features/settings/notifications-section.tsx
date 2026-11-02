@@ -69,7 +69,7 @@ export function NotificationsSection() {
             {t(`kinds.${kind}`)}
           </label>
         ))}
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+        <div className="flex flex-wrap items-center gap-2 border-t-2 pt-3">
           {permission === "granted" ? (
             <label className="flex items-center gap-2">
               <input
@@ -87,7 +87,7 @@ export function NotificationsSection() {
             </Button>
           )}
         </div>
-        <div className="flex flex-col gap-1 border-t pt-3" data-testid="push-settings">
+        <div className="flex flex-col gap-1 border-t-2 pt-3" data-testid="push-settings">
           {pushSupport === "yes" ? (
             <label className="flex items-center gap-2">
               <input

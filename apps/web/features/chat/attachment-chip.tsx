@@ -1,10 +1,10 @@
 "use client";
 
 import type { AttachmentOut } from "@moloko/shared-types";
-import { FileText, Paperclip } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { FileText, Paperclip } from "@/components/icons";
 import { attachmentUrl } from "@/lib/api/chat";
 
 /** One attached file: pictures as thumbnails, PDFs with their page count, text files as a chip. */
@@ -24,14 +24,14 @@ export function AttachmentChip({
       <li className="relative" data-attachment={a.filename}>
         <a href={url} target="_blank" rel="noreferrer" title={a.filename}>
           {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
-          <img src={url} alt={a.filename} className="size-20 rounded-md border object-cover" loading="lazy" />
+          <img src={url} alt={a.filename} className="size-20 border-2 object-cover" loading="lazy" />
         </a>
-        {children && <span className="absolute top-0.5 right-0.5 rounded bg-card/90">{children}</span>}
+        {children && <span className="absolute top-0.5 right-0.5 bg-card">{children}</span>}
       </li>
     );
   }
   return (
-    <li className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs" data-attachment={a.filename}>
+    <li className="inline-flex items-center gap-1 bg-card px-2 py-1 text-xs pixel-frame" data-attachment={a.filename}>
       {a.kind === "pdf" ? <FileText className="size-3" aria-hidden /> : <Paperclip className="size-3" aria-hidden />}
       <a href={url} className="hover:underline" download={a.filename}>
         {a.filename}

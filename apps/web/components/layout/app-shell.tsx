@@ -1,18 +1,19 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, SquarePen, WifiOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Logo } from "@/components/brand/logo";
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, SquarePen, WifiOff } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
 import { ApprovalsBadge, usePendingApprovalCount } from "@/features/approvals/approvals-badge";
 import { ChatList } from "@/features/chat/chat-list";
+import { DynamicIsland } from "@/features/island/dynamic-island";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { PixelCow, WalkingCow } from "@/features/mascot/pixel-cow";
 import { Notifier } from "@/features/notifications/notifier";
@@ -104,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <ConfirmProvider>
     <a
       href="#main"
-      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
     >
       {t("nav.skipToContent")}
     </a>
@@ -113,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside
         id="app-sidebar"
         aria-label={t("nav.sidebar")}
-        className="sticky top-0 hidden h-dvh w-(--sidebar-width) shrink-0 flex-col border-r bg-card md:flex sidebar-collapsed:w-16"
+        className="sticky top-0 hidden h-dvh w-(--sidebar-width) shrink-0 flex-col border-r-2 bg-card md:flex sidebar-collapsed:w-16"
       >
         <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 sidebar-collapsed:justify-center sidebar-collapsed:px-0">
           <Link href="/chat" aria-label="moloko" className="min-w-0 sidebar-collapsed:hidden">
@@ -144,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav aria-label={t("nav.label")} className="flex flex-col gap-4 sidebar-collapsed:items-center">
             {NAV_GROUPS.map((group) => (
               <div key={group.key} className="flex flex-col gap-0.5 sidebar-collapsed:items-center">
-                <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase sidebar-collapsed:hidden">
+                <p className="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase sidebar-collapsed:hidden">
                   {t(`nav.groups.${group.key}`)}
                 </p>
                 {group.items.map((item) => (
@@ -154,13 +155,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <section aria-labelledby="recent-chats" className="flex flex-col sidebar-collapsed:hidden">
-            <p id="recent-chats" className="px-3 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            <p id="recent-chats" className="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
               {t("chat.recent")}
             </p>
             <ChatList variant="sidebar" />
           </section>
         </div>
-        <div className="flex shrink-0 flex-col gap-3 border-t p-3 sidebar-collapsed:items-center sidebar-collapsed:px-2">
+        <div className="flex shrink-0 flex-col gap-3 border-t-2 p-3 sidebar-collapsed:items-center sidebar-collapsed:px-2">
           <div className="flex items-center justify-between gap-2 sidebar-collapsed:hidden">
             <p className="truncate text-xs text-muted-foreground" title={user.username}>
               {t("auth.signedInAs", { name: displayName })}
@@ -184,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Phone top bar: brand, what needs you, search. Everything else lives under "More". */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 border-b bg-card/95 px-4 backdrop-blur md:hidden">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 border-b-2 bg-card px-4 md:hidden">
           <Link href="/chat" aria-label="moloko">
             <Logo size="sm" />
           </Link>
@@ -203,7 +204,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main"
           tabIndex={-1}
-          className="flex-1 px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] outline-none md:px-8 md:pb-8"
+          className="flex-1 px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] outline-none md:px-8 md:pt-16 md:pb-8"
         >
           {children}
         </main>
@@ -211,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Phone tab bar: three sections, the cow "new task" button in the middle, and "More". */}
         <nav
           aria-label={t("nav.label")}
-          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t-2 bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           <TabLink item={PHONE_TABS[0]} active={isActive(pathname, PHONE_TABS[0].href)} />
           <TabLink item={PHONE_TABS[1]} active={isActive(pathname, PHONE_TABS[1].href)} />
@@ -219,9 +220,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setNewTask(true)}
             data-testid="new-task-cow"
-            className="relative flex min-h-14 flex-col items-center justify-end gap-0.5 px-1 pb-2 text-[11px] leading-tight font-medium"
+            className="relative flex min-h-14 flex-col items-center justify-end gap-0.5 px-1 pb-2 text-xs leading-tight font-medium"
           >
-            <span className="-mt-5 flex size-12 items-center justify-center rounded-full border-2 border-[#1b1b2e] bg-[#10142b] shadow-md active:scale-95">
+            <span className="-mt-5 flex size-12 items-center justify-center border-2 border-[#1b1b2e] bg-[#10142b] shadow-md active:scale-95">
               <PixelCow mood="happy" size={36} />
             </span>
             <span>{t("newTask.button")}</span>
@@ -254,7 +255,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p className="pt-1 text-xs font-medium text-muted-foreground">{t("preferences.language")}</p>
           <LocaleSwitcher wide />
         </div>
-        <div className="flex items-center justify-between gap-2 border-t pt-3">
+        <div className="flex items-center justify-between gap-2 border-t-2 pt-3">
           <p className="truncate text-sm text-muted-foreground" title={user.username}>
             {t("auth.signedInAs", { name: displayName })}
           </p>
@@ -264,6 +265,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     </Dialog>
+    <DynamicIsland />
     <NewTaskDialog open={newTask} onClose={() => setNewTask(false)} />
     <Notifier />
     <RegisterServiceWorker />
@@ -283,8 +285,8 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-current={active ? "page" : undefined}
       title={`${t(item.labelKey)} — ${t(`hints.${item.labelKey}`)}`}
       className={cn(
-        "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0",
-        active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        "relative flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0",
+        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -294,7 +296,7 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
           <span className="sr-only">{t("pendingCount", { count })}</span>
           <span
             aria-hidden
-            className="rounded-full bg-amber-400 px-1.5 text-xs leading-5 font-semibold text-amber-950 sidebar-collapsed:absolute sidebar-collapsed:-top-1 sidebar-collapsed:-right-1 sidebar-collapsed:px-1 sidebar-collapsed:text-[10px] sidebar-collapsed:leading-4"
+            className="bg-amber-400 px-1.5 text-xs leading-5 font-semibold text-amber-950 sidebar-collapsed:absolute sidebar-collapsed:-top-1 sidebar-collapsed:-right-1 sidebar-collapsed:px-1 sidebar-collapsed:text-xs sidebar-collapsed:leading-4"
             data-testid="approvals-badge"
           >
             {count}
@@ -334,7 +336,7 @@ function TabLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-label={t(item.labelKey)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] leading-tight",
+        "flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-xs leading-tight",
         active ? "font-medium text-foreground" : "text-muted-foreground",
       )}
     >
@@ -357,14 +359,14 @@ function MoreTab({ open, onOpen, active }: { open: boolean; onOpen: () => void; 
       aria-expanded={open}
       data-testid="more-tab"
       className={cn(
-        "relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] leading-tight",
+        "relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-xs leading-tight",
         active ? "font-medium text-foreground" : "text-muted-foreground",
       )}
     >
       <Menu className="size-5" aria-hidden />
       <span>{t("more")}</span>
       {pending > 0 && (
-        <span className="absolute top-1.5 right-[calc(50%-1.1rem)] size-2.5 rounded-full bg-amber-400 ring-2 ring-card">
+        <span className="absolute top-1.5 right-[calc(50%-1.1rem)] size-2.5 bg-amber-400 ring-2 ring-card">
           <span className="sr-only">{t("pendingCount", { count: pending })}</span>
         </span>
       )}
@@ -383,8 +385,8 @@ function SheetLink({ item, active, onNavigate }: { item: NavItem; active: boolea
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
-        active ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
+        "flex items-center gap-3 px-3 py-2.5 transition-colors",
+        active ? "bg-primary text-primary-foreground" : "hover:bg-accent",
       )}
     >
       <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -393,7 +395,7 @@ function SheetLink({ item, active, onNavigate }: { item: NavItem; active: boolea
         <span className="truncate text-xs text-muted-foreground">{t(`hints.${item.labelKey}`)}</span>
       </span>
       {count > 0 && (
-        <span className="rounded-full bg-amber-400 px-2 text-xs leading-5 font-semibold text-amber-950">
+        <span className="bg-amber-400 px-2 text-xs leading-5 font-semibold text-amber-950">
           {count}
           <span className="sr-only"> — {t("pendingCount", { count })}</span>
         </span>
@@ -430,7 +432,7 @@ function ConnectionBanner() {
   return (
     <div
       role="status"
-      className="flex items-center gap-2 border-b border-amber-400/40 bg-amber-400/15 px-4 py-2 text-sm text-amber-900 md:px-8 dark:text-amber-100"
+      className="flex items-center gap-2 border-b-2 border-amber-400/40 bg-amber-400/15 px-4 py-2 text-sm text-amber-900 md:px-8 dark:text-amber-100"
     >
       <WifiOff className="size-4 shrink-0" aria-hidden />
       <span>{t("banner")}</span>

@@ -2,11 +2,11 @@
 
 import type { EventOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, RotateCcw, Square } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { ArrowLeft, RotateCcw, Square } from "@/components/icons";
 import { TaskToolActivity } from "@/features/tasks/tool-calls";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
@@ -134,7 +134,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
       </div>
 
       {task.status === "running" && lastMessage?.text && (
-        <section className="rounded-lg border bg-card p-4">
+        <section className="bg-card p-4 pixel-frame">
           <h2 className="mb-2 text-sm font-medium text-muted-foreground">
             {t("latestStep", { step: lastMessage.step })}
           </h2>
@@ -142,7 +142,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </section>
       )}
       {task.result && (
-        <section className="print-area rounded-lg border bg-card p-4">
+        <section className="print-area bg-card p-4 pixel-frame">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium text-muted-foreground">{t("result")}</h2>
             <ExportMenu taskId={task.id} title={task.title} />
@@ -151,7 +151,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </section>
       )}
       {task.status === "failed" && (
-        <section role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+        <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
           <p>{task.error_message}</p>
           <p className="mt-1 font-mono text-xs text-muted-foreground">
             {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}
@@ -159,7 +159,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
         </section>
       )}
       {task.status === "waiting" && task.status_reason === "unknown_outcome" && (
-        <section role="alert" className="rounded-lg border border-amber-400/50 bg-amber-400/10 p-4 text-sm">
+        <section role="alert" className="border-2 border-amber-400/50 bg-amber-400/10 p-4 text-sm">
           {t("unknownOutcome")}
         </section>
       )}
@@ -169,7 +169,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
       {detail.data && detail.data.subtasks.length > 0 && (
         <section>
           <h2 className="mb-2 font-medium">{t("subtasks")}</h2>
-          <ul className="divide-y rounded-lg border bg-card">
+          <ul className="divide-y-2 bg-card pixel-frame">
             {detail.data.subtasks.map((s) => (
               <li key={s.id}>
                 <Link
@@ -187,10 +187,10 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
 
       <section>
         <h2 className="mb-2 font-medium">{t("history")}</h2>
-        <ol className="flex flex-col gap-1 border-l pl-4 text-sm">
+        <ol className="flex flex-col gap-1 border-l-2 pl-4 text-sm">
           {events.data?.map((e) => (
             <li key={e.id} className="relative">
-              <span className="absolute top-2 -left-[21px] size-2 rounded-full bg-border" aria-hidden="true" />
+              <span className="absolute top-2 -left-[21px] size-2 bg-border" aria-hidden="true" />
               <span className="text-muted-foreground tabular-nums">
                 {format.dateTime(new Date(e.timestamp), { timeStyle: "medium" })}
               </span>{" "}

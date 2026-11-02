@@ -2,11 +2,11 @@
 
 import type { AgentOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Send, Settings2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 
+import { Plus, Send, Settings2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -38,7 +38,7 @@ function AgentCard({ agent }: { agent: AgentOut }) {
   const busy = isAgentBusy(live);
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border bg-card p-4" data-agent-id={agent.id}>
+    <li className="flex flex-col gap-3 bg-card p-4 pixel-frame" data-agent-id={agent.id}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link href={`/office/agents/${agent.id}`} className="block truncate font-medium hover:underline">
@@ -109,7 +109,7 @@ export function AgentsPanel({ types }: { types?: string[] }) {
       </ul>
       {agents.isPending && <p className="text-sm text-muted-foreground">{tc("loading")}</p>}
       {agents.isError && !agents.data && (
-        <div role="alert" className="flex flex-col items-start gap-2 rounded-lg border p-4 text-sm">
+        <div role="alert" className="flex flex-col items-start gap-2 border-2 p-4 text-sm">
           <p>{toMessage(agents.error).message}</p>
           <Button variant="outline" size="sm" onClick={() => agents.refetch()}>
             {tc("retry")}
@@ -117,7 +117,7 @@ export function AgentsPanel({ types }: { types?: string[] }) {
         </div>
       )}
       {agents.data && shown.length === 0 && (
-        <EmptyState title={t("empty")} className="rounded-lg border border-dashed" />
+        <EmptyState title={t("empty")} className="border-2 border-dashed" />
       )}
     </div>
   );

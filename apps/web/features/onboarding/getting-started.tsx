@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
+import { Check, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { UNTITLED_CHAT } from "@/features/chat/chat-title";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
@@ -87,7 +87,7 @@ export function GettingStarted({ className }: { className?: string }) {
   return (
     <section
       aria-labelledby="start-title"
-      className={cn("flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm", className)}
+      className={cn("flex flex-col gap-3 bg-card p-4 pixel-frame", className)}
       data-testid="getting-started"
     >
       <div className="flex items-start gap-3">
@@ -107,14 +107,14 @@ export function GettingStarted({ className }: { className?: string }) {
           <li
             key={step}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-2 py-2",
+              "flex items-center gap-3 px-2 py-2",
               step === next && "bg-accent/60",
               done[step] && "opacity-70",
             )}
           >
             <span
               className={cn(
-                "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                "flex size-7 shrink-0 items-center justify-center border-2 text-xs font-semibold",
                 done[step] && "border-grass bg-grass text-white",
               )}
               aria-hidden

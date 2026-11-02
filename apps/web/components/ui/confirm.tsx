@@ -52,7 +52,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         {options && (
           <div className="flex flex-col gap-4 p-5">
             <div className="flex flex-col gap-1.5">
-              <p id="confirm-title" className="text-base font-semibold">
+              <p id="confirm-title" className="font-pixel text-lg">
                 {options.title}
               </p>
               {options.description && <p className="text-sm text-muted-foreground">{options.description}</p>}

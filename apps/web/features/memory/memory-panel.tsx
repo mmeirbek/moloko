@@ -2,10 +2,10 @@
 
 import type { MemoryOut, MemoryType } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, Pencil, Pin, PinOff, Plus, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 
+import { History, Pencil, Pin, PinOff, Plus, Trash2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/features/mascot/empty-state";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 
-const textareaClass = "rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm";
+const textareaClass = "bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken";
 
 /** Which memory types can be added in a scope (same rules as the API). */
 export function typesFor(scope: MemoryScope): MemoryType[] {
@@ -78,7 +78,7 @@ function MemoryEditor({ scope, memory, onDone }: { scope: MemoryScope; memory?: 
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <form onSubmit={submit} className="flex flex-col gap-3 bg-card p-4 pixel-frame">
       {!memory && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${uid}-type`}>{t("type")}</Label>
@@ -86,7 +86,7 @@ function MemoryEditor({ scope, memory, onDone }: { scope: MemoryScope; memory?: 
             id={`${uid}-type`}
             value={type}
             onChange={(e) => setType(e.target.value as MemoryType)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
           >
             {typesFor(scope).map((ty) => (
               <option key={ty} value={ty}>
@@ -184,7 +184,7 @@ function MemoryItem({ memory, scope }: { memory: MemoryOut; scope: MemoryScope }
 
   if (editing) return <MemoryEditor scope={scope} memory={memory} onDone={() => setEditing(false)} />;
   return (
-    <li className="flex flex-col gap-2 rounded-lg border bg-card p-4" data-memory-id={memory.id}>
+    <li className="flex flex-col gap-2 bg-card p-4 pixel-frame" data-memory-id={memory.id}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 font-medium">
@@ -255,7 +255,7 @@ export function MemoryContextPreview({ agentId }: { agentId: string }) {
   if (!ctx.data) return null;
   const { enabled, chars, max_chars, included, omitted, text } = ctx.data;
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed p-4 text-sm" data-testid="memory-context">
+    <div className="flex flex-col gap-2 border-2 border-dashed p-4 text-sm" data-testid="memory-context">
       {!enabled ? (
         <p className="text-muted-foreground">{t("disabled")}</p>
       ) : (
@@ -267,7 +267,7 @@ export function MemoryContextPreview({ agentId }: { agentId: string }) {
           {text && (
             <details>
               <summary className="cursor-pointer text-muted-foreground">{t("show")}</summary>
-              <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
+              <pre className="mt-2 max-h-80 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap">
                 {text}
               </pre>
             </details>
@@ -307,7 +307,7 @@ export function MemoryPanel({ scope }: { scope: MemoryScope }) {
         ))}
       </ul>
       {memories.data?.length === 0 && !adding && (
-        <EmptyState title={t("empty")} mood="sleep" className="rounded-lg border border-dashed" />
+        <EmptyState title={t("empty")} mood="sleep" className="border-2 border-dashed" />
       )}
     </div>
   );

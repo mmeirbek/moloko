@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { AUTONOMY, fromAgent, toPayload, validate, type AgentFormValues, type FormErrors } from "./agent-form-model";
 import { AgentToolsField } from "./agent-tools-field";
 
-const textareaClass = "rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm";
+const textareaClass = "bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken";
 
 function Field({
   id,
@@ -52,7 +52,7 @@ function Field({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-4">
+    <fieldset className="flex flex-col gap-4 bg-card p-4 pixel-frame">
       <legend className="px-1 text-sm font-medium">{title}</legend>
       {children}
     </fieldset>
@@ -143,7 +143,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
             id={id("model")}
             value={values.modelId}
             onChange={(e) => set("modelId", e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-10 bg-background px-2 text-sm pixel-frame pixel-sunken"
           >
             <option value="">{ta("defaultModel")}</option>
             {models.data?.map((m) => (
@@ -175,7 +175,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
             <label
               key={level}
               className={cn(
-                "flex cursor-pointer flex-col gap-1 rounded-md border p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                "flex cursor-pointer flex-col gap-1 border-2 p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
                 values.autonomy === level && "border-primary bg-accent",
               )}
             >

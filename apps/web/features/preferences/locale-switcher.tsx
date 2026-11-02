@@ -32,7 +32,7 @@ export function LocaleSwitcher({ className, wide = false }: { className?: string
       role="group"
       aria-label={t("language")}
       className={cn(
-        wide ? "grid grid-cols-2 gap-1 rounded-lg border p-1 text-sm" : "inline-flex rounded-md border p-0.5 text-xs",
+        wide ? "grid grid-cols-2 gap-1 border-2 p-1 text-sm" : "inline-flex border-2 p-0.5 text-xs",
         className,
       )}
     >
@@ -46,7 +46,7 @@ export function LocaleSwitcher({ className, wide = false }: { className?: string
           onClick={() => choose(locale)}
           className={cn(
             "font-medium transition-colors",
-            wide ? "min-h-10 rounded-md px-2" : "min-h-7 min-w-8 rounded-sm px-2 py-1",
+            wide ? "min-h-10 px-2" : "min-h-7 min-w-8 px-2 py-1",
             locale === active
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground",

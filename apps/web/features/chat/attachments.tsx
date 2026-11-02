@@ -2,10 +2,10 @@
 
 import type { AttachmentOut } from "@moloko/shared-types";
 import { useMutation } from "@tanstack/react-query";
-import { Paperclip, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
+import { Paperclip, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { uploadAttachment } from "@/lib/api/chat";
 
@@ -64,7 +64,7 @@ export function useComposerAttachments({ chatId, ensureChat }: { chatId: string 
           type="button"
           size="icon"
           variant="ghost"
-          className="shrink-0 rounded-full text-muted-foreground"
+          className="shrink-0 text-muted-foreground"
           aria-label={t("attach")}
           title={t("attach")}
           disabled={disabled || upload.isPending || pending.length >= MAX_ATTACHMENTS}
@@ -84,7 +84,7 @@ export function useComposerAttachments({ chatId, ensureChat }: { chatId: string 
             <button
               type="button"
               aria-label={t("removeAttachment", { name: a.filename })}
-              className="-m-1.5 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+              className="-m-1.5 flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
               onClick={() => setPending((list) => list.filter((x) => x.id !== a.id))}
             >
               <X className="size-3" />

@@ -1,10 +1,10 @@
 "use client";
 
 import { ComposerPrimitive, ThreadPrimitive, useAui } from "@assistant-ui/react";
-import { ArrowUp, Network, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { ArrowUp, Network, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { MicButton } from "@/features/voice/mic-button";
 import { cn } from "@/lib/utils";
@@ -37,7 +37,7 @@ function AgentsSwitch({ on, onChange, disabled }: { on: boolean; onChange: (on: 
       disabled={disabled}
       onClick={() => onChange(!on)}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        "inline-flex h-9 shrink-0 items-center gap-1.5 border-2 px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
         on
           ? "border-sky/60 bg-sky/15 text-sky"
           : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -78,7 +78,7 @@ export function Composer({
     <div className={cn("flex flex-col gap-1.5", className)}>
       <ComposerPrimitive.Root
         className={cn(
-          "flex flex-col rounded-3xl border bg-card shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring/40",
+          "flex flex-col bg-card transition-colors focus-within:ring-2 focus-within:ring-ring/40 pixel-frame",
           agents && "border-sky/60",
         )}
       >
@@ -88,7 +88,7 @@ export function Composer({
           autoFocus
           disabled={disabled}
           placeholder={agents ? t("placeholderAgents") : t("placeholder")}
-          className="max-h-60 min-h-14 w-full resize-none bg-transparent px-4 pt-4 pb-1 text-base outline-none placeholder:text-muted-foreground md:text-[15px]"
+          className="max-h-60 min-h-14 w-full resize-none bg-transparent px-4 pt-4 pb-1 text-base outline-none placeholder:text-muted-foreground"
         />
         <div className="flex items-center gap-1 px-2 pb-2">
           {attach}
@@ -98,14 +98,14 @@ export function Composer({
           <ComposerMic disabled={disabled} />
           <ThreadPrimitive.If running={false}>
             <ComposerPrimitive.Send asChild>
-              <Button size="icon" aria-label={t("send")} className="shrink-0 rounded-full">
+              <Button size="icon" aria-label={t("send")} className="shrink-0">
                 <ArrowUp />
               </Button>
             </ComposerPrimitive.Send>
           </ThreadPrimitive.If>
           <ThreadPrimitive.If running>
             <ComposerPrimitive.Cancel asChild>
-              <Button size="icon" variant="outline" aria-label={t("stop")} className="shrink-0 rounded-full">
+              <Button size="icon" variant="outline" aria-label={t("stop")} className="shrink-0">
                 <Square />
               </Button>
             </ComposerPrimitive.Cancel>
@@ -129,7 +129,7 @@ export function Suggestions({ className }: { className?: string }) {
           <button
             type="button"
             onClick={() => aui.composer().setText(text)}
-            className="w-full rounded-2xl border bg-card px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="w-full bg-card px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pixel-frame"
           >
             {text}
           </button>

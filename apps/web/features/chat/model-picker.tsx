@@ -1,9 +1,9 @@
 "use client";
 
 import type { ModelOut } from "@moloko/shared-types";
-import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ChevronDown } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 export function modelLabel(m: ModelOut) {
@@ -35,7 +35,7 @@ export function ModelPicker({
       <select
         aria-label={t("model")}
         title={t("model")}
-        className="h-9 max-w-44 min-w-0 cursor-pointer appearance-none truncate rounded-full bg-transparent pr-7 pl-3 text-xs text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:max-w-56"
+        className="h-9 max-w-44 min-w-0 cursor-pointer appearance-none truncate bg-transparent pr-7 pl-3 text-xs text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:max-w-56"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
       >

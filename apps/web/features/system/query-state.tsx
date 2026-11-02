@@ -1,8 +1,8 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ export function ErrorState({ error, onRetry, className }: { error: unknown; onRe
   const toMessage = useErrorMessage();
   const { message, errorId } = toMessage(error);
   return (
-    <div role="alert" className={cn("flex flex-col items-start gap-2 rounded-lg border p-4 text-sm", className)}>
+    <div role="alert" className={cn("flex flex-col items-start gap-2 border-2 p-4 text-sm", className)}>
       <p>{message}</p>
       {errorId && <p className="font-mono text-xs text-muted-foreground">{t("errorId", { id: errorId })}</p>}
       {onRetry && (

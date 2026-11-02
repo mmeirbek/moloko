@@ -1,9 +1,9 @@
 "use client";
 
-import { ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 
+import { ShieldAlert } from "@/components/icons";
 import { pendingApprovals, useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function ApprovalsBadge({ className }: { className?: string }) {
     <Link
       href="/approvals"
       className={cn(
-        "inline-flex min-h-9 items-center gap-1.5 rounded-md bg-amber-400/20 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200",
+        "inline-flex min-h-9 items-center gap-1.5 bg-amber-400/20 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200",
         className,
       )}
       aria-label={t("badge", { count })}

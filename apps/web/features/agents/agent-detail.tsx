@@ -1,12 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Send, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ArrowLeft, Send, Trash2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm";
@@ -37,10 +37,10 @@ function AgentTasks({ agentId }: { agentId: string }) {
   const live = useRealtimeStore((s) => s.tasks);
   if (tasks.data?.items.length === 0)
     return (
-      <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t("noTasks")}</p>
+      <p className="border-2 border-dashed p-6 text-center text-sm text-muted-foreground">{t("noTasks")}</p>
     );
   return (
-    <ul className="flex flex-col divide-y rounded-lg border bg-card" aria-label={t("tasks")}>
+    <ul className="flex flex-col divide-y-2 bg-card pixel-frame" aria-label={t("tasks")}>
       {tasks.data?.items.map((task) => {
         const current = live[task.id] ?? task;
         return (
@@ -122,7 +122,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
           <ArrowLeft className="size-4" /> {td("back")}
         </Link>
         <h1 className="truncate font-sans text-2xl font-semibold">{agent.data.name}</h1>
-        <p role="status" className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+        <p role="status" className="border-2 border-dashed p-4 text-sm text-muted-foreground">
           {td("archived")}
         </p>
         <AgentTasks agentId={agentId} />
@@ -186,7 +186,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
         )}
       </div>
 
-      <div role="tablist" aria-label={td("sections")} className="flex gap-1 border-b">
+      <div role="tablist" aria-label={td("sections")} className="flex gap-1 border-b-2">
         {TABS.map((name) => (
           <button
             key={name}
@@ -226,7 +226,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
       {live.agent_type === "autonomous" && (
         <section
           aria-labelledby="danger-title"
-          className="flex flex-col items-start gap-2 rounded-lg border border-destructive/40 p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col items-start gap-2 border-2 border-destructive/40 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex flex-col gap-0.5">
             <p id="danger-title" className="text-sm font-medium">

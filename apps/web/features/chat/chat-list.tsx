@@ -1,11 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { SquarePen, Trash2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import { SquarePen, Trash2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { useErrorMessage } from "@/features/auth/use-error-message";
@@ -77,8 +77,8 @@ export function ChatList({ variant, className }: { variant: "sidebar" | "page"; 
             <div
               key={chat.id}
               className={cn(
-                "group flex items-center rounded-lg",
-                active ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
+                "group flex items-center",
+                active ? "bg-primary text-primary-foreground" : "hover:bg-accent",
               )}
             >
               <Link
@@ -95,7 +95,7 @@ export function ChatList({ variant, className }: { variant: "sidebar" | "page"; 
                 aria-label={t("deleteChat", { title })}
                 // Hidden until hover only where there is hover: touch screens always see it.
                 className={cn(
-                  "flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-destructive focus:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+                  "flex shrink-0 items-center justify-center text-muted-foreground hover:text-destructive focus:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
                   compact ? "size-8" : "size-10",
                 )}
                 disabled={remove.isPending}
