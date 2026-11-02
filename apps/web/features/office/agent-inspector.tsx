@@ -19,6 +19,7 @@ import { listPickerModels, modelKeys } from "@/lib/api/chat";
 import { api } from "@/lib/api/client";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
+import { TeamLine } from "@/features/agents/team-links";
 
 const recentEvents = (agentId: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/events?agent_id=${agentId}&latest=true&limit=8`, {
@@ -120,6 +121,7 @@ export function AgentInspector({
         <dd className="truncate">{agent.allowed_tools.length ? agent.allowed_tools.join(", ") : t("noTools")}</dd>
       </dl>
 
+      {task && <TeamLine task={task} className="text-xs" />}
       {task?.result && <p className="line-clamp-4 bg-muted p-2 text-xs">{task.result}</p>}
 
       {canTakeTask && (

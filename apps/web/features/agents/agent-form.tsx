@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 import { AUTONOMY, fromAgent, toPayload, validate, type AgentFormValues, type FormErrors } from "./agent-form-model";
 import { AgentToolsField } from "./agent-tools-field";
+import { AgentContactsField } from "./agent-contacts-field";
 
 const textareaClass = "bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken";
 
@@ -205,6 +206,19 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
           }}
         />
       </Section>
+
+      {!isOrchestrator && (
+        <Section title={t("contacts.title")}>
+          <AgentContactsField
+            agentId={agent?.id}
+            values={values}
+            onChange={(next) => {
+              setValues(next);
+              setSaved(false);
+            }}
+          />
+        </Section>
+      )}
 
       <Section title={t("limits")}>
         <div className="grid gap-4 sm:grid-cols-2">

@@ -1,5 +1,8 @@
 import type { ApprovalOut } from "@moloko/shared-types";
 
+/** Long text for a one-line summary (the full arguments stay under «exact arguments»). */
+const short = (text: string, max = 120) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
+
 /** Parameters for the localized description of a built-in operation. */
 export function opParams(approval: Pick<ApprovalOut, "tool_name" | "args">): Record<string, string> | null {
   const a = approval.args as Record<string, unknown>;
@@ -23,6 +26,10 @@ export function opParams(approval: Pick<ApprovalOut, "tool_name" | "args">): Rec
       return { title: s("title") };
     case "browser_screenshot":
       return { url: s("url") };
+    case "agent_ask":
+      return { agent: s("agent"), request: short(s("request")) };
+    case "agent_tell":
+      return { agent: s("agent"), message: short(s("message")) };
     default:
       return null;
   }

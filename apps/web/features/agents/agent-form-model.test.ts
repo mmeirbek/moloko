@@ -1,7 +1,7 @@
 import type { AgentOut, SystemLimits } from "@moloko/shared-types";
 import { describe, expect, it } from "vitest";
 
-import { fromAgent, money, parseProjects, setOverride, toggleTool, toPayload, validate } from "./agent-form-model";
+import { contactsOf, fromAgent, money, parseProjects, setOverride, toggleContact, toggleTool, toPayload, validate } from "./agent-form-model";
 
 const LIMITS: SystemLimits = {
   max_steps_per_run: 50,
@@ -34,6 +34,7 @@ describe("agent form", () => {
       permissions: { tools: { fs_write: "approve" } },
       workspace_id: "ws1",
       monthly_budget_usd: "7.50",
+      contacts: { mode: "list", agent_ids: ["a2", "a3"] },
     } as unknown as AgentOut;
     const payload = toPayload(fromAgent(agent));
     expect(payload).toEqual({
@@ -49,7 +50,19 @@ describe("agent form", () => {
       tool_overrides: { fs_write: "approve" },
       workspace_id: "ws1",
       monthly_budget_usd: "7.50",
+      contacts: { mode: "list", agent_ids: ["a2", "a3"] },
     });
+  });
+
+  it("contacts: everyone by default; the chosen list only in list mode", () => {
+    expect(contactsOf(undefined)).toEqual({ mode: "all", agent_ids: [] });
+    expect(contactsOf({ contacts: { mode: "weird", agent_ids: ["x"] } } as unknown as AgentOut)).toEqual({ mode: "all", agent_ids: [] });
+    const v = { ...fromAgent(), name: "A", contactMode: "list" as const };
+    const picked = toggleContact(toggleContact(v, "b", true), "c", true);
+    expect(toPayload(picked).contacts).toEqual({ mode: "list", agent_ids: ["b", "c"] });
+    expect(toPayload(toggleContact(picked, "b", false)).contacts).toEqual({ mode: "list", agent_ids: ["c"] });
+    // switching to "none" drops the list
+    expect(toPayload({ ...picked, contactMode: "none" }).contacts).toEqual({ mode: "none", agent_ids: [] });
   });
 
   it("empty limits mean the global ones", () => {

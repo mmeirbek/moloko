@@ -18,6 +18,7 @@ import { cancelTask, getTask, retryTask, taskEvents, taskKeys } from "@/lib/api/
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 import { useDocumentTitle } from "@/lib/hooks";
+import { TeamLine } from "@/features/agents/team-links";
 
 const ACTIVE = new Set(["created", "queued", "running", "waiting", "waiting_approval"]);
 
@@ -124,6 +125,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             <CalendarDays className="size-3" aria-hidden /> {tSchedules("fromSchedule")}
           </Link>
         )}
+        <TeamLine task={task} />
         {task.description && <p className="text-sm whitespace-pre-wrap">{task.description}</p>}
         <div className="flex gap-2">
           {ACTIVE.has(task.status) && (

@@ -23,10 +23,11 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { AgentBudget } from "./agent-budget";
 import { AgentControls, isAgentBusy } from "./agent-controls";
 import { AgentForm } from "./agent-form";
+import { AgentMessages } from "./agent-messages";
 import { SaveTemplateButton } from "./save-template";
 import { StatusBadge } from "./status-badge";
 
-const TABS = ["profile", "memory", "tasks"] as const;
+const TABS = ["profile", "memory", "tasks", "messages"] as const;
 type Tab = (typeof TABS)[number];
 
 function AgentTasks({ agentId }: { agentId: string }) {
@@ -225,6 +226,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
             <MemoryPanel scope={{ agentId }} />
           ))}
         {tab === "tasks" && <AgentTasks agentId={agentId} />}
+        {tab === "messages" && <AgentMessages agentId={agentId} />}
       </div>
 
       {live.agent_type === "autonomous" && (

@@ -535,7 +535,27 @@
       "monthlyBudget": "Monthly budget, $",
       "monthlyBudgetHint": "Empty — no limit of its own. When the budget runs out, the agent stops.",
       "monthlyBudgetHintOrchestrator": "Empty — no limit of its own. Its subagents count here too.",
-      "monthlyBudgetPlaceholder": "e.g. 5"
+      "monthlyBudgetPlaceholder": "e.g. 5",
+      "contacts": {
+        "title": "Who it may talk to",
+        "modes": {
+          "all": {
+            "title": "Everyone",
+            "body": "Asks and messages any of your agents itself, without the Orchestrator."
+          },
+          "list": {
+            "title": "Chosen ones",
+            "body": "Only the agents ticked below."
+          },
+          "none": {
+            "title": "No one",
+            "body": "Works alone; colleagues cannot reach it either."
+          }
+        },
+        "pick": "Colleagues",
+        "noColleagues": "There are no other agents yet.",
+        "note": "The rule is mutual: two agents talk only if both allow each other. Each keeps its own approvals, tools and budget."
+      }
     },
     "detail": {
       "back": "All agents",
@@ -545,7 +565,8 @@
       "tabs": {
         "profile": "Settings",
         "memory": "Memory",
-        "tasks": "Task history"
+        "tasks": "Task history",
+        "messages": "Messages"
       },
       "tasks": "The agent's tasks",
       "noTasks": "This agent has had no tasks yet.",
@@ -594,6 +615,53 @@
       "near": "{percent}% used — close to the limit (warning from {warn}%).",
       "ok": "{percent}% used. You are warned at {warn}%; at 100% the agent stops.",
       "noLimit": "No limit of its own — set \"Monthly budget, $\" in the settings below."
+    },
+    "messages": {
+      "title": "Messages",
+      "filter": "Which messages to show",
+      "directions": {
+        "all": "All",
+        "in": "Received",
+        "out": "Sent"
+      },
+      "empty": "This agent has not talked to colleagues yet.",
+      "from": "from",
+      "to": "to",
+      "more": "Show more",
+      "types": {
+        "request": "Question",
+        "task_result": "Answer",
+        "error": "No answer",
+        "note": "Note",
+        "context": "From the Orchestrator"
+      },
+      "refused": "Not delivered: {reason}",
+      "refusals": {
+        "self": "cannot message itself",
+        "different_owner": "someone else's agent",
+        "agent_unavailable": "the agent is unavailable",
+        "orchestrator": "the Orchestrator cannot be messaged like this",
+        "different_run": "another run",
+        "not_a_colleague": "not a colleague",
+        "not_in_contacts": "not in the contacts",
+        "receiver_refuses": "the receiver does not accept messages",
+        "cycle": "the receiver is already in this chain of questions",
+        "too_many_hops": "the chain is too long",
+        "too_many_asks": "too many questions for one task",
+        "deadlock": "the agents would wait for each other",
+        "other": "refused"
+      },
+      "openConsult": "Task for the question",
+      "openSenderTask": "Sender's task",
+      "openAskerTask": "Asker's task",
+      "expand": "Show all",
+      "collapse": "Collapse"
+    },
+    "team": {
+      "waitingFor": "waiting for an answer from",
+      "askedBy": "Asked by agent",
+      "openRequest": "Question",
+      "openAskerTask": "Its task"
     }
   },
   "runs": {
@@ -764,6 +832,14 @@
       "browser_screenshot": {
         "summary": "Open in the sandbox browser: {url}",
         "consequences": "The site is loaded from the internet (it may run its scripts) in an isolated browser; a screenshot is saved in the workspace."
+      },
+      "agent_ask": {
+        "summary": "Ask agent {agent}: “{request}”",
+        "consequences": "Agent {agent} gets a task and spends its own steps and budget. Its own rules and approvals apply."
+      },
+      "agent_tell": {
+        "summary": "Message agent {agent}: “{message}”",
+        "consequences": "Agent {agent} receives the message (and files, if any) and reads it on its next run."
       }
     },
     "reasons": {

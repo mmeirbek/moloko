@@ -17,6 +17,7 @@ import { useDebounced } from "@/lib/hooks";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn, notAfter } from "@/lib/utils";
 import { EmptyState } from "@/features/mascot/empty-state";
+import { waitingFor } from "@/features/agents/team-links";
 
 const FILTERS = ["all", "active", "completed", "failed", "cancelled"] as const;
 
@@ -100,6 +101,8 @@ function TaskRow({ task, now }: { task: TaskOut; now: Date }) {
   const live = useRealtimeStore((s) => s.tasks[task.id]) ?? task;
   const agentName = useRealtimeStore((s) => (live.agent_id ? s.agents[live.agent_id]?.name : undefined));
   const format = useFormatter();
+  const tt = useTranslations("agents.team");
+  const waiting = waitingFor(live);
   return (
     <li>
       <Link
@@ -111,6 +114,7 @@ function TaskRow({ task, now }: { task: TaskOut; now: Date }) {
           <p className="truncate text-xs text-muted-foreground">
             {agentName ?? "—"} · {format.relativeTime(notAfter(new Date(live.created_at), now), now)}
             {live.attempt > 1 && ` · #${live.attempt}`}
+            {waiting && ` · ${tt("waitingFor")} ${waiting.agentName}`}
           </p>
         </div>
         <StatusBadge status={live.status} />

@@ -22,9 +22,24 @@ export type AgentFormValues = {
   tools: string[];
   overrides: Record<string, ToolOverride>;
   workspaceId: string;
+  contactMode: ContactMode;
+  contactIds: string[];
 };
 
 export type ToolOverride = "approve" | "deny";
+
+/** Which colleagues an agent may talk to directly (agents_list / agent_ask / agent_tell). */
+export const CONTACT_MODES = ["all", "list", "none"] as const;
+export type ContactMode = (typeof CONTACT_MODES)[number];
+export type AgentContacts = { mode: ContactMode; agent_ids: string[] };
+const DEFAULT_CONTACTS: AgentContacts = { mode: "all", agent_ids: [] };
+
+/** The agent's `contacts` from the API (missing or unknown → everyone, the server default). */
+export function contactsOf(agent?: AgentOut): AgentContacts {
+  const c = (agent as { contacts?: Partial<AgentContacts> } | undefined)?.contacts;
+  const mode = (CONTACT_MODES as readonly string[]).includes(c?.mode ?? "") ? (c!.mode as ContactMode) : "all";
+  return { mode, agent_ids: mode === "list" ? [...(c?.agent_ids ?? [])] : [] };
+}
 
 export type FieldError = "required" | "number" | "money" | "tooHigh" | "tooLow";
 
@@ -61,7 +76,14 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
     tools: [...(agent?.allowed_tools ?? [])],
     overrides: { ...(((agent?.permissions ?? {}) as { tools?: Record<string, ToolOverride> }).tools ?? {}) },
     workspaceId: agent?.workspace_id ?? "",
+    contactMode: contactsOf(agent).mode,
+    contactIds: contactsOf(agent).agent_ids,
   };
+}
+
+export function toggleContact(values: AgentFormValues, id: string, on: boolean): AgentFormValues {
+  const contactIds = on ? [...new Set([...values.contactIds, id])] : values.contactIds.filter((x) => x !== id);
+  return { ...values, contactIds };
 }
 
 /** Allowing a tool or removing it; overrides only matter for allowed tools. */
@@ -127,7 +149,7 @@ export function validate(values: AgentFormValues, limits?: SystemLimits): FormEr
   return errors;
 }
 
-export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_type"> {
+export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_type"> & { contacts: AgentContacts } {
   const steps = whole(values.maxSteps);
   const minutes = whole(values.timeoutMinutes);
   const chars = whole(values.maxContextChars);
@@ -154,5 +176,7 @@ export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_typ
     ),
     workspace_id: values.workspaceId || null,
     monthly_budget_usd: money(values.monthlyBudget) || null,
+    contacts:
+      values.contactMode === "list" ? { mode: "list", agent_ids: values.contactIds } : { ...DEFAULT_CONTACTS, mode: values.contactMode },
   };
 }

@@ -29,6 +29,8 @@ export const agentKeys = {
   templates: (locale: string) => ["agents", "templates", locale] as const,
   archived: ["agents", "archived"] as const,
   budget: (id: string) => ["agents", id, "budget"] as const,
+  // Under "tasks" so agent.message / task events refresh it (lib/realtime/provider.tsx).
+  messages: (id: string, direction: MessageDirection) => ["tasks", "agent-messages", id, direction] as const,
 };
 export const taskKeys = {
   all: ["tasks"] as const,
@@ -39,6 +41,37 @@ export const taskKeys = {
 export const systemStateKey = ["system", "state"] as const;
 export const systemLimitsKey = ["system", "limits"] as const;
 export const storageKey = ["system", "storage"] as const;
+
+/** One message between two agents, seen from `agent_id` (GET /agents/{id}/messages). */
+export type AgentMessageItem = {
+  id: string;
+  created_at: string;
+  direction: "in" | "out";
+  sender_agent_id: string;
+  sender_name: string;
+  receiver_agent_id: string;
+  receiver_name: string;
+  /** request = a question (agent_ask), task_result = the answer, error = no answer, note = agent_tell, context = Orchestrator input */
+  message_type: "request" | "task_result" | "error" | "note" | "context";
+  status: "delivered" | "refused";
+  error: string | null;
+  summary: string;
+  text: string | null;
+  files: string[];
+  task_id: string | null;
+  consult_task_id: string | null;
+  asker_task_id: string | null;
+  read_at: string | null;
+};
+export type MessageDirection = "all" | "in" | "out";
+
+export function listAgentMessages(agentId: string, direction: MessageDirection, cursor?: string | null, signal?: AbortSignal) {
+  const q = new URLSearchParams({ direction, limit: "50" });
+  if (cursor) q.set("cursor", cursor);
+  return api.request<{ items: AgentMessageItem[]; next_cursor: string | null }>(`/agents/${agentId}/messages?${q}`, {
+    signal,
+  });
+}
 
 export const listAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents", { signal });
 export const getAgent = (id: string, signal?: AbortSignal) => api.request<AgentOut>(`/agents/${id}`, { signal });
