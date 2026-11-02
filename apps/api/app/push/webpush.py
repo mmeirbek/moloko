@@ -118,6 +118,35 @@ def host_allowed(endpoint: str, allowed: list[str]) -> bool:
     return False
 
 
+# Contacts the push services treat as fake (Apple answers 403 BadJwtToken to them).
+_PLACEHOLDER_HOSTS = ("localhost", "example.org", "example.com", "example.net")
+_PLACEHOLDER_SUFFIXES = (".invalid", ".local", ".localhost", ".example", ".test")
+
+
+def _usable_contact(contact: str) -> bool:
+    contact = contact.strip()
+    if contact.startswith("https://"):
+        host = (urlsplit(contact).hostname or "").lower()
+    elif contact.startswith("mailto:"):
+        host = contact[len("mailto:") :].rpartition("@")[2].strip().lower()
+    else:
+        return False
+    return (
+        "." in host and host not in _PLACEHOLDER_HOSTS and not host.endswith(_PLACEHOLDER_SUFFIXES)
+    )
+
+
+def push_subject(contact: str, site_origins: list[str]) -> str:
+    """The VAPID contact ("sub"). Apple refuses placeholder addresses, so when PUSH_CONTACT
+    is still the placeholder, the site's own https address is used instead."""
+    if _usable_contact(contact):
+        return contact.strip()
+    for origin in site_origins:
+        if _usable_contact(origin):
+            return origin.strip().rstrip("/")
+    return contact
+
+
 async def send(
     endpoint: str,
     p256dh: str,

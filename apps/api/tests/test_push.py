@@ -260,3 +260,19 @@ def test_notice_rules_match_the_in_app_notifications() -> None:
     need = notice_for(event("approval.required", approval), now)
     assert need is not None and need.kind == "approval" and need.subject == "Ana: Write a.txt"
     assert notice_for(event("agent.status_changed", {}), now) is None
+
+
+def test_the_push_contact_is_never_a_placeholder_apple_refuses() -> None:
+    from app.push.webpush import push_subject
+
+    site = ["https://moloko.tail1234.ts.net"]
+    assert push_subject("mailto:owner@moloko.invalid", site) == "https://moloko.tail1234.ts.net"
+    assert push_subject("mailto:admin@localhost", [*site, "x"]) == site[0]
+    assert push_subject("mailto:me@example.org", site) == site[0]
+    assert push_subject("mailto:me@mail.kz", site) == "mailto:me@mail.kz"
+    assert push_subject("https://my.site/", site) == "https://my.site/"
+    # nothing better known: keep what was configured
+    assert push_subject("mailto:owner@moloko.invalid", []) == "mailto:owner@moloko.invalid"
+    assert push_subject("mailto:owner@moloko.invalid", ["http://127.0.0.1:3000"]).endswith(
+        ".invalid"
+    )

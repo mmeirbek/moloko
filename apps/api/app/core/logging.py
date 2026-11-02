@@ -47,3 +47,7 @@ def configure_logging(level: str = "INFO") -> None:
         lg = logging.getLogger(name)
         lg.handlers[:] = []
         lg.propagate = True
+    # HTTP clients log every request's full URL at INFO — push endpoints are per-device
+    # capability URLs, and other URLs may carry tokens in their query. Warnings only.
+    for name in ("httpx", "httpx2", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)

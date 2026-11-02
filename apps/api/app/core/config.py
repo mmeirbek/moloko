@@ -316,7 +316,9 @@ class Settings(BaseSettings):
     work_index_batch: int = Field(100, ge=1, le=2000)
     work_index_max_chunks: int = Field(20, ge=1, le=200)
     # --- Web Push (notifications while the app is closed) ---------------------------
-    # Contact for the push services (VAPID "sub"): use your e-mail, e.g. mailto:me@example.org
+    # Contact for the push services (VAPID "sub"): mailto:you@your-domain or an https:// URL.
+    # While it is the placeholder, the site's own address (WEBAUTHN_ORIGINS) is used: Apple
+    # refuses placeholder contacts.
     push_contact: str = "mailto:owner@moloko.invalid"
     push_ttl_seconds: int = Field(86_400, ge=60, le=2_419_200)
     # Subscriptions may only point to these push services (no requests to anything else).

@@ -22,7 +22,7 @@ from app.core.config import Settings
 from app.models.event import AgentEvent
 from app.models.system import SystemSetting
 from app.models.tooling import PushSubscription
-from app.push.webpush import host_allowed, send
+from app.push.webpush import host_allowed, push_subject, send
 from app.services.push import PushUnavailable, vapid_keys
 
 logger = logging.getLogger("moloko.push")
@@ -204,7 +204,7 @@ async def _deliver(
             sub.auth,
             payload,
             keys,
-            subject=settings.push_contact,
+            subject=push_subject(settings.push_contact, settings.webauthn_origins),
             ttl=settings.push_ttl_seconds,
             urgency="high" if notice.kind in ("approval", "budget") else "normal",
             topic=topic,
