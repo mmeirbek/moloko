@@ -1,11 +1,7 @@
-import { Page } from "@/components/layout/page";
 import { TaskDetailView } from "@/features/tasks/task-detail";
 
+/** The task as a chat: full width (the details sit in the right bar), like the chat pages. */
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return (
-    <Page>
-      <TaskDetailView key={id} taskId={id} />
-    </Page>
-  );
+  return <TaskDetailView key={id} taskId={id} />;
 }

@@ -30,7 +30,7 @@ test("full control: write to a working agent, stop it, continue from where it st
   await expect(page.getByTestId("agent-steps").getByText("Вы написали: «Пиши коротко»")).toBeVisible();
 
   // Stop it, then continue from where it stopped, with an instruction.
-  await page.getByRole("button", { name: "Отменить задачу" }).first().click();
+  await page.getByTestId("task-composer").getByRole("button", { name: "Отменить задачу" }).click();
   const resume = page.getByTestId("continue-task");
   await expect(resume).toBeVisible();
   await resume.getByRole("button", { name: "+ Указание" }).click();

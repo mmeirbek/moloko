@@ -1,26 +1,28 @@
 "use client";
 
-import type { EventOut } from "@moloko/shared-types";
+import type { EventOut, TaskOut } from "@moloko/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
-import { ArrowLeft, CalendarDays, Square } from "@/components/icons";
-import { TaskToolActivity } from "@/features/tasks/tool-calls";
-import { AgentSteps } from "@/features/tasks/agent-steps";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, Info, Square, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
-import { MilkBottle } from "@/features/mascot/milk-bottle";
-import { ExportMenu } from "@/features/tasks/export-menu";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
-import { cancelTask, getTask, taskEvents, taskKeys } from "@/lib/api/agents";
-import { useRealtimeStore } from "@/lib/realtime/store";
+import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
-import { useDocumentTitle } from "@/lib/hooks";
-import { TeamLine } from "@/features/agents/team-links";
-import { useTaskError } from "@/features/tasks/task-error";
+import { AgentSteps } from "@/features/tasks/agent-steps";
+import { ExportMenu } from "@/features/tasks/export-menu";
 import { ACTIVE_TASK, ContinueTask, MessageAgent } from "@/features/tasks/task-control";
+import { useTaskError } from "@/features/tasks/task-error";
+import { TaskSidebar } from "@/features/tasks/task-sidebar";
+import { TaskApprovals } from "@/features/tasks/tool-calls";
+import { cancelTask, getTask, taskEvents, taskKeys } from "@/lib/api/agents";
+import { useDocumentTitle } from "@/lib/hooks";
+import { useRealtimeStore } from "@/lib/realtime/store";
+import { cn } from "@/lib/utils";
 
 function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, ts: (status: string) => string): string {
   const p = e.payload as Record<string, unknown>;
@@ -72,12 +74,114 @@ function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, t
   }
 }
 
+/** Keeps a scrolled container at the bottom while new content arrives — unless the owner
+ *  scrolled up to read (then it stays where they are). */
+function useStickToBottom<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let stuck = true;
+    const onScroll = () => {
+      stuck = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    const observer = new MutationObserver(() => {
+      if (stuck) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(el, { childList: true, subtree: true, characterData: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.scrollTop = el.scrollHeight;
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  return ref;
+}
+
+/** One agent's turn in the task chat: who, what it is doing, its steps. */
+function AgentTurn({
+  agentId,
+  label,
+  status,
+  children,
+  testId,
+}: {
+  agentId: string | null;
+  label?: string;
+  status: string;
+  children: React.ReactNode;
+  testId?: string;
+}) {
+  const name = useRealtimeStore((s) => (agentId ? s.agents[agentId]?.name : undefined));
+  return (
+    <div className="flex gap-3" data-testid={testId}>
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center bg-muted pixel-frame" aria-hidden>
+        <Bot className="size-4" />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          {agentId ? (
+            <Link href={`/office/agents/${agentId}`} className="font-medium hover:underline">
+              {name ?? "—"}
+            </Link>
+          ) : (
+            <span className="font-medium">—</span>
+          )}
+          {label && <span className="text-muted-foreground">{label}</span>}
+          <StatusBadge status={status} />
+        </p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** A part of the Orchestrator's plan, done by one of the agents: its steps and its result. */
+function PartTurn({ part }: { part: TaskOut }) {
+  const t = useTranslations("tasks.chat");
+  const live = useRealtimeStore((s) => s.tasks[part.id]) ?? part;
+  const name = useRealtimeStore((s) => (live.agent_id ? s.agents[live.agent_id]?.name : undefined));
+  const active = ACTIVE_TASK.has(live.status);
+  const [open, setOpen] = useState<boolean | null>(null);
+  const shown = open ?? active;
+  return (
+    <AgentTurn
+      agentId={live.agent_id}
+      label={live.task_type === "consult" ? t("consult", { title: live.title }) : t("part", { title: live.title })}
+      status={live.status}
+    >
+      <span className="sr-only" data-testid="part-agent">
+        {name ?? ""}
+      </span>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+        aria-expanded={shown}
+        onClick={() => setOpen(!shown)}
+      >
+        {shown ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        {shown ? t("hideSteps") : t("showSteps")}
+        <Link href={`/tasks/${live.id}`} className="ml-2 underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
+          {t("openPart")}
+        </Link>
+      </button>
+      {shown && <AgentSteps taskId={live.id} status={live.status} result={live.result} bare />}
+      {live.result && (
+        <div className="bg-card p-3 text-sm pixel-frame">
+          <MarkdownBody text={live.result} />
+        </div>
+      )}
+    </AgentTurn>
+  );
+}
+
 export function TaskDetailView({ taskId }: { taskId: string }) {
   const t = useTranslations("tasks");
+  const tChat = useTranslations("tasks.chat");
   const taskError = useTaskError();
   const tc = useTranslations("common");
   const tStatus = useTranslations("status");
-  const tSchedules = useTranslations("schedules");
   const ts = (status: string) => {
     const key = status as Parameters<typeof tStatus>[0];
     return tStatus.has(key) ? tStatus(key).toLowerCase() : status;
@@ -90,143 +194,150 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   const live = useRealtimeStore((s) => s.tasks[taskId]);
   const task = live ?? detail.data?.task;
   useDocumentTitle(task?.title);
-  const agentName = useRealtimeStore((s) => (task?.agent_id ? s.agents[task.agent_id]?.name : undefined));
-  const agentsById = useRealtimeStore((s) => s.agents);
+  const mainIsOrchestrator = useRealtimeStore((s) =>
+    task?.agent_id ? s.agents[task.agent_id]?.agent_type === "orchestrator" : false,
+  );
+  const [details, setDetails] = useState(false);
+  const scroller = useStickToBottom<HTMLDivElement>();
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: taskKeys.all });
   const cancel = useMutation({ mutationFn: () => cancelTask(taskId), onSuccess: invalidate });
-  const continuedFrom = typeof task?.extra?.continued_from === "string" ? task.extra.continued_from : null;
 
   if (!task) return detail.isError ? <ErrorState error={detail.error} onRetry={() => detail.refetch()} /> : <LoadingState />;
   const run = detail.data?.run;
+  const subtasks = detail.data?.subtasks ?? [];
+  const continuedFrom = typeof task.extra?.continued_from === "string" ? task.extra.continued_from : null;
+  const active = ACTIVE_TASK.has(task.status);
+  const sidebar = (className?: string) => (
+    <TaskSidebar
+      task={task}
+      run={run}
+      subtasks={subtasks}
+      events={events.data}
+      describe={(e) => describe(e, t, ts)}
+      className={className}
+    />
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link href="/tasks" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeft className="size-4" /> {t("allTasks")}
-      </Link>
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-sans text-2xl font-semibold tracking-tight break-words">{task.title}</h1>
+    // The task as a chat (like Claude Code): the conversation in the middle, the details on the right.
+    <div className="-mt-2 flex h-[calc(100dvh-10.5rem)] min-w-0 gap-4 md:h-[calc(100dvh-5.5rem)]">
+      <section className="flex min-w-0 flex-1 flex-col" aria-label={tChat("label")}>
+        <header className="flex flex-wrap items-center gap-2 border-b-2 pb-2">
+          <Link href="/tasks" className="inline-flex items-center text-muted-foreground" aria-label={t("allTasks")}>
+            <ArrowLeft className="size-4" />
+          </Link>
+          <h1 className="min-w-0 flex-1 truncate font-sans text-lg font-semibold tracking-tight">{task.title}</h1>
           <StatusBadge status={task.status} />
           {(task.progress > 0 || task.status === "completed") && (
             <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} />
           )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {agentName ?? t("noAgent")}
-          {task.attempt > 1 && ` · ${t("attempt", { n: task.attempt })}`}
-          {run && ` · ${t("steps", { n: run.steps })}`}
-          {run?.usage?.output_tokens != null && ` · ${t("tokens", { n: Number(run.usage.output_tokens) })}`}
-        </p>
-        {typeof task.extra?.schedule_id === "string" && (
-          <Link
-            href={`/schedules#schedule-${task.extra.schedule_id}`}
-            className="inline-flex items-center gap-1.5 self-start text-sm underline"
+          <Button
+            size="sm"
+            variant="ghost"
+            className="lg:hidden"
+            aria-expanded={details}
+            onClick={() => setDetails((v) => !v)}
           >
-            <CalendarDays className="size-3" aria-hidden /> {tSchedules("fromSchedule")}
-          </Link>
-        )}
-        {continuedFrom && (
-          <Link href={`/tasks/${continuedFrom}`} className="self-start text-sm underline underline-offset-2">
-            {t("control.continuedFrom")}
-          </Link>
-        )}
-        <TeamLine task={task} />
-        {task.description && <p className="text-sm whitespace-pre-wrap">{task.description}</p>}
-        {ACTIVE_TASK.has(task.status) && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-              <Square /> {t("cancel")}
-            </Button>
-          </div>
-        )}
-        {cancel.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {toMessage(cancel.error).message}
-          </p>
-        )}
-        <div className="max-w-xl">
-          <MessageAgent task={task} />
-          <ContinueTask task={task} />
-        </div>
-      </div>
+            {details ? <X /> : <Info />} {tChat("details")}
+          </Button>
+        </header>
+        {details && sidebar("mt-2 max-h-[55%] shrink-0 overflow-y-auto lg:hidden")}
 
-      {task.result && (
-        <section className="print-area bg-card p-4 pixel-frame">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">{t("result")}</h2>
-            <ExportMenu taskId={task.id} title={task.title} />
-          </div>
-          <MarkdownBody text={task.result} />
-        </section>
-      )}
-      {task.status === "failed" && (
-        <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
-          {task.error_code === "agent_budget_exceeded" && task.agent_id ? (
-            // A readable reason in the owner's language, and where to raise the budget.
-            <p className="mb-1">
-              {t("agentBudgetExceeded")}{" "}
-              <Link href={`/office/agents/${task.agent_id}`} className="underline underline-offset-2">
-                {t("openAgent")}
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto py-4" data-testid="task-chat">
+          <div className="mx-auto flex max-w-3xl flex-col gap-5 px-1">
+            {/* The owner's request, as in a chat */}
+            <div className="flex flex-col items-end gap-1">
+              <div className="max-w-[85%] bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words" data-testid="task-request">
+                {task.description?.trim() || task.title}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {format.dateTime(new Date(task.created_at), { dateStyle: "short", timeStyle: "short" })}
+              </span>
+            </div>
+            {continuedFrom && (
+              <Link href={`/tasks/${continuedFrom}`} className="self-center text-xs underline underline-offset-2">
+                {t("control.continuedFrom")}
               </Link>
-            </p>
-          ) : null}
-          <p>{taskError(task)}</p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">
-            {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}
-          </p>
-        </section>
-      )}
-      {task.status === "waiting" && task.status_reason === "unknown_outcome" && (
-        <section role="alert" className="border-2 border-amber-400/50 bg-amber-400/10 p-4 text-sm">
-          {t("unknownOutcome")}
-        </section>
-      )}
+            )}
 
-      <TaskToolActivity taskId={task.id} status={task.status} />
-      <AgentSteps taskId={task.id} status={task.status} events={events.data} result={task.result} />
+            <AgentTurn
+              agentId={task.agent_id}
+              label={mainIsOrchestrator ? tChat("orchestratorLabel") : undefined}
+              status={task.status}
+              testId="task-main-turn"
+            >
+              <AgentSteps taskId={task.id} status={task.status} events={events.data} result={task.result} bare />
+            </AgentTurn>
 
-      {detail.data && detail.data.subtasks.length > 0 && (
-        <section>
-          <h2 className="mb-2 font-medium">{t("subtasks")}</h2>
-          <ul className="divide-y-2 bg-card pixel-frame">
-            {detail.data.subtasks.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/tasks/${s.id}`}
-                  className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-accent/60"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm">{s.title}</span>
-                    {s.agent_id && agentsById[s.agent_id] && (
-                      <span className="block truncate text-xs text-muted-foreground" data-testid="part-agent">
-                        {agentsById[s.agent_id]!.name}
-                      </span>
-                    )}
-                  </span>
-                  <StatusBadge status={s.status} />
-                </Link>
-              </li>
+            {subtasks.map((s) => (
+              <PartTurn key={s.id} part={s} />
             ))}
-          </ul>
-        </section>
-      )}
 
-      <details>
-        <summary className="mb-2 cursor-pointer font-medium">{t("history")}</summary>
-        <ol className="flex flex-col gap-1 border-l-2 pl-4 text-sm">
-          {events.data?.map((e) => (
-            <li key={e.id} className="relative">
-              <span className="absolute top-2 -left-[21px] size-2 bg-border" aria-hidden="true" />
-              <span className="text-muted-foreground tabular-nums">
-                {format.dateTime(new Date(e.timestamp), { timeStyle: "medium" })}
-              </span>{" "}
-              {describe(e, t, ts)}
-            </li>
-          ))}
-        </ol>
-      </details>
+            <TaskApprovals taskIds={[task.id, ...subtasks.map((s) => s.id)]} />
+
+            {task.result && (
+              <AgentTurn agentId={task.agent_id} label={tChat("answer")} status={task.status} testId="task-result">
+                <div className="print-area bg-card p-4 pixel-frame">
+                  <MarkdownBody text={task.result} />
+                  <div className="mt-3 flex justify-end">
+                    <ExportMenu taskId={task.id} title={task.title} />
+                  </div>
+                </div>
+              </AgentTurn>
+            )}
+            {task.status === "failed" && (
+              <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
+                {task.error_code === "agent_budget_exceeded" && task.agent_id ? (
+                  // A readable reason in the owner's language, and where to raise the budget.
+                  <p className="mb-1">
+                    {t("agentBudgetExceeded")}{" "}
+                    <Link href={`/office/agents/${task.agent_id}`} className="underline underline-offset-2">
+                      {t("openAgent")}
+                    </Link>
+                  </p>
+                ) : null}
+                <p>{taskError(task)}</p>
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}
+                </p>
+              </section>
+            )}
+            {task.status === "waiting" && task.status_reason === "unknown_outcome" && (
+              <section role="alert" className="border-2 border-amber-400/50 bg-amber-400/10 p-4 text-sm">
+                {t("unknownOutcome")}
+              </section>
+            )}
+          </div>
+        </div>
+
+        {/* The chat input: write to the working agent, or continue a stopped task. */}
+        <footer
+          className={cn("mx-auto w-full max-w-3xl border-t-2 pt-2", !active && !task.status.match(/failed|cancelled/) && "hidden")}
+          data-testid="task-composer"
+        >
+          {active && (
+            <div className="flex flex-col gap-2">
+              <MessageAgent task={task} compact />
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+                  <Square /> {t("cancel")}
+                </Button>
+              </div>
+            </div>
+          )}
+          {cancel.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {toMessage(cancel.error).message}
+            </p>
+          )}
+          <ContinueTask task={task} />
+        </footer>
+      </section>
+
+      <aside className="hidden w-80 shrink-0 overflow-y-auto lg:block" aria-label={tChat("details")}>
+        {sidebar()}
+      </aside>
     </div>
   );
 }

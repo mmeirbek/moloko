@@ -22,6 +22,14 @@ test("orchestrator: gives the parts to agents (creating them when none fits), me
   await expect(parts.filter({ hasText: "Analyst" })).toHaveCount(1);
   await expect(page.getByText(/^Final answer combining/)).toBeVisible({ timeout: 90_000 });
   await expect(page.getByTestId("step-plan")).toContainText("частей: 3"); // the plan, as a step
+  // The task as a chat: the request on top, the details in the right bar.
+  await expect(page.getByTestId("task-request")).toContainText("Compare three laptops");
+  const bar = page.getByTestId("task-sidebar");
+  await expect(bar.getByTestId("task-goal")).toContainText("Compare three laptops");
+  await expect(bar.getByTestId("plan-part")).toHaveCount(3);
+  await expect(bar.getByTestId("task-agents")).toContainText("Orchestrator");
+  await expect(bar.getByTestId("task-agents")).toContainText("части: Part 1, Part 3"); // Researcher
+  await expect(bar.getByTestId("task-agents")).toContainText("часть: Part 2"); // Analyst
   // No temporary subagents: the agents it needed are ordinary agents of the office.
   const agents = await api<{ name: string; agent_type: string; archived_at: string | null }[]>(request, "GET", "/agents");
   expect(agents.some((a) => a.agent_type === "subagent")).toBe(false);

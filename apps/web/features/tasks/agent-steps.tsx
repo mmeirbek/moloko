@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Brain, Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { shortText } from "@/lib/notifications/text";
+import { taskEvents, taskKeys } from "@/lib/api/agents";
 import { taskToolCalls, toolingKeys } from "@/lib/api/tooling";
 import { cn } from "@/lib/utils";
 
@@ -163,14 +164,18 @@ function StepRow({
 export function AgentSteps({
   taskId,
   status,
-  events,
+  events: given,
   result,
+  bare = false,
 }: {
   taskId: string;
   status: string;
-  events: EventOut[] | undefined;
+  /** The task's events when the caller has them already (otherwise fetched here). */
+  events?: EventOut[];
   /** The final answer is shown below on its own: not repeated as a step. */
   result?: string | null;
+  /** In the task chat: just the lines, no card and no heading. */
+  bare?: boolean;
 }) {
   const t = useTranslations("tasks.agentSteps");
   const tStatus = useTranslations("tools.calls.status");
@@ -178,6 +183,12 @@ export function AgentSteps({
     queryKey: [...toolingKeys.taskCalls(taskId), status],
     queryFn: ({ signal }) => taskToolCalls(taskId, signal),
   });
+  const fetched = useQuery({
+    queryKey: taskKeys.events(taskId),
+    queryFn: ({ signal }) => taskEvents(taskId, signal),
+    enabled: given === undefined,
+  });
+  const events = given ?? fetched.data;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [allOpen, setAllOpen] = useState(false);
   const running = status === "running" || status === "queued";
@@ -222,8 +233,13 @@ export function AgentSteps({
 
   if (items.length === 0 && !running) return null;
   return (
-    <section aria-labelledby="agent-steps-title" className="bg-card pixel-frame" data-testid="agent-steps">
-      <div className="flex items-center justify-between gap-2 border-b-2 px-3 py-2">
+    <section
+      aria-labelledby={bare ? undefined : "agent-steps-title"}
+      aria-label={bare ? t("title") : undefined}
+      className={bare ? undefined : "bg-card pixel-frame"}
+      data-testid="agent-steps"
+    >
+      <div className={cn("flex items-center justify-between gap-2", bare ? "hidden" : "border-b-2 px-3 py-2")}>
         <h2 id="agent-steps-title" className="font-medium">
           {t("title")}
           {items.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">{items.length}</span>}
