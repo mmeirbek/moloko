@@ -139,7 +139,7 @@ async def retry_task(
 @router.post(
     "/{task_id}/continue",
     response_model=TaskOut,
-    summary="Continue a stopped task from where it stopped (a new attempt)",
+    summary="Continue a finished task from where it stopped, or reply to its result",
 )
 async def continue_task(
     task_id: uuid.UUID,
@@ -147,11 +147,12 @@ async def continue_task(
     ctx: CurrentAuth,
     db: DbSession,
     queue: QueueDep,
+    settings: SettingsDep,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> TaskOut:
     async def action() -> TaskOut:
         return TaskOut.model_validate(
-            await TaskService(db, queue).continue_from_stop(
+            await TaskService(db, queue, settings).continue_from_stop(
                 ctx.user.id, task_id, (body.instruction or "").strip() or None
             )
         )

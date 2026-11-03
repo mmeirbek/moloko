@@ -6232,7 +6232,7 @@
       },
       "TaskContinue": {
         "additionalProperties": false,
-        "description": "Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).",
+        "description": "Continue a finished task (POST /tasks/{id}/continue): a failed / cancelled one from\nwhere it stopped, or a completed one with the owner's reply to its result.",
         "properties": {
           "instruction": {
             "anyOf": [
@@ -12250,7 +12250,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Continue a stopped task from where it stopped (a new attempt)",
+        "summary": "Continue a finished task from where it stopped, or reply to its result",
         "tags": [
           "tasks"
         ]

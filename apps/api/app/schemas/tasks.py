@@ -247,11 +247,13 @@ class HandoffRequest(BaseModel):
 
 
 class TaskContinue(BaseModel):
-    """Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue)."""
+    """Continue a finished task (POST /tasks/{id}/continue): a failed / cancelled one from
+    where it stopped, or a completed one with the owner's reply to its result."""
 
     model_config = ConfigDict(extra="forbid")
 
-    # What the owner wants done differently this time (optional; the owner's own words).
+    # The owner's own words: what to do differently (optional), or — after a result — the
+    # reply in the task's chat (required then).
     instruction: str | None = Field(default=None, max_length=4000)
 
 

@@ -169,6 +169,11 @@ class Settings(BaseSettings):
     # most AGENT_MAX_CUT_OFFS times in a row before the task fails with `output_truncated`.
     agent_max_output_tokens: int = Field(16_000, ge=256, le=200_000)
     agent_max_cut_offs: int = Field(3, ge=0, le=20)
+    # Replying in a finished task's chat continues it: an agent without a saved conversation
+    # (the Orchestrator) gets its earlier answers (fenced as data) and the owner's replies —
+    # at most this many turns, each answer cut to this many characters.
+    task_followup_turns: int = Field(5, ge=1, le=50)
+    task_followup_answer_max_chars: int = Field(8000, ge=500, le=200_000)
     # Per-agent monthly budgets: the owner is warned when an agent has spent this share of
     # its own limit; at 100 % its new model calls are refused.
     agent_budget_warn_percent: int = Field(80, ge=10, le=99)

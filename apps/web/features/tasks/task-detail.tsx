@@ -1,28 +1,27 @@
 "use client";
 
 import type { EventOut, TaskOut } from "@moloko/shared-types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ArrowLeft, Bot, ChevronDown, ChevronRight, Info, Square, X } from "@/components/icons";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, Info, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/agents/status-badge";
-import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
 import { AgentSteps } from "@/features/tasks/agent-steps";
 import { ExportMenu } from "@/features/tasks/export-menu";
-import { ACTIVE_TASK, ContinueTask, MessageAgent } from "@/features/tasks/task-control";
+import { TaskComposer } from "@/features/tasks/task-composer";
+import { ACTIVE_TASK } from "@/features/tasks/task-control";
 import { useTaskError } from "@/features/tasks/task-error";
 import { TaskSidebar } from "@/features/tasks/task-sidebar";
 import { TaskApprovals } from "@/features/tasks/tool-calls";
-import { cancelTask, getTask, taskEvents, taskKeys } from "@/lib/api/agents";
+import { getTask, taskEvents, taskKeys } from "@/lib/api/agents";
 import { useDocumentTitle } from "@/lib/hooks";
 import { useRealtimeStore } from "@/lib/realtime/store";
-import { cn } from "@/lib/utils";
 
 function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, ts: (status: string) => string): string {
   const p = e.payload as Record<string, unknown>;
@@ -97,6 +96,73 @@ function useStickToBottom<T extends HTMLElement>() {
     };
   }, []);
   return ref;
+}
+
+/** The owner's message, on the right like in the chat. */
+function OwnerBubble({ text, at, testId }: { text: string; at?: string; testId?: string }) {
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="max-w-[85%] bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words" data-testid={testId}>
+        {text}
+      </div>
+      {at && <span className="text-xs text-muted-foreground">{at}</span>}
+    </div>
+  );
+}
+
+/** The owner's reply this attempt was started with (the task's chat), if any. */
+function latestReply(task: TaskOut): string | null {
+  const turns = task.extra?.follow_ups;
+  if (!Array.isArray(turns) || turns.length === 0) return null;
+  const last = turns[turns.length - 1] as { reply?: unknown };
+  return typeof last.reply === "string" && last.reply.trim() ? last.reply : null;
+}
+
+/** The attempts this one continues, oldest first: each the owner's message and the agent's
+ *  answer (its steps on request) — so a continued task reads as one chat. */
+function EarlierTurns({ taskId, depth }: { taskId: string; depth: number }) {
+  const t = useTranslations("tasks.chat");
+  const taskError = useTaskError();
+  const format = useFormatter();
+  const [steps, setSteps] = useState(false);
+  const detail = useQuery({ queryKey: taskKeys.detail(taskId), queryFn: ({ signal }) => getTask(taskId, signal) });
+  const prev = detail.data?.task;
+  if (!prev) return null;
+  const before = typeof prev.extra?.continued_from === "string" ? prev.extra.continued_from : null;
+  const reply = before ? latestReply(prev) : null;
+  return (
+    <>
+      {before && depth < 10 && <EarlierTurns taskId={before} depth={depth + 1} />}
+      {(!before || reply) && (
+        <OwnerBubble
+          text={reply ?? (prev.description?.trim() || prev.title)}
+          at={format.dateTime(new Date(prev.created_at), { dateStyle: "short", timeStyle: "short" })}
+        />
+      )}
+      <AgentTurn agentId={prev.agent_id} label={t("earlier")} status={prev.status} testId="earlier-turn">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+          aria-expanded={steps}
+          onClick={() => setSteps((v) => !v)}
+        >
+          {steps ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          {steps ? t("hideSteps") : t("showSteps")}
+          <Link href={`/tasks/${prev.id}`} className="ml-2 underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
+            {t("openAttempt")}
+          </Link>
+        </button>
+        {steps && <AgentSteps taskId={prev.id} status={prev.status} result={prev.result} bare />}
+        {prev.result ? (
+          <div className="bg-card p-3 text-sm pixel-frame">
+            <MarkdownBody text={prev.result} />
+          </div>
+        ) : prev.status === "failed" ? (
+          <p className="text-sm text-destructive">{taskError(prev)}</p>
+        ) : null}
+      </AgentTurn>
+    </>
+  );
 }
 
 /** One agent's turn in the task chat: who, what it is doing, its steps. */
@@ -187,8 +253,6 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
     return tStatus.has(key) ? tStatus(key).toLowerCase() : status;
   };
   const format = useFormatter();
-  const toMessage = useErrorMessage();
-  const queryClient = useQueryClient();
   const detail = useQuery({ queryKey: taskKeys.detail(taskId), queryFn: ({ signal }) => getTask(taskId, signal) });
   const events = useQuery({ queryKey: taskKeys.events(taskId), queryFn: ({ signal }) => taskEvents(taskId, signal) });
   const live = useRealtimeStore((s) => s.tasks[taskId]);
@@ -200,14 +264,13 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
   const [details, setDetails] = useState(false);
   const scroller = useStickToBottom<HTMLDivElement>();
 
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: taskKeys.all });
-  const cancel = useMutation({ mutationFn: () => cancelTask(taskId), onSuccess: invalidate });
 
   if (!task) return detail.isError ? <ErrorState error={detail.error} onRetry={() => detail.refetch()} /> : <LoadingState />;
   const run = detail.data?.run;
   const subtasks = detail.data?.subtasks ?? [];
   const continuedFrom = typeof task.extra?.continued_from === "string" ? task.extra.continued_from : null;
-  const active = ACTIVE_TASK.has(task.status);
+  // What the owner wrote for this attempt: the task itself, or — continuing the chat — the reply.
+  const reply = continuedFrom ? latestReply(task) : null;
   const sidebar = (className?: string) => (
     <TaskSidebar
       task={task}
@@ -246,19 +309,18 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
 
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto py-4" data-testid="task-chat">
           <div className="mx-auto flex max-w-3xl flex-col gap-5 px-1">
-            {/* The owner's request, as in a chat */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="max-w-[85%] bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words" data-testid="task-request">
-                {task.description?.trim() || task.title}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {format.dateTime(new Date(task.created_at), { dateStyle: "short", timeStyle: "short" })}
-              </span>
-            </div>
-            {continuedFrom && (
+            {/* Earlier in this chat (the attempts this one continues), then the owner's message */}
+            {continuedFrom && <EarlierTurns taskId={continuedFrom} depth={0} />}
+            {continuedFrom && !reply ? (
               <Link href={`/tasks/${continuedFrom}`} className="self-center text-xs underline underline-offset-2">
                 {t("control.continuedFrom")}
               </Link>
+            ) : (
+              <OwnerBubble
+                text={reply ?? (task.description?.trim() || task.title)}
+                at={format.dateTime(new Date(task.created_at), { dateStyle: "short", timeStyle: "short" })}
+                testId="task-request"
+              />
             )}
 
             <AgentTurn
@@ -311,27 +373,9 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
           </div>
         </div>
 
-        {/* The chat input: write to the working agent, or continue a stopped task. */}
-        <footer
-          className={cn("mx-auto w-full max-w-3xl border-t-2 pt-2", !active && !task.status.match(/failed|cancelled/) && "hidden")}
-          data-testid="task-composer"
-        >
-          {active && (
-            <div className="flex flex-col gap-2">
-              <MessageAgent task={task} compact />
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-                  <Square /> {t("cancel")}
-                </Button>
-              </div>
-            </div>
-          )}
-          {cancel.error && (
-            <p role="alert" className="text-sm text-destructive">
-              {toMessage(cancel.error).message}
-            </p>
-          )}
-          <ContinueTask task={task} />
+        {/* The chat input, as in the chat: to the working agent, or continuing the task. */}
+        <footer className="mx-auto w-full max-w-3xl pt-2" data-testid="task-composer">
+          <TaskComposer task={task} />
         </footer>
       </section>
 

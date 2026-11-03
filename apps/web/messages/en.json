@@ -566,7 +566,35 @@
       "sandbox": "{count, plural, one {# command in the sandbox} other {# commands in the sandbox}}",
       "log": "Event log",
       "logShow": "Show all events ({count})",
-      "answer": "answer"
+      "answer": "answer",
+      "earlier": "earlier in this chat",
+      "openAttempt": "open"
+    },
+    "composer": {
+      "send": "Send",
+      "continue": "Continue from where it stopped",
+      "reply": "Reply",
+      "stop": "Cancel task",
+      "startOver": "Start over",
+      "sent": "Sent — the agent reads it before its next step",
+      "label": {
+        "message": "Message to the agent",
+        "continue": "Instruction for continuing",
+        "reply": "Reply to the agent",
+        "orchestrator": "Message"
+      },
+      "placeholder": {
+        "message": "Write to the agent — it reads this before its next step…",
+        "continue": "What next? (may be empty — it goes on as before)",
+        "reply": "Reply or ask for something more…",
+        "orchestrator": "The Orchestrator works through its plan — write to the agent doing a part"
+      },
+      "hint": {
+        "message": "Enter sends, Shift+Enter is a new line.",
+        "continue": "The agent goes on from where it stopped: it keeps what it did and takes your instruction into account.",
+        "reply": "The reply continues the task: the agent takes its previous answer and your message into account.",
+        "orchestrator": "While the plan runs, messages go to the agents doing the parts — open that part."
+      }
     }
   },
   "agents": {

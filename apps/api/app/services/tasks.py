@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +29,7 @@ from app.agents.state import (
     TaskStatus,
     TaskType,
 )
+from app.core.config import Settings, get_settings
 from app.core.errors import Conflict, NotFound
 from app.events import bus
 from app.models.agent import Agent, AgentRun
@@ -60,9 +62,12 @@ _FILTERS: dict[str, list[str]] = {
 
 
 class TaskService:
-    def __init__(self, db: AsyncSession, queue: TaskEnqueuer | None) -> None:
+    def __init__(
+        self, db: AsyncSession, queue: TaskEnqueuer | None, settings: Settings | None = None
+    ) -> None:
         self.db = db
         self.queue = queue
+        self.settings = settings
         self.audit = AuditService(db)
 
     async def get(self, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
@@ -281,10 +286,21 @@ class TaskService:
             if agent.current_task_id == task.id:
                 await release_agent(self.db, agent, to=AgentStatus.IDLE, reason=reason)
 
-    async def retry(self, user_id: uuid.UUID, task_id: uuid.UUID, *, start: bool = True) -> Task:
-        """failed/cancelled → a NEW task (attempt + 1); the old one keeps its history."""
+    async def retry(
+        self,
+        user_id: uuid.UUID,
+        task_id: uuid.UUID,
+        *,
+        start: bool = True,
+        after_result: bool = False,
+    ) -> Task:
+        """failed/cancelled → a NEW task (attempt + 1); the old one keeps its history.
+        ``after_result``: also a completed one (a reply in its chat, continue_from_stop)."""
         old = await self.get(user_id, task_id)
-        if TaskStatus(old.status) not in (TaskStatus.FAILED, TaskStatus.CANCELLED):
+        allowed = {TaskStatus.FAILED, TaskStatus.CANCELLED}
+        if after_result:
+            allowed.add(TaskStatus.COMPLETED)
+        if TaskStatus(old.status) not in allowed:
             raise InvalidTransition("Only failed or cancelled tasks can be retried.")
         if old.parent_task_id is not None:
             raise InvalidTransition("Retry the parent task instead of a subtask.")
@@ -326,27 +342,47 @@ class TaskService:
     async def continue_from_stop(
         self, user_id: uuid.UUID, task_id: uuid.UUID, instruction: str | None = None
     ) -> Task:
-        """failed/cancelled → a NEW attempt that starts from the old run's saved progress
-        (its conversation with the model, tool results included) instead of from scratch.
-        Steps already done are not repeated; the agent is told why it stopped."""
+        """A finished task → a NEW attempt that starts from the old run's saved progress (its
+        conversation with the model, tool results included) instead of from scratch. Failed or
+        cancelled: steps already done are not repeated and the agent is told why it stopped.
+        Completed: the owner replied to the result in the task's chat (``instruction`` is
+        required) and the agent goes on from its answer. An agent without a saved
+        conversation (the Orchestrator) gets the chat so far in its task text instead."""
         from app.runtimes.native import continuation_messages  # runtime → tasks at import time
 
         old = await self.get(user_id, task_id)
-        if TaskStatus(old.status) not in (TaskStatus.FAILED, TaskStatus.CANCELLED):
-            raise InvalidTransition("Only failed or cancelled tasks can be continued.")
+        status = TaskStatus(old.status)
+        if status not in (TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.COMPLETED):
+            raise InvalidTransition("Only a finished task can be continued.")
         if old.parent_task_id is not None:
             raise InvalidTransition("Continue the parent task instead of a subtask.")
+        reply = (instruction or "").strip()
+        if status == TaskStatus.COMPLETED and not reply:
+            raise InvalidTransition("The task is done — write what to do next.")
         old_run = await self.db.get(AgentRun, old.run_id) if old.run_id else None
         saved = (old_run.state or {}).get("messages") if old_run else None
-        if old_run is None or not saved or old.agent_id is None:  # nothing saved: a plain retry
-            return await self.retry(user_id, task_id)
-        task = await self.retry(user_id, task_id, start=False)
-        task.extra = {
+        task = await self.retry(user_id, task_id, start=False, after_result=True)
+        extra: dict[str, Any] = {
             **(task.extra or {}),
             "continued_from": str(old.id),
             # the files are part of where it stopped: keep working in the same folder
             "workspace_task_id": str((old.extra or {}).get("workspace_task_id") or old.id),
         }
+        if reply:  # the task's chat: the answer it gave (if any) and the owner's reply
+            settings = self.settings or get_settings()
+            limit = settings.task_followup_answer_max_chars
+            turns = [t for t in (old.extra or {}).get("follow_ups") or [] if isinstance(t, dict)]
+            answer = (old.result or "")[:limit] if status == TaskStatus.COMPLETED else ""
+            turns.append({"answer": answer, "reply": reply[:4000], "after": old.status})
+            extra["follow_ups"] = turns[-settings.task_followup_turns :]
+        task.extra = extra
+        if old_run is None or not saved or old.agent_id is None:
+            # nothing saved to go on from: a fresh run that knows the chat (task_prompt)
+            if task.agent_id is not None:
+                task, _ = await self.start(user_id, task.id)
+            else:
+                await bus.commit(self.db)
+            return task
         task, run = await self.start(user_id, task.id, enqueue=False)
         run.state = {
             **(run.state or {}),

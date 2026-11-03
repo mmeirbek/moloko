@@ -1525,7 +1525,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Continue a stopped task from where it stopped (a new attempt) */
+        /** Continue a finished task from where it stopped, or reply to its result */
         post: operations["continue_task_api_v1_tasks__task_id__continue_post"];
         delete?: never;
         options?: never;
@@ -3880,7 +3880,8 @@ export interface components {
         };
         /**
          * TaskContinue
-         * @description Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).
+         * @description Continue a finished task (POST /tasks/{id}/continue): a failed / cancelled one from
+         *     where it stopped, or a completed one with the owner's reply to its result.
          */
         TaskContinue: {
             /** Instruction */
