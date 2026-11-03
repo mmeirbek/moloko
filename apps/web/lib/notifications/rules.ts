@@ -1,6 +1,6 @@
 import type { EventEnvelope } from "@moloko/shared-types";
 
-import { approvalOp, shortText } from "./text";
+import { approvalOp, ownerQuestion, resultSummary, shortText, TASK_IN_TITLE_MAX } from "./text";
 
 export type NotificationKind = "approval" | "taskDone" | "taskFailed" | "budget";
 export type NotificationPrefs = Record<NotificationKind, boolean> & { system: boolean; push: boolean };
@@ -71,6 +71,8 @@ export interface Notice {
   op?: { key: string; params: Record<string, string> };
   /** Notices with one tag replace each other (all approvals of one task). */
   tag?: string;
+  /** Finished tasks: the short result, or the question the agent asks (title "taskQuestion"). */
+  summary?: string;
 }
 
 /** Which events deserve the owner's attention. Pure: tested. */
@@ -93,6 +95,8 @@ export function noticeFor(event: EventEnvelope, now: number = Date.now()): Notic
       tag: a.task_id ? `approval:task:${a.task_id}` : undefined,
     };
   }
+  // Only a used-up budget stops agents (owner: notify when something broke).
+  if (event.type === "budget.warning" && Number(p.percent ?? 0) < 100) return null;
   if (event.type === "budget.warning" && p.scope === "agent") {
     // One agent's own monthly budget.
     const percent = Number(p.percent ?? 0);
@@ -116,14 +120,19 @@ export function noticeFor(event: EventEnvelope, now: number = Date.now()): Notic
     };
   }
   if (event.type === "task.completed" || event.type === "task.failed") {
-    const task = p.task as { id: string; title: string; parent_task_id: string | null; agent_id?: string | null } | undefined;
+    const task = p.task as
+      | { id: string; title: string; parent_task_id: string | null; agent_id?: string | null; result?: string | null }
+      | undefined;
     if (!task || task.parent_task_id) return null; // subtasks are part of a bigger job
     const done = event.type === "task.completed";
+    const result = done ? (task.result ?? "") : "";
+    const question = ownerQuestion(result);
     return {
       kind: done ? "taskDone" : "taskFailed",
       key: `task:${task.id}:${event.type}`,
-      title: done ? "taskDone" : "taskFailed",
-      subject: shortText(task.title),
+      title: question ? "taskQuestion" : done ? "taskDone" : "taskFailed",
+      subject: shortText(task.title, TASK_IN_TITLE_MAX),
+      summary: question || resultSummary(result),
       url: `/tasks/${task.id}`,
       agentId: task.agent_id ?? event.agent_id ?? undefined,
     };

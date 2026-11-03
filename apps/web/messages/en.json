@@ -1266,25 +1266,24 @@
     "dismiss": "Dismiss notification",
     "approval": {
       "title": "Your approval is needed",
-      "body": "{subject}",
       "titleNamed": "{name} needs your approval"
     },
     "taskDone": {
-      "title": "Task done",
-      "body": "{subject}"
+      "title": "Done: {task}",
+      "titlePlain": "Task done"
     },
     "taskFailed": {
-      "title": "Task failed",
-      "body": "{subject}"
+      "title": "Didn't work out: {task}",
+      "titlePlain": "Task failed"
     },
     "settings": {
       "title": "Notifications",
       "description": "What to tell you about on this device.",
       "kinds": {
-        "approval": "An agent needs approval",
-        "taskDone": "A task is done",
-        "taskFailed": "A task failed",
-        "budget": "Costs reached the threshold or the limit"
+        "approval": "An agent needs your approval",
+        "taskDone": "A task is done (with a short result) or an agent waits for your answer",
+        "taskFailed": "A task broke",
+        "budget": "The cost limit is used up — agents stopped"
       },
       "system": "System notifications while moloko is in the background",
       "allow": "Allow system notifications",
@@ -1303,8 +1302,7 @@
       }
     },
     "budget": {
-      "title": "Costs near the limit",
-      "body": "{subject}"
+      "title": "The cost limit is used up"
     },
     "ops": {
       "fs_write": "Write the file {file}",
@@ -1325,6 +1323,10 @@
       "terminal_run_packages_plain": "Run a command with package downloads",
       "github_checkout": "Download {repo} into the work folder",
       "github_commit_files": "Commit files to GitHub ({repo}, {branch})"
+    },
+    "taskQuestion": {
+      "title": "An agent is waiting for your answer",
+      "titleNamed": "{name} is waiting for your answer"
     }
   },
   "backups": {

@@ -21,6 +21,32 @@ export function shortText(text: string, limit = TITLE_MAX): string {
   return `${cut.replace(/[ ,.;:—-]+$/, "")}…`;
 }
 
+const SUMMARY_MAX = 200; // a task's short result in the notification text
+export const TASK_IN_TITLE_MAX = 60;
+const FENCES = /```[\s\S]*?(```|$)/g;
+
+/** The start of an agent's answer as one readable line (the short result of a task). */
+export function resultSummary(text: string, limit = SUMMARY_MAX): string {
+  const plain = (text || "")
+    .replace(FENCES, " ")
+    .replace(/\*\*|__/g, "")
+    .replace(/^\s*(?:[-*>]|\d+[.)])\s+|\|/gm, " ");
+  const withoutHeadings = plain.replace(/^\s*#.*$/gm, " ");
+  return shortText(withoutHeadings.trim() ? withoutHeadings : plain, limit);
+}
+
+/** The question an answer ends with («Уточните, какой сайт?») — the agent waits for the
+ *  owner's reply — or "" when the answer does not end with a question. */
+export function ownerQuestion(text: string): string {
+  const paragraphs = (text || "")
+    .replace(FENCES, " ")
+    .split(/\n\s*\n/)
+    .filter((p) => p.trim());
+  const last = paragraphs.at(-1);
+  if (!last) return "";
+  return last.replace(/[*_»")\s]+$/, "").endsWith("?") ? resultSummary(last) : "";
+}
+
 const fileName = (path: unknown) => shortText(String(path ?? "").trim().split("/").pop() ?? "", 50) || "?";
 
 function program(command: unknown): string {
