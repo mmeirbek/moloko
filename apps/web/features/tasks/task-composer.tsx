@@ -17,13 +17,14 @@ import { cn } from "@/lib/utils";
 import { ACTIVE_TASK } from "./task-control";
 
 /** What the message box does for a task in this state. */
-export type ComposerMode = "message" | "continue" | "reply" | "orchestrator" | null;
+export type ComposerMode = "message" | "continue" | "reply" | "orchestrator" | "inLine" | null;
 
 export function composerMode(
-  task: Pick<TaskOut, "status" | "parent_task_id">,
+  task: Pick<TaskOut, "status" | "parent_task_id" | "status_reason">,
   agentType: string | undefined,
 ): ComposerMode {
-  if (task.status === "created") return null;
+  // Waiting for its busy agent: it starts by itself (or the owner cancels it).
+  if (task.status === "created") return task.status_reason === "waiting_for_agent" ? "inLine" : null;
   if (ACTIVE_TASK.has(task.status)) return agentType === "orchestrator" ? "orchestrator" : "message";
   if (task.parent_task_id) return null; // a part is continued through the whole task
   if (task.status === "failed" || task.status === "cancelled") return "continue";
@@ -79,7 +80,7 @@ export function TaskComposer({ task, className }: { task: TaskOut; className?: s
   const error = message.error ?? goOn.error ?? over.error ?? stop.error;
 
   if (!mode) return null;
-  const writable = mode !== "orchestrator";
+  const writable = mode !== "orchestrator" && mode !== "inLine";
   const body = text.trim();
   const canSend = writable && !busy && (body.length > 0 || mode === "continue");
   const send = () => {
@@ -143,7 +144,7 @@ export function TaskComposer({ task, className }: { task: TaskOut; className?: s
               onText={(spoken) => setText((cur) => (cur ? `${cur.trimEnd()} ${spoken}` : spoken))}
             />
           )}
-          {(mode === "message" || mode === "orchestrator") && (
+          {(mode === "message" || mode === "orchestrator" || mode === "inLine") && (
             <Button
               type="button"
               size="icon"

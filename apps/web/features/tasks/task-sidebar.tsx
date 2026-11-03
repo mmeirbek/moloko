@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { CalendarDays, Check, Folder, Link2, Loader2, Network, X } from "@/components/icons";
-import { StatusBadge } from "@/features/agents/status-badge";
+import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { TeamLine } from "@/features/agents/team-links";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { TaskWorkspace } from "@/features/tasks/tool-calls";
@@ -135,7 +135,7 @@ export function TaskSidebar({
 
       <Section title={t("state")}>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={task.status} />
+          <StatusBadge status={taskBadge(task)} />
           {(task.progress > 0 || task.status === "completed") && (
             <span className="inline-flex items-center gap-1 text-xs">
               <MilkBottle percent={task.progress} done={task.status === "completed"} size={16} /> {task.progress}%

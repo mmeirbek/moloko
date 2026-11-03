@@ -34,6 +34,7 @@ describe("the owner's work list", () => {
         task("broke", "failed", { completed_at: hoursAgo(3) }),
         task("old-broke", "failed", { completed_at: hoursAgo(24 * 5), updated_at: hoursAgo(24 * 5) }),
         task("runs", "running"),
+        task("in-line", "created", { status_reason: "waiting_for_agent", updated_at: hoursAgo(2) }),
         task("done", "completed", { result: "Готово.", completed_at: hoursAgo(4) }),
         task("draft", "created"),
       ],
@@ -46,7 +47,7 @@ describe("the owner's work list", () => {
       ["question", "question"],
       ["broke", "failed"],
     ]);
-    expect(ids(groups.active)).toEqual(["runs"]);
+    expect(ids(groups.active)).toEqual(["runs", "in-line"]); // waiting for its busy agent
     expect(ids(groups.recent)).toEqual(["chat:talk", "done", "old-broke"]);
   });
 

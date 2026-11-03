@@ -799,7 +799,8 @@ class AgentService:
 
     async def run(
         self, user_id: uuid.UUID, agent_id: uuid.UUID, req: AgentRunRequest
-    ) -> tuple[Task, AgentRun]:
+    ) -> tuple[Task, AgentRun | None]:
+        """Give the agent a task; a busy agent takes it when free (run None meanwhile)."""
         await ensure_engine_running(self.db, user_id)
         agent = await self.get(user_id, agent_id)
         if agent.agent_type == AgentType.SUBAGENT.value:

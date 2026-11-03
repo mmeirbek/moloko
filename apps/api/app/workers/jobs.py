@@ -6,7 +6,7 @@ import logging
 import uuid
 from typing import Any
 
-from app.agents import team
+from app.agents import team, waiting
 from app.agents.executor import Executor
 from app.core.config import Settings
 from app.core.db import Database
@@ -46,9 +46,12 @@ def build_executor(
 ) -> Executor:
     """Executor with every runtime this server supports."""
 
+    waiting.configure(settings)
+
     async def after_task(task_id: uuid.UUID) -> None:
-        # Each hook on its own: a failing one must not stop the other.
-        for hook in (scheduler_after_task, team.after_task):
+        # Each hook on its own: a failing one must not stop the others. Plans and questions
+        # first, then tasks waiting in line for a now free agent.
+        for hook in (scheduler_after_task, team.after_task, waiting.after_task):
             try:
                 await hook(db.sessionmaker, task_id, queue)
             except Exception:
@@ -112,6 +115,8 @@ async def sweep(ctx: dict[str, Any]) -> None:
     moved = await team.sweep(ctx["db"].sessionmaker, ctx["queue"])
     if moved:
         logger.info("agent_questions_moved", extra={"count": moved})
+    # Tasks waiting in line for their agent (a missed hook, a restart): started when free.
+    await waiting.advance(ctx["db"].sessionmaker, ctx["queue"])
 
 
 async def schedules(ctx: dict[str, Any]) -> None:

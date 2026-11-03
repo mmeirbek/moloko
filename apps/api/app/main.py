@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.agents import waiting
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.db import Database
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.stt = LocalStt(settings)
         app.state.queue = TaskQueue(settings.redis_url)
         set_publisher(EventPublisher(app.state.redis))
+        waiting.configure(settings)
         app.state.chat_streams = ChatStreamManager(app.state.db.sessionmaker, app.state.gateway)
         await _recover(app)
         logger.info("startup", extra={"environment": settings.environment})

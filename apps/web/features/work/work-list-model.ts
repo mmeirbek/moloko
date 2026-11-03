@@ -50,7 +50,8 @@ export function groupWork(
 
   const groups: WorkGroups = { waiting: [], active: [], recent: [] };
   for (const task of top) {
-    if (replaced.has(task.id) || task.status === "created") continue;
+    const inLine = task.status === "created" && task.status_reason === "waiting_for_agent";
+    if (replaced.has(task.id) || (task.status === "created" && !inLine)) continue;
     const at = taskTime(task);
     const fresh = now - Date.parse(at) < WAIT_WINDOW_MS;
     const reason: WaitReason | undefined =
@@ -62,7 +63,7 @@ export function groupWork(
             ? "question"
             : undefined;
     if (reason) groups.waiting.push({ kind: "task", task, at, reason });
-    else if (ACTIVE.has(task.status)) groups.active.push({ kind: "task", task, at });
+    else if (ACTIVE.has(task.status) || inLine) groups.active.push({ kind: "task", task, at });
     else if (typeof task.extra?.conversation_id !== "string") groups.recent.push({ kind: "task", task, at });
   }
   for (const chat of chats) groups.recent.push({ kind: "chat", chat, at: chat.last_message_at });

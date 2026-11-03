@@ -313,7 +313,10 @@ async def run_agent(
 ) -> StartedRun:
     async def action() -> StartedRun:
         task, run = await AgentService(db, queue).run(ctx.user.id, agent_id, body)
-        return StartedRun(task=TaskOut.model_validate(task), run=RunOut.model_validate(run))
+        return StartedRun(
+            task=TaskOut.model_validate(task),
+            run=RunOut.model_validate(run) if run is not None else None,
+        )
 
     return await idempotent(
         db,

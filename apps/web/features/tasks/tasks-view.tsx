@@ -10,7 +10,7 @@ import { Plus, Search } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StatusBadge } from "@/features/agents/status-badge";
+import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, createTask, listAgents, listTasks, taskKeys } from "@/lib/api/agents";
 import { useDebounced } from "@/lib/hooks";
@@ -117,7 +117,7 @@ function TaskRow({ task, now }: { task: TaskOut; now: Date }) {
             {waiting && ` · ${tt("waitingFor")} ${waiting.agentName}`}
           </p>
         </div>
-        <StatusBadge status={live.status} />
+        <StatusBadge status={taskBadge(live)} />
       </Link>
     </li>
   );

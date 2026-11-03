@@ -303,7 +303,7 @@ class ChatStreamManager:
                 {
                     "message_id": str(state.message_id),
                     "task_id": str(task_id),
-                    "run_id": str(run_id),
+                    "run_id": str(run_id) if run_id else None,
                 },
             ),
         )
@@ -325,7 +325,7 @@ class ChatStreamManager:
                 return
             error = (
                 "handoff_failed",
-                "The agents could not take this now — send it again, or switch on «Агентам».",
+                "The agents could not take this now (work is stopped) — send it again later.",
                 new_error_id(),
             )
             status, text = "failed", ""

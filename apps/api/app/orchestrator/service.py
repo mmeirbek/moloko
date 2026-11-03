@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.engine import agent_payload
+from app.agents.engine import agent_payload, lock_task
 from app.agents.state import ACTIVE_TASK, AgentStatus, AgentType, TaskType
 from app.core.errors import NotFound
 from app.events import bus
@@ -85,7 +85,7 @@ async def start_orchestrated_run(
     title: str,
     description: str,
     conversation_id: uuid.UUID | None = None,
-) -> tuple[Task, AgentRun]:
+) -> tuple[Task, AgentRun | None]:
     orchestrator = await ensure_orchestrator(db, user_id)
     service = TaskService(db, queue)
     from app.schemas.tasks import TaskCreate
@@ -105,9 +105,10 @@ async def hand_off_chat(
     content: str,
     *,
     title_chars: int,
-) -> tuple[Message, Task, AgentRun]:
+) -> tuple[Message, Task, AgentRun | None]:
     """Chat → agents: the question is saved in the chat, the Orchestrator takes it, and
-    the final answer is posted back into the conversation when the run ends."""
+    the final answer is posted back into the conversation when the run ends. The run is
+    None while the task waits in line for the Orchestrator (the message links to it then)."""
     conv = (
         await db.execute(
             select(Conversation).where(Conversation.id == conversation_id).with_for_update()
@@ -137,13 +138,27 @@ async def hand_off_chat(
         role="user",
         content=content,
         status="completed",
-        agent_run_id=run.id,
+        agent_run_id=run.id if run is not None else None,
         created_at=now,
         completed_at=now,
     )
     db.add(message)
+    await db.flush()
+    if run is None:
+        await link_when_started(db, task, message.id)
     await db.commit()
     return message, task, run
+
+
+async def link_when_started(db: AsyncSession, task: Task, message_id: uuid.UUID) -> None:
+    """A hand-off waiting in line: the chat message gets the run once it starts."""
+    locked = await lock_task(db, task.id)
+    if locked.run_id is None:
+        locked.extra = {**(locked.extra or {}), "chat_message_id": str(message_id)}
+    else:  # it started meanwhile
+        await db.execute(
+            update(Message).where(Message.id == message_id).values(agent_run_id=locked.run_id)
+        )
 
 
 async def get_run(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> AgentRun:

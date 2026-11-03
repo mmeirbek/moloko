@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TONE: Record<string, string> = {
   idle: "bg-muted text-muted-foreground",
   created: "bg-muted text-muted-foreground",
+  in_line: "bg-accent text-accent-foreground",
   queued: "bg-accent text-accent-foreground",
   planning: "bg-sky/15 text-sky",
   working: "bg-sky/15 text-sky",
@@ -19,6 +20,11 @@ const TONE: Record<string, string> = {
   failed: "bg-destructive/15 text-destructive",
   cancelled: "bg-muted text-muted-foreground line-through",
 };
+
+/** A task's badge: «В очереди» while it waits for its busy agent (status «created»). */
+export function taskBadge(task: { status: string; status_reason?: string | null }): string {
+  return task.status === "created" && task.status_reason === "waiting_for_agent" ? "in_line" : task.status;
+}
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const t = useTranslations("status");

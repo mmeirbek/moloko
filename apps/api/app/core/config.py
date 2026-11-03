@@ -157,6 +157,9 @@ class Settings(BaseSettings):
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
     # Parts of one Orchestrator plan running at the same time (each on one of the agents).
     max_active_parts_per_run: int = Field(5, ge=1, le=50)
+    # Plans the Orchestrator runs at once (it is free while the agents do the parts); more
+    # tasks wait in line and start by themselves.
+    orchestrator_max_tasks_at_once: int = Field(5, ge=1, le=50)
     # New agents the Orchestrator may create in one plan when none of the owner's fits
     # (they join the office and stay); 0 = it only uses the owner's agents.
     orchestrator_max_new_agents: int = Field(3, ge=0, le=10)

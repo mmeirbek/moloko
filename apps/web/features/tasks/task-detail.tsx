@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ArrowLeft, Bot, ChevronDown, ChevronRight, Info, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/features/agents/status-badge";
+import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
@@ -292,7 +292,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             <ArrowLeft className="size-4" />
           </Link>
           <h1 className="min-w-0 flex-1 truncate font-sans text-lg font-semibold tracking-tight">{task.title}</h1>
-          <StatusBadge status={task.status} />
+          <StatusBadge status={taskBadge(task)} />
           {(task.progress > 0 || task.status === "completed") && (
             <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} />
           )}

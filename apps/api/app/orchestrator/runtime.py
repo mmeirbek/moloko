@@ -3,8 +3,8 @@
     planning ── direct answer ──────────────────────────────────────► completed
         │
         └─ delegate: new agents (if the plan needs them) + one part per agent,
-           wait (task ``waiting``) ──────────────────────────────────┐ scheduler
-    aggregating ◄── all parts finished (task re-queued) ◄────────────┘
+           wait (task ``waiting``; the Orchestrator is free for other tasks) ─┐ scheduler
+    aggregating ◄── all parts finished (re-queued when the Orchestrator is free) ◄┘
         └─ synthesis (checked critically when plan.review) → completed
            (or failed if no part succeeded)
 
@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.engine import lock_agent, lock_run, lock_task, set_agent_status, set_task_status
+from app.agents.engine import lock_agent, lock_run, lock_task, release_agent, set_task_status
 from app.agents.state import AgentStatus, TaskStatus, TaskType
 from app.events import bus
 from app.models.agent import Agent, AgentRun
@@ -210,11 +210,12 @@ class OrchestratorRuntime(NativeRuntime):
     async def _wait_for_subtasks(
         self, db: AsyncSession, agent: Agent, task: Task, run: AgentRun
     ) -> None:
-        if AgentStatus(agent.status) in (AgentStatus.PLANNING, AgentStatus.WORKING):
-            if AgentStatus(agent.status) == AgentStatus.PLANNING:
-                await set_agent_status(db, agent, AgentStatus.WORKING)
-            await set_agent_status(db, agent, AgentStatus.WAITING, reason=WAITING_FOR_SUBTASKS)
+        """The plan waits for its parts; the Orchestrator does not: it is free for the next
+        task meanwhile (owner: «оркестратор делает сразу несколько задач»). When the parts are
+        done the scheduler gives the plan back to it to merge (app/agents/waiting.py)."""
         await set_task_status(db, task, TaskStatus.WAITING, reason=WAITING_FOR_SUBTASKS, run=run)
+        if agent.current_task_id == task.id:
+            await release_agent(db, agent, to=AgentStatus.IDLE, reason="parts_under_way")
 
     # --- aggregation -----------------------------------------------------------------------
 

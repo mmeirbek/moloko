@@ -195,6 +195,22 @@ async def set_task_status(
     )
 
 
+async def set_task_reason(db: AsyncSession, task: Task, reason: str) -> None:
+    """Same status, a new reason the clients must show (e.g. ``waiting_for_agent`` — in line
+    for a busy agent, ``parts_done`` — a plan waiting for its Orchestrator to merge it)."""
+    task.status_reason = reason
+    task.updated_at = utcnow()
+    await emit(
+        db,
+        user_id=task.user_id,
+        type="task.updated",
+        agent_id=task.agent_id,
+        task_id=task.id,
+        run_id=task.run_id,
+        payload={"reason": reason, "task": task_payload(task)},
+    )
+
+
 def agent_is_busy(agent: Agent) -> bool:
     return agent.current_task_id is not None or AgentStatus(agent.status) in ACTIVE_AGENT | {
         AgentStatus.PAUSED

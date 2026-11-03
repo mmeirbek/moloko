@@ -10,6 +10,7 @@ import { useMemo, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, Check, Loader2, MessageSquare, ShieldAlert, Trash2, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { taskBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { useChatTitle } from "@/features/chat/chat-title";
 import { listTasks, taskKeys } from "@/lib/api/agents";
@@ -158,7 +159,7 @@ function TaskRow({ task, reason, onNavigate }: { task: TaskOut; reason?: WaitRea
   const agent = useRealtimeStore((s) => (task.agent_id ? s.agents[task.agent_id] : undefined));
   const href = `/tasks/${task.id}`;
   const current = pathname === href;
-  const statusKey = task.status as Parameters<typeof tStatus>[0];
+  const statusKey = taskBadge(task) as Parameters<typeof tStatus>[0];
   const state = reason ? t(`reason.${reason}`) : tStatus.has(statusKey) ? tStatus(statusKey) : task.status;
   const meta = agent ? `${agent.name} · ${state}` : state;
   return (

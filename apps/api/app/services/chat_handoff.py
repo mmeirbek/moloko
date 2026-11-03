@@ -57,11 +57,11 @@ async def hand_to_agents(
     conversation_id: uuid.UUID,
     answer_id: uuid.UUID,
     handoff: Handoff,
-) -> tuple[uuid.UUID, uuid.UUID]:
+) -> tuple[uuid.UUID, uuid.UUID | None]:
     """Start the Orchestrator on the owner's message; the marker answer is removed and the
-    owner's message links to the run. Returns (task id, run id); raises when the agents
-    cannot take it now (engine stopped, budget, the Orchestrator busy)."""
-    from app.orchestrator.service import start_orchestrated_run
+    owner's message links to the run. Returns (task id, run id — None while the task waits
+    in line for the Orchestrator); raises when the agents cannot take it (engine stopped)."""
+    from app.orchestrator.service import link_when_started, start_orchestrated_run
     from app.services.chat import make_title
 
     async with sessionmaker() as db:
@@ -88,10 +88,12 @@ async def hand_to_agents(
                     .limit(1)
                 )
             ).scalar_one_or_none()
-        if question is not None:
+        if question is not None and run is not None:
             await db.execute(
                 update(Message).where(Message.id == question).values(agent_run_id=run.id)
             )
+        elif question is not None:
+            await link_when_started(db, task, question)
         await db.execute(delete(Message).where(Message.id == answer_id))
         await bus.emit(
             db,
@@ -103,8 +105,8 @@ async def hand_to_agents(
             },
         )
         await bus.commit(db)
-    logger.info("chat_handed_off", extra={"task_id": str(task.id), "run_id": str(run.id)})
-    return task.id, run.id
+    logger.info("chat_handed_off", extra={"task_id": str(task.id), "queued": run is None})
+    return task.id, run.id if run is not None else None
 
 
 def _scripted(req: ChatRequest) -> ChatResult | None:

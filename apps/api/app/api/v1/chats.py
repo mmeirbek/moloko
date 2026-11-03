@@ -346,4 +346,7 @@ async def handoff(
     _, task, run = await hand_off_chat(
         db, queue, ctx.user.id, chat_id, body.content, title_chars=settings.chat_title_max_chars
     )
-    return StartedRun(task=TaskOut.model_validate(task), run=RunOut.model_validate(run))
+    return StartedRun(
+        task=TaskOut.model_validate(task),
+        run=RunOut.model_validate(run) if run is not None else None,
+    )

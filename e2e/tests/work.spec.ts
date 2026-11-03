@@ -40,3 +40,18 @@ test("work list: «@agent» makes a task, work from the chat goes to the agents,
   await expect(page.getByTestId("work-list").getByTestId("work-task").filter({ hasText: "Почини форму входа" })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("a task for a busy agent waits in line and starts by itself", async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const models = await api<{ id: string }[]>(request, "GET", "/models");
+  const agent = await newAgent(request, { name: unique("Busy"), model_config_id: models[0]!.id });
+  type Started = { task: { id: string }; run: { id: string } | null };
+  await api<Started>(request, "POST", `/agents/${agent.id}/run`, { title: "First", description: "[[mock:sleep:4]]" });
+  const second = await api<Started>(request, "POST", `/agents/${agent.id}/run`, { title: "Second", description: "Echo me" });
+  expect(second.run).toBeNull(); // not refused: in line
+  await page.goto(`/tasks/${second.task.id}`);
+  await expect(page.getByText("В очереди").first()).toBeVisible();
+  await expect(page.getByTestId("composer-inLine")).toContainText("начнётся сама");
+  await expect(page.getByTestId("task-result")).toContainText("Echo:", { timeout: 60_000 });
+  expect(errors).toEqual([]);
+});

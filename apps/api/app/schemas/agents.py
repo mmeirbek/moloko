@@ -266,4 +266,7 @@ class AgentRunRequest(BaseModel):
 
 class StartedRun(BaseModel):
     task: TaskOut
-    run: RunOut
+    run: RunOut | None = Field(
+        description="The run; null while the task waits in line for its busy agent "
+        "(it starts by itself when the agent is free)."
+    )

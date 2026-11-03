@@ -275,7 +275,7 @@
       "provider_unknown": "The provider request failed.",
       "interrupted": "The answer was interrupted because the server restarted.",
       "internal_error": "Something went wrong while generating the answer.",
-      "handoff_failed": "The agents can't take this work right now: the Orchestrator is busy with an earlier task or work is stopped. Send it again a bit later."
+      "handoff_failed": "The agents can't take this work now: work is stopped with «Stop everything». Turn it back on in Settings → Agents and send it again."
     },
     "agentsMode": "Hand to agents",
     "handOff": "Hand off to agents",
@@ -409,7 +409,8 @@
     "queued": "Queued",
     "running": "Running",
     "waiting_approval": "Needs approval",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "in_line": "In line"
   },
   "tasks": {
     "new": "New task",
@@ -663,19 +664,22 @@
         "message": "Message to the agent",
         "continue": "Instruction for continuing",
         "reply": "Reply to the agent",
-        "orchestrator": "Message"
+        "orchestrator": "Message",
+        "inLine": "The task is in line"
       },
       "placeholder": {
         "message": "Write to the agent — it reads this before its next step…",
         "continue": "What next? (may be empty — it goes on as before)",
         "reply": "Reply or ask for something more…",
-        "orchestrator": "The Orchestrator works through its plan — write to the agent doing a part"
+        "orchestrator": "The Orchestrator works through its plan — write to the agent doing a part",
+        "inLine": "In line — the agent takes it as soon as it is free"
       },
       "hint": {
         "message": "Enter sends, Shift+Enter is a new line.",
         "continue": "The agent goes on from where it stopped: it keeps what it did and takes your instruction into account.",
         "reply": "The reply continues the task: the agent takes its previous answer and your message into account.",
-        "orchestrator": "While the plan runs, messages go to the agents doing the parts — open that part."
+        "orchestrator": "While the plan runs, messages go to the agents doing the parts — open that part.",
+        "inLine": "The agent is busy with another task. This one starts by itself as soon as it is free; you can cancel it."
       }
     },
     "outcome": {

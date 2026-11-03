@@ -6017,7 +6017,15 @@
       "StartedRun": {
         "properties": {
           "run": {
-            "$ref": "#/components/schemas/RunOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run; null while the task waits in line for its busy agent (it starts by itself when the agent is free)."
           },
           "task": {
             "$ref": "#/components/schemas/TaskOut"

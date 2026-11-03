@@ -3820,7 +3820,8 @@ export interface components {
         };
         /** StartedRun */
         StartedRun: {
-            run: components["schemas"]["RunOut"];
+            /** @description The run; null while the task waits in line for its busy agent (it starts by itself when the agent is free). */
+            run: components["schemas"]["RunOut"] | null;
             task: components["schemas"]["TaskOut"];
         };
         /** StopAllResult */

@@ -10,7 +10,6 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import (
-    agent_is_busy,
     agent_payload,
     lock_agent,
     lock_run,
@@ -227,8 +226,13 @@ class TaskService:
         parent_run_id: uuid.UUID | None = None,
         conversation_id: uuid.UUID | None = None,
         enqueue: bool = True,
-    ) -> tuple[Task, AgentRun]:
-        """created → queued: reserve the agent, create the run, enqueue the job."""
+    ) -> tuple[Task, AgentRun | None]:
+        """created → queued: reserve the agent, create the run, enqueue the job. A busy agent
+        (an Orchestrator with all its plans under way) does not refuse the task: it waits in
+        line and starts by itself when the agent is free (app/agents/waiting.py) — then the
+        run is None."""
+        from app.agents.waiting import put_in_line
+
         await ensure_engine_running(self.db, user_id)
         task = await lock_task(self.db, task_id)
         if task.user_id != user_id:
@@ -236,9 +240,26 @@ class TaskService:
         if conversation_id is not None:
             # The chat it came from: the owner's work list shows that chat, not the task twice.
             task.extra = {**(task.extra or {}), "conversation_id": str(conversation_id)}
-        run = await prepare_start(
-            self.db, task, parent_run_id=parent_run_id, conversation_id=conversation_id
-        )
+        try:
+            run = await prepare_start(
+                self.db, task, parent_run_id=parent_run_id, conversation_id=conversation_id
+            )
+        except AgentBusy:
+            if TaskStatus(task.status) != TaskStatus.CREATED or parent_run_id is not None:
+                raise
+            await put_in_line(self.db, task)
+            await self.audit.record(
+                "task.waiting_for_agent",
+                "success",
+                actor_type="user",
+                actor_id=user_id,
+                user_id=user_id,
+                resource_type="task",
+                resource_id=str(task.id),
+                details={"agent_id": str(task.agent_id)},
+            )
+            await bus.commit(self.db)
+            return task, None
         await self.audit.record(
             "agent.run_started",
             "success",
@@ -324,7 +345,14 @@ class TaskService:
             extra={
                 k: v
                 for k, v in (old.extra or {}).items()
-                if k not in ("continued_from", "workspace_task_id")
+                if k
+                not in (
+                    "continued_from",
+                    "workspace_task_id",
+                    "continuation",
+                    "in_line_since",
+                    "chat_message_id",
+                )
             },
         )
         self.db.add(task)
@@ -351,8 +379,6 @@ class TaskService:
         Completed: the owner replied to the result in the task's chat (``instruction`` is
         required) and the agent goes on from its answer. An agent without a saved
         conversation (the Orchestrator) gets the chat so far in its task text instead."""
-        from app.runtimes.native import continuation_messages  # runtime → tasks at import time
-
         old = await self.get(user_id, task_id)
         status = TaskStatus(old.status)
         if status not in (TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.COMPLETED):
@@ -378,27 +404,17 @@ class TaskService:
             answer = (old.result or "")[:limit] if status == TaskStatus.COMPLETED else ""
             turns.append({"answer": answer, "reply": reply[:4000], "after": old.status})
             extra["follow_ups"] = turns[-settings.task_followup_turns :]
+        if old_run is not None and saved and old.agent_id is not None:
+            # it goes on from the old run's conversation (set when the run is created, also
+            # after waiting in line for its agent); otherwise a fresh run that knows the chat
+            extra["continuation"] = {"run": str(old_run.id), "instruction": instruction}
         task.extra = extra
-        if old_run is None or not saved or old.agent_id is None:
-            # nothing saved to go on from: a fresh run that knows the chat (task_prompt)
+        if "continuation" not in extra:
             if task.agent_id is not None:
                 task, _ = await self.start(user_id, task.id)
             else:
                 await bus.commit(self.db)
             return task
-        task, run = await self.start(user_id, task.id, enqueue=False)
-        run.state = {
-            **(run.state or {}),
-            "messages": continuation_messages(
-                saved,
-                old.status,
-                old.error_code,
-                old.error_message,
-                instruction,
-                [str(m["text"]) for m in old_run.state.get("owner_inbox", [])],
-            ),
-            "continued_from_run": str(old_run.id),
-        }
         await self.audit.record(
             "task.continued",
             "success",
@@ -410,8 +426,7 @@ class TaskService:
             details={"from_task": str(old.id), "with_instruction": bool(instruction)},
         )
         await bus.commit(self.db)
-        if self.queue is not None:
-            await self.queue.enqueue_task(task.id)
+        task, _ = await self.start(user_id, task.id)
         return task
 
     async def message_agent(self, user_id: uuid.UUID, task_id: uuid.UUID, text: str) -> Task:
@@ -450,10 +465,13 @@ class TaskService:
 
 async def after_cancel(db: AsyncSession, queue: TaskEnqueuer | None, user_id: uuid.UUID) -> None:
     """Questions between agents (agent_ask): a cancelled question answers its asker with an
-    error, a cancelled asker frees the agents it asked — now, not at the next sweep."""
+    error, a cancelled asker frees the agents it asked; the freed agent takes the next task
+    waiting in line for it — now, not at the next sweep."""
+    from app.agents import waiting
     from app.agents.team import after_change  # team → tasks at import time
 
     await after_change(db, queue, user_id)
+    await waiting.after_change(db, queue, user_id)
 
 
 async def prepare_start(
@@ -467,10 +485,12 @@ async def prepare_start(
     run, move the task to ``queued``. The caller commits and then enqueues."""
     if task.agent_id is None:
         raise InvalidTransition("Assign an agent before starting the task.")
+    from app.agents.waiting import has_room
+
     agent = await lock_agent(db, task.agent_id)
     if agent.archived_at is not None:
         raise AgentArchived()
-    if agent_is_busy(agent):
+    if not await has_room(db, agent, task):
         raise AgentBusy()
     if agent.agent_type != AgentType.SUBAGENT.value and AgentStatus(agent.status) in (
         AgentStatus.FAILED,
@@ -489,6 +509,7 @@ async def prepare_start(
     )
     db.add(run)
     await db.flush()
+    await _continue_from(db, task, run)
     task.run_id = run.id
     agent.current_task_id = task.id
     if agent.agent_type == AgentType.ORCHESTRATOR.value:
@@ -506,3 +527,31 @@ async def prepare_start(
     )
     await set_task_status(db, task, TaskStatus.QUEUED, reason="started", run=run)
     return run
+
+
+async def _continue_from(db: AsyncSession, task: Task, run: AgentRun) -> None:
+    """A continued attempt (``extra.continuation``, set by continue_from_stop) starts from
+    the old run's conversation — set here, before the run is enqueued, also when the task
+    waited in line for its agent."""
+    from app.runtimes.native import continuation_messages  # runtime → tasks at import time
+
+    plan = (task.extra or {}).get("continuation")
+    if not isinstance(plan, dict) or not plan.get("run"):
+        return
+    old_run = await db.get(AgentRun, uuid.UUID(str(plan["run"])))
+    old = await db.get(Task, old_run.task_id) if old_run is not None else None
+    saved = (old_run.state or {}).get("messages") if old_run is not None else None
+    if old_run is None or old is None or not saved:
+        return
+    run.state = {
+        **(run.state or {}),
+        "messages": continuation_messages(
+            saved,
+            old.status,
+            old.error_code,
+            old.error_message,
+            plan.get("instruction"),
+            [str(m["text"]) for m in old_run.state.get("owner_inbox", [])],
+        ),
+        "continued_from_run": str(old_run.id),
+    }
