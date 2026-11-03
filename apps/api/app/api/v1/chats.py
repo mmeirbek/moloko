@@ -258,18 +258,23 @@ async def send_message(
         queue=queue,
     )
     sent_files = (await service.attachments_by_message([user_msg.id])).get(user_msg.id, [])
-    # Subscribe before yielding control so no token is missed.
-    subscription = streams.subscribe(assistant_msg.id)
+    # Subscribe before yielding control so no token is missed. A message in line (an answer
+    # is still being written) gets no stream now: it is answered right after.
+    subscription = streams.subscribe(assistant_msg.id) if assistant_msg is not None else None
     created = {
         "user_message": MessageOut.model_validate(user_msg)
         .model_copy(update={"attachments": [AttachmentOut.model_validate(a) for a in sent_files]})
         .model_dump(mode="json"),
-        "assistant_message": MessageOut.model_validate(assistant_msg).model_dump(mode="json"),
+        "assistant_message": (
+            MessageOut.model_validate(assistant_msg).model_dump(mode="json")
+            if assistant_msg is not None
+            else None
+        ),
     }
 
     async def events() -> AsyncIterator[str]:
         yield sse_event("message.created", created)
-        if subscription is None:
+        if subscription is None or assistant_msg is None:
             return
         queue, _ = subscription
         try:

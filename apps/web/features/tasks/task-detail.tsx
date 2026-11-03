@@ -199,7 +199,8 @@ function AgentTurn({
   const name = useRealtimeStore((s) => (agentId ? s.agents[agentId]?.name : undefined));
   return (
     <div className="flex gap-3" data-testid={testId}>
-      <AgentAvatar agentId={agentId} size={30} className="mt-0.5" />
+      {/* the face feels how this turn went: busy, waiting for you, happy when done, sad when it broke */}
+      <AgentAvatar agentId={agentId} size={30} status={status} className="mt-0.5" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="flex flex-wrap items-center gap-2 text-sm">
           {agentId ? (

@@ -62,6 +62,7 @@ async def start_in_background(app: FastAPI, user: User, chat_id: str, content: s
         _, _, state = await ChatService(db, app.state.settings, app.state.gateway).send(
             user.id, uuid.UUID(chat_id), content, None, app.state.chat_streams
         )
+    assert state is not None  # nothing else is being answered in these tests
     return state
 
 
@@ -161,19 +162,54 @@ async def test_cancel_keeps_partial_answer(app: FastAPI, owner: User) -> None:
     assert row.content and len(row.content) < len("Echo: one two three four five six")
 
 
-async def test_one_answer_at_a_time_per_chat(app: FastAPI, owner: User) -> None:
+async def test_messages_sent_while_it_answers_wait_in_line_and_are_answered_in_order(
+    app: FastAPI, owner: User
+) -> None:
     async with logged_in_client(app) as client:
         await add_mock_model(client)
         chat = await new_chat(client)
         state = await start_in_background(app, owner, chat["id"], "[[mock:slow]] a b c d e f")
-        resp = await client.post(
-            f"/api/v1/chats/{chat['id']}/messages",
-            json={"content": "again"},
-            headers=await csrf_headers(client),
-        )
-        assert resp.status_code == 409
-        assert resp.json()["error"]["code"] == "generation_in_progress"
+        for text in ("second", "third"):
+            events = await send(client, chat["id"], text)
+            assert [name for name, _ in events] == ["message.created"]
+            created = events[0][1]
+            assert created["assistant_message"] is None
+            assert created["user_message"]["status"] == "queued"
+        assert state.task is not None
+        await state.task  # the first answer ends; the line goes on by itself
+        items: list[dict[str, Any]] = []
+        for _ in range(200):
+            items = (await client.get(f"/api/v1/chats/{chat['id']}/messages")).json()["items"]
+            if len(items) == 6 and all(m["status"] == "completed" for m in items):
+                break
+            await asyncio.sleep(0.05)
+    assert [(m["role"], m["content"]) for m in items] == [
+        ("user", "[[mock:slow]] a b c d e f"),
+        ("assistant", "Echo: a b c d e f"),
+        ("user", "second"),
+        ("assistant", "Echo: second"),
+        ("user", "third"),
+        ("assistant", "Echo: third"),
+    ]
+
+
+async def test_a_message_in_line_waits_while_the_answer_is_stopped_then_goes(
+    app: FastAPI, owner: User
+) -> None:
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)
+        chat = await new_chat(client)
+        state = await start_in_background(app, owner, chat["id"], "[[mock:slow]] a b c d e f")
+        await send(client, chat["id"], "next")
         await app.state.chat_streams.cancel(state.message_id, owner.id)
+        items: list[dict[str, Any]] = []
+        for _ in range(200):
+            items = (await client.get(f"/api/v1/chats/{chat['id']}/messages")).json()["items"]
+            if items and items[-1]["role"] == "assistant" and items[-1]["status"] == "completed":
+                break
+            await asyncio.sleep(0.05)
+    assert [m["status"] for m in items] == ["completed", "cancelled", "completed", "completed"]
+    assert items[-1]["content"] == "Echo: next"
 
 
 async def test_answer_completes_without_any_listener(app: FastAPI, owner: User) -> None:

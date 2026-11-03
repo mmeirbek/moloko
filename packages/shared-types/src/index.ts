@@ -66,6 +66,7 @@ export type AgentRunRequest = Schemas["AgentRunRequest"];
 export type StartedRun = Schemas["StartedRun"];
 export type RunOut = Schemas["RunOut"];
 export type TaskOut = Schemas["TaskOut"];
+export type TaskFileOut = Schemas["TaskFileOut"];
 export type TaskCreate = Schemas["TaskCreate"];
 export type TaskUpdate = Schemas["TaskUpdate"];
 export type TaskDetail = Schemas["TaskDetail"];

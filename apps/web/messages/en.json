@@ -281,6 +281,8 @@
     "stop": "Stop",
     "thinking": "Thinking",
     "stopped": "Stopped.",
+    "queued": "In line — answered next",
+    "sendQueued": "Send — answered next",
     "tokens": "{count} tokens",
     "model": "Model",
     "defaultModel": "Default model",
@@ -521,7 +523,7 @@
       "title": "The agent's steps",
       "expandAll": "Expand all",
       "collapseAll": "Collapse all",
-      "owner": "You wrote: “{text}”",
+      "ownerLabel": "Your message",
       "runningFor": "running for {seconds} s",
       "thinking": "Thinking about the next step",
       "queued": "Queued — starts soon",
@@ -687,23 +689,30 @@
         "message": "Message to the agent",
         "continue": "Instruction for continuing",
         "reply": "Reply to the agent",
-        "orchestrator": "Message",
+        "orchestrator": "Message to the whole task",
         "inLine": "The task is in line"
       },
       "placeholder": {
         "message": "Write to the agent — it reads this before its next step…",
         "continue": "What next? (may be empty — it goes on as before)",
         "reply": "Reply or ask for something more…",
-        "orchestrator": "The Orchestrator works through its plan — write to the agent doing a part",
-        "inLine": "In line — the agent takes it as soon as it is free"
+        "orchestrator": "Write to the task — the agents doing the parts and the Orchestrator get it…",
+        "inLine": "Write — the agent reads it as soon as it takes the task…"
       },
       "hint": {
         "message": "Enter sends, Shift+Enter is a new line.",
         "continue": "The agent goes on from where it stopped: it keeps what it did and takes your instruction into account.",
         "reply": "The reply continues the task: the agent takes its previous answer and your message into account.",
-        "orchestrator": "While the plan runs, messages go to the agents doing the parts — open that part.",
-        "inLine": "The agent is busy with another task. This one starts by itself as soon as it is free; you can cancel it."
-      }
+        "orchestrator": "The agents doing the parts get the message now; the Orchestrator takes it into account when it puts the result together.",
+        "inLine": "The agent is busy with another task. This one starts by itself; whatever you write it reads first."
+      },
+      "sentInLine": "Sent — the agent reads it as soon as it takes the task",
+      "sentOrchestrator": "Sent — the agents doing the parts and the Orchestrator get it",
+      "attach": "Attach a file",
+      "uploading": "Uploading…",
+      "removeFile": "Remove the file",
+      "filesNote": "Files in the task's folder: {paths}",
+      "voiceNote": "Voice message (recording: {path}):"
     },
     "outcome": {
       "title": "What came out",
@@ -738,6 +747,8 @@
     "form": {
       "newDescription": "A persistent agent: its own model, instructions, autonomy level and memory.",
       "profile": "Profile",
+      "animal": "Animal",
+      "animalHint": "The agent's face and its character in the office. «Random» takes a species the office has fewest of.",
       "description": "Description",
       "descriptionHint": "In a few words: what this agent does. Shown in the office and the list.",
       "specialization": "Specialization",
@@ -1624,6 +1635,8 @@
     "recording": "Recording",
     "cancel": "Cancel the recording",
     "done": "Done — turn it into text",
+    "sendVoice": "Send as a voice message",
+    "voiceMessage": "Voice message",
     "transcribing": "Recognising speech…",
     "language": "Speech language",
     "langs": {
@@ -1880,5 +1893,31 @@
     "new": "New",
     "search": "Search",
     "more": "Sections"
+  },
+  "animals": {
+    "random": "Random",
+    "choose": "Choose an animal",
+    "done": "Collapse",
+    "amur_tiger": "Amur tiger",
+    "snow_leopard": "Snow leopard",
+    "pallas_cat": "Pallas's cat",
+    "fennec_fox": "Fennec fox",
+    "red_panda": "Red panda",
+    "capybara": "Capybara",
+    "axolotl": "Axolotl",
+    "quokka": "Quokka",
+    "okapi": "Okapi",
+    "tarsier": "Tarsier",
+    "ring_tailed_lemur": "Ring-tailed lemur",
+    "malayan_tapir": "Malayan tapir",
+    "sea_otter": "Sea otter",
+    "atlantic_puffin": "Atlantic puffin",
+    "three_toed_sloth": "Three-toed sloth",
+    "platypus": "Platypus",
+    "barn_owl": "Barn owl",
+    "saiga": "Saiga",
+    "mandrill": "Mandrill",
+    "emperor_tamarin": "Emperor tamarin",
+    "cow": "The moloko cow"
   }
 }

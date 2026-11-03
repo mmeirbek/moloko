@@ -51,7 +51,15 @@ test("a task for a busy agent waits in line and starts by itself", async ({ page
   expect(second.run).toBeNull(); // not refused: in line
   await page.goto(`/tasks/${second.task.id}`);
   await expect(page.getByText("В очереди").first()).toBeVisible();
-  await expect(page.getByTestId("composer-inLine")).toContainText("начнётся сама");
+  const box = page.getByTestId("composer-inLine");
+  await expect(box).toContainText("начнётся сама");
+  // Notes and files wait for it: the agent reads them first thing when it starts.
+  await box.getByTestId("task-file-input").setInputFiles({ name: "brief.txt", mimeType: "text/plain", buffer: Buffer.from("Short.") });
+  await expect(box.locator("[data-attachment='brief.txt']")).toBeVisible();
+  await box.getByRole("textbox").fill("Отвечай коротко");
+  await box.getByRole("textbox").press("Enter");
+  await expect(box.getByRole("status")).toContainText("прочитает, как только возьмёт задачу", { timeout: 15_000 });
+  await expect(page.getByTestId("owner-note").filter({ hasText: "Файлы в рабочей папке задачи: inbox/brief.txt" })).toBeVisible();
   await expect(page.getByTestId("task-result")).toContainText("Echo:", { timeout: 60_000 });
   expect(errors).toEqual([]);
 });

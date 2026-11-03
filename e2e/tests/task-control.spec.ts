@@ -27,7 +27,7 @@ test("full control: write to a working agent, stop it, continue from where it st
   await box.getByRole("textbox").fill("Пиши коротко");
   await box.getByRole("button", { name: "Отправить" }).click();
   await expect(box.getByRole("status")).toContainText("Отправлено");
-  await expect(page.getByTestId("agent-steps").getByText("Вы написали: «Пиши коротко»")).toBeVisible();
+  await expect(page.getByTestId("agent-steps").getByTestId("owner-note").filter({ hasText: "Пиши коротко" })).toBeVisible();
 
   // Stop it, then continue from where it stopped, with an instruction.
   await page.getByTestId("task-composer").getByRole("button", { name: "Отменить задачу" }).click();

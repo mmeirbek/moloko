@@ -90,6 +90,7 @@ export function useChatThread(chatId: string) {
     async (content: string, modelConfigId: string | null, attachmentIds: string[] = []): Promise<boolean> => {
       setSendError(null);
       let assistantId: string | null = null;
+      let accepted = false;
       const controller = new AbortController();
       controllers.current.add(controller);
       try {
@@ -98,6 +99,13 @@ export function useChatThread(chatId: string) {
           { content, model_config_id: modelConfigId, attachment_ids: attachmentIds },
           {
             onCreated: (user, assistant) => {
+              accepted = true;
+              if (!assistant) {
+                // In line behind the answer being written: answered right after, and that
+                // answer is re-attached to like one started on another device.
+                patch((ms) => [...ms, user]);
+                return;
+              }
               assistantId = assistant.id;
               attached.current = assistant.id; // we are already streaming it
               patch((ms) => [...ms, user, assistant]);
@@ -114,7 +122,7 @@ export function useChatThread(chatId: string) {
       } finally {
         controllers.current.delete(controller);
       }
-      return assistantId !== null;
+      return accepted;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatId, handlers, patch, queryClient],

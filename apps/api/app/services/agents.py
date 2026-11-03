@@ -19,6 +19,7 @@ from app.agents.engine import (
     set_agent_status,
     set_task_status,
 )
+from app.agents.looks import pick_animal
 from app.agents.state import (
     ACTIVE_AGENT,
     AgentStatus,
@@ -354,6 +355,8 @@ class AgentService:
             monthly_budget_usd=data.monthly_budget_usd,
             contacts=contacts,
         )
+        if agent.agent_type != AgentType.ORCHESTRATOR.value:  # the cow is the Orchestrator's
+            agent.animal = data.animal or await pick_animal(self.db, user_id)
         if agent.agent_type == AgentType.AUTONOMOUS.value and await UserRepository(
             self.db
         ).full_access_for_all(user_id):
@@ -404,6 +407,13 @@ class AgentService:
             if value is not None and value != getattr(agent, name):
                 setattr(agent, name, value)
                 changed.append(name)
+        if (
+            data.animal is not None
+            and data.animal != agent.animal
+            and agent.agent_type != AgentType.ORCHESTRATOR.value
+        ):
+            agent.animal = data.animal
+            changed.append("animal")
         if "specialization" in fields and data.specialization != agent.specialization:
             agent.specialization = data.specialization
             changed.append("specialization")

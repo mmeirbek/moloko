@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictBool
 
+from app.agents.looks import Animal
 from app.agents.state import AgentType, AutonomyLevel
 from app.schemas.tasks import RunOut, TaskOut
 
@@ -57,6 +58,9 @@ class AgentOut(BaseModel):
         "changed only through PUT /agents/{id}/full-access)."
     )
     full_access_since: datetime | None = Field(description="When full access was turned on.")
+    animal: str | None = Field(
+        default=None, description="Its animal (face and office character); null = the Orchestrator."
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -117,6 +121,7 @@ class AgentCreate(BaseModel):
     workspace_id: uuid.UUID | None = None  # a project workspace; None = one per task
     monthly_budget_usd: MonthlyBudget = None
     contacts: AgentContacts = Field(default_factory=AgentContacts)
+    animal: Animal | None = Field(default=None, description="Its animal; null = chosen at random.")
 
 
 class AgentUpdate(BaseModel):
@@ -135,6 +140,7 @@ class AgentUpdate(BaseModel):
     workspace_id: uuid.UUID | None = None
     monthly_budget_usd: MonthlyBudget = None  # sent as null = remove the limit
     contacts: AgentContacts | None = None  # omitted / null = unchanged
+    animal: Animal | None = None  # omitted / null = unchanged
 
 
 class AgentFullAccessUpdate(BaseModel):

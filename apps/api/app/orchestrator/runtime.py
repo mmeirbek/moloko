@@ -36,7 +36,13 @@ from app.orchestrator.scheduler import WAITING_FOR_SUBTASKS
 from app.providers.base import ChatMessage, ChatRequest, ChatResult
 from app.providers.gateway import ModelTarget
 from app.runtimes.base import RunContext
-from app.runtimes.native import LimitExceeded, NativeRuntime, RunSetup, task_prompt
+from app.runtimes.native import (
+    LimitExceeded,
+    NativeRuntime,
+    RunSetup,
+    owner_note,
+    task_prompt,
+)
 from app.schemas.chat import MessageOut
 from app.tools.policy import ALWAYS_ALLOWED
 
@@ -129,6 +135,8 @@ class OrchestratorRuntime(NativeRuntime):
         async with ctx.sessionmaker() as db:
             inputs = await inputs_for(db, agent, ctx.run_id)
         prompt = task_prompt(task) + (f"\n\n{inputs}" if inputs else "")
+        if notes := await self._owner_notes(ctx):
+            prompt += f"\n\n{notes}"
         transcript = [ChatMessage(role="user", content=prompt)]
         attempts = 0
         while True:
@@ -246,10 +254,34 @@ class OrchestratorRuntime(NativeRuntime):
             run = await lock_run(db, ctx.run_id)
             run.phase = "aggregating"
             await bus.commit(db)
-        transcript = [ChatMessage(role="user", content=f"{task_prompt(setup.task)}\n\n{inputs}")]
+        prompt = f"{task_prompt(setup.task)}\n\n{inputs}"
+        if notes := await self._owner_notes(ctx):
+            prompt += f"\n\n{notes}"
+        transcript = [ChatMessage(role="user", content=prompt)]
         system = with_owner_context(synthesis_system(review=plan.review), setup)
         result = await self._call(ctx, setup, system, transcript, segment_started)
         await self._complete(ctx, result.text)
+
+    async def _owner_notes(self, ctx: RunContext) -> str:
+        """What the owner wrote to the whole task (the parts at work got it too): read when
+        the Orchestrator plans and when it merges, then the inbox is empty."""
+        async with ctx.sessionmaker() as db:
+            run = await lock_run(db, ctx.run_id)
+            notes = [str(m["text"]) for m in (run.state or {}).get("owner_inbox") or []]
+            if not notes:
+                return ""
+            run.state = {**(run.state or {}), "owner_inbox": []}
+            await bus.emit(
+                db,
+                user_id=ctx.user_id,
+                type="task.owner_message_read",
+                agent_id=ctx.agent_id,
+                task_id=ctx.task_id,
+                run_id=ctx.run_id,
+                payload={"count": len(notes)},
+            )
+            await bus.commit(db)
+        return owner_note(notes)
 
     # --- results -----------------------------------------------------------------------------
 

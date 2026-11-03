@@ -4,7 +4,7 @@ import type { AttachmentOut } from "@moloko/shared-types";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { FileText, Paperclip } from "@/components/icons";
+import { FileText, Mic, Paperclip } from "@/components/icons";
 import { attachmentUrl } from "@/lib/api/chat";
 
 /** One attached file: pictures as thumbnails, PDFs with their page count, text files as a chip. */
@@ -32,7 +32,13 @@ export function AttachmentChip({
   }
   return (
     <li className="inline-flex items-center gap-1 bg-card px-2 py-1 text-xs pixel-frame" data-attachment={a.filename}>
-      {a.kind === "pdf" ? <FileText className="size-3" aria-hidden /> : <Paperclip className="size-3" aria-hidden />}
+      {a.kind === "pdf" ? (
+        <FileText className="size-3" aria-hidden />
+      ) : a.content_type.startsWith("audio/") ? (
+        <Mic className="size-3" aria-hidden />
+      ) : (
+        <Paperclip className="size-3" aria-hidden />
+      )}
       <a href={url} className="hover:underline" download={a.filename}>
         {a.filename}
       </a>

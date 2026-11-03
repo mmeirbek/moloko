@@ -11,19 +11,20 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import type { MessageOut } from "@moloko/shared-types";
+import type { AttachmentOut, MessageOut } from "@moloko/shared-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { LogoMark } from "@/components/brand/logo";
-import { ArrowDown, Check, Copy, Network, RotateCcw } from "@/components/icons";
+import { ArrowDown, Check, Clock, Copy, Network, RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Thinking } from "@/components/ui/thinking";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useErrorMessage } from "@/features/auth/use-error-message";
-import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
+import type { VoiceMessage } from "@/features/voice/mic-button";
+import { chatKeys, getChat, listPickerModels, modelKeys, updateChat, uploadAttachment } from "@/lib/api/chat";
 import { handOff } from "@/lib/api/runs";
 import { useDocumentTitle } from "@/lib/hooks";
 
@@ -84,6 +85,11 @@ function UserMessage() {
             <AttachmentChip key={a.id} chatId={message.conversation_id} attachment={a} />
           ))}
         </ul>
+      )}
+      {message?.status === "queued" && (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="message-queued">
+          <Clock className="size-3.5" aria-hidden /> {t("queued")}
+        </span>
       )}
       {runId && (
         <Link
@@ -283,10 +289,49 @@ export function ChatThread({ chatId }: { chatId: string }) {
     })();
   }
 
+  // The server keeps the line (a message sent while an answer is written waits and is answered
+  // right after): with a queue the box stays usable during an answer, and every send goes here.
+  const queue = useMemo(
+    () => ({
+      items: [],
+      steerItems: [],
+      enqueue: (message: AppendMessage) => submitRef.current(message),
+      steer: (message: AppendMessage) => submitRef.current(message),
+      move: () => {},
+      edit: () => {},
+      remove: () => {},
+    }),
+    [],
+  );
+  const submitRef = useRef(submit);
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+
+  /** A voice message: the recording is attached, its text is the message (in line if busy). */
+  async function sendVoice(voice: VoiceMessage) {
+    setHandoffError(null);
+    let audio: AttachmentOut;
+    try {
+      audio = await uploadAttachment(chatId, new File([voice.audio], voice.filename, { type: voice.audio.type }));
+    } catch (error) {
+      setHandoffError(error);
+      setDraft(voice.text); // the words are not lost
+      return;
+    }
+    const kept = await files.take();
+    const accepted = await thread.send(voice.text, selectedModel, [...kept.map((a) => a.id), audio.id]);
+    if (!accepted) {
+      setDraft(voice.text);
+      files.restore(kept);
+    }
+  }
+
   const runtime = useExternalStoreRuntime<MessageOut>({
     messages: thread.messages,
     isRunning: thread.isRunning,
     convertMessage: toThreadMessage,
+    queue,
     // Return at once (send() reports its own errors; isRunning comes from our store).
     onNew: async (message: AppendMessage) => submit(message),
     // assistant-ui treats a send whose parent is not its latest message as an edit (this can
@@ -406,6 +451,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   attach={agentsMode ? undefined : files.button({ disabled })}
                   chips={agentsMode ? undefined : files.chips}
                   onPaste={agentsMode ? undefined : files.onPaste}
+                  onVoice={agentsMode ? undefined : sendVoice}
                   model={
                     models.data && models.data.length > 0 && !agentsMode ? (
                       <ModelPicker models={models.data} value={selectedModel} onChange={chooseModel} />

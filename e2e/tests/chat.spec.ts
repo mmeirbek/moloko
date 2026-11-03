@@ -64,6 +64,16 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
   await phone.close();
   await expect(page.getByText("Echo: раз два три четыре пять шесть семь восемь")).toBeVisible();
 
+  // Written while an answer is still coming: it waits in line and is answered right after.
+  await say("[[mock:slow]] q r s t u v w x y z один два три четыре пять шесть");
+  await input.fill("И ещё вопрос");
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  await expect(page.getByTestId("message-queued")).toBeVisible();
+  await expect(page.getByText("Echo: q r s t u v w x y z один два три четыре пять шесть")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Echo: И ещё вопрос")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("message-queued")).toHaveCount(0);
+
   // Stop, and an honest provider error.
   await say("[[mock:slow]] a b c d e f g h i j k l m n o p");
   await page.getByRole("button", { name: "Остановить" }).click({ delay: 800 });

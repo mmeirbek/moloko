@@ -187,7 +187,8 @@ function TaskRow({ task, reason, onNavigate }: { task: TaskOut; reason?: WaitRea
           {task.status === "running" && (
             <span aria-hidden className="absolute -inset-1 rounded-full ring-2 ring-sky/50 motion-safe:animate-pulse" />
           )}
-          <AgentAvatar agentId={task.agent_id} size={24} />
+          {/* feelings for what is going on; finished work stays calm (a long list would never stop moving) */}
+          <AgentAvatar agentId={task.agent_id} size={24} status={task.status === "completed" ? null : task.status} />
           <span className="absolute -right-1 -bottom-1 flex rounded-full bg-card p-px">
             <TaskIcon status={task.status} reason={reason} />
           </span>

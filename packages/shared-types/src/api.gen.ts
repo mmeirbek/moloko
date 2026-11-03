@@ -1602,6 +1602,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the task a file: saved in its workspace (inbox/) for its agents to read */
+        post: operations["upload_task_file_api_v1_tasks__task_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{task_id}/message": {
         parameters: {
             query?: never;
@@ -1868,6 +1885,11 @@ export interface components {
             agent_type?: components["schemas"]["AgentType"];
             /** Allowed Tools */
             allowed_tools?: string[];
+            /**
+             * Animal
+             * @description Its animal; null = chosen at random.
+             */
+            animal?: ("amur_tiger" | "snow_leopard" | "pallas_cat" | "fennec_fox" | "red_panda" | "capybara" | "axolotl" | "quokka" | "okapi" | "tarsier" | "ring_tailed_lemur" | "malayan_tapir" | "sea_otter" | "atlantic_puffin" | "three_toed_sloth" | "platypus" | "barn_owl" | "saiga" | "mandrill" | "emperor_tamarin") | null;
             /** @default supervised */
             autonomy_level?: components["schemas"]["AutonomyLevel"];
             contacts?: components["schemas"]["AgentContacts"];
@@ -2056,6 +2078,11 @@ export interface components {
             agent_type: string;
             /** Allowed Tools */
             allowed_tools: string[];
+            /**
+             * Animal
+             * @description Its animal (face and office character); null = the Orchestrator.
+             */
+            animal?: string | null;
             /** Archived At */
             archived_at: string | null;
             /** Autonomy Level */
@@ -2195,6 +2222,8 @@ export interface components {
         AgentUpdate: {
             /** Allowed Tools */
             allowed_tools?: string[] | null;
+            /** Animal */
+            animal?: ("amur_tiger" | "snow_leopard" | "pallas_cat" | "fennec_fox" | "red_panda" | "capybara" | "axolotl" | "quokka" | "okapi" | "tarsier" | "ring_tailed_lemur" | "malayan_tapir" | "sea_otter" | "atlantic_puffin" | "three_toed_sloth" | "platypus" | "barn_owl" | "saiga" | "mandrill" | "emperor_tamarin") | null;
             autonomy_level?: components["schemas"]["AutonomyLevel"] | null;
             contacts?: components["schemas"]["AgentContacts"] | null;
             /** Description */
@@ -3951,6 +3980,21 @@ export interface components {
             /** Subtasks */
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
+        };
+        /**
+         * TaskFileOut
+         * @description A file the owner sent to the task (POST /tasks/{id}/files): saved in the task's
+         *     workspace, where its agents read it.
+         */
+        TaskFileOut: {
+            /** Content Type */
+            content_type: string;
+            /** Filename */
+            filename: string;
+            /** Path */
+            path: string;
+            /** Size */
+            size: number;
         };
         /** TaskOut */
         TaskOut: {
@@ -7784,6 +7828,44 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_task_file_api_v1_tasks__task_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** File */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskFileOut"];
                 };
             };
             /** @description Validation Error */

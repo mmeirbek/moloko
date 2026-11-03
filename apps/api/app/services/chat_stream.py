@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.errors import AppError, new_error_id
@@ -27,6 +27,7 @@ from app.providers.gateway import ModelGateway, ModelTarget, estimate_cost
 from app.schemas.chat import MessageOut
 from app.services import chat_memory
 from app.services.chat_handoff import Handoff, hand_to_agents, wants_agents
+from app.tasks.queue import TaskEnqueuer
 
 logger = logging.getLogger("moloko.chat")
 
@@ -75,10 +76,14 @@ class ChatStreamManager:
         gateway: ModelGateway,
         *,
         hook: EventHook | None = None,
+        task_queue: Callable[[], TaskEnqueuer | None] | None = None,
     ) -> None:
         self.sessionmaker = sessionmaker
         self.gateway = gateway
         self.hook = hook
+        # The job queue for hand-offs of messages answered from the line (read when needed:
+        # tests swap it after startup).
+        self.task_queue = task_queue
         self._streams: dict[uuid.UUID, StreamState] = {}
         # Rolling summaries run after an answer, in the background (services/chat_memory).
         self._background: set[asyncio.Task[None]] = set()
@@ -307,6 +312,7 @@ class ChatStreamManager:
                 },
             ),
         )
+        self.next_in_line(state.user_id, state.conversation_id)
         return True
 
     async def _finish(
@@ -382,6 +388,46 @@ class ChatStreamManager:
         await self._emit(state, (name, {"message": payload}))
         if status == "completed":
             self.after_answer(state.conversation_id, target)
+        if state.cancel_reason != "shutdown":
+            self.next_in_line(state.user_id, state.conversation_id)
+
+    def next_in_line(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        """Answer the next message waiting in this chat (in the background)."""
+        task = asyncio.create_task(
+            self._answer_next(user_id, conversation_id), name=f"chat-next:{conversation_id}"
+        )
+        self._background.add(task)
+        task.add_done_callback(self._background.discard)
+
+    async def _answer_next(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        from app.services.chat import ChatService  # chat → chat_stream at import time
+
+        try:
+            async with self.sessionmaker() as db:
+                await ChatService(db, self.gateway.settings, self.gateway).answer_next(
+                    user_id,
+                    conversation_id,
+                    self,
+                    self.task_queue() if self.task_queue is not None else None,
+                )
+        except Exception:
+            logger.exception(
+                "chat_next_in_line_failed", extra={"conversation_id": str(conversation_id)}
+            )
+
+    async def resume_waiting(self) -> int:
+        """After a restart: chats with messages in line and no answer running go on."""
+        async with self.sessionmaker() as db:
+            rows = (
+                await db.execute(
+                    select(Message.user_id, Message.conversation_id)
+                    .where(Message.status == "queued", Message.role == "user")
+                    .distinct()
+                )
+            ).all()
+        for user_id, conversation_id in rows:
+            self.next_in_line(user_id, conversation_id)
+        return len(rows)
 
 
 async def fail_orphaned_generations(db: AsyncSession) -> int:

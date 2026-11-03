@@ -39,6 +39,8 @@ async def _recover(app: FastAPI) -> None:
             failed = await fail_orphaned_generations(db)
         if failed:
             logger.warning("interrupted_generations_marked_failed", extra={"count": failed})
+        # Messages the owner sent in a row before the restart: their answers go on.
+        await app.state.chat_streams.resume_waiting()
     except Exception:  # noqa: BLE001 — the DB may still be starting; health shows it
         logger.warning("startup_recovery_skipped")
 
@@ -57,7 +59,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.queue = TaskQueue(settings.redis_url)
         set_publisher(EventPublisher(app.state.redis))
         waiting.configure(settings)
-        app.state.chat_streams = ChatStreamManager(app.state.db.sessionmaker, app.state.gateway)
+        app.state.chat_streams = ChatStreamManager(
+            app.state.db.sessionmaker,
+            app.state.gateway,
+            task_queue=lambda: getattr(app.state, "queue", None),
+        )
         await _recover(app)
         logger.info("startup", extra={"environment": settings.environment})
         try:

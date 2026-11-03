@@ -430,37 +430,58 @@ class TaskService:
         return task
 
     async def message_agent(self, user_id: uuid.UUID, task_id: uuid.UUID, text: str) -> Task:
-        """The owner writes to the agent while it works: the note waits in the run and the
-        agent reads it before its next step (also after a pause or an approval)."""
+        """The owner writes to the task at any time before it finishes. The note waits and the
+        agent reads it before its next step (also after a pause or an approval); a task still
+        waiting in line gets it when it starts. An Orchestrator's task passes it on to the
+        parts at work and reads it itself when it plans and when it merges."""
         task = await lock_task(self.db, task_id)
         if task.user_id != user_id:
             raise NotFound("Task not found.")
         if TaskStatus(task.status) in TERMINAL_TASK:
             raise InvalidTransition("The task has finished — continue it instead.")
-        if task.run_id is None:
-            raise InvalidTransition("The task has not started yet — edit its description instead.")
-        agent = await self.db.get(Agent, task.agent_id) if task.agent_id else None
-        if agent is None or agent.agent_type == AgentType.ORCHESTRATOR.value:
-            raise InvalidTransition(
-                "The Orchestrator works through its plan — write to the agent doing the step."
-            )
         if not text.strip():
             raise InvalidTransition("The message is empty.")
-        run = await lock_run(self.db, task.run_id)
-        inbox = list((run.state or {}).get("owner_inbox", []))
-        inbox.append({"text": text, "at": datetime.now(UTC).isoformat()})
-        run.state = {**(run.state or {}), "owner_inbox": inbox}
+        note = {"text": text, "at": datetime.now(UTC).isoformat()}
+        await deliver_note(self.db, task, note)
+        agent = await self.db.get(Agent, task.agent_id) if task.agent_id else None
+        if agent is not None and agent.agent_type == AgentType.ORCHESTRATOR.value:
+            parts = (
+                await self.db.execute(
+                    select(Task)
+                    .where(Task.parent_task_id == task.id, Task.status.in_(_UNFINISHED))
+                    .order_by(Task.created_at)
+                )
+            ).scalars()
+            for part in parts:
+                await deliver_note(self.db, await lock_task(self.db, part.id), note)
         await bus.emit(
             self.db,
             user_id=user_id,
             type="task.owner_message",
             task_id=task.id,
             agent_id=task.agent_id,
-            run_id=run.id,
+            run_id=task.run_id,
             payload={"text": text, "delivered": False},
         )
         await bus.commit(self.db)
         return task
+
+
+_UNFINISHED = tuple(s.value for s in ACTIVE_TASK)
+
+
+async def deliver_note(db: AsyncSession, task: Task, note: dict[str, Any]) -> None:
+    """Put an owner note where the task's agent reads it: its run's inbox, or — for a task
+    that has not started (e.g. waiting in line) — the task, moved into the run at start."""
+    if task.run_id is None:
+        extra = dict(task.extra or {})
+        extra["pending_inbox"] = [*extra.get("pending_inbox", []), note]
+        task.extra = extra
+        return
+    run = await lock_run(db, task.run_id)
+    inbox = list((run.state or {}).get("owner_inbox", []))
+    inbox.append(note)
+    run.state = {**(run.state or {}), "owner_inbox": inbox}
 
 
 async def after_cancel(db: AsyncSession, queue: TaskEnqueuer | None, user_id: uuid.UUID) -> None:
@@ -510,6 +531,7 @@ async def prepare_start(
     db.add(run)
     await db.flush()
     await _continue_from(db, task, run)
+    _take_pending_notes(task, run)
     task.run_id = run.id
     agent.current_task_id = task.id
     if agent.agent_type == AgentType.ORCHESTRATOR.value:
@@ -527,6 +549,18 @@ async def prepare_start(
     )
     await set_task_status(db, task, TaskStatus.QUEUED, reason="started", run=run)
     return run
+
+
+def _take_pending_notes(task: Task, run: AgentRun) -> None:
+    """Notes the owner wrote while the task waited go to the run's inbox: the agent reads
+    them before its first step."""
+    extra = dict(task.extra or {})
+    pending = extra.pop("pending_inbox", None)
+    if not pending:
+        return
+    task.extra = extra
+    inbox = list((run.state or {}).get("owner_inbox", []))
+    run.state = {**(run.state or {}), "owner_inbox": [*inbox, *pending]}
 
 
 async def _continue_from(db: AsyncSession, task: Task, run: AgentRun) -> None:

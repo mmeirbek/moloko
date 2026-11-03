@@ -263,3 +263,13 @@ class TaskOwnerMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=1, max_length=4000)
+
+
+class TaskFileOut(BaseModel):
+    """A file the owner sent to the task (POST /tasks/{id}/files): saved in the task's
+    workspace, where its agents read it."""
+
+    path: str  # relative to the workspace, e.g. "inbox/photo.png"
+    filename: str
+    size: int
+    content_type: str

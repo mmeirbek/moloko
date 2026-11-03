@@ -19,6 +19,7 @@ import {
   ChevronDown as LucideChevronDown,
   ChevronLeft as LucideChevronLeft,
   ChevronRight as LucideChevronRight,
+  Clock as LucideClock,
   Code2 as LucideCode2,
   Copy as LucideCopy,
   ExternalLink as LucideExternalLink,
@@ -102,6 +103,7 @@ export const Check = icon(LucideCheck, "Check");
 export const ChevronDown = icon(LucideChevronDown, "ChevronDown");
 export const ChevronLeft = icon(LucideChevronLeft, "ChevronLeft");
 export const ChevronRight = icon(LucideChevronRight, "ChevronRight");
+export const Clock = icon(LucideClock, "Clock");
 export const Code2 = icon(LucideCode2, "Code2");
 export const Copy = icon(LucideCopy, "Copy");
 export const ExternalLink = icon(LucideExternalLink, "ExternalLink");

@@ -16,12 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.errors import AppError, Conflict, NotFound
+from app.events import bus
 from app.memory.context import build_owner_context
 from app.models.chat import Attachment, Conversation, Message
 from app.models.provider import ModelConfig
 from app.providers.base import ChatMessage, ChatRequest, ImagePart
-from app.providers.gateway import ModelGateway, ModelUnavailable
-from app.schemas.chat import ConversationCreate, ConversationUpdate
+from app.providers.gateway import ModelGateway, ModelTarget, ModelUnavailable
+from app.schemas.chat import ConversationCreate, ConversationUpdate, MessageOut
 from app.schemas.common import decode_cursor, encode_cursor
 from app.services import attachments as att
 from app.services import chat_memory
@@ -35,6 +36,10 @@ from app.services.images import ImageNotUsable, image_size, make_model_copy
 from app.tasks.queue import TaskEnqueuer
 
 DEFAULT_TITLE = "New chat"
+
+
+# A message the owner sent while an answer was being written: answered right after it.
+QUEUED = "queued"
 
 
 class GenerationInProgress(Conflict):
@@ -486,22 +491,44 @@ class ChatService:
         streams: ChatStreamManager,
         attachment_ids: list[uuid.UUID] | None = None,
         queue: TaskEnqueuer | None = None,
-    ) -> tuple[Message, Message, StreamState]:
+    ) -> tuple[Message, Message | None, StreamState | None]:
+        """Send a message. While an answer is being written the message waits in line
+        (owner: several messages in a row — status ``queued``) and is answered by itself
+        right after it (``answer_next``); then the assistant message and stream are None."""
         # Row lock: two concurrent sends to one conversation are serialised here.
-        conv = (
-            await self.db.execute(
-                select(Conversation).where(Conversation.id == conversation_id).with_for_update()
-            )
-        ).scalar_one_or_none()
-        if conv is None or conv.user_id != user_id:
-            raise NotFound("Conversation not found.")
-        busy = await self.db.execute(
-            select(Message.id)
-            .where(Message.conversation_id == conversation_id, Message.status == "streaming")
-            .limit(1)
+        conv = await self._lock_conversation(user_id, conversation_id)
+        files = (
+            await self._pending_files(user_id, conversation_id, attachment_ids)
+            if attachment_ids
+            else []
         )
-        if busy.first() is not None:
-            raise GenerationInProgress()
+        now = datetime.now(UTC)
+        if await self._busy(conversation_id):
+            waiting = Message(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                role="user",
+                content=content,
+                status=QUEUED,
+                model_config_id=model_config_id,
+                created_at=now,
+            )
+            self.db.add(waiting)
+            await self.db.flush()
+            for attachment in files:
+                attachment.message_id = waiting.id
+            conv.last_message_at = now
+            await bus.emit(
+                self.db,
+                user_id=user_id,
+                type="chat.message_completed",
+                payload={
+                    "conversation_id": str(conversation_id),
+                    "message": MessageOut.model_validate(waiting).model_dump(mode="json"),
+                },
+            )
+            await bus.commit(self.db)
+            return waiting, None, None
 
         target = await self.gateway.resolve(
             self.db, user_id, model_config_id or conv.model_config_id
@@ -509,13 +536,123 @@ class ChatService:
         from app.services.usage import ensure_within_budget
 
         await ensure_within_budget(self.db, user_id)
-        files = (
-            await self._pending_files(user_id, conversation_id, attachment_ids)
-            if attachment_ids
-            else []
+        user_msg = Message(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            role="user",
+            content=content,
+            status="completed",
+            created_at=now,
+            completed_at=now,
         )
+        assistant_msg, state = await self._start_answer(
+            conv, user_msg, files, target, model_config_id, streams, queue
+        )
+        return user_msg, assistant_msg, state
+
+    async def answer_next(
+        self,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        streams: ChatStreamManager,
+        queue: TaskEnqueuer | None,
+    ) -> StreamState | None:
+        """The oldest message waiting in line gets its answer (after the previous one ended).
+        If it cannot be answered now (no model, budget used up) the answer fails with the
+        reason, as a direct send would have said."""
+        conv = await self._lock_conversation(user_id, conversation_id)
+        if await self._busy(conversation_id):
+            return None
+        waiting = (
+            await self.db.execute(
+                select(Message)
+                .where(
+                    Message.conversation_id == conversation_id,
+                    Message.role == "user",
+                    Message.status == QUEUED,
+                )
+                .order_by(Message.created_at, Message.id)
+                .limit(1)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if waiting is None:
+            return None
+        requested = waiting.model_config_id
+        files = (await self.attachments_by_message([waiting.id])).get(waiting.id, [])
+        now = datetime.now(UTC)
+        try:
+            target = await self.gateway.resolve(self.db, user_id, requested or conv.model_config_id)
+            from app.services.usage import ensure_within_budget
+
+            await ensure_within_budget(self.db, user_id)
+        except AppError as exc:
+            waiting.status, waiting.completed_at = "completed", now
+            failed = Message(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                role="assistant",
+                content="",
+                status="failed",
+                error_code=exc.code,
+                error_message=exc.message,
+                created_at=now,
+                completed_at=now,
+            )
+            self.db.add(failed)
+            await self.db.flush()
+            await bus.emit(
+                self.db,
+                user_id=user_id,
+                type="chat.message_completed",
+                payload={
+                    "conversation_id": str(conversation_id),
+                    "message": MessageOut.model_validate(failed).model_dump(mode="json"),
+                },
+            )
+            await bus.commit(self.db)
+            return None
+        waiting.status, waiting.completed_at, waiting.model_config_id = "completed", now, None
+        _, state = await self._start_answer(conv, waiting, files, target, requested, streams, queue)
+        return state
+
+    async def _lock_conversation(
+        self, user_id: uuid.UUID, conversation_id: uuid.UUID
+    ) -> Conversation:
+        conv = (
+            await self.db.execute(
+                select(Conversation).where(Conversation.id == conversation_id).with_for_update()
+            )
+        ).scalar_one_or_none()
+        if conv is None or conv.user_id != user_id:
+            raise NotFound("Conversation not found.")
+        return conv
+
+    async def _busy(self, conversation_id: uuid.UUID) -> bool:
+        row = await self.db.execute(
+            select(Message.id)
+            .where(Message.conversation_id == conversation_id, Message.status == "streaming")
+            .limit(1)
+        )
+        return row.first() is not None
+
+    async def _start_answer(
+        self,
+        conv: Conversation,
+        user_msg: Message,
+        files: list[Attachment],
+        target: ModelTarget,
+        model_config_id: uuid.UUID | None,
+        streams: ChatStreamManager,
+        queue: TaskEnqueuer | None,
+    ) -> tuple[Message, StreamState]:
+        """Answer one owner message (new, or the next in line): history, recall and memory,
+        then the stream. Commits."""
+        user_id, conversation_id, content = conv.user_id, conv.id, user_msg.content
         cursor = chat_memory.summary_cursor(conv, self.settings)
-        history_messages = await self._history(conversation_id, cursor)
+        history_messages = [
+            m for m in await self._history(conversation_id, cursor) if m.id != user_msg.id
+        ]
         history_files = await self.attachments_by_message(
             [m.id for m in history_messages if m.role == "user"]
         )
@@ -539,15 +676,6 @@ class ChatService:
         )
 
         now = datetime.now(UTC)
-        user_msg = Message(
-            conversation_id=conversation_id,
-            user_id=user_id,
-            role="user",
-            content=content,
-            status="completed",
-            created_at=now,
-            completed_at=now,
-        )
         assistant_msg = Message(
             conversation_id=conversation_id,
             user_id=user_id,
@@ -557,10 +685,14 @@ class ChatService:
             model_config_id=target.model_config_id,
             provider_kind=target.provider_kind,
             model=target.model,
-            created_at=now + timedelta(microseconds=1),  # strictly after the question
+            # right after its own question: an answer from the line stays next to it in the
+            # chat, before the messages sent after it
+            created_at=user_msg.created_at + timedelta(microseconds=1),
             recalled_sources=[r.public() for r in recall_used] or None,
         )
-        self.db.add_all([user_msg, assistant_msg])
+        if user_msg.id is None:
+            self.db.add(user_msg)
+        self.db.add(assistant_msg)
         await self.db.flush()
         for attachment in files:
             attachment.message_id = user_msg.id
@@ -602,4 +734,4 @@ class ChatService:
                 Handoff(queue, content, self.settings.chat_title_max_chars) if hand_off else None
             ),
         )
-        return user_msg, assistant_msg, state
+        return assistant_msg, state

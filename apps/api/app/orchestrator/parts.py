@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import agent_payload, task_payload
+from app.agents.looks import pick_animal
 from app.agents.state import AgentStatus, AgentType, TaskStatus, TaskType
 from app.events import bus
 from app.models.agent import Agent
@@ -79,6 +80,7 @@ async def create_agent(
         status=AgentStatus.IDLE.value,
         limits=dict(orchestrator.limits or {}),
         memory_settings={},
+        animal=await pick_animal(db, orchestrator.user_id),  # the Orchestrator picks at random
     )
     if await UserRepository(db).full_access_for_all(agent.user_id):
         agent.full_access_since = datetime.now(UTC)

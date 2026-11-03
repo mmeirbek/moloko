@@ -18,11 +18,12 @@ import type {
   SystemState,
   TaskCreate,
   TaskDetail,
+  TaskFileOut,
   TaskOut,
   TaskPage,
 } from "@moloko/shared-types";
 
-import { api } from "./client";
+import { api, type UploadOptions } from "./client";
 
 export const agentKeys = {
   all: ["agents"] as const,
@@ -135,6 +136,12 @@ export const continueTask = (id: string, instruction?: string) =>
 /** Write to the agent while it works: it reads the message before its next step. */
 export const messageTaskAgent = (id: string, text: string) =>
   api.request<TaskOut>(`/tasks/${id}/message`, { method: "POST", body: { text } });
+/** A file for the task's agents: saved in the task's folder (inbox/); the next message names it. */
+export function uploadTaskFile(id: string, file: File, opts: UploadOptions = {}): Promise<TaskFileOut> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return api.upload<TaskFileOut>(`/tasks/${id}/files`, form, opts);
+}
 
 export const systemLimits = (signal?: AbortSignal) => api.request<SystemLimits>("/system/limits", { signal });
 export const systemStorage = (signal?: AbortSignal) => api.request<StorageStatus>("/system/storage", { signal });

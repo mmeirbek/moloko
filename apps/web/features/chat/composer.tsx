@@ -8,24 +8,40 @@ import { ArrowUp, Network, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { AgentAvatar, AvatarArt } from "@/features/agents/agent-avatar";
 import { BOSS_LOOK } from "@/features/agents/agent-looks";
-import { MicButton } from "@/features/voice/mic-button";
+import { MicButton, type VoiceMessage } from "@/features/voice/mic-button";
 import { cn } from "@/lib/utils";
 
 import { mentionSuggestions, parseAgentMention } from "./agent-mention";
 import { useMentionAgents } from "./use-agent-task";
 
-/** Voice input appends the spoken text to what is already typed. */
-function ComposerMic({ disabled }: { disabled?: boolean }) {
+/** Voice input appends the spoken text to what is already typed, or is sent as a voice message. */
+function ComposerMic({ disabled, onVoice }: { disabled?: boolean; onVoice?: (voice: VoiceMessage) => Promise<void> }) {
   const aui = useAui();
   return (
     <MicButton
       disabled={disabled}
+      onVoice={onVoice}
       onText={(text) => {
         const composer = aui.composer();
         const current = composer.getState().text;
         composer.setText(current ? `${current.trimEnd()} ${text}` : text);
       }}
     />
+  );
+}
+
+/** Send; during an answer it appears once something is typed (the message waits in line). */
+function SendButton() {
+  const t = useTranslations("chat");
+  const running = useAuiState((s) => s.thread.isRunning);
+  const empty = useAuiState((s) => s.composer.isEmpty);
+  if (running && empty) return null;
+  return (
+    <ComposerPrimitive.Send asChild>
+      <Button size="icon" aria-label={running ? t("sendQueued") : t("send")} title={running ? t("sendQueued") : undefined} className="shrink-0">
+        <ArrowUp />
+      </Button>
+    </ComposerPrimitive.Send>
   );
 }
 
@@ -104,6 +120,7 @@ export function Composer({
   chips,
   model,
   onPaste,
+  onVoice,
   className,
 }: {
   disabled?: boolean;
@@ -117,6 +134,8 @@ export function Composer({
   model?: ReactNode;
   /** A paste with files in it (screenshots, copied files) attaches them. */
   onPaste?: (e: ClipboardEvent) => void;
+  /** Send a recording at once as a voice message (its text plus the audio file). */
+  onVoice?: (voice: VoiceMessage) => Promise<void>;
   className?: string;
 }) {
   const t = useTranslations("chat");
@@ -143,14 +162,7 @@ export function Composer({
           <AgentsSwitch on={agents} onChange={onAgentsChange} disabled={disabled} />
           <div className="min-w-0 flex-1" />
           {model}
-          <ComposerMic disabled={disabled} />
-          <ThreadPrimitive.If running={false}>
-            <ComposerPrimitive.Send asChild>
-              <Button size="icon" aria-label={t("send")} className="shrink-0">
-                <ArrowUp />
-              </Button>
-            </ComposerPrimitive.Send>
-          </ThreadPrimitive.If>
+          <ComposerMic disabled={disabled} onVoice={onVoice} />
           <ThreadPrimitive.If running>
             <ComposerPrimitive.Cancel asChild>
               <Button size="icon" variant="outline" aria-label={t("stop")} className="shrink-0">
@@ -158,6 +170,8 @@ export function Composer({
               </Button>
             </ComposerPrimitive.Cancel>
           </ThreadPrimitive.If>
+          {/* While an answer is written a typed message goes in line (answered right after). */}
+          <SendButton />
         </div>
       </ComposerPrimitive.Root>
       {agents && <p className="px-4 text-xs text-muted-foreground">{t("agentsModeHint")}</p>}

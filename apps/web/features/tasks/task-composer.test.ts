@@ -12,7 +12,7 @@ describe("the task's message box", () => {
     expect(composerMode(top("cancelled"), "orchestrator")).toBe("continue");
     expect(composerMode(top("completed"), "orchestrator")).toBe("reply");
     expect(composerMode(top("created"), "autonomous")).toBeNull();
-    // waiting in line for its busy agent: nothing to write yet, but it can be cancelled
+    // waiting in line for its busy agent: notes wait for it (read first thing), or cancel it
     expect(composerMode(top("created", "waiting_for_agent"), "autonomous")).toBe("inLine");
   });
 

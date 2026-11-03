@@ -317,15 +317,17 @@ export function AgentSteps({
       <ol className="flex flex-col py-1">
         {items.map((item) => {
           if (item.kind === "owner")
+            // The owner's message in the task's chat: whole, on the right like in the chat.
             return (
-              <StepRow
-                key={item.id}
-                icon={<MessageSquare className="size-3.5" />}
-                tone="text-sky"
-                title={t("owner", { text: firstLine(item.text, 90) })}
-                open={false}
-                onToggle={() => undefined}
-              />
+              <li key={item.id} className="flex justify-end py-1.5">
+                <p
+                  className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words"
+                  aria-label={t("ownerLabel")}
+                  data-testid="owner-note"
+                >
+                  {item.text}
+                </p>
+              </li>
             );
           if (item.kind === "plan")
             return (

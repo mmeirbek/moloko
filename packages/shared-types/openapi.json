@@ -200,6 +200,40 @@
             "title": "Allowed Tools",
             "type": "array"
           },
+          "animal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "amur_tiger",
+                  "snow_leopard",
+                  "pallas_cat",
+                  "fennec_fox",
+                  "red_panda",
+                  "capybara",
+                  "axolotl",
+                  "quokka",
+                  "okapi",
+                  "tarsier",
+                  "ring_tailed_lemur",
+                  "malayan_tapir",
+                  "sea_otter",
+                  "atlantic_puffin",
+                  "three_toed_sloth",
+                  "platypus",
+                  "barn_owl",
+                  "saiga",
+                  "mandrill",
+                  "emperor_tamarin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its animal; null = chosen at random.",
+            "title": "Animal"
+          },
           "autonomy_level": {
             "$ref": "#/components/schemas/AutonomyLevel",
             "default": "supervised"
@@ -653,6 +687,18 @@
             "title": "Allowed Tools",
             "type": "array"
           },
+          "animal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its animal (face and office character); null = the Orchestrator.",
+            "title": "Animal"
+          },
           "archived_at": {
             "anyOf": [
               {
@@ -1064,6 +1110,39 @@
               }
             ],
             "title": "Allowed Tools"
+          },
+          "animal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "amur_tiger",
+                  "snow_leopard",
+                  "pallas_cat",
+                  "fennec_fox",
+                  "red_panda",
+                  "capybara",
+                  "axolotl",
+                  "quokka",
+                  "okapi",
+                  "tarsier",
+                  "ring_tailed_lemur",
+                  "malayan_tapir",
+                  "sea_otter",
+                  "atlantic_puffin",
+                  "three_toed_sloth",
+                  "platypus",
+                  "barn_owl",
+                  "saiga",
+                  "mandrill",
+                  "emperor_tamarin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Animal"
           },
           "autonomy_level": {
             "anyOf": [
@@ -6372,6 +6451,35 @@
           "subtasks"
         ],
         "title": "TaskDetail",
+        "type": "object"
+      },
+      "TaskFileOut": {
+        "description": "A file the owner sent to the task (POST /tasks/{id}/files): saved in the task's\nworkspace, where its agents read it.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "filename",
+          "size",
+          "content_type"
+        ],
+        "title": "TaskFileOut",
         "type": "object"
       },
       "TaskOut": {
@@ -12484,6 +12592,70 @@
           }
         },
         "summary": "Print the task's result to PDF (sandbox browser, no network)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/files": {
+      "post": {
+        "operationId": "upload_task_file_api_v1_tasks__task_id__files_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentMediaType": "application/octet-stream",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "AttachmentUpload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskFileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send the task a file: saved in its workspace (inbox/) for its agents to read",
         "tags": [
           "tasks"
         ]

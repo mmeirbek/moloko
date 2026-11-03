@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { Check, Info, Loader2, Mic, X } from "@/components/icons";
+import { ArrowUp, Check, Info, Loader2, Mic, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { transcribeAudio } from "@/lib/api/chat";
@@ -49,13 +49,27 @@ function loadLang(): Lang {
   }
 }
 
+/** A voice message: what was said, and the recording itself (kept next to the message). */
+export type VoiceMessage = { text: string; audio: Blob; filename: string };
+
 /**
  * Voice input. A press starts recording and the button becomes a recording strip: a timer, a
  * live level meter, «Отменить» (throw the recording away, also Escape) and «Готово» (turn the
- * speech into text — local Whisper or the owner's provider — and hand it to `onText`). Without
+ * speech into text — local Whisper or the owner's provider — and hand it to `onText`). With
+ * `onVoice` the strip also sends it as a voice message at once (text + recording). Without
  * any speech engine a press explains how to get one, before anything is recorded.
  */
-export function MicButton({ onText, className, disabled }: { onText: (text: string) => void; className?: string; disabled?: boolean }) {
+export function MicButton({
+  onText,
+  onVoice,
+  className,
+  disabled,
+}: {
+  onText: (text: string) => void;
+  onVoice?: (voice: VoiceMessage) => void | Promise<void>;
+  className?: string;
+  disabled?: boolean;
+}) {
   const t = useTranslations("voice");
   const toMessage = useErrorMessage();
   const canRecord = useSyncExternalStore(noop, supported, () => false);
@@ -72,6 +86,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
   const unavailable = voice ? (voice.voice_available ?? voice.available) === false : false;
   const recorder = useRef<MediaRecorder | null>(null);
   const discard = useRef(false);
+  const asVoice = useRef(false);
   const timer = useRef<number>(0);
   const frame = useRef<number>(0);
   const audio = useRef<AudioContext | null>(null);
@@ -154,6 +169,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
     const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
     const chunks: Blob[] = [];
     discard.current = false;
+    asVoice.current = false;
     rec.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
     rec.onstop = async () => {
       stopMeter();
@@ -167,9 +183,11 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
       }
       setState("sending");
       try {
-        const { text } = await transcribeAudio(blob, `voice.${extensionFor(mime)}`, lang === "auto" ? "" : lang);
-        if (text) onText(text);
-        else setError(t("nothing"));
+        const filename = `voice.${extensionFor(mime)}`;
+        const { text } = await transcribeAudio(blob, filename, lang === "auto" ? "" : lang);
+        if (!text) setError(t("nothing"));
+        else if (asVoice.current && onVoice) await onVoice({ text, audio: blob, filename });
+        else onText(text);
       } catch (e) {
         setError(toMessage(e).message);
       } finally {
@@ -196,6 +214,11 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
 
   function cancel() {
     discard.current = true;
+    finish();
+  }
+
+  function sendVoice() {
+    asVoice.current = true;
     finish();
   }
   cancelRef.current = cancel;
@@ -242,6 +265,11 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
         <Button type="button" size="icon" variant="ghost" className="size-8 text-grass" aria-label={t("done")} title={t("done")} onClick={finish}>
           <Check />
         </Button>
+        {onVoice && (
+          <Button type="button" size="icon" className="size-8" aria-label={t("sendVoice")} title={t("sendVoice")} onClick={sendVoice} data-testid="mic-send">
+            <ArrowUp />
+          </Button>
+        )}
       </span>
     );
   }

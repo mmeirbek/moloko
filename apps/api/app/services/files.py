@@ -48,8 +48,8 @@ class InsufficientStorage(AppError):
 
 
 class FileStore:
-    def __init__(self, settings: Settings) -> None:
-        self.root = Path(settings.file_storage_root)
+    def __init__(self, settings: Settings, root: Path | None = None) -> None:
+        self.root = root if root is not None else Path(settings.file_storage_root)
         self.min_free = settings.chat_upload_min_free_bytes
 
     def chat_dir(self, conversation_id: uuid.UUID) -> Path:
