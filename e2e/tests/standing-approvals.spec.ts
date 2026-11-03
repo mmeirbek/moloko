@@ -44,7 +44,7 @@ test("full access for all agents: one switch with the password, then no agent as
   const errors = watchErrors(page);
   const models = await api<{ id: string }[]>(request, "GET", "/models");
   try {
-    await page.goto("/settings#agents");
+    await page.goto("/settings/agents");
     const card = page.getByTestId("full-access-all");
     await expect(card).toContainText("агенты спрашивают разрешения");
     await card.getByRole("button", { name: "Включить для всех…" }).click();

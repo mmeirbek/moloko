@@ -93,8 +93,10 @@ async def _set_address(args: argparse.Namespace) -> None:
 
 
 async def _remember(args: argparse.Namespace) -> None:
-    """A pinned shared memory about the owner (all agents and the chat see it), read from
-    stdin. The same title updates the entry (a new revision) instead of adding another."""
+    """A shared memory about the owner (all agents and the chat see it), read from stdin:
+    pinned (always in the prompt, first) unless ``--unpinned`` (then it is in the prompt while
+    there is room, and found by recall when it matters). The same title updates the entry (a
+    new revision) instead of adding another."""
     from sqlalchemy import select
 
     from app.agents.state import MemoryType
@@ -128,17 +130,21 @@ async def _remember(args: argparse.Namespace) -> None:
                 memory = await service.create(
                     user.id,
                     MemoryCreate(
-                        memory_type=MemoryType.USER, title=args.title, content=content, pinned=True
+                        memory_type=MemoryType.USER,
+                        title=args.title,
+                        content=content,
+                        pinned=not args.unpinned,
                     ),
                 )
             else:
                 memory = await service.update(
-                    user.id, existing.id, MemoryUpdate(content=content, pinned=True)
+                    user.id, existing.id, MemoryUpdate(content=content, pinned=not args.unpinned)
                 )
-            title, revision = memory.title, memory.revision
+            title, revision, pinned = memory.title, memory.revision, memory.pinned
     finally:
         await db.dispose()
-    print(f"Remembered «{title}» for every agent and the chat (pinned, revision {revision}).")
+    kind = "pinned" if pinned else "not pinned"
+    print(f"Remembered «{title}» for every agent and the chat ({kind}, revision {revision}).")
 
 
 async def _wait_for_db(args: argparse.Namespace) -> None:
@@ -215,10 +221,13 @@ def main(argv: list[str] | None = None) -> None:
     p.set_defaults(func=_set_address)
 
     p = sub.add_parser(
-        "remember", help="Save a pinned memory about the user (text on stdin) for agents and chat"
+        "remember", help="Save a memory about the user (text on stdin) for agents and chat"
     )
     p.add_argument("--username", required=True)
     p.add_argument("--title", required=True, help="Same title = update that entry")
+    p.add_argument(
+        "--unpinned", action="store_true", help="Not always in the prompt (recalled when relevant)"
+    )
     p.set_defaults(func=_remember)
 
     p = sub.add_parser("has-owner", help="Exit 0 if the owner account exists, 1 if not")

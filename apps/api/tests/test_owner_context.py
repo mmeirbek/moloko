@@ -106,6 +106,9 @@ def test_cli_remember_saves_and_updates_one_pinned_entry(
         monkeypatch.setattr("sys.stdin", io.StringIO("Вторая версия\n"))
         cli.main(["remember", "--username", "MEIR", "--title", "Про владельца"])
         assert "revision 2" in capsys.readouterr().out
+        monkeypatch.setattr("sys.stdin", io.StringIO("Хобби: волейбол"))
+        cli.main(["remember", "--username", "meir", "--title", "Интересы", "--unpinned"])
+        assert "not pinned" in capsys.readouterr().out
         monkeypatch.setattr("sys.stdin", io.StringIO("   "))
         with pytest.raises(SystemExit, match="Nothing to remember"):
             cli.main(["remember", "--username", "meir", "--title", "Про владельца"])
@@ -114,8 +117,11 @@ def test_cli_remember_saves_and_updates_one_pinned_entry(
             cli.main(["remember", "--username", "nobody", "--title", "x"])
     finally:
         get_settings.cache_clear()
-    rows = fetch_memories()
-    assert rows == [("Про владельца", "Вторая версия", True, 2, None, "user")]
+    rows = sorted(fetch_memories())
+    assert rows == [
+        ("Интересы", "Хобби: волейбол", False, 1, None, "user"),
+        ("Про владельца", "Вторая версия", True, 2, None, "user"),
+    ]
 
 
 def fetch_memories() -> list[tuple[Any, ...]]:

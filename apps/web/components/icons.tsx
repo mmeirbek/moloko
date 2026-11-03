@@ -10,6 +10,7 @@ import {
   ArrowRight as LucideArrowRight,
   ArrowUp as LucideArrowUp,
   Ban as LucideBan,
+  Bell as LucideBell,
   Bot as LucideBot,
   Brain as LucideBrain,
   Building2 as LucideBuilding2,
@@ -92,6 +93,7 @@ export const ArrowLeft = icon(LucideArrowLeft, "ArrowLeft");
 export const ArrowRight = icon(LucideArrowRight, "ArrowRight");
 export const ArrowUp = icon(LucideArrowUp, "ArrowUp");
 export const Ban = icon(LucideBan, "Ban");
+export const Bell = icon(LucideBell, "Bell");
 export const Bot = icon(LucideBot, "Bot");
 export const Brain = icon(LucideBrain, "Brain");
 export const Building2 = icon(LucideBuilding2, "Building2");

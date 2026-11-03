@@ -23,10 +23,15 @@ test("PWA and security headers", async ({ page, request }) => {
   expect((await request.get("/api/v1/health")).headers()["cache-control"]).toContain("no-store");
   expect((await request.get("/offline.html")).ok()).toBe(true);
 
+  // Settings: a short list; each section opens on its own page (old #links still lead there).
   await page.goto("/settings");
-  await expect(page.getByRole("heading", { name: "Резервные копии" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Уведомления" })).toBeVisible();
+  await expect(page.getByTestId("settings-row")).toHaveCount(7);
+  await page.getByRole("link", { name: /Уведомления/ }).click();
+  await expect(page).toHaveURL(/\/settings\/notifications$/);
   await expect(page.getByTestId("push-settings")).toBeVisible(); // Web Push option for this device
+  await page.goto("/settings#system");
+  await expect(page).toHaveURL(/\/settings\/system$/);
+  await expect(page.getByRole("heading", { name: "Резервные копии" })).toBeVisible();
   await page.goto("/integrations");
   await expect(page.getByTestId("github-mcp")).toBeVisible(); // official GitHub MCP preset
   expect(errors).toEqual([]);

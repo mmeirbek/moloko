@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { watchErrors } from "./helpers";
 
-const PAGES = ["/chat", "/chat/new", "/office/agents", "/tasks", "/schedules", "/integrations", "/approvals", "/settings", "/settings/audit", "/settings/costs", "/search"];
+const PAGES = ["/chat", "/chat/new", "/office/agents", "/tasks", "/schedules", "/integrations", "/approvals", "/settings", "/settings/ai", "/settings/notifications", "/settings/agents", "/settings/appearance", "/settings/system", "/settings/audit", "/settings/costs", "/search"];
 
 test("phone: every section fits the screen and the bottom bar works", async ({ page }) => {
   const errors = watchErrors(page);

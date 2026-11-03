@@ -19,7 +19,7 @@ describe("recalled sources", () => {
     expect(recallHref({ ...base, type: "task", id: "t1" })).toBe("/tasks/t1");
     expect(recallKind({ ...base, type: "task", id: "t1" })).toBe("task");
     expect(recallHref({ ...base, agent_id: "ag" })).toBe("/office/agents/ag");
-    expect(recallHref(base)).toBe("/settings#memory");
+    expect(recallHref(base)).toBe("/settings/agents");
     expect(recallKind(base)).toBe("memory");
   });
 

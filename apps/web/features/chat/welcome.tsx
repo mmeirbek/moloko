@@ -24,7 +24,7 @@ export function ChatWelcome({ noModels }: { noModels: boolean }) {
         className="py-2"
         action={
           <Button asChild className="mt-2">
-            <Link href="/settings#ai">{t("openSettings")}</Link>
+            <Link href="/settings/ai">{t("openSettings")}</Link>
           </Button>
         }
       />

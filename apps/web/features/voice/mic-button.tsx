@@ -270,7 +270,7 @@ export function MicButton({ onText, className, disabled }: { onText: (text: stri
           <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
             <span>{needsSetup ? t("needsProvider") : error}</span>
             {needsSetup && (
-              <Link href="/settings#ai" className="text-sky underline-offset-2 hover:underline">
+              <Link href="/settings/ai" className="text-sky underline-offset-2 hover:underline">
                 {t("openSettings")}
               </Link>
             )}
