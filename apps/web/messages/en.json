@@ -175,7 +175,30 @@
     "toggleTheme": "Switch theme",
     "appearanceTitle": "Theme and language",
     "appearanceHint": "Saved on this device.",
-    "themeSystemShort": "Auto"
+    "themeSystemShort": "Auto",
+    "styles": {
+      "label": "Style",
+      "classic": {
+        "name": "Classic",
+        "hint": "Calm warm white and graphite"
+      },
+      "neon": {
+        "name": "Neon",
+        "hint": "Pink and teal with a glow"
+      },
+      "mono": {
+        "name": "Black & white",
+        "hint": "Only black, white and grey — pictures too"
+      },
+      "milk": {
+        "name": "Milk",
+        "hint": "Cream, coffee and caramel"
+      },
+      "ocean": {
+        "name": "Ocean",
+        "hint": "Blue and sea green"
+      }
+    }
   },
   "pages": {
     "chat": {
@@ -291,12 +314,6 @@
     "placeholderAgents": "Describe the job for the agents…",
     "agentsModeHint": "The Orchestrator splits the job into steps for agents. For bigger work.",
     "messages": "Messages",
-    "suggestions": {
-      "label": "Example questions",
-      "explain": "Explain in simple words how search by meaning works",
-      "plan": "Make a weekly plan: three workouts and an hour of reading a day",
-      "letter": "Help me write a polite email declining a meeting"
-    },
     "recent": "Recent chats",
     "greeting": "How can I help, {name}?",
     "greetingNoName": "How can I help?",

@@ -155,7 +155,7 @@ export function TasksView() {
               aria-pressed={filter === f}
               onClick={() => setFilter(f)}
               className={cn(
-                "min-h-9 shrink-0 px-3.5 text-sm whitespace-nowrap",
+                "min-h-9 shrink-0 rounded-full px-3.5 text-sm whitespace-nowrap",
                 filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
               )}
             >

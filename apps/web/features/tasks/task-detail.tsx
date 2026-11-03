@@ -290,10 +290,13 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
           <Link href="/tasks" className="inline-flex items-center text-muted-foreground" aria-label={t("allTasks")}>
             <ArrowLeft className="size-4" />
           </Link>
-          <h1 className="min-w-0 flex-1 truncate font-sans text-lg font-semibold tracking-tight">{task.title}</h1>
+          {/* Phones: two lines of the title rather than a few letters; the bottles are for wide screens. */}
+          <h1 className="line-clamp-2 min-w-0 flex-1 font-sans text-base leading-snug font-semibold tracking-tight break-words sm:truncate sm:text-lg">
+            {task.title}
+          </h1>
           <StatusBadge status={taskBadge(task)} />
           {(task.progress > 0 || task.status === "completed") && (
-            <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} />
+            <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} className="hidden sm:inline-flex" />
           )}
           <Button
             size="sm"
@@ -302,7 +305,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             aria-expanded={details}
             onClick={() => setDetails((v) => !v)}
           >
-            {details ? <X /> : <Info />} {tChat("details")}
+            {details ? <X /> : <Info />} <span className="sr-only sm:not-sr-only">{tChat("details")}</span>
           </Button>
         </header>
         {details && sidebar("mt-2 max-h-[55%] shrink-0 overflow-y-auto lg:hidden")}

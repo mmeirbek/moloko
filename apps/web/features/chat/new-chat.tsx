@@ -19,7 +19,7 @@ import { chatKeys, createChat, listPickerModels, modelKeys, sendMessage } from "
 import { handOff } from "@/lib/api/runs";
 
 import { useComposerAttachments } from "./attachments";
-import { Composer, Suggestions } from "./composer";
+import { Composer } from "./composer";
 import { ModelPicker } from "./model-picker";
 import { useAgentTask } from "./use-agent-task";
 import { ChatWelcome } from "./welcome";
@@ -174,7 +174,6 @@ export function NewChat() {
             }
           />
           <DraftRestorer draft={draft} />
-          {!noModels && <Suggestions />}
           <GettingStarted className="mt-2" />
         </div>
       </ThreadPrimitive.Root>

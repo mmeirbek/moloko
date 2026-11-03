@@ -17,6 +17,7 @@ import { Notifier } from "@/features/notifications/notifier";
 import { MilkGlass } from "@/features/mascot/milk-glass";
 import { RegisterServiceWorker } from "@/features/notifications/register-sw";
 import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
+import { StyleSwitcher } from "@/features/preferences/style-switcher";
 import { ThemeSwitcher, ThemeToggle } from "@/features/preferences/theme-toggle";
 import { useWaitingCount, WorkList } from "@/features/work/work-list";
 import { authKeys, getMe, logout } from "@/lib/api/auth";
@@ -206,7 +207,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-current={pathname === "/chat/new" ? "page" : undefined}
             className="relative flex min-h-14 flex-col items-center justify-end gap-0.5 px-1 pb-2 text-xs leading-tight font-medium"
           >
-            <span className="-mt-5 flex size-12 items-center justify-center border border-[#1b1b2e] bg-[#10142b] shadow-md active:scale-95">
+            <span className="-mt-5 flex size-12 items-center justify-center rounded-2xl bg-[#10142b] shadow-lg ring-1 ring-black/20 active:scale-95">
               <PixelCow mood="happy" size={36} />
             </span>
             <span>{t("work.new")}</span>
@@ -244,6 +245,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">{t("preferences.theme")}</p>
           <ThemeSwitcher />
+          <p className="pt-1 text-xs font-medium text-muted-foreground">{t("preferences.styles.label")}</p>
+          <StyleSwitcher />
           <p className="pt-1 text-xs font-medium text-muted-foreground">{t("preferences.language")}</p>
           <LocaleSwitcher wide />
         </div>

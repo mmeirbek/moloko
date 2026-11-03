@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.errors import AppError, Conflict, NotFound
+from app.memory.context import build_owner_context
 from app.models.chat import Attachment, Conversation, Message
 from app.models.provider import ModelConfig
 from app.providers.base import ChatMessage, ChatRequest, ImagePart
@@ -582,9 +583,11 @@ class ChatService:
                     images=tuple(parts[a.id] for a in files if a.id in parts),
                 ),
             ),
-            # Instructions first, then data: the summary of older messages, then recall.
+            # Instructions first, then data: what it always knows about the owner (pinned
+            # memory), the summary of older messages, then recall.
             system=chat_memory.chat_system(
                 await chat_system_prompt(self.db, user_id, hand_off=hand_off),
+                await build_owner_context(self.db, user_id, self.settings),
                 chat_memory.summary_block(conv.summary or "") if cursor else "",
                 recall_text,
             ),

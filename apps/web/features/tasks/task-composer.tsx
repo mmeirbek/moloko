@@ -165,7 +165,8 @@ export function TaskComposer({ task, className }: { task: TaskOut; className?: s
           )}
         </div>
       </form>
-      <p className="px-4 text-xs text-muted-foreground">{t(`hint.${mode}`)}</p>
+      {/* the placeholder says it already; the longer hint only where there is room */}
+      <p className="hidden px-4 text-xs text-muted-foreground sm:block">{t(`hint.${mode}`)}</p>
       {error && (
         <p role="alert" className="px-4 text-xs text-destructive">
           {toMessage(error).message}

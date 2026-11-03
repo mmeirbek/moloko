@@ -94,9 +94,10 @@ FRUITS = ["apple", "banana", "cherry", "durian", "elder", "fig", "grape"]
 
 # With CHAT_CONTEXT_MAX_MESSAGES=5 the model sees 4 earlier messages; a summary folds all
 # but the newest 2 once more than 4 follow it.
-# The hand-off instruction is left out here (tests/test_chat_handoff.py has it), so the
-# prompts these tests look at hold only the summary and recall.
-NO_HANDOFF = {"chat_auto_handoff": False}
+# The hand-off instruction and the owner's memory block are left out here
+# (tests/test_chat_handoff.py, tests/test_owner_context.py have them), so the prompts these
+# tests look at hold only the summary and recall.
+NO_HANDOFF = {"chat_auto_handoff": False, "chat_pinned_memory": False}
 SMALL = {"chat_context_max_messages": 5, "chat_recall_enabled": False, **NO_HANDOFF}
 
 

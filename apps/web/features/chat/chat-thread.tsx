@@ -30,7 +30,7 @@ import { AttachmentChip } from "./attachment-chip";
 import { useComposerAttachments } from "./attachments";
 import { RecalledSources, SummaryNotice } from "./chat-memory";
 import { useChatTitle } from "./chat-title";
-import { Composer, Suggestions } from "./composer";
+import { Composer } from "./composer";
 import { MarkdownText } from "./markdown";
 import { ModelPicker } from "./model-picker";
 import { useAgentTask } from "./use-agent-task";
@@ -312,7 +312,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
             {/* Files dropped anywhere on the chat are attached. */}
             <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col" {...(agentsMode ? {} : files.dropProps)}>
               {files.dropOverlay}
-              <h1 className="mx-auto w-full max-w-3xl truncate px-1 pb-2 font-sans text-base font-medium text-muted-foreground">
+              <h1 className="mx-auto w-full max-w-3xl truncate px-1 pb-2 font-sans text-sm font-medium text-muted-foreground sm:text-base">
                 {chat.data ? chatTitle(chat.data.title) : ""}
               </h1>
               {/* Older messages no longer fit the model's context: they live on as a summary. */}
@@ -351,7 +351,6 @@ export function ChatThread({ chatId }: { chatId: string }) {
                     <ThreadPrimitive.Empty>
                       <div className="m-auto flex w-full flex-col gap-6">
                         <ChatWelcome noModels={noModels} />
-                        {!noModels && <Suggestions />}
                       </div>
                     </ThreadPrimitive.Empty>
                   )}

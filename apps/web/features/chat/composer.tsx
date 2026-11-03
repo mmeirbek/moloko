@@ -164,25 +164,3 @@ export function Composer({
     </div>
   );
 }
-
-/** Example questions: a tap puts one into the composer to edit or send. */
-export function Suggestions({ className }: { className?: string }) {
-  const t = useTranslations("chat");
-  const aui = useAui();
-  const items = [t("suggestions.explain"), t("suggestions.plan"), t("suggestions.letter")];
-  return (
-    <ul className={cn("grid grid-cols-1 gap-2 sm:grid-cols-3", className)} aria-label={t("suggestions.label")}>
-      {items.map((text) => (
-        <li key={text} className="flex">
-          <button
-            type="button"
-            onClick={() => aui.composer().setText(text)}
-            className="w-full rounded-xl bg-card px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pixel-frame"
-          >
-            {text}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}

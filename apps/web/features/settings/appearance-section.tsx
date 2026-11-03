@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
+import { StyleSwitcher } from "@/features/preferences/style-switcher";
 import { ThemeSwitcher } from "@/features/preferences/theme-toggle";
 
 /** Theme and language in words (the sidebar has compact versions of the same switches). */
@@ -23,6 +24,10 @@ export function AppearanceSection() {
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium">{t("language")}</p>
           <LocaleSwitcher wide />
+        </div>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <p className="text-sm font-medium">{t("styles.label")}</p>
+          <StyleSwitcher />
         </div>
       </CardContent>
     </Card>

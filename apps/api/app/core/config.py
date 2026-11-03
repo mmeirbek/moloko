@@ -134,6 +134,8 @@ class Settings(BaseSettings):
     # The chat hands work (code, repositories, commands, websites, several steps) to the
     # agents by itself; questions it answers itself.
     chat_auto_handoff: bool = True
+    # The chat always reads the shared memory about the owner (pinned first) and uses it quietly.
+    chat_pinned_memory: bool = True
     chat_summary_enabled: bool = True
     chat_summary_max_chars: int = Field(4000, ge=500, le=50_000)
     chat_summary_model: str = ""

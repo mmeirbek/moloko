@@ -69,6 +69,183 @@
   --code-fg: #e8e6e1;
 }
 
+/*
+ * Styles on top of light / dark (features/preferences/style-prefs.ts): <html data-style="…">.
+ * Text colours keep WCAG AA on their surfaces, like the classic palette.
+ */
+:root[data-style="neon"] {
+  --background: #fbfaff;
+  --foreground: #14112b;
+  --card: #ffffff;
+  --card-foreground: #14112b;
+  --muted: #f3f0fb;
+  --muted-foreground: #615a80;
+  --primary: #c026d3;
+  --primary-foreground: #ffffff;
+  --accent: #f1ebfd;
+  --accent-foreground: #14112b;
+  --sky: #0e7490;
+  --grass: #047857;
+  --chart-bar: #c026d3;
+  --destructive: #be123c;
+  --border: #e9e3f6;
+  --input: #dcd3f0;
+  --ring: #c026d3;
+}
+:root.dark[data-style="neon"] {
+  --background: #0a0a12;
+  --foreground: #ecebff;
+  --card: #12121d;
+  --card-foreground: #ecebff;
+  --muted: #191927;
+  --muted-foreground: #a4a3c8;
+  --primary: #ff2bd6;
+  --primary-foreground: #0a0a12;
+  --accent: #20203a;
+  --accent-foreground: #ecebff;
+  --sky: #22d3ee;
+  --grass: #39f08f;
+  --chart-bar: #ff2bd6;
+  --destructive: #ff5277;
+  --destructive-foreground: #0a0a12;
+  --border: #2a2a48;
+  --input: #34345a;
+  --ring: #22d3ee;
+  --shade: rgb(34 211 238 / 0.16);
+}
+/* Neon glows a little: the main buttons and focused boxes. */
+:root.dark[data-style="neon"] .bg-primary {
+  box-shadow: 0 0 18px -2px rgb(255 43 214 / 0.55);
+}
+:root.dark[data-style="neon"] .pixel-frame:focus-within {
+  --frame-color: #22d3ee;
+}
+
+:root[data-style="mono"] {
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --muted: #f2f2f2;
+  --muted-foreground: #555555;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --accent: #ededed;
+  --accent-foreground: #000000;
+  --sky: #222222;
+  --grass: #222222;
+  --chart-bar: #333333;
+  --destructive: #000000;
+  --destructive-foreground: #ffffff;
+  --border: #d6d6d6;
+  --input: #bdbdbd;
+  --ring: #000000;
+}
+:root.dark[data-style="mono"] {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0b0b0b;
+  --card-foreground: #ffffff;
+  --muted: #161616;
+  --muted-foreground: #a6a6a6;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --accent: #1f1f1f;
+  --accent-foreground: #ffffff;
+  --sky: #dddddd;
+  --grass: #dddddd;
+  --chart-bar: #cccccc;
+  --destructive: #ffffff;
+  --destructive-foreground: #000000;
+  --border: #2a2a2a;
+  --input: #3a3a3a;
+  --ring: #ffffff;
+}
+/* Black and white for real: pictures, faces and the office too. */
+:root[data-style="mono"] :is(img, canvas, svg[data-avatar], .pixelated) {
+  filter: grayscale(1);
+}
+
+:root[data-style="milk"] {
+  --background: #fbf6ea;
+  --foreground: #2b2118;
+  --card: #fffdf7;
+  --card-foreground: #2b2118;
+  --muted: #f4ecda;
+  --muted-foreground: #6e5e4c;
+  --primary: #3b2f22;
+  --primary-foreground: #fbf6ea;
+  --accent: #f1e6cf;
+  --accent-foreground: #2b2118;
+  --sky: #8a4a17;
+  --grass: #3f7a2f;
+  --chart-bar: #b5652b;
+  --destructive: #b3261e;
+  --border: #eadfc8;
+  --input: #ddcfb2;
+  --ring: #b5652b;
+}
+:root.dark[data-style="milk"] {
+  --background: #17130f;
+  --foreground: #f1e9dc;
+  --card: #211b16;
+  --card-foreground: #f1e9dc;
+  --muted: #2a231c;
+  --muted-foreground: #b3a593;
+  --primary: #e8c48a;
+  --primary-foreground: #17130f;
+  --accent: #2f271f;
+  --accent-foreground: #f1e9dc;
+  --sky: #e2a868;
+  --grass: #9ccc7a;
+  --chart-bar: #d9a066;
+  --destructive: #ff7b6b;
+  --destructive-foreground: #17130f;
+  --border: #322a22;
+  --input: #42382d;
+  --ring: #e2a868;
+}
+
+:root[data-style="ocean"] {
+  --background: #f4f8fc;
+  --foreground: #0d1b2a;
+  --card: #ffffff;
+  --card-foreground: #0d1b2a;
+  --muted: #eaf1f8;
+  --muted-foreground: #4e6175;
+  --primary: #0b5cad;
+  --primary-foreground: #ffffff;
+  --accent: #e3eef9;
+  --accent-foreground: #0d1b2a;
+  --sky: #0b5cad;
+  --grass: #0b7a6f;
+  --chart-bar: #0e8f8f;
+  --destructive: #c0392b;
+  --border: #dce7f2;
+  --input: #c9d9ea;
+  --ring: #0b5cad;
+}
+:root.dark[data-style="ocean"] {
+  --background: #0c141f;
+  --foreground: #e4eef8;
+  --card: #122031;
+  --card-foreground: #e4eef8;
+  --muted: #16283b;
+  --muted-foreground: #93a9c0;
+  --primary: #6cb6ff;
+  --primary-foreground: #0c141f;
+  --accent: #1a2f45;
+  --accent-foreground: #e4eef8;
+  --sky: #6cb6ff;
+  --grass: #41d3c4;
+  --chart-bar: #41d3c4;
+  --destructive: #ff7a70;
+  --destructive-foreground: #0c141f;
+  --border: #1f3349;
+  --input: #2a425c;
+  --ring: #6cb6ff;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -158,6 +335,14 @@
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
     border-radius: 6px;
+  }
+  /* iPhone zooms the page into any field under 16 px when it gets focus: never on touch screens. */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"], [type="radio"], [type="range"]),
+    textarea,
+    select {
+      font-size: 16px;
+    }
   }
   input[type="checkbox"],
   input[type="radio"] {
