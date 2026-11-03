@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import { Brain, Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
+import { Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
 import { Thinking } from "@/components/ui/thinking";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { shortText } from "@/lib/notifications/text";
@@ -355,17 +355,19 @@ export function AgentSteps({
               </StepRow>
             );
           if (item.kind === "thought")
+            // The agent's short report between actions (what it did, what it does next): said
+            // in full, like a line in a chat; only a long one folds.
             return (
               <StepRow
                 key={item.id}
-                icon={<Brain className="size-3.5" />}
-                tone="text-muted-foreground"
-                title={firstLine(item.text)}
+                icon={<MessageSquare className="size-3.5" />}
+                tone="text-sky"
+                title={firstLine(item.text, 280)}
                 open={isOpen(item.id)}
                 onToggle={() => toggle(item.id)}
                 testId="step-thought"
               >
-                {item.text.length > 110 || item.text.includes("\n") ? <MarkdownBody text={item.text} /> : null}
+                {item.text.length > 280 || item.text.trim().includes("\n") ? <MarkdownBody text={item.text} /> : null}
               </StepRow>
             );
           if (item.kind === "group") {

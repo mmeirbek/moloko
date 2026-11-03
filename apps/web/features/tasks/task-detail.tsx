@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronDown, ChevronRight, Info, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { AgentAvatar } from "@/features/agents/agent-avatar";
-import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
@@ -24,6 +23,7 @@ import { TaskApprovals } from "@/features/tasks/tool-calls";
 import { getTask, taskEvents, taskKeys } from "@/lib/api/agents";
 import { useDocumentTitle } from "@/lib/hooks";
 import { useRealtimeStore } from "@/lib/realtime/store";
+import { cn } from "@/lib/utils";
 
 function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, ts: (status: string) => string): string {
   const p = e.payload as Record<string, unknown>;
@@ -141,7 +141,7 @@ function EarlierTurns({ taskId, depth }: { taskId: string; depth: number }) {
           at={format.dateTime(new Date(prev.created_at), { dateStyle: "short", timeStyle: "short" })}
         />
       )}
-      <AgentTurn agentId={prev.agent_id} label={t("earlier")} status={prev.status} testId="earlier-turn">
+      <AgentTurn agentId={prev.agent_id} label={t("earlier")} status={prev.status} progress={prev.progress} testId="earlier-turn">
         <button
           type="button"
           className="inline-flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
@@ -167,17 +167,32 @@ function EarlierTurns({ taskId, depth }: { taskId: string; depth: number }) {
   );
 }
 
-/** One agent's turn in the task chat: who, what it is doing, its steps. */
+/** How far a task got: a bottle filling with milk and the percent (owner: no «Готово» /
+ *  «Ждёт» words in the chat). */
+function Progress({ status, progress, className }: { status: string; progress: number; className?: string }) {
+  const done = status === "completed";
+  const value = done ? 100 : Math.max(0, Math.min(99, Math.round(progress)));
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums", className)} data-testid="turn-progress">
+      <MilkBottle percent={value} done={done} size={16} />
+      {value}%
+    </span>
+  );
+}
+
+/** One agent's turn in the task chat: who, how far it got, its steps. */
 function AgentTurn({
   agentId,
   label,
   status,
+  progress,
   children,
   testId,
 }: {
   agentId: string | null;
   label?: string;
   status: string;
+  progress: number;
   children: React.ReactNode;
   testId?: string;
 }) {
@@ -195,7 +210,7 @@ function AgentTurn({
             <span className="font-medium">—</span>
           )}
           {label && <span className="text-muted-foreground">{label}</span>}
-          <StatusBadge status={status} />
+          <Progress status={status} progress={progress} />
         </p>
         {children}
       </div>
@@ -216,6 +231,7 @@ function PartTurn({ part }: { part: TaskOut }) {
       agentId={live.agent_id}
       label={live.task_type === "consult" ? t("consult", { title: live.title }) : t("part", { title: live.title })}
       status={live.status}
+      progress={live.progress}
     >
       <span className="sr-only" data-testid="part-agent">
         {name ?? ""}
@@ -284,7 +300,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
 
   return (
     // The task as a chat (like Claude Code): the conversation in the middle, the details on the right.
-    <div className="-mt-2 flex h-[calc(100dvh-10.5rem)] min-w-0 gap-4 md:h-[calc(100dvh-5.5rem)]">
+    <div className="-mt-2 flex h-[calc(100dvh-10.5rem-env(safe-area-inset-bottom))] min-w-0 gap-4 md:h-[calc(100dvh-5.5rem)]">
       <section className="flex min-w-0 flex-1 flex-col" aria-label={tChat("label")}>
         <header className="flex flex-wrap items-center gap-2 border-b pb-2">
           <Link href="/tasks" className="inline-flex items-center text-muted-foreground" aria-label={t("allTasks")}>
@@ -294,10 +310,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
           <h1 className="line-clamp-2 min-w-0 flex-1 font-sans text-base leading-snug font-semibold tracking-tight break-words sm:truncate sm:text-lg">
             {task.title}
           </h1>
-          <StatusBadge status={taskBadge(task)} />
-          {(task.progress > 0 || task.status === "completed") && (
-            <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} className="hidden sm:inline-flex" />
-          )}
+          <Progress status={task.status} progress={task.progress} className="text-sm" />
           <Button
             size="sm"
             variant="ghost"
@@ -330,6 +343,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
               agentId={task.agent_id}
               label={mainIsOrchestrator ? tChat("orchestratorLabel") : undefined}
               status={task.status}
+              progress={task.progress}
               testId="task-main-turn"
             >
               <AgentSteps taskId={task.id} status={task.status} events={events.data} result={task.result} bare />
@@ -342,7 +356,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             <TaskApprovals taskIds={[task.id, ...subtasks.map((s) => s.id)]} />
 
             {task.result && (
-              <AgentTurn agentId={task.agent_id} label={tChat("answer")} status={task.status} testId="task-result">
+              <AgentTurn agentId={task.agent_id} label={tChat("answer")} status={task.status} progress={task.progress} testId="task-result">
                 <div className="print-area bg-card p-4 pixel-frame">
                   <MarkdownBody text={task.result} />
                   <div className="mt-3 flex justify-end">

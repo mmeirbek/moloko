@@ -411,3 +411,12 @@ async def test_idempotency_key_prevents_duplicate_runs(
         tasks = (await client.get("/api/v1/tasks")).json()["items"]
     assert len(tasks) == 1
     assert len(queue.enqueued) == 1
+
+
+def test_step_progress_fills_fast_then_slows_and_never_ends_before_done() -> None:
+    from app.agents.engine import step_progress
+
+    values = [step_progress(n, 4) for n in (0, 1, 2, 4, 8, 12, 40, 400)]
+    assert values == sorted(values)
+    assert values[0] == 0 and values[3] == 47 and values[-1] <= 95
+    assert step_progress(5, 0) == 0

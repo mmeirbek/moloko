@@ -181,6 +181,8 @@ class Settings(BaseSettings):
     # (the Orchestrator) gets its earlier answers (fenced as data) and the owner's replies —
     # at most this many turns, each answer cut to this many characters.
     task_followup_turns: int = Field(5, ge=1, le=50)
+    # The milk bottle of a working agent: half full after this many steps (an estimate).
+    task_progress_half_steps: int = Field(4, ge=1, le=100)
     task_followup_answer_max_chars: int = Field(8000, ge=500, le=200_000)
     # Per-agent monthly budgets: the owner is warned when an agent has spent this share of
     # its own limit; at 100 % its new model calls are refused.
