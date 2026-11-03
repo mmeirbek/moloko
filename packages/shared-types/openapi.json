@@ -341,7 +341,7 @@
       },
       "AgentFullAccessUpdate": {
         "additionalProperties": false,
-        "description": "Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password\n(wrong ones count toward the login lockout); turning it off does not.",
+        "description": "Body of ``PUT /agents/{id}/full-access`` and ``PUT /agents/full-access`` (all agents).\nTurning it on needs the owner's password (wrong ones count toward the login lockout);\nturning it off does not.",
         "properties": {
           "enabled": {
             "title": "Enabled",
@@ -2389,6 +2389,34 @@
           "payload"
         ],
         "title": "EventOut",
+        "type": "object"
+      },
+      "FullAccessForAllOut": {
+        "description": "«Полный доступ всем агентам»: whether every persistent agent of the office (and every\none added later, also by the Orchestrator) works without approvals.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it was turned on; null = off.",
+            "title": "Since"
+          }
+        },
+        "required": [
+          "enabled",
+          "since"
+        ],
+        "title": "FullAccessForAllOut",
         "type": "object"
       },
       "GitHubIntegrationOut": {
@@ -7326,6 +7354,66 @@
           }
         },
         "summary": "Add a persistent agent from a template (built-in or own; it waits for a task)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/full-access": {
+      "get": {
+        "operationId": "get_full_access_for_all_api_v1_agents_full_access_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullAccessForAllOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Whether «Полный доступ всем агентам» is on",
+        "tags": [
+          "agents"
+        ]
+      },
+      "put": {
+        "operationId": "set_full_access_for_all_api_v1_agents_full_access_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFullAccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullAccessForAllOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Turn «Полный доступ» on (confirmed with the password) or off for every agent",
         "tags": [
           "agents"
         ]

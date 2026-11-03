@@ -57,6 +57,7 @@ export type AgentTemplateOut = Schemas["AgentTemplateOut"];
 export type AgentFromTemplate = Schemas["AgentFromTemplate"];
 export type AgentRestore = Schemas["AgentRestore"];
 export type AgentFullAccessUpdate = Schemas["AgentFullAccessUpdate"];
+export type FullAccessForAllOut = Schemas["FullAccessForAllOut"];
 export type SaveAsTemplate = Schemas["SaveAsTemplate"];
 export type AgentBudgetOut = Schemas["AgentBudgetOut"];
 export type AgentCreate = Schemas["AgentCreate"];

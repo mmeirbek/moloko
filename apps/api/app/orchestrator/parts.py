@@ -5,6 +5,7 @@ created first — a regular agent of the office that stays after the task."""
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.models.agent import Agent
 from app.models.task import Task
 from app.orchestrator.plan import NewAgentSpec, Plan
 from app.orchestrator.prompts import new_agent_system
+from app.repositories.users import UserRepository
 from app.services.audit import AuditService
 
 MAX_ROSTER = 20
@@ -60,7 +62,9 @@ async def create_agent(
     db: AsyncSession, *, orchestrator: Agent, spec: NewAgentSpec, task: Task
 ) -> Agent:
     """A new persistent agent for the owner's office. Never more rights than the
-    Orchestrator: its model, its autonomy level and per-tool rules, only its tools."""
+    Orchestrator: its model, its autonomy level and per-tool rules, only its tools — unless
+    the owner turned on «Полный доступ всем агентам», which covers every agent of the office,
+    this one included (owner's decision 2026-11-03)."""
     agent = Agent(
         user_id=orchestrator.user_id,
         name=await _free_name(db, orchestrator.user_id, spec.name),
@@ -76,6 +80,8 @@ async def create_agent(
         limits=dict(orchestrator.limits or {}),
         memory_settings={},
     )
+    if await UserRepository(db).full_access_for_all(agent.user_id):
+        agent.full_access_since = datetime.now(UTC)
     db.add(agent)
     await db.flush()
     await db.refresh(agent)
@@ -100,6 +106,7 @@ async def create_agent(
             "type": agent.agent_type,
             "autonomy": agent.autonomy_level,
             "tools": agent.allowed_tools,
+            **({"full_access": "all"} if agent.full_access else {}),
             "created_by": "orchestrator",
             "task_id": str(task.id),
         },

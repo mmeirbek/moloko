@@ -363,7 +363,7 @@ async def test_the_budget_still_stops_it(fa_app: FastAPI, monkeypatch: pytest.Mo
 # --- nobody inherits it ---------------------------------------------------------------------
 
 
-async def test_agents_the_orchestrator_creates_never_get_it(fa_app: FastAPI) -> None:
+async def test_agents_the_orchestrator_creates_do_not_get_it_on_their_own(fa_app: FastAPI) -> None:
     from app.orchestrator.parts import create_agent as orchestrator_creates
     from app.orchestrator.plan import NewAgentSpec
 
@@ -433,3 +433,111 @@ async def test_an_asked_agent_acts_under_its_own_settings(
             )
         ).scalars()
         assert all("full_access" not in r.details for r in bob_decisions)
+
+
+# --- «Полный доступ всем агентам» -------------------------------------------------------------
+
+
+async def full_access_for_all(
+    client: httpx.AsyncClient, enabled: bool = True, **body: Any
+) -> httpx.Response:
+    if enabled and "password" not in body:
+        body["password"] = OWNER_PASSWORD
+    return await client.put(
+        "/api/v1/agents/full-access",
+        json={"enabled": enabled, **body},
+        headers=await csrf_headers(client),
+    )
+
+
+async def test_full_access_for_all_covers_every_agent_also_new_ones(fa_app: FastAPI) -> None:
+    from app.orchestrator.parts import create_agent as orchestrator_creates
+    from app.orchestrator.plan import NewAgentSpec
+
+    async with logged_in_client(fa_app) as client:
+        dev = await create_agent(client, name="Dev")
+        ops = await create_agent(client, name="Ops")
+        assert (await client.get("/api/v1/agents/full-access")).json() == {
+            "enabled": False,
+            "since": None,
+        }
+        missing = await client.put(
+            "/api/v1/agents/full-access", json={"enabled": True}, headers=await csrf_headers(client)
+        )
+        assert missing.status_code == 422
+        assert missing.json()["error"]["code"] == "password_required"
+        wrong = await full_access_for_all(client, password="wrong")
+        assert wrong.status_code == 403 and wrong.json()["error"]["code"] == "invalid_password"
+
+        on = await full_access_for_all(client)
+        assert on.status_code == 200, on.text
+        assert on.json()["enabled"] is True and on.json()["since"]
+        assert (await client.get("/api/v1/agents/full-access")).json()["enabled"] is True
+        for agent in (dev, ops):
+            assert (await client.get(f"/api/v1/agents/{agent['id']}")).json()["full_access"]
+        # Agents added later get it as they are added: by hand, and back from the archive.
+        new = await create_agent(client, name="New")
+        assert new["full_access"] is True and new["full_access_since"]
+        headers = await csrf_headers(client)
+        assert (
+            await client.delete(f"/api/v1/agents/{ops['id']}", headers=headers)
+        ).status_code == 204
+        back = await client.post(
+            f"/api/v1/agents/{ops['id']}/restore", headers=await csrf_headers(client)
+        )
+        assert back.status_code == 200 and back.json()["full_access"] is True
+        me = (await client.get("/api/v1/auth/me")).json()["user"]
+
+    # ...and the agents the Orchestrator creates for a plan.
+    async with fa_app.state.db.sessionmaker() as db:
+        boss = Agent(
+            user_id=uuid.UUID(me["id"]),
+            name="Orchestrator",
+            agent_type="orchestrator",
+            allowed_tools=["fs_read"],
+            autonomy_level="supervised",
+        )
+        task = Task(
+            user_id=boss.user_id,
+            title="t",
+            description="",
+            task_type="user",
+            status="running",
+            depends_on=[],
+            extra={},
+        )
+        db.add_all([boss, task])
+        await db.flush()
+        spec = NewAgentSpec(name="Helper", tools=["fs_read"])
+        child = await orchestrator_creates(db, orchestrator=boss, spec=spec, task=task)
+        assert child.full_access is True
+        await db.commit()
+
+    async with logged_in_client(fa_app) as client:
+        off = await full_access_for_all(client, enabled=False)  # no password
+        assert off.status_code == 200 and off.json() == {"enabled": False, "since": None}
+        agents = (await client.get("/api/v1/agents?agent_type=autonomous")).json()
+        assert agents and not any(a["full_access"] for a in agents)
+        assert (await create_agent(client, name="Later"))["full_access"] is False
+
+    (granted,) = await audit_actions(fa_app, "agent.full_access_all_granted")
+    assert granted.details == {"subject_key": login_subject_key(OWNER_USERNAME), "agents": 2}
+    (revoked,) = await audit_actions(fa_app, "agent.full_access_all_revoked")
+    assert revoked.details["agents"] == 4 and revoked.details["since"]
+    reasons = [
+        r.details["reason"] for r in await audit_actions(fa_app, "agent.full_access_revoked")
+    ]
+    assert sorted(reasons) == ["archived", "owner_all", "owner_all", "owner_all", "owner_all"]
+    (failed,) = await audit_actions(fa_app, "auth.password_confirm_failed")
+    assert failed.details["purpose"] == "agents_full_access_all"
+
+
+async def test_full_access_for_all_wrong_passwords_count_toward_the_lockout(
+    fa_app: FastAPI,
+) -> None:
+    async with logged_in_client(fa_app) as client:
+        for _ in range(3):
+            assert (await full_access_for_all(client, password="wrong")).status_code == 403
+        blocked = await full_access_for_all(client)
+        assert blocked.status_code == 429
+        assert (await client.get("/api/v1/agents/full-access")).json()["enabled"] is False

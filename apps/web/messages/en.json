@@ -215,7 +215,7 @@
         },
         "agents": {
           "title": "Agents",
-          "hint": "Emergency stop and the shared memory every agent can see."
+          "hint": "Full access without approvals, the emergency stop and the shared memory every agent sees."
         },
         "appearance": {
           "title": "Appearance",
@@ -816,7 +816,7 @@
       "title": "Full access — permanent, no approvals",
       "body": "The agent does everything itself, including deleting files, pushing to GitHub and running commands: it may use every enabled tool (also ones you add later) and needs no approvals. Everything is recorded in the audit log; you can switch it off at any time.",
       "stillApplies": "Still in force: «Stop everything», budgets, step and time limits, the sandbox, tools you switched off and MCP tools you have not enabled.",
-      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Colleagues it asks for help and agents the Orchestrator creates do not get full access.",
+      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Colleagues it asks for help act under their own settings; agents the Orchestrator creates get full access only when it is on for all agents (Settings → Agents).",
       "turnOn": "Turn on full access…",
       "turnOff": "Turn off",
       "on": "Full access is on.",
@@ -839,6 +839,19 @@
       "since": "since {date}",
       "remove": "Remove",
       "removeConfirm": "Ask again before it may {what}?"
+    },
+    "fullAccessAll": {
+      "title": "Full access for all agents",
+      "body": "Every agent of the office does everything itself, without approvals: commands, files, GitHub, the internet. New agents — yours and the ones the Orchestrator creates — get full access right away. Everything is logged.",
+      "exceptions": "An exception for one agent is on its page under «Tools»: «block» or «always ask» for a tool.",
+      "off": "Off: agents ask for permission according to their autonomy level.",
+      "onSince": "On since {date}. Agents no longer ask for permission.",
+      "turnOn": "Turn on for all…",
+      "turnOff": "Turn off for all",
+      "confirmOff": "Turn full access off for every agent? They will ask for permission again — also the ones you gave it to one by one.",
+      "dialogTitle": "Full access for all agents",
+      "confirm": "Turn on for all",
+      "pending": "Actions already waiting for approval stay in their tasks — approve them once."
     }
   },
   "office": {

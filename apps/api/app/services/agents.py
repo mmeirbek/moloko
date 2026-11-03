@@ -36,6 +36,7 @@ from app.models.provider import ModelConfig
 from app.models.task import Task
 from app.models.user import User
 from app.providers.gateway import ModelUnavailable
+from app.repositories.users import UserRepository
 from app.schemas.agents import (
     AgentContacts,
     AgentCreate,
@@ -47,7 +48,12 @@ from app.schemas.agents import (
 )
 from app.schemas.tasks import TaskCreate
 from app.services.audit import AuditService
-from app.services.auth import AGENT_FULL_ACCESS_GRANTED, AuthService, ClientInfo
+from app.services.auth import (
+    AGENT_FULL_ACCESS_ALL_GRANTED,
+    AGENT_FULL_ACCESS_GRANTED,
+    AuthService,
+    ClientInfo,
+)
 from app.services.system import ensure_engine_running
 from app.services.tasks import AgentBusy, TaskService, after_cancel
 from app.tasks.queue import TaskEnqueuer
@@ -348,6 +354,10 @@ class AgentService:
             monthly_budget_usd=data.monthly_budget_usd,
             contacts=contacts,
         )
+        if agent.agent_type == AgentType.AUTONOMOUS.value and await UserRepository(
+            self.db
+        ).full_access_for_all(user_id):
+            agent.full_access_since = datetime.now(UTC)
         self.db.add(agent)
         await self.db.flush()
         await self.db.refresh(agent)
@@ -370,6 +380,7 @@ class AgentService:
                 "name": agent.name,
                 "type": agent.agent_type,
                 "autonomy": agent.autonomy_level,
+                **({"full_access": "all"} if agent.full_access else {}),
                 **(
                     {"monthly_budget_usd": str(agent.monthly_budget_usd)}
                     if agent.monthly_budget_usd is not None
@@ -536,11 +547,103 @@ class AgentService:
         )
         if agent.full_access_since is not None:
             return agent
+        # subject_key: a correct password restarts the lockout count (app.services.auth)
+        await self._grant_full_access(
+            agent, user.id, client.ip_address, {"subject_key": subject_key}
+        )
+        await bus.commit(self.db)
+        return agent
+
+    async def set_full_access_for_all(
+        self,
+        user: User,
+        *,
+        enabled: bool,
+        password: str | None,
+        client: ClientInfo,
+    ) -> datetime | None:
+        """«Полный доступ всем агентам» (owner's decision 2026-11-03): every persistent agent
+        of the office gets full access now, and every one added later — by hand, from a
+        template, brought back from the archive or created by the Orchestrator — gets it as it
+        is added. On is confirmed with the password (shared lockout); off needs none and takes
+        full access back from every agent, also ones that had it on their own. Returns since
+        when it is on (None = off)."""
+        owner = (
+            await self.db.execute(select(User).where(User.id == user.id).with_for_update())
+        ).scalar_one()
+        agents = list(
+            (
+                await self.db.execute(
+                    select(Agent)
+                    .where(
+                        Agent.user_id == owner.id,
+                        Agent.agent_type == AgentType.AUTONOMOUS.value,
+                        Agent.archived_at.is_(None),
+                    )
+                    .order_by(Agent.created_at)
+                    .with_for_update()
+                )
+            ).scalars()
+        )
+        if not enabled:
+            since = owner.full_access_all_since
+            owner.full_access_all_since = None
+            revoked = [a for a in agents if a.full_access_since is not None]
+            for agent in revoked:
+                await self._revoke_full_access(agent, owner.id, "owner_all", client.ip_address)
+            if since is not None:
+                await self.audit.record(
+                    "agent.full_access_all_revoked",
+                    "success",
+                    actor_type="user",
+                    actor_id=owner.id,
+                    user_id=owner.id,
+                    resource_type="user",
+                    resource_id=str(owner.id),
+                    ip_address=client.ip_address,
+                    details={"since": since.isoformat(), "agents": len(revoked)},
+                )
+            await bus.commit(self.db)
+            return None
+        if not password:
+            raise PasswordRequired(details={"field": "password"})
+        assert self.settings is not None
+        subject_key = await AuthService(self.db, self.settings).confirm_password(
+            owner, password, client, purpose="agents_full_access_all"
+        )
+        if owner.full_access_all_since is not None:
+            return owner.full_access_all_since
+        owner.full_access_all_since = datetime.now(UTC)
+        granted = [a for a in agents if a.full_access_since is None]
+        for agent in granted:
+            await self._grant_full_access(agent, owner.id, client.ip_address, {"via": "all"})
+        await self.audit.record(
+            AGENT_FULL_ACCESS_ALL_GRANTED,
+            "success",
+            actor_type="user",
+            actor_id=owner.id,
+            user_id=owner.id,
+            resource_type="user",
+            resource_id=str(owner.id),
+            ip_address=client.ip_address,
+            details={"subject_key": subject_key, "agents": len(granted)},
+        )
+        await bus.commit(self.db)
+        logger.info("agent_full_access_all_granted", extra={"agents": len(granted)})
+        return owner.full_access_all_since
+
+    async def _grant_full_access(
+        self,
+        agent: Agent,
+        user_id: uuid.UUID,
+        ip_address: str | None,
+        details: dict[str, str],
+    ) -> None:
         agent.full_access_since = datetime.now(UTC)
         self._touch(agent)
         await bus.emit(
             self.db,
-            user_id=user.id,
+            user_id=user_id,
             type="agent.updated",
             agent_id=agent.id,
             payload={"changed": ["full_access"], "agent": agent_payload(agent)},
@@ -549,21 +652,14 @@ class AgentService:
             AGENT_FULL_ACCESS_GRANTED,
             "success",
             actor_type="user",
-            actor_id=user.id,
-            user_id=user.id,
+            actor_id=user_id,
+            user_id=user_id,
             resource_type="agent",
             resource_id=str(agent.id),
-            ip_address=client.ip_address,
-            # subject_key: a correct password restarts the lockout count (app.services.auth)
-            details={
-                "subject_key": subject_key,
-                "name": agent.name,
-                "autonomy": agent.autonomy_level,
-            },
+            ip_address=ip_address,
+            details={"name": agent.name, "autonomy": agent.autonomy_level, **details},
         )
-        await bus.commit(self.db)
         logger.info("agent_full_access_granted", extra={"agent_id": str(agent.id)})
-        return agent
 
     async def _revoke_full_access(
         self, agent: Agent, user_id: uuid.UUID, reason: str, ip_address: str | None = None
@@ -664,6 +760,11 @@ class AgentService:
         changed = ["archived_at"]
         old_name = agent.name
         agent.archived_at = None
+        if agent.full_access_since is None and await UserRepository(self.db).full_access_for_all(
+            user_id
+        ):
+            agent.full_access_since = datetime.now(UTC)
+            changed.append("full_access")
         if new_name != old_name:
             agent.name = new_name
             agent.config_version += 1

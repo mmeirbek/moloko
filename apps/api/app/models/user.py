@@ -30,3 +30,8 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     # particular form. Stored normalised (one line, at most ADDRESS_AS_MAX_CHARS) — see
     # app.services.addressing.
     address_as: Mapped[str | None] = mapped_column(Text)
+    # «Полный доступ всем агентам» (owner's decision 2026-11-03, docs/decisions.md): since when
+    # every persistent agent of the office — also ones added later, by hand or by the
+    # Orchestrator — gets ``agents.full_access_since``; NULL = off. Set only through
+    # PUT /agents/full-access (password).
+    full_access_all_since: Mapped[datetime | None]

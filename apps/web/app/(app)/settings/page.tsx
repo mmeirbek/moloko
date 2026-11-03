@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
+import { FullAccessForAllCard } from "@/features/agents/agent-full-access";
 import { AiServicesSection } from "@/features/settings/ai-services-section";
 import { AppearanceSection } from "@/features/settings/appearance-section";
 import { BackupsSection } from "@/features/settings/backups-section";
@@ -80,6 +81,7 @@ export default async function SettingsPage() {
           <NotificationsSection />
         </Section>
         <Section id="agents" title={t("sections.agents.title")} hint={t("sections.agents.hint")}>
+          <FullAccessForAllCard />
           <KillSwitchCard />
           <MemorySection />
         </Section>

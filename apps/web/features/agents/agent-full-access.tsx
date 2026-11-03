@@ -1,18 +1,20 @@
 "use client";
 
-import type { AgentOut } from "@moloko/shared-types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { AgentOut, FullAccessForAllOut } from "@moloko/shared-types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { KeyRound, ShieldAlert } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useErrorMessage } from "@/features/auth/use-error-message";
-import { agentKeys, setAgentFullAccess } from "@/lib/api/agents";
+import { agentKeys, getFullAccessForAll, setAgentFullAccess, setFullAccessForAll } from "@/lib/api/agents";
 import { cn } from "@/lib/utils";
 
 import { fullAccessBody } from "./agent-form-model";
@@ -111,7 +113,9 @@ export function FullAccessOption({ agent, onChanged }: { agent: AgentOut; onChan
         createPortal(
           <Dialog open onClose={() => setOpen(false)} labelledBy="full-access-title" data-testid="full-access-dialog">
             <GrantForm
-              agent={agent}
+              title={t("dialogTitle", { name: agent.name })}
+              confirmLabel={t("confirm")}
+              grant={(password) => setAgentFullAccess(agent.id, fullAccessBody(true, password))}
               onCancel={() => setOpen(false)}
               onDone={(result) => {
                 setOpen(false);
@@ -125,14 +129,19 @@ export function FullAccessOption({ agent, onChanged }: { agent: AgentOut; onChan
   );
 }
 
-function GrantForm({
-  agent,
+/** Asks for the moloko password, then turns full access on (for one agent or for all). */
+function GrantForm<T>({
+  title,
+  confirmLabel,
+  grant: turnOn,
   onCancel,
   onDone,
 }: {
-  agent: AgentOut;
+  title: string;
+  confirmLabel: string;
+  grant: (password: string) => Promise<T>;
   onCancel: () => void;
-  onDone: (agent: AgentOut) => void;
+  onDone: (result: T) => void;
 }) {
   const t = useTranslations("agents.fullAccess");
   const tc = useTranslations("common");
@@ -140,7 +149,7 @@ function GrantForm({
   const uid = useId();
   const [password, setPassword] = useState("");
   const grant = useMutation({
-    mutationFn: () => setAgentFullAccess(agent.id, fullAccessBody(true, password)),
+    mutationFn: () => turnOn(password),
     onSuccess: onDone,
     onError: () => setPassword(""),
   });
@@ -156,7 +165,7 @@ function GrantForm({
       <div className="flex flex-col gap-1.5">
         <p id="full-access-title" className="flex items-center gap-2 font-pixel text-lg text-destructive">
           <ShieldAlert className="size-4" aria-hidden="true" />
-          {t("dialogTitle", { name: agent.name })}
+          {title}
         </p>
         <p className="text-sm">{t("body")}</p>
         <p className="text-sm text-muted-foreground">{t("stillApplies")}</p>
@@ -187,9 +196,103 @@ function GrantForm({
           {tc("cancel")}
         </Button>
         <Button type="submit" variant="destructive" disabled={!password || grant.isPending}>
-          {t("confirm")}
+          {confirmLabel}
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Settings → Agents: «Полный доступ всем агентам» — every agent of the office, and every new
+ * one (also the ones the Orchestrator creates), works without approvals. On asks for the
+ * password; off asks to confirm, since it also takes back full access given one by one.
+ */
+export function FullAccessForAllCard() {
+  const t = useTranslations("agents.fullAccessAll");
+  const tf = useTranslations("agents.fullAccess");
+  const format = useFormatter();
+  const confirm = useConfirm();
+  const toMessage = useErrorMessage();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const state = useQuery({ queryKey: agentKeys.fullAccessForAll, queryFn: ({ signal }) => getFullAccessForAll(signal) });
+  const applied = (result: FullAccessForAllOut) => {
+    queryClient.setQueryData(agentKeys.fullAccessForAll, result);
+    void queryClient.invalidateQueries({ queryKey: agentKeys.all });
+  };
+  const revoke = useMutation({ mutationFn: () => setFullAccessForAll(fullAccessBody(false)), onSuccess: applied });
+  const since = state.data?.enabled ? state.data.since : null;
+
+  return (
+    <Card className={cn(since && "bg-destructive/10")} data-testid="full-access-all">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <ShieldAlert className="size-4" aria-hidden="true" />
+          {t("title")}
+        </CardTitle>
+        <CardDescription>{t("body")}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        <ul className="flex list-disc flex-col gap-0.5 pl-5 text-xs text-muted-foreground">
+          <li>{tf("stillApplies")}</li>
+          <li>{t("exceptions")}</li>
+        </ul>
+        {state.data &&
+          (since ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p role="status" className="flex items-center gap-2">
+                <FullAccessBadge />
+                {t("onSince", { date: format.dateTime(new Date(since), { dateStyle: "medium", timeStyle: "short" }) })}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={revoke.isPending}
+                onClick={async () => {
+                  if (await confirm({ title: t("confirmOff"), confirmLabel: t("turnOff") })) revoke.mutate();
+                }}
+              >
+                {t("turnOff")}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-start gap-2">
+              <p role="status" className="text-xs text-muted-foreground">
+                {t("off")}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setOpen(true)}
+              >
+                <KeyRound /> {t("turnOn")}
+              </Button>
+            </div>
+          ))}
+        {since && <p className="text-xs text-muted-foreground">{t("pending")}</p>}
+        {(revoke.error ?? state.error) && (
+          <p role="alert" className="text-xs text-destructive">
+            {toMessage(revoke.error ?? state.error).message}
+          </p>
+        )}
+        {open && (
+          <Dialog open onClose={() => setOpen(false)} labelledBy="full-access-title" data-testid="full-access-dialog">
+            <GrantForm
+              title={t("dialogTitle")}
+              confirmLabel={t("confirm")}
+              grant={(password) => setFullAccessForAll(fullAccessBody(true, password))}
+              onCancel={() => setOpen(false)}
+              onDone={(result) => {
+                setOpen(false);
+                applied(result);
+              }}
+            />
+          </Dialog>
+        )}
+      </CardContent>
+    </Card>
   );
 }

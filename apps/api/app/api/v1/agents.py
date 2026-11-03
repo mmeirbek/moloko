@@ -18,6 +18,7 @@ from app.schemas.agents import (
     AgentRunRequest,
     AgentTemplateOut,
     AgentUpdate,
+    FullAccessForAllOut,
     SaveAsTemplate,
     StartedRun,
 )
@@ -57,6 +58,35 @@ async def list_agents(
 async def list_archived_agents(ctx: CurrentAuth, db: DbSession, queue: QueueDep) -> list[AgentOut]:
     rows = await AgentService(db, queue).list_archived(ctx.user.id)
     return [AgentOut.model_validate(a) for a in rows]
+
+
+@router.get(
+    "/full-access",
+    response_model=FullAccessForAllOut,
+    summary="Whether «Полный доступ всем агентам» is on",
+)
+async def get_full_access_for_all(ctx: CurrentAuth) -> FullAccessForAllOut:
+    since = ctx.user.full_access_all_since
+    return FullAccessForAllOut(enabled=since is not None, since=since)
+
+
+@router.put(
+    "/full-access",
+    response_model=FullAccessForAllOut,
+    summary="Turn «Полный доступ» on (confirmed with the password) or off for every agent",
+)
+async def set_full_access_for_all(
+    body: AgentFullAccessUpdate,
+    ctx: CurrentAuth,
+    db: DbSession,
+    queue: QueueDep,
+    settings: SettingsDep,
+    client: Client,
+) -> FullAccessForAllOut:
+    since = await AgentService(db, queue, settings).set_full_access_for_all(
+        ctx.user, enabled=body.enabled, password=body.password, client=client
+    )
+    return FullAccessForAllOut(enabled=since is not None, since=since)
 
 
 @router.get(

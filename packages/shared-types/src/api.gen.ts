@@ -56,6 +56,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/full-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether «Полный доступ всем агентам» is on */
+        get: operations["get_full_access_for_all_api_v1_agents_full_access_get"];
+        /** Turn «Полный доступ» on (confirmed with the password) or off for every agent */
+        put: operations["set_full_access_for_all_api_v1_agents_full_access_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/templates": {
         parameters: {
             query?: never;
@@ -1900,8 +1918,9 @@ export interface components {
         };
         /**
          * AgentFullAccessUpdate
-         * @description Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
-         *     (wrong ones count toward the login lockout); turning it off does not.
+         * @description Body of ``PUT /agents/{id}/full-access`` and ``PUT /agents/full-access`` (all agents).
+         *     Turning it on needs the owner's password (wrong ones count toward the login lockout);
+         *     turning it off does not.
          */
         AgentFullAccessUpdate: {
             /** Enabled */
@@ -2619,6 +2638,20 @@ export interface components {
             type: string;
             /** Version */
             version: number;
+        };
+        /**
+         * FullAccessForAllOut
+         * @description «Полный доступ всем агентам»: whether every persistent agent of the office (and every
+         *     one added later, also by the Orchestrator) works without approvals.
+         */
+        FullAccessForAllOut: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Since
+             * @description When it was turned on; null = off.
+             */
+            since: string | null;
         };
         /** GitHubIntegrationOut */
         GitHubIntegrationOut: {
@@ -4293,6 +4326,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_full_access_for_all_api_v1_agents_full_access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullAccessForAllOut"];
+                };
+            };
+        };
+    };
+    set_full_access_for_all_api_v1_agents_full_access_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentFullAccessUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullAccessForAllOut"];
                 };
             };
             /** @description Validation Error */

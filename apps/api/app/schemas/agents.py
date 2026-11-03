@@ -138,8 +138,9 @@ class AgentUpdate(BaseModel):
 
 
 class AgentFullAccessUpdate(BaseModel):
-    """Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
-    (wrong ones count toward the login lockout); turning it off does not."""
+    """Body of ``PUT /agents/{id}/full-access`` and ``PUT /agents/full-access`` (all agents).
+    Turning it on needs the owner's password (wrong ones count toward the login lockout);
+    turning it off does not."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -147,6 +148,14 @@ class AgentFullAccessUpdate(BaseModel):
     password: str | None = Field(
         default=None, min_length=1, max_length=1024, description="Required when enabled."
     )
+
+
+class FullAccessForAllOut(BaseModel):
+    """«Полный доступ всем агентам»: whether every persistent agent of the office (and every
+    one added later, also by the Orchestrator) works without approvals."""
+
+    enabled: bool
+    since: datetime | None = Field(description="When it was turned on; null = off.")
 
 
 class AgentTemplateOut(BaseModel):
