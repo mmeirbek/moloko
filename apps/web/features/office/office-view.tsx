@@ -2,7 +2,7 @@
 
 import type { AgentOut } from "@moloko/shared-types";
 import { useLocale, useTranslations } from "next-intl";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Maximize, Minus, Plus, UserPlus } from "@/components/icons";
@@ -105,6 +105,16 @@ export function OfficeView({
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+  // A second click on a busy agent opens its task (owner: «нажал на агента — открылась его
+  // задача»; the first click shows the agent's card with its task on top).
+  const router = useRouter();
+  const openTaskRef = useRef<(agentId: string) => void>(() => undefined);
+  useEffect(() => {
+    openTaskRef.current = (agentId) => {
+      const taskId = useRealtimeStore.getState().agents[agentId]?.current_task_id;
+      if (taskId && !compact) router.push(`/tasks/${taskId}`);
+    };
+  }, [compact, router]);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
@@ -150,6 +160,7 @@ export function OfficeView({
       setSelected(id);
       onSelectRef.current?.(id);
     });
+    const offOpen = bus.on("open", (id) => openTaskRef.current(id));
     const offMoo = bus.on("moo", () => {
       if (mascotSnapshot().sound) playMoo();
     });
@@ -166,6 +177,7 @@ export function OfficeView({
       cancelled = true;
       offReady();
       offSelected();
+      offOpen();
       offMoo();
       offZoom();
       game?.destroy(true);

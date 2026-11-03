@@ -131,6 +131,9 @@ class Settings(BaseSettings):
     # background after an answer). CHAT_SUMMARY_MODEL = the name of one of your models
     # (e.g. a cheaper one); empty = the chat's own model. INPUT_MAX_CHARS = how much new
     # conversation text one summary call reads.
+    # The chat hands work (code, repositories, commands, websites, several steps) to the
+    # agents by itself; questions it answers itself.
+    chat_auto_handoff: bool = True
     chat_summary_enabled: bool = True
     chat_summary_max_chars: int = Field(4000, ge=500, le=50_000)
     chat_summary_model: str = ""

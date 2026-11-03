@@ -1,13 +1,16 @@
 "use client";
 
-import { ComposerPrimitive, ThreadPrimitive, useAui } from "@assistant-ui/react";
+import { ComposerPrimitive, ThreadPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { useTranslations } from "next-intl";
 import type { ClipboardEvent, ReactNode } from "react";
 
-import { ArrowUp, Network, Square } from "@/components/icons";
+import { ArrowUp, Bot, Network, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { MicButton } from "@/features/voice/mic-button";
 import { cn } from "@/lib/utils";
+
+import { mentionSuggestions, parseAgentMention } from "./agent-mention";
+import { useMentionAgents } from "./use-agent-task";
 
 /** Voice input appends the spoken text to what is already typed. */
 function ComposerMic({ disabled }: { disabled?: boolean }) {
@@ -21,6 +24,39 @@ function ComposerMic({ disabled }: { disabled?: boolean }) {
         composer.setText(current ? `${current.trimEnd()} ${text}` : text);
       }}
     />
+  );
+}
+
+/** While «@…» is typed: the agents to pick; once one is named, whose task it becomes. */
+function AgentMentions() {
+  const t = useTranslations("chat");
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const agents = useMentionAgents();
+  const named = parseAgentMention(text, agents);
+  const options = mentionSuggestions(text, agents);
+  if (named) {
+    return (
+      <p className="flex items-center gap-1.5 px-4 pt-3 text-xs text-sky" role="status" data-testid="mention-target">
+        <Bot className="size-3.5" aria-hidden /> {t("mention.target", { name: named.agent.name })}
+      </p>
+    );
+  }
+  if (options.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-1 px-3 pt-3" aria-label={t("mention.pick")}>
+      {options.map((agent) => (
+        <li key={agent.id}>
+          <button
+            type="button"
+            onClick={() => aui.composer().setText(`@${agent.name} `)}
+            className="inline-flex items-center gap-1 border-2 px-2 py-1 text-xs hover:bg-accent"
+          >
+            <Bot className="size-3.5" aria-hidden /> {agent.name}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -87,6 +123,7 @@ export function Composer({
         )}
       >
         {chips}
+        <AgentMentions />
         <ComposerPrimitive.Input
           rows={1}
           autoFocus

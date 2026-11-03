@@ -40,7 +40,8 @@ function AgentCard({ agent }: { agent: AgentOut }) {
   const busy = isAgentBusy(live);
 
   return (
-    <li className="flex flex-col gap-3 bg-card p-4 pixel-frame" data-agent-id={agent.id}>
+    // max-w-full: a long task title (a URL, a script) is cut, it never widens the page.
+    <li className="flex max-w-full min-w-0 flex-col gap-3 bg-card p-4 pixel-frame" data-agent-id={agent.id}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link href={`/office/agents/${agent.id}`} className="block truncate font-medium hover:underline">

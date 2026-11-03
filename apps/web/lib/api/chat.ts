@@ -67,6 +67,8 @@ export type StreamHandlers = {
   onSnapshot?: (text: string) => void;
   onDelta?: (text: string) => void;
   onFinished?: (message: MessageOut) => void;
+  /** The chat gave the message to the agents (its answer is removed; theirs comes later). */
+  onHandedOff?: (handoff: { message_id: string; task_id: string; run_id: string }) => void;
 };
 
 async function consume(response: Response, handlers: StreamHandlers): Promise<void> {
@@ -81,6 +83,8 @@ async function consume(response: Response, handlers: StreamHandlers): Promise<vo
       handlers.onDelta?.(String(d.text ?? ""));
     } else if (event === "message.completed" || event === "message.failed") {
       handlers.onFinished?.(d.message as MessageOut);
+    } else if (event === "message.handed_off") {
+      handlers.onHandedOff?.({ message_id: String(d.message_id), task_id: String(d.task_id), run_id: String(d.run_id) });
     }
   }
 }

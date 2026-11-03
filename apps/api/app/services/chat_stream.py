@@ -19,13 +19,14 @@ from typing import Any, Literal
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.errors import new_error_id
+from app.core.errors import AppError, new_error_id
 from app.events import bus
 from app.models.chat import Conversation, Message
 from app.providers.base import ChatRequest, ChatResult, ProviderError
 from app.providers.gateway import ModelGateway, ModelTarget, estimate_cost
 from app.schemas.chat import MessageOut
 from app.services import chat_memory
+from app.services.chat_handoff import Handoff, hand_to_agents, wants_agents
 
 logger = logging.getLogger("moloko.chat")
 
@@ -46,6 +47,8 @@ class StreamState:
     subscribers: set[asyncio.Queue[StreamEvent | None]] = field(default_factory=set)
     task: asyncio.Task[None] | None = None
     cancel_reason: Literal["user", "shutdown"] | None = None
+    # Set when the chat may hand the message to the agents (services/chat_handoff).
+    handoff: Handoff | None = None
 
     @property
     def text(self) -> str:
@@ -93,8 +96,14 @@ class ChatStreamManager:
         message_id: uuid.UUID,
         target: ModelTarget,
         request: ChatRequest,
+        handoff: Handoff | None = None,
     ) -> StreamState:
-        state = StreamState(message_id=message_id, conversation_id=conversation_id, user_id=user_id)
+        state = StreamState(
+            message_id=message_id,
+            conversation_id=conversation_id,
+            user_id=user_id,
+            handoff=handoff,
+        )
         self._streams[message_id] = state
         state.task = asyncio.create_task(
             self._run(state, target, request), name=f"chat:{message_id}"
@@ -257,6 +266,49 @@ class ChatStreamManager:
             state.close()
             self._streams.pop(state.message_id, None)
 
+    async def _hand_off(
+        self, state: StreamState, target: ModelTarget, result: ChatResult | None
+    ) -> bool:
+        """The answer asked for the agents: start them, tell the browser. False = they could
+        not take it (the answer then fails with a reason)."""
+        assert state.handoff is not None
+        try:
+            task_id, run_id = await hand_to_agents(
+                self.sessionmaker,
+                user_id=state.user_id,
+                conversation_id=state.conversation_id,
+                answer_id=state.message_id,
+                handoff=state.handoff,
+            )
+        except AppError as exc:
+            logger.info("chat_handoff_refused", extra={"code": exc.code})
+            return False
+        if result is not None:
+            from app.services import usage as ledger
+
+            async with self.sessionmaker() as db:
+                await ledger.record(
+                    db,
+                    user_id=state.user_id,
+                    target=target,
+                    usage=result.usage,
+                    source="chat",
+                    conversation_id=state.conversation_id,
+                )
+                await db.commit()
+        await self._emit(
+            state,
+            (
+                "message.handed_off",
+                {
+                    "message_id": str(state.message_id),
+                    "task_id": str(task_id),
+                    "run_id": str(run_id),
+                },
+            ),
+        )
+        return True
+
     async def _finish(
         self,
         state: StreamState,
@@ -268,6 +320,15 @@ class ChatStreamManager:
     ) -> None:
         now = datetime.now(UTC)
         text = state.text if result is None or not result.text else result.text
+        if status == "completed" and state.handoff is not None and wants_agents(text):
+            if await self._hand_off(state, target, result):
+                return
+            error = (
+                "handoff_failed",
+                "The agents could not take this now — send it again, or switch on «Агентам».",
+                new_error_id(),
+            )
+            status, text = "failed", ""
         values: dict[str, Any] = {"status": status, "content": text, "completed_at": now}
         if result is not None:
             values["input_tokens"] = result.usage.input_tokens

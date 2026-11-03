@@ -245,10 +245,17 @@ async def send_message(
     settings: SettingsDep,
     gateway: GatewayDep,
     streams: ChatStreamsDep,
+    queue: QueueDep,
 ) -> Response:
     service = ChatService(db, settings, gateway)
     user_msg, assistant_msg, _ = await service.send(
-        ctx.user.id, chat_id, body.content, body.model_config_id, streams, body.attachment_ids
+        ctx.user.id,
+        chat_id,
+        body.content,
+        body.model_config_id,
+        streams,
+        body.attachment_ids,
+        queue=queue,
     )
     sent_files = (await service.attachments_by_message([user_msg.id])).get(user_msg.id, [])
     # Subscribe before yielding control so no token is missed.

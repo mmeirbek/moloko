@@ -233,6 +233,9 @@ class TaskService:
         task = await lock_task(self.db, task_id)
         if task.user_id != user_id:
             raise NotFound("Task not found.")
+        if conversation_id is not None:
+            # The chat it came from: the owner's work list shows that chat, not the task twice.
+            task.extra = {**(task.extra or {}), "conversation_id": str(conversation_id)}
         run = await prepare_start(
             self.db, task, parent_run_id=parent_run_id, conversation_id=conversation_id
         )

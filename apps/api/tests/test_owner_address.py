@@ -25,6 +25,7 @@ from app.services.addressing import (
     address_instruction,
     normalize_profile_text,
 )
+from app.services.chat_handoff import HANDOFF_INSTRUCTION
 from tests.conftest import (
     TEST_DATABASE_URL,
     TEST_REDIS_URL,
@@ -224,11 +225,12 @@ async def test_chat_uses_the_form_of_address(
         await add_mock_model(client)
         chat = await new_chat(client)
         await send(client, chat["id"], "hello")
-        assert seen[-1].system is None  # nothing set: no system prompt, as before
+        # Nothing set: only when to hand work to the agents (tests/test_chat_handoff.py).
+        assert seen[-1].system == HANDOFF_INSTRUCTION
 
         await set_address(client)
         await send(client, chat["id"], "again")
-    assert seen[-1].system == LINE
+    assert seen[-1].system == f"{LINE}\n\n{HANDOFF_INSTRUCTION}"  # the form of address first
     # It is an instruction, never mixed into the conversation itself.
     assert all(NAME not in m.content for m in seen[-1].messages)
 

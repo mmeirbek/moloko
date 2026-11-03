@@ -8,7 +8,7 @@ const fixture = (name: string) => path.resolve(__dirname, "../fixtures", name);
 
 async function newChat(page: Page) {
   await page.goto("/chat/new");
-  return page.getByPlaceholder("Сообщение для moloko…");
+  return page.getByPlaceholder(/Спросите или поручите работу/);
 }
 
 test("composer: any number of files of any type and size go with one message", async ({ page }) => {

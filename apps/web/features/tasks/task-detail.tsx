@@ -17,6 +17,7 @@ import { ExportMenu } from "@/features/tasks/export-menu";
 import { TaskComposer } from "@/features/tasks/task-composer";
 import { ACTIVE_TASK } from "@/features/tasks/task-control";
 import { useTaskError } from "@/features/tasks/task-error";
+import { TaskOutcome } from "@/features/tasks/task-outcome";
 import { TaskSidebar } from "@/features/tasks/task-sidebar";
 import { TaskApprovals } from "@/features/tasks/tool-calls";
 import { getTask, taskEvents, taskKeys } from "@/lib/api/agents";
@@ -348,6 +349,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
                 </div>
               </AgentTurn>
             )}
+            {!ACTIVE_TASK.has(task.status) && <TaskOutcome task={task} parts={subtasks} />}
             {task.status === "failed" && (
               <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
                 {task.error_code === "agent_budget_exceeded" && task.agent_id ? (

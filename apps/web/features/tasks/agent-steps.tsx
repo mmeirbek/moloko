@@ -12,6 +12,8 @@ import { taskEvents, taskKeys } from "@/lib/api/agents";
 import { taskToolCalls, toolingKeys } from "@/lib/api/tooling";
 import { cn } from "@/lib/utils";
 
+import { commandKind, commandOutcome, commandProgram, GROUPABLE } from "./step-words";
+
 /**
  * What the agent did, step by step — like Claude Code: every step is one short line (what it
  * thought, which tool it used and on what), a click opens everything (the full text, the exact
@@ -21,6 +23,8 @@ import { cn } from "@/lib/utils";
 type Item =
   | { kind: "thought"; id: string; step: number; text: string }
   | { kind: "tool"; id: string; step: number; call: ToolCallOut }
+  /** Several finished reads in a row, as one line («Прочитал 3 файла: …»). */
+  | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] }
   | { kind: "owner"; id: string; text: string }
   | { kind: "plan"; id: string; mode: string; summary: string; parts: { title: string; agent: string }[] };
 
@@ -28,6 +32,8 @@ type Item =
 const PLAN_JSON = /^\s*(```(json)?\s*)?\{[\s\S]*"mode"\s*:/;
 
 const RUNNING = new Set(["running", "pending"]);
+/** Commands whose result is «worked or not» (tests, build, install, checks). */
+const CHECKS = new Set(["cmd_tests", "cmd_browserTests", "cmd_build", "cmd_install", "cmd_lint", "cmd_typecheck"]);
 const FAILED = new Set(["failed", "denied", "rejected", "expired", "unknown"]);
 
 /** `tasks.agentSteps.tools.<key>` and its params: what a tool call does, in a few words. */
@@ -51,8 +57,15 @@ export function stepLabel(tool: string, args: Record<string, unknown>): { key: s
       return { key: tool, params: { path: s("path", 60) || "." } };
     case "fs_move":
       return { key: tool, params: { file: file("source"), to: s("destination", 60) } };
-    case "terminal_run":
-      return { key: tool, params: { command: shortText(String(args.command ?? "").split("\n")[0] ?? "", 80) } };
+    case "terminal_run": {
+      // What the command is for, not the command (it is one click away).
+      const command = String(args.command ?? "");
+      return { key: `cmd_${commandKind(command)}`, params: { program: commandProgram(command) } };
+    }
+    case "github_checkout":
+      return { key: tool, params: { repo: s("repo", 50) } };
+    case "github_commit_files":
+      return { key: tool, params: { repo: s("repo", 50), branch: s("branch", 40) } };
     case "github_read_file":
     case "github_write_file":
       return { key: tool, params: { file: file("path"), repo: s("repo", 50) } };
@@ -90,6 +103,35 @@ export function stepLabel(tool: string, args: Record<string, unknown>): { key: s
 function firstLine(text: string | null | undefined, max = 110): string {
   const line = (text ?? "").split("\n").find((l) => l.trim()) ?? "";
   return shortText(line, max);
+}
+
+/** Merge finished reads of one kind in a row into one line; the step running now stays its
+ *  own line, so it can say what the agent does at this moment. Pure: tested. */
+export function groupReads<T extends { kind: string }>(items: T[], callOf: (item: T) => ToolCallOut | null): (T | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] })[] {
+  const out: (T | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] })[] = [];
+  let run: ToolCallOut[] = [];
+  let first: T | null = null;
+  const flush = () => {
+    if (run.length > 1) out.push({ kind: "group", id: `group:${run[0]!.id}`, tool: run[0]!.tool_name, calls: run });
+    else if (first) out.push(first);
+    run = [];
+    first = null;
+  };
+  for (const item of items) {
+    const call = callOf(item);
+    const groupable = call && GROUPABLE.has(call.tool_name) && !RUNNING.has(call.status) && !FAILED.has(call.status) && !call.is_error;
+    if (groupable && run.length > 0 && run[0]!.tool_name === call.tool_name) {
+      run.push(call);
+      continue;
+    }
+    flush();
+    if (groupable) {
+      run = [call];
+      first = item;
+    } else out.push(item);
+  }
+  flush();
+  return out;
 }
 
 /** What came out, in one line: for a command its first output line («exit code 0» only when
@@ -223,9 +265,20 @@ export function AgentSteps({
     }
     // calls whose step event is not loaded yet (e.g. the history is still on its way)
     for (const c of calls.data ?? []) if (!placed.has(c.id)) out.push({ kind: "tool", id: c.id, step: c.step, call: c });
-    return out;
+    return groupReads(out, (i) => (i.kind === "tool" ? i.call : null)) as Item[];
   }, [calls.data, events, result]);
 
+  /** A command's result in words: tests passed / failed, or success / the error code. */
+  const commandPreview = (out: string | null, key: string): string => {
+    const o = commandOutcome(out);
+    if (o.failed !== undefined || o.passed !== undefined) {
+      return o.failed ? t("testsFailed", { failed: o.failed, passed: o.passed ?? 0 }) : t("testsPassed", { passed: o.passed ?? 0 });
+    }
+    if (o.code === null || !CHECKS.has(key)) return "";
+    if (o.code === 0) return t("succeeded");
+    const line = outputPreview("terminal_run", out);
+    return t("failedCode", { code: o.code }) + (line && !line.startsWith("exit code") ? `: ${line}` : "");
+  };
   const busyTool = items.find((i) => i.kind === "tool" && RUNNING.has(i.call.status));
   const now = useNow(running);
   const isOpen = (id: string) => allOpen || Boolean(open[id]);
@@ -311,8 +364,44 @@ export function AgentSteps({
                 {item.text.length > 110 || item.text.includes("\n") ? <MarkdownBody text={item.text} /> : null}
               </StepRow>
             );
+          if (item.kind === "group") {
+            const names = item.calls.map((call) => {
+              const p = stepLabel(call.tool_name, call.args).params;
+              return p.file ?? p.path ?? p.host ?? p.query ?? "";
+            });
+            const list = [...new Set(names.filter(Boolean))];
+            return (
+              <StepRow
+                key={item.id}
+                icon={<Check className="size-3.5" />}
+                tone="text-grass"
+                title={t(`group.${item.tool}` as "group.fs_read", {
+                  count: item.calls.length,
+                  list: list.slice(0, 3).join(", ") + (list.length > 3 ? "…" : ""),
+                })}
+                open={isOpen(item.id)}
+                onToggle={() => toggle(item.id)}
+                testId="step-group"
+              >
+                <ul className="flex flex-col gap-0.5 text-xs">
+                  {item.calls.map((call) => {
+                    const l = stepLabel(call.tool_name, call.args);
+                    return (
+                      <li key={call.id}>
+                        {t(`done.${l.key}` as "done.other", l.params as { tool: string })}
+                        {outputPreview(call.tool_name, call.result) && (
+                          <span className="text-muted-foreground"> ⎿ {outputPreview(call.tool_name, call.result)}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </StepRow>
+            );
+          }
           const c = item.call;
           const label = stepLabel(c.tool_name, c.args);
+          const command = c.tool_name === "terminal_run";
           const live = RUNNING.has(c.status);
           const failed = FAILED.has(c.status) || c.is_error;
           const waiting = c.status === "awaiting_approval" || c.status === "awaiting_agent";
@@ -330,14 +419,18 @@ export function AgentSteps({
             ? t("runningFor", { seconds: seconds ?? 0 })
             : waiting
               ? tStatus(c.status as "awaiting_approval")
-              : outputPreview(c.tool_name, c.result) ||
+              : (command ? commandPreview(c.result, label.key) : "") ||
+                outputPreview(c.tool_name, c.result) ||
                 (c.decision_reason && c.decision !== "allow" ? c.decision_reason : undefined);
+          // Commands are named by what they are for («Тесты», «Сборка проекта»); other steps say
+          // what the agent does now, or did.
+          const titleKey = command ? `cmd.${label.key}` : live || waiting || failed ? `tools.${label.key}` : `done.${label.key}`;
           return (
             <StepRow
               key={item.id}
               icon={icon}
               tone={live ? "text-sky" : waiting ? "text-amber-600" : failed ? "text-destructive" : "text-grass"}
-              title={t(`tools.${label.key}` as "tools.other", label.params as { tool: string })}
+              title={t(titleKey as "tools.other", label.params as { tool: string })}
               preview={preview}
               open={isOpen(item.id)}
               onToggle={() => toggle(item.id)}

@@ -253,7 +253,7 @@
     "allChats": "Все чаты",
     "deleteChat": "Удалить «{title}»",
     "confirmDelete": "Удалить этот чат со всеми сообщениями?",
-    "placeholder": "Сообщение для moloko…",
+    "placeholder": "Спросите или поручите работу… «@Кодер …» — задача агенту",
     "send": "Отправить",
     "stop": "Остановить",
     "thinking": "Думает",
@@ -274,7 +274,8 @@
       "provider_model_not_found": "Провайдер не знает такую модель.",
       "provider_unknown": "Запрос к провайдеру не удался.",
       "interrupted": "Ответ прервался, потому что сервер перезапустился.",
-      "internal_error": "Во время ответа что-то пошло не так."
+      "internal_error": "Во время ответа что-то пошло не так.",
+      "handoff_failed": "Агенты сейчас не могут взять эту работу: Оркестратор занят предыдущей задачей или работа остановлена. Отправьте ещё раз чуть позже."
     },
     "agentsMode": "Отдать агентам",
     "handOff": "Передать агентам",
@@ -326,6 +327,10 @@
         "memory": "память",
         "other": "другое"
       }
+    },
+    "mention": {
+      "target": "Задача для «{name}» — откроется её страница",
+      "pick": "Кому поручить"
     }
   },
   "settings": {
@@ -508,7 +513,6 @@
         "fs_list": "Смотрит папку {path}",
         "fs_move": "Переносит {file} → {to}",
         "fs_delete": "Удаляет файл {file}",
-        "terminal_run": "Запускает: {command}",
         "github_read_file": "Читает {file} в {repo}",
         "github_write_file": "Сохраняет {file} в {repo}",
         "github_list_dir": "Смотрит {path} в {repo}",
@@ -528,10 +532,88 @@
         "agent_ask": "Спрашивает агента {agent}",
         "agent_tell": "Пишет агенту {agent}",
         "agents_list": "Смотрит, кто есть в офисе",
-        "other": "Инструмент «{tool}»"
+        "other": "Инструмент «{tool}»",
+        "github_checkout": "Скачивает {repo} в рабочую папку",
+        "github_commit_files": "Сохраняет изменения в {repo} ({branch})",
+        "cmd_tests": "Тесты",
+        "cmd_browserTests": "Браузерные тесты",
+        "cmd_build": "Сборка проекта",
+        "cmd_install": "Установка пакетов",
+        "cmd_lint": "Проверка кода линтером",
+        "cmd_typecheck": "Проверка типов",
+        "cmd_git": "Работа с git",
+        "cmd_look": "Просмотр файлов в песочнице",
+        "cmd_script": "Скрипт {program}",
+        "cmd_other": "Команда {program}"
       },
       "plan": "План: {summary} — частей: {count}",
-      "planDirect": "Решил ответить сам, без помощников"
+      "planDirect": "Решил ответить сам, без помощников",
+      "done": {
+        "fs_read": "Прочитал файл {file}",
+        "fs_write": "Записал файл {file}",
+        "fs_append": "Дописал файл {file}",
+        "fs_list": "Посмотрел папку {path}",
+        "fs_move": "Перенёс {file} → {to}",
+        "fs_delete": "Удалил файл {file}",
+        "github_read_file": "Прочитал {file} в {repo}",
+        "github_write_file": "Сохранил {file} в {repo}",
+        "github_list_dir": "Посмотрел {path} в {repo}",
+        "github_create_branch": "Создал ветку {branch} в {repo}",
+        "github_list_issues": "Посмотрел задачи в {repo}",
+        "github_get_issue": "Прочитал задачу #{number} в {repo}",
+        "github_list_commits": "Посмотрел коммиты в {repo}",
+        "github_create_pull_request": "Открыл pull request в {repo}",
+        "github_list_repos": "Посмотрел список репозиториев",
+        "github_checkout": "Скачал {repo} в рабочую папку",
+        "github_commit_files": "Сохранил изменения в {repo} ({branch})",
+        "web_search": "Поискал в интернете: {query}",
+        "web_fetch": "Открыл {host}",
+        "browser_screenshot": "Сделал снимок {host}",
+        "knowledge_search": "Поискал в памяти: {query}",
+        "work_search": "Поискал в истории работы: {query}",
+        "work_read": "Прочитал запись из истории работы",
+        "memory_save": "Запомнил: {title}",
+        "agent_ask": "Спросил агента {agent}",
+        "agent_tell": "Написал агенту {agent}",
+        "agents_list": "Посмотрел, кто есть в офисе",
+        "other": "Использовал инструмент «{tool}»",
+        "cmd_tests": "Тесты",
+        "cmd_browserTests": "Браузерные тесты",
+        "cmd_build": "Сборка проекта",
+        "cmd_install": "Установка пакетов",
+        "cmd_lint": "Проверка кода линтером",
+        "cmd_typecheck": "Проверка типов",
+        "cmd_git": "Работа с git",
+        "cmd_look": "Просмотр файлов в песочнице",
+        "cmd_script": "Скрипт {program}",
+        "cmd_other": "Команда {program}"
+      },
+      "cmd": {
+        "cmd_tests": "Тесты",
+        "cmd_browserTests": "Браузерные тесты",
+        "cmd_build": "Сборка проекта",
+        "cmd_install": "Установка пакетов",
+        "cmd_lint": "Проверка кода линтером",
+        "cmd_typecheck": "Проверка типов",
+        "cmd_git": "Работа с git",
+        "cmd_look": "Просмотр файлов в песочнице",
+        "cmd_script": "Скрипт {program}",
+        "cmd_other": "Команда {program}"
+      },
+      "group": {
+        "fs_read": "Прочитал {count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}: {list}",
+        "fs_list": "Посмотрел {count, plural, one {# папку} few {# папки} many {# папок} other {# папки}}: {list}",
+        "github_read_file": "Прочитал в GitHub {count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}: {list}",
+        "github_list_dir": "Посмотрел в GitHub {count, plural, one {# папку} few {# папки} many {# папок} other {# папки}}: {list}",
+        "web_fetch": "Открыл {count, plural, one {# сайт} few {# сайта} many {# сайтов} other {# сайта}}: {list}",
+        "work_read": "Прочитал {count, plural, one {# запись} few {# записи} many {# записей} other {# записи}} из истории работы",
+        "knowledge_search": "Поискал в памяти {count, plural, one {# раз} few {# раза} many {# раз} other {# раза}}: {list}",
+        "web_search": "Поискал в интернете {count, plural, one {# раз} few {# раза} many {# раз} other {# раза}}: {list}"
+      },
+      "testsPassed": "прошли все: {passed}",
+      "testsFailed": "{failed, plural, one {# упал} few {# упали} many {# упали} other {# упали}}, прошли: {passed}",
+      "succeeded": "успешно",
+      "failedCode": "не получилось (код {code})"
     },
     "chat": {
       "label": "Переписка по задаче",
@@ -595,6 +677,13 @@
         "reply": "Ответ продолжит задачу: агент учтёт свой прошлый ответ и ваше сообщение.",
         "orchestrator": "Пока идёт план, сообщения отправляются агентам частей — откройте нужную часть."
       }
+    },
+    "outcome": {
+      "title": "Что получилось",
+      "pullRequest": "Pull request #{number} в {repo}",
+      "commit": "Коммит {sha} в {repo} ({branch})",
+      "branch": "Ветка {branch} в {repo}",
+      "files": "{count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}} в рабочей папке — нажмите, чтобы открыть"
     }
   },
   "agents": {
@@ -889,7 +978,9 @@
       "settings": "Настройки",
       "giveTask": "Дать задачу",
       "giveTaskHint": "Агент ждёт работу. Опишите задачу, и он начнёт.",
-      "giveTaskPlaceholder": "Например: сравни три тарифа хостинга и выбери лучший"
+      "giveTaskPlaceholder": "Например: сравни три тарифа хостинга и выбери лучший",
+      "openTask": "Открыть задачу",
+      "doingNow": "Сейчас: {what}"
     },
     "addAgent": "Добавить агента",
     "dropHere": "Отпустите — агент придёт в офис"
@@ -1745,5 +1836,22 @@
       "date": "{date} в {time}"
     },
     "preview": "{rule} · следующий запуск {when}"
+  },
+  "work": {
+    "waiting": "Ждут вас",
+    "active": "В работе",
+    "recent": "Недавние",
+    "empty": "Здесь появятся ваши задачи и чаты.",
+    "allTasks": "Все задачи",
+    "reason": {
+      "approval": "нужно ваше одобрение",
+      "question": "ждёт вашего ответа",
+      "failed": "сломалось"
+    },
+    "open": "Работа",
+    "openHint": "Задачи и чаты: что ждёт вас, что в работе, недавние",
+    "new": "Новое",
+    "search": "Поиск",
+    "more": "Разделы"
   }
 }

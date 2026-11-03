@@ -4,10 +4,10 @@ import { OWNER, watchErrors } from "./helpers";
 
 test("chat: streaming, markdown, history, attachments, stop, errors, second device", async ({ page, browser }) => {
   const errors = watchErrors(page);
-  await page.goto("/chat");
-  await page.getByRole("link", { name: "Новый чат" }).first().click();
+  await page.goto("/office/agents");
+  await page.getByTestId("new-chat-sidebar").click(); // «Новое»
   await page.waitForURL(/\/chat\/new$/);
-  const input = page.getByPlaceholder("Сообщение для moloko…");
+  const input = page.getByPlaceholder(/Спросите или поручите работу/);
   /** The composer accepts a message only when no answer is running (Send button shown). */
   const say = async (text: string) => {
     await expect(page.getByRole("button", { name: "Отправить" })).toBeVisible({ timeout: 30_000 });

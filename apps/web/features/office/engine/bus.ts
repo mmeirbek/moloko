@@ -21,6 +21,8 @@ export interface AgentHud {
   tag: string | null;
   /** what it is doing right now, a few words (shown for the hovered / selected agent) */
   activity: string | null;
+  /** its task, a few words (shown over every busy agent when the office is big enough) */
+  task: string | null;
   /** bar colour: working, waiting for the owner's approval (amber), paused (grey, still) */
   tone: "work" | "approval" | "paused";
 }
@@ -53,6 +55,8 @@ export interface OfficeEvents {
   moo: undefined;
   /** scene → React: the user clicked a character (or empty floor → null) */
   selected: string | null;
+  /** scene → React: a second click on the selected character — open its task */
+  open: string;
   /** scene → React: the scene is ready to receive agents */
   ready: undefined;
   /** scene → React: the current zoom (for the on-map controls and to remember it) */

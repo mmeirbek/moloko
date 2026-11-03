@@ -370,6 +370,8 @@ export class OfficeScene extends Phaser.Scene {
     };
     sprite.on("pointerdown", (p: Phaser.Input.Pointer) => {
       p.event.stopPropagation();
+      // A second click on the selected agent opens its task (React decides where to).
+      if (this.selected === agent.id) this.bus.emit("open", agent.id);
       this.bus.emit("selected", agent.id);
       this.select(agent.id);
       if (isCow) this.countCowClick(agent.id);

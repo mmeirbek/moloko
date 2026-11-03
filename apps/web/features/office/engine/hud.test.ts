@@ -116,7 +116,8 @@ describe("HUD over the head", () => {
     expect(agentHud(agent("working"), source({ tasks: { t } }), words)).toEqual({
       percent: 42,
       tag: "42%",
-      activity: "Задача t",
+      activity: null, // nothing said yet: the caption shows the task
+      task: "Задача t",
       tone: "work",
     });
     const s = source({
@@ -124,14 +125,14 @@ describe("HUD over the head", () => {
       runs: { "run-t": { steps: 3 } },
       lastMessage: { "run-t": { step: 4, text: "Пишу тесты" } },
     });
-    expect(agentHud(agent("working"), s, words)).toMatchObject({ percent: null, tag: "шаг 4", activity: "Пишу тесты" });
+    expect(agentHud(agent("working"), s, words)).toMatchObject({ percent: null, tag: "шаг 4", activity: "Пишу тесты", task: "Задача t" });
     // a plan / message between agents has no step and no text: the run's step and the title stay
     const quiet = source({
       tasks: { t: task("t") },
       runs: { "run-t": { steps: 2 } },
       lastMessage: { "run-t": { step: 0, text: "" } },
     });
-    expect(agentHud(agent("planning"), quiet, words)).toMatchObject({ tag: "шаг 2", activity: "Задача t" });
+    expect(agentHud(agent("planning"), quiet, words)).toMatchObject({ tag: "шаг 2", activity: null, task: "Задача t" });
     expect(agentHud(agent("planning"), source({ tasks: { t: task("t") } }), words)).toMatchObject({
       percent: null,
       tag: null,
@@ -162,6 +163,7 @@ describe("HUD over the head", () => {
       percent: null,
       tag: null,
       activity: null,
+      task: null,
       tone: "work",
     });
   });
@@ -183,12 +185,14 @@ describe("HUD over the head", () => {
     expect(Object.keys(huds)).toEqual(["a"]);
   });
 
-  it("the caption: the short tag; the focused agent also says what it is doing", () => {
-    const hud = { percent: 42, tag: "42%", activity: "Пишу тесты", tone: "work" as const };
-    expect(hudText(hud, false)).toBe("42%");
-    expect(hudText(hud, true)).toBe("42%\nПишу тесты");
-    expect(hudText({ ...hud, tag: null }, false)).toBeNull();
-    expect(hudText({ ...hud, tag: null }, true)).toBe("Пишу тесты");
+  it("the caption: the short tag and the task; the focused agent also says what it is doing", () => {
+    const hud = { percent: 42, tag: "42%", activity: "Пишу тесты", task: "Форма входа", tone: "work" as const };
+    expect(hudText(hud, false)).toBe("42% · Форма входа");
+    expect(hudText(hud, true)).toBe("42% · Форма входа\nПишу тесты");
+    expect(hudText({ ...hud, task: null }, false)).toBe("42%");
+    expect(hudText({ ...hud, tag: null, task: null }, false)).toBeNull();
+    expect(hudText({ ...hud, tag: null, task: null }, true)).toBe("Пишу тесты");
+    expect(hudText({ ...hud, activity: "Форма входа" }, true)).toBe("42% · Форма входа"); // not twice
     expect(hudText(null, true)).toBeNull();
   });
 });

@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { TeamLine } from "@/features/agents/team-links";
 import { AgentTaskControl } from "@/features/tasks/task-control";
 
+import { cleanActivity } from "./engine/hud";
+
 const recentEvents = (agentId: string, signal?: AbortSignal) =>
   api.request<EventOut[]>(`/events?agent_id=${agentId}&latest=true&limit=8`, {
     signal,
@@ -56,6 +58,8 @@ export function AgentInspector({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   const task = useRealtimeStore((s) => (agent.current_task_id ? s.tasks[agent.current_task_id] : undefined));
+  const lastMessage = useRealtimeStore((s) => (task?.run_id ? s.lastMessage[task.run_id] : undefined));
+  const now = cleanActivity(lastMessage?.text, { words: 12, chars: 90 });
   const allApprovals = useRealtimeStore((s) => s.approvals);
   const approvals = Object.values(allApprovals).filter((a) => a.agent_id === agent.id && a.status === "pending");
   const models = useQuery({
@@ -107,17 +111,20 @@ export function AgentInspector({
         </div>
       </div>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-muted-foreground">{t("task")}</dt>
-        <dd className="truncate">
-          {task ? (
-            <Link href={`/tasks/${task.id}`} className="underline-offset-2 hover:underline">
-              {task.title}
+      {task && (
+        // Its task first, with what it is doing right now, and one tap to the task.
+        <div className="flex flex-col gap-1.5 border-2 border-sky/40 bg-sky/10 p-2.5" data-testid="inspector-task">
+          <p className="text-xs text-muted-foreground">{t("task")}</p>
+          <p className="font-medium break-words">{task.title}</p>
+          {now && <p className="text-xs text-muted-foreground">{t("doingNow", { what: now })}</p>}
+          <Button size="sm" asChild className="self-start">
+            <Link href={`/tasks/${task.id}`}>
+              <ExternalLink /> {t("openTask")}
             </Link>
-          ) : (
-            "—"
-          )}
-        </dd>
+          </Button>
+        </div>
+      )}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
         <dt className="text-muted-foreground">{t("model")}</dt>
         <dd className="truncate">{model ? `${model.provider_name} · ${modelLabel(model)}` : t("defaultModel")}</dd>
         <dt className="text-muted-foreground">{t("autonomy")}</dt>

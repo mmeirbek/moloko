@@ -28,9 +28,9 @@ test("tools: every action is approved once, runs in the sandbox, is visible and 
   await page.getByLabel("Дайте задачу…").fill(script);
   await page.getByRole("button", { name: "Запустить" }).click();
 
-  const badge = page.getByTestId("approvals-badge").first();
-  await expect(badge).toHaveText("1");
-  await badge.click();
+  // The task waits for the owner: at the top of the work list, with why.
+  await expect(page.getByTestId("work-waiting").getByText("нужно ваше одобрение")).toBeVisible();
+  await page.goto("/approvals");
   const pending = page.locator("section[aria-labelledby=pending-title] [data-approval-id]");
   const first = pending.filter({ hasText: "Записать файл hello.py" });
   await expect(first.getByText("workspace:hello.py")).toBeVisible();
@@ -39,17 +39,22 @@ test("tools: every action is approved once, runs in the sandbox, is visible and 
   await first.getByRole("button", { name: "Одобрить", exact: true }).click();
   await pending.filter({ hasText: "Выполнить: python hello.py" }).getByRole("button", { name: "Одобрить", exact: true }).click();
   await expect(page.getByText("Сейчас ничего не ждёт одобрения.")).toBeVisible();
-  await expect(page.getByTestId("approvals-badge")).toHaveCount(0);
+  await expect(page.getByTestId("work-list").getByText("нужно ваше одобрение")).toHaveCount(0);
 
   await page.goto(taskHref!);
   await expect(page.getByText("Готово").first()).toBeVisible({ timeout: 60_000 });
   // The agent's steps: one line per action, a click shows everything it passed and got back.
-  const call = page.getByTestId("step-tool").filter({ hasText: "Запускает: python hello.py" });
+  const call = page.getByTestId("step-tool").filter({ hasText: "Скрипт python" }); // what it is for, not the command
   await expect(call).toContainText("hi from sandbox"); // the first line of the output, collapsed
   await call.getByRole("button").click();
   await expect(call.getByText("Что получилось")).toBeVisible();
   await expect(call.locator("pre").filter({ hasText: /hi from sandbox/ })).toBeVisible();
+  await expect(call.locator("pre").filter({ hasText: "python hello.py" })).toBeVisible(); // the command itself
   await expect(page.getByTestId("file-browser").getByText("hello.py")).toBeVisible();
+  // «Что получилось» under the answer: the file it wrote, one tap away.
+  await page.getByTestId("task-outcome").getByRole("button", { name: "hello.py" }).click();
+  await expect(page.getByTestId("outcome-file").getByText("print('hi from sandbox')")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   await page.goto("/settings/audit");
   await page.getByLabel("Раздел").selectOption("tool.");

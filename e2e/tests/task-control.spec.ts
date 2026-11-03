@@ -80,7 +80,7 @@ test("agent steps: a live line while it works, then one short line per step that
   await page.goto(`/tasks/${started.task.id}`);
   const steps = page.getByTestId("agent-steps");
   await expect(steps.getByTestId("step-live")).toBeVisible(); // «Думает над следующим шагом…» / «В очереди»
-  const write = steps.getByTestId("step-tool").filter({ hasText: "Записывает файл plan.md" });
+  const write = steps.getByTestId("step-tool").filter({ hasText: /Запис(ывает|ал) файл plan\.md/ });
   await expect(write).toBeVisible({ timeout: 60_000 });
   await expect.poll(async () => (await api<{ task: Task }>(request, "GET", `/tasks/${started.task.id}`)).task.status, { timeout: 60_000 }).toBe("completed");
   await expect(steps.getByTestId("step-live")).toHaveCount(0);

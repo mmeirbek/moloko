@@ -32,6 +32,7 @@ import { useChatTitle } from "./chat-title";
 import { Composer, Suggestions } from "./composer";
 import { MarkdownText } from "./markdown";
 import { ModelPicker } from "./model-picker";
+import { useAgentTask } from "./use-agent-task";
 import { useChatThread } from "./use-chat-thread";
 import { ChatWelcome } from "./welcome";
 
@@ -184,6 +185,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
   const [modelOverride, setModelOverride] = useState<string | null | undefined>(undefined);
   const [agentsMode, setAgentsMode] = useState(false);
+  const agentTask = useAgentTask();
   const [handoffError, setHandoffError] = useState<unknown>(null);
   const [handingOff, setHandingOff] = useState(false);
   const [modelError, setModelError] = useState<unknown>(null);
@@ -253,6 +255,16 @@ export function ChatThread({ chatId }: { chatId: string }) {
       .join("")
       .trim();
     if (!text) return;
+    const mention = agentTask.match(text);
+    if (mention) {
+      // «@Кодер почини…»: that agent's task (its page opens); the chat stays as it was.
+      setHandoffError(null);
+      void agentTask.start(mention).catch((e: unknown) => {
+        setHandoffError(e);
+        setDraft(text);
+      });
+      return;
+    }
     if (agentsMode) {
       void sendToAgents(text).then((ok) => !ok && setDraft(text));
       return;

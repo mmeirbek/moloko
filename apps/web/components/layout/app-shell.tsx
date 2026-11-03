@@ -11,22 +11,20 @@ import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, SquarePen, WifiOff
 import { Button } from "@/components/ui/button";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
-import { ApprovalsBadge, usePendingApprovalCount } from "@/features/approvals/approvals-badge";
-import { ChatList } from "@/features/chat/chat-list";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { PixelCow, WalkingCow } from "@/features/mascot/pixel-cow";
 import { Notifier } from "@/features/notifications/notifier";
 import { RegisterServiceWorker } from "@/features/notifications/register-sw";
 import { LocaleSwitcher } from "@/features/preferences/locale-switcher";
 import { ThemeSwitcher, ThemeToggle } from "@/features/preferences/theme-toggle";
-import { NewTaskDialog } from "@/features/runs/new-task-dialog";
+import { useWaitingCount, WorkList } from "@/features/work/work-list";
 import { authKeys, getMe, logout } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
 import { ConnectionDot, RealtimeProvider } from "@/lib/realtime/provider";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { cn } from "@/lib/utils";
 
-import { NAV_GROUPS, PHONE_MORE, PHONE_TABS, type NavItem } from "./nav-items";
+import { OFFICE, SECTIONS, type NavItem } from "./nav-items";
 import { setCollapsed, useSidebarCollapsed } from "./use-sidebar";
 import { SidebarResizer } from "./sidebar-resizer";
 
@@ -40,8 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const toMessage = useErrorMessage();
-  const [newTask, setNewTask] = useState(false);
-  const [more, setMore] = useState(false);
+  const [work, setWork] = useState(false);
   const status = useRealtimeStore((s) => s.status);
 
   // The backend decides whether we are signed in; the UI only reflects it.
@@ -123,43 +120,32 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="flex shrink-0 flex-col gap-1.5 px-2 pb-2 sidebar-collapsed:items-center">
           <Button asChild className="w-full justify-start gap-2 sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0">
-            <Link href="/chat/new" data-testid="new-chat-sidebar" title={t("chat.newChat")}>
+            <Link href="/chat/new" data-testid="new-chat-sidebar" title={t("work.new")}>
               <SquarePen />
-              <span className="sidebar-collapsed:sr-only">{t("chat.newChat")}</span>
+              <span className="sidebar-collapsed:sr-only">{t("work.new")}</span>
             </Link>
           </Button>
           <Button
-            variant="outline"
+            asChild
+            variant="ghost"
             className="w-full justify-start gap-2 sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0"
-            onClick={() => setNewTask(true)}
-            title={t("newTask.title")}
-            data-testid="new-task-sidebar"
           >
-            <PixelCow mood="happy" size={22} outfit={false} />
-            <span className="sidebar-collapsed:sr-only">{t("newTask.button")}</span>
+            <Link href="/search" title={t("work.search")} aria-current={isActive(pathname, "/search") ? "page" : undefined}>
+              <Search />
+              <span className="sidebar-collapsed:sr-only">{t("work.search")}</span>
+            </Link>
           </Button>
         </div>
-        {/* Sections, then the recent chats (like Claude's "Recents"): one scrolling column. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 py-2">
-          <nav aria-label={t("nav.label")} className="flex flex-col gap-4 sidebar-collapsed:items-center">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.key} className="flex flex-col gap-0.5 sidebar-collapsed:items-center">
-                <p className="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase sidebar-collapsed:hidden">
-                  {t(`nav.groups.${group.key}`)}
-                </p>
-                {group.items.map((item) => (
-                  <SidebarLink key={item.href} item={item} active={isActive(pathname, item.href)} />
-                ))}
-              </div>
-            ))}
-          </nav>
-          <section aria-labelledby="recent-chats" className="flex flex-col sidebar-collapsed:hidden">
-            <p id="recent-chats" className="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {t("chat.recent")}
-            </p>
-            <ChatList variant="sidebar" />
-          </section>
+        {/* The owner's work, like Claude's sidebar: what waits for them, what runs, recent chats and tasks. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2 sidebar-collapsed:hidden">
+          <WorkList />
         </div>
+        <div className="hidden flex-1 sidebar-collapsed:block" />
+        <nav aria-label={t("nav.label")} className="flex shrink-0 flex-col gap-0.5 border-t-2 px-2 py-2 sidebar-collapsed:items-center">
+          {SECTIONS.map((item) => (
+            <SidebarLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+          ))}
+        </nav>
         <div className="flex shrink-0 flex-col gap-3 border-t-2 p-3 sidebar-collapsed:items-center sidebar-collapsed:px-2">
           <div className="flex items-center justify-between gap-2 sidebar-collapsed:hidden">
             <p className="truncate text-xs text-muted-foreground" title={user.username}>
@@ -189,7 +175,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo size="sm" />
           </Link>
           <div className="flex items-center gap-1">
-            <ApprovalsBadge />
             <Button variant="ghost" size="icon" asChild>
               <Link href="/search" aria-label={t("nav.search")}>
                 <Search />
@@ -208,44 +193,51 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
 
-        {/* Phone tab bar: three sections, the cow "new task" button in the middle, and "More". */}
+        {/* Phone bar, one-handed: the work list, «Новое» (the cow) in the middle, the office. */}
         <nav
           aria-label={t("nav.label")}
-          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t-2 bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t-2 bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
         >
-          <TabLink item={PHONE_TABS[0]} active={isActive(pathname, PHONE_TABS[0].href)} />
-          <TabLink item={PHONE_TABS[1]} active={isActive(pathname, PHONE_TABS[1].href)} />
-          <button
-            type="button"
-            onClick={() => setNewTask(true)}
-            data-testid="new-task-cow"
+          <WorkTab open={work} onOpen={() => setWork(true)} />
+          <Link
+            href="/chat/new"
+            data-testid="new-cow"
+            aria-current={pathname === "/chat/new" ? "page" : undefined}
             className="relative flex min-h-14 flex-col items-center justify-end gap-0.5 px-1 pb-2 text-xs leading-tight font-medium"
           >
             <span className="-mt-5 flex size-12 items-center justify-center border-2 border-[#1b1b2e] bg-[#10142b] shadow-md active:scale-95">
               <PixelCow mood="happy" size={36} />
             </span>
-            <span>{t("newTask.button")}</span>
-          </button>
-          <TabLink item={PHONE_TABS[2]} active={isActive(pathname, PHONE_TABS[2].href)} />
-          <MoreTab
-            open={more}
-            onOpen={() => setMore(true)}
-            active={PHONE_MORE.some((item) => isActive(pathname, item.href))}
-          />
+            <span>{t("work.new")}</span>
+          </Link>
+          <TabLink item={OFFICE} active={isActive(pathname, OFFICE.href)} />
         </nav>
       </div>
     </div>
-    <Dialog open={more} onClose={() => setMore(false)} variant="sheet" labelledBy="more-title" data-testid="more-sheet">
-      <div className="flex max-h-[80dvh] flex-col gap-4 overflow-y-auto p-4">
+    <Dialog open={work} onClose={() => setWork(false)} variant="sheet" labelledBy="work-title" data-testid="work-sheet">
+      <div className="flex max-h-[85dvh] flex-col gap-4 overflow-y-auto p-4">
         <div className="flex items-center justify-between gap-2">
-          <p id="more-title" className="font-pixel text-lg">
-            {t("nav.more")}
+          <p id="work-title" className="font-pixel text-lg">
+            {t("work.open")}
           </p>
           <ConnectionStatus />
         </div>
-        <nav aria-label={t("nav.moreLabel")} className="flex flex-col gap-1">
-          {PHONE_MORE.map((item) => (
-            <SheetLink key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={() => setMore(false)} />
+        <div className="grid grid-cols-2 gap-2">
+          <Button asChild>
+            <Link href="/chat/new" onClick={() => setWork(false)}>
+              <SquarePen /> {t("work.new")}
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/search" onClick={() => setWork(false)}>
+              <Search /> {t("work.search")}
+            </Link>
+          </Button>
+        </div>
+        <WorkList onNavigate={() => setWork(false)} />
+        <nav aria-label={t("work.more")} className="flex flex-col gap-1 border-t-2 pt-3">
+          {SECTIONS.map((item) => (
+            <SheetLink key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={() => setWork(false)} />
           ))}
         </nav>
         <div className="flex flex-col gap-2">
@@ -264,7 +256,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     </Dialog>
-    <NewTaskDialog open={newTask} onClose={() => setNewTask(false)} />
     <Notifier />
     <RegisterServiceWorker />
     </ConfirmProvider>
@@ -274,33 +265,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
   const t = useTranslations("nav");
-  const pending = usePendingApprovalCount();
   const Icon = item.icon;
-  const count = item.labelKey === "approvals" ? pending : 0;
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
       title={`${t(item.labelKey)} — ${t(`hints.${item.labelKey}`)}`}
       className={cn(
-        "relative flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0",
+        "relative flex items-center gap-3 px-3 py-1.5 text-sm font-medium transition-colors sidebar-collapsed:size-10 sidebar-collapsed:justify-center sidebar-collapsed:p-0",
         active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
     >
       <Icon className="size-4 shrink-0" />
       <span className="flex-1 truncate sidebar-collapsed:sr-only">{t(item.labelKey)}</span>
-      {count > 0 && (
-        <>
-          <span className="sr-only">{t("pendingCount", { count })}</span>
-          <span
-            aria-hidden
-            className="bg-amber-400 px-1.5 text-xs leading-5 font-semibold text-amber-950 sidebar-collapsed:absolute sidebar-collapsed:-top-1 sidebar-collapsed:-right-1 sidebar-collapsed:px-1 sidebar-collapsed:text-xs sidebar-collapsed:leading-4"
-            data-testid="approvals-badge"
-          >
-            {count}
-          </span>
-        </>
-      )}
     </Link>
   );
 }
@@ -346,26 +323,26 @@ function TabLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-function MoreTab({ open, onOpen, active }: { open: boolean; onOpen: () => void; active: boolean }) {
-  const t = useTranslations("nav");
-  const pending = usePendingApprovalCount();
+/** Opens the work list; a dot and the number say that something waits for the owner. */
+function WorkTab({ open, onOpen }: { open: boolean; onOpen: () => void }) {
+  const t = useTranslations();
+  const waiting = useWaitingCount();
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-haspopup="dialog"
       aria-expanded={open}
-      data-testid="more-tab"
-      className={cn(
-        "relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-xs leading-tight",
-        active ? "font-medium text-foreground" : "text-muted-foreground",
-      )}
+      title={t("work.openHint")}
+      data-testid="work-tab"
+      className="relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-xs leading-tight text-muted-foreground"
     >
       <Menu className="size-5" aria-hidden />
-      <span>{t("more")}</span>
-      {pending > 0 && (
-        <span className="absolute top-1.5 right-[calc(50%-1.1rem)] size-2.5 bg-amber-400 ring-2 ring-card">
-          <span className="sr-only">{t("pendingCount", { count: pending })}</span>
+      <span>{t("work.open")}</span>
+      {waiting > 0 && (
+        <span className="absolute top-1 right-[calc(50%-1.6rem)] bg-amber-400 px-1 text-xs leading-4 font-semibold text-amber-950 ring-2 ring-card">
+          {waiting}
+          <span className="sr-only"> — {t("work.waiting")}</span>
         </span>
       )}
     </button>
@@ -374,9 +351,7 @@ function MoreTab({ open, onOpen, active }: { open: boolean; onOpen: () => void; 
 
 function SheetLink({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate: () => void }) {
   const t = useTranslations("nav");
-  const pending = usePendingApprovalCount();
   const Icon = item.icon;
-  const count = item.labelKey === "approvals" ? pending : 0;
   return (
     <Link
       href={item.href}
@@ -392,12 +367,6 @@ function SheetLink({ item, active, onNavigate }: { item: NavItem; active: boolea
         <span className="text-sm font-medium">{t(item.labelKey)}</span>
         <span className="truncate text-xs text-muted-foreground">{t(`hints.${item.labelKey}`)}</span>
       </span>
-      {count > 0 && (
-        <span className="bg-amber-400 px-2 text-xs leading-5 font-semibold text-amber-950">
-          {count}
-          <span className="sr-only"> — {t("pendingCount", { count })}</span>
-        </span>
-      )}
     </Link>
   );
 }

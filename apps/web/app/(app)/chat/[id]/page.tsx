@@ -1,18 +1,7 @@
-import { getTranslations } from "next-intl/server";
-import Link from "next/link";
-
-import { ArrowLeft } from "@/components/icons";
 import { ChatThread } from "@/features/chat/chat-thread";
 
+/** One chat. The others are in the work list (phones: «Работа» at the bottom). */
 export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const t = await getTranslations("chat");
-  return (
-    <>
-      <Link href="/chat" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground md:hidden">
-        <ArrowLeft className="size-4" /> {t("allChats")}
-      </Link>
-      <ChatThread key={id} chatId={id} />
-    </>
-  );
+  return <ChatThread key={id} chatId={id} />;
 }

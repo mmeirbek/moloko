@@ -27,9 +27,11 @@ from app.services import chat_memory
 from app.services.addressing import owner_address_instruction
 from app.services.attachments import Shown
 from app.services.audit import AuditService
+from app.services.chat_handoff import HANDOFF_INSTRUCTION, Handoff
 from app.services.chat_stream import ChatStreamManager, StreamState
 from app.services.files import FileStore, Received
 from app.services.images import ImageNotUsable, image_size, make_model_copy
+from app.tasks.queue import TaskEnqueuer
 
 DEFAULT_TITLE = "New chat"
 
@@ -45,10 +47,14 @@ class InvalidAttachment(AppError):
     message = "This file cannot be attached."
 
 
-async def chat_system_prompt(db: AsyncSession, user_id: uuid.UUID) -> str | None:
-    """The chat's instructions: today only the owner's form of address (none = no system
-    prompt, as before). History and attachments stay in the messages, fenced as data."""
-    return await owner_address_instruction(db, user_id) or None
+async def chat_system_prompt(
+    db: AsyncSession, user_id: uuid.UUID, *, hand_off: bool = False
+) -> str | None:
+    """The chat's instructions: the owner's form of address, and — when the chat may hand
+    work to the agents — when to do so (none = no system prompt). History and attachments
+    stay in the messages, fenced as data."""
+    parts = [await owner_address_instruction(db, user_id), HANDOFF_INSTRUCTION if hand_off else ""]
+    return "\n\n".join(p for p in parts if p) or None
 
 
 def make_title(content: str, max_chars: int) -> str:
@@ -478,6 +484,7 @@ class ChatService:
         model_config_id: uuid.UUID | None,
         streams: ChatStreamManager,
         attachment_ids: list[uuid.UUID] | None = None,
+        queue: TaskEnqueuer | None = None,
     ) -> tuple[Message, Message, StreamState]:
         # Row lock: two concurrent sends to one conversation are serialised here.
         conv = (
@@ -563,6 +570,8 @@ class ChatService:
         conv.last_message_at = now
         await self.db.commit()
 
+        # Work goes to the agents by itself (not with files: the agents do not see them).
+        hand_off = self.settings.chat_auto_handoff and queue is not None and not files
         request = ChatRequest(
             model=target.model,
             messages=(
@@ -575,7 +584,7 @@ class ChatService:
             ),
             # Instructions first, then data: the summary of older messages, then recall.
             system=chat_memory.chat_system(
-                await chat_system_prompt(self.db, user_id),
+                await chat_system_prompt(self.db, user_id, hand_off=hand_off),
                 chat_memory.summary_block(conv.summary or "") if cursor else "",
                 recall_text,
             ),
@@ -586,5 +595,8 @@ class ChatService:
             message_id=assistant_msg.id,
             target=target,
             request=request,
+            handoff=(
+                Handoff(queue, content, self.settings.chat_title_max_chars) if hand_off else None
+            ),
         )
         return user_msg, assistant_msg, state

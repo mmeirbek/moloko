@@ -253,7 +253,7 @@
     "allChats": "All chats",
     "deleteChat": "Delete “{title}”",
     "confirmDelete": "Delete this chat and all its messages?",
-    "placeholder": "Message moloko…",
+    "placeholder": "Ask or hand over work… “@Coder …” makes it that agent's task",
     "send": "Send",
     "stop": "Stop",
     "thinking": "Thinking",
@@ -274,7 +274,8 @@
       "provider_model_not_found": "The provider does not know this model.",
       "provider_unknown": "The provider request failed.",
       "interrupted": "The answer was interrupted because the server restarted.",
-      "internal_error": "Something went wrong while generating the answer."
+      "internal_error": "Something went wrong while generating the answer.",
+      "handoff_failed": "The agents can't take this work right now: the Orchestrator is busy with an earlier task or work is stopped. Send it again a bit later."
     },
     "agentsMode": "Hand to agents",
     "handOff": "Hand off to agents",
@@ -326,6 +327,10 @@
         "memory": "memory",
         "other": "other"
       }
+    },
+    "mention": {
+      "target": "A task for «{name}» — its page will open",
+      "pick": "Who should do it"
     }
   },
   "settings": {
@@ -508,7 +513,6 @@
         "fs_list": "Looks at the folder {path}",
         "fs_move": "Moves {file} → {to}",
         "fs_delete": "Deletes the file {file}",
-        "terminal_run": "Runs: {command}",
         "github_read_file": "Reads {file} in {repo}",
         "github_write_file": "Saves {file} to {repo}",
         "github_list_dir": "Looks at {path} in {repo}",
@@ -528,10 +532,88 @@
         "agent_ask": "Asks the agent {agent}",
         "agent_tell": "Messages the agent {agent}",
         "agents_list": "Looks who is in the office",
-        "other": "Tool “{tool}”"
+        "other": "Tool “{tool}”",
+        "github_checkout": "Downloads {repo} into the work folder",
+        "github_commit_files": "Saves the changes in {repo} ({branch})",
+        "cmd_tests": "Tests",
+        "cmd_browserTests": "Browser tests",
+        "cmd_build": "Building the project",
+        "cmd_install": "Installing packages",
+        "cmd_lint": "Linting the code",
+        "cmd_typecheck": "Type checking",
+        "cmd_git": "Working with git",
+        "cmd_look": "Looking at files in the sandbox",
+        "cmd_script": "Script {program}",
+        "cmd_other": "Command {program}"
       },
       "plan": "Plan: {summary} — {count} parts",
-      "planDirect": "Decided to answer itself, no helpers"
+      "planDirect": "Decided to answer itself, no helpers",
+      "done": {
+        "fs_read": "Read the file {file}",
+        "fs_write": "Wrote the file {file}",
+        "fs_append": "Added to the file {file}",
+        "fs_list": "Looked at the folder {path}",
+        "fs_move": "Moved {file} → {to}",
+        "fs_delete": "Deleted the file {file}",
+        "github_read_file": "Read {file} in {repo}",
+        "github_write_file": "Saved {file} in {repo}",
+        "github_list_dir": "Looked at {path} in {repo}",
+        "github_create_branch": "Created the branch {branch} in {repo}",
+        "github_list_issues": "Looked at the issues in {repo}",
+        "github_get_issue": "Read issue #{number} in {repo}",
+        "github_list_commits": "Looked at the commits in {repo}",
+        "github_create_pull_request": "Opened a pull request in {repo}",
+        "github_list_repos": "Looked at the list of repositories",
+        "github_checkout": "Downloaded {repo} into the work folder",
+        "github_commit_files": "Saved the changes in {repo} ({branch})",
+        "web_search": "Searched the web: {query}",
+        "web_fetch": "Opened {host}",
+        "browser_screenshot": "Took a screenshot of {host}",
+        "knowledge_search": "Searched memory: {query}",
+        "work_search": "Searched the work history: {query}",
+        "work_read": "Read an entry of the work history",
+        "memory_save": "Remembered: {title}",
+        "agent_ask": "Asked the agent {agent}",
+        "agent_tell": "Wrote to the agent {agent}",
+        "agents_list": "Looked at who is in the office",
+        "other": "Used the tool «{tool}»",
+        "cmd_tests": "Tests",
+        "cmd_browserTests": "Browser tests",
+        "cmd_build": "Building the project",
+        "cmd_install": "Installing packages",
+        "cmd_lint": "Linting the code",
+        "cmd_typecheck": "Type checking",
+        "cmd_git": "Working with git",
+        "cmd_look": "Looking at files in the sandbox",
+        "cmd_script": "Script {program}",
+        "cmd_other": "Command {program}"
+      },
+      "cmd": {
+        "cmd_tests": "Tests",
+        "cmd_browserTests": "Browser tests",
+        "cmd_build": "Building the project",
+        "cmd_install": "Installing packages",
+        "cmd_lint": "Linting the code",
+        "cmd_typecheck": "Type checking",
+        "cmd_git": "Working with git",
+        "cmd_look": "Looking at files in the sandbox",
+        "cmd_script": "Script {program}",
+        "cmd_other": "Command {program}"
+      },
+      "group": {
+        "fs_read": "Read {count, plural, one {# file} other {# files}}: {list}",
+        "fs_list": "Looked at {count, plural, one {# folder} other {# folders}}: {list}",
+        "github_read_file": "Read {count, plural, one {# file} other {# files}} in GitHub: {list}",
+        "github_list_dir": "Looked at {count, plural, one {# folder} other {# folders}} in GitHub: {list}",
+        "web_fetch": "Opened {count, plural, one {# site} other {# sites}}: {list}",
+        "work_read": "Read {count, plural, one {# entry} other {# entries}} of the work history",
+        "knowledge_search": "Searched memory {count, plural, one {once} other {# times}}: {list}",
+        "web_search": "Searched the web {count, plural, one {once} other {# times}}: {list}"
+      },
+      "testsPassed": "all passed: {passed}",
+      "testsFailed": "{failed} failed, {passed} passed",
+      "succeeded": "succeeded",
+      "failedCode": "didn't work (code {code})"
     },
     "chat": {
       "label": "The task's conversation",
@@ -595,6 +677,13 @@
         "reply": "The reply continues the task: the agent takes its previous answer and your message into account.",
         "orchestrator": "While the plan runs, messages go to the agents doing the parts — open that part."
       }
+    },
+    "outcome": {
+      "title": "What came out",
+      "pullRequest": "Pull request #{number} in {repo}",
+      "commit": "Commit {sha} in {repo} ({branch})",
+      "branch": "Branch {branch} in {repo}",
+      "files": "{count, plural, one {# file} other {# files}} in the work folder — tap to open"
     }
   },
   "agents": {
@@ -889,7 +978,9 @@
       "settings": "Settings",
       "giveTask": "Give a task",
       "giveTaskHint": "The agent is waiting for work. Describe a task and it starts.",
-      "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best"
+      "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best",
+      "openTask": "Open the task",
+      "doingNow": "Now: {what}"
     },
     "addAgent": "Add agent",
     "dropHere": "Drop — the agent walks into the office"
@@ -1745,5 +1836,22 @@
       "date": "{date} at {time}"
     },
     "preview": "{rule} · next run {when}"
+  },
+  "work": {
+    "waiting": "Waiting for you",
+    "active": "In progress",
+    "recent": "Recent",
+    "empty": "Your tasks and chats will appear here.",
+    "allTasks": "All tasks",
+    "reason": {
+      "approval": "needs your approval",
+      "question": "waits for your answer",
+      "failed": "broke"
+    },
+    "open": "Work",
+    "openHint": "Tasks and chats: what waits for you, what runs, recent",
+    "new": "New",
+    "search": "Search",
+    "more": "Sections"
   }
 }
