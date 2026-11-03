@@ -42,6 +42,7 @@ export type ConversationPage = Schemas["Page_ConversationOut_"];
 export type ConversationSummaryOut = Schemas["ConversationSummaryOut"];
 export type RecalledSourceOut = Schemas["RecalledSourceOut"];
 export type MessagePage = Schemas["Page_MessageOut_"];
+export type FreeProviderOut = Schemas["FreeProviderOut"];
 export type ProviderOut = Schemas["ProviderOut"];
 export type ProviderCreate = Schemas["ProviderCreate"];
 export type ProviderUpdate = Schemas["ProviderUpdate"];

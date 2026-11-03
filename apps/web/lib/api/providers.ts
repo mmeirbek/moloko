@@ -1,4 +1,5 @@
 import type {
+  FreeProviderOut,
   ModelCreate,
   ModelOut,
   ModelUpdate,
@@ -15,6 +16,7 @@ export const providerKeys = {
   kinds: ["providers", "kinds"] as const,
   list: ["providers"] as const,
   models: ["models", "all"] as const,
+  free: ["providers", "free"] as const,
 };
 
 export const getProviderKinds = (signal?: AbortSignal) =>
@@ -35,3 +37,7 @@ export const createModel = (body: ModelCreate) =>
   api.request<ModelOut>("/models", { method: "POST", body });
 export const updateModel = (id: string, body: ModelUpdate) =>
   api.request<ModelOut>(`/models/${id}`, { method: "PATCH", body });
+
+/** Platforms with a free tier of their official API: add one with the owner's own key. */
+export const freeCatalog = (signal?: AbortSignal) =>
+  api.request<FreeProviderOut[]>("/providers/free-catalog", { signal });

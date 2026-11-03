@@ -316,13 +316,26 @@ class NativeRuntime:
                 ctx, "internal_error", "The agent crashed. The error was logged.", error_id=error_id
             )
 
+    async def _target(
+        self, ctx: RunContext, db: AsyncSession, agent: Agent, task: Task
+    ) -> ModelTarget:
+        """The agent's model — or the one the Orchestrator picked for this part
+        (``extra.model_config_id``), while that model is still there and enabled."""
+        picked = (task.extra or {}).get("model_config_id")
+        if picked:
+            try:
+                return await ctx.gateway.resolve(db, ctx.user_id, uuid.UUID(str(picked)))
+            except (ValueError, AppError):
+                pass  # removed or switched off since the plan: the agent's own model
+        return await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
+
     async def setup(self, ctx: RunContext) -> RunSetup:
         async with ctx.sessionmaker() as db:
             agent = await db.get(Agent, ctx.agent_id)
             task = await db.get(Task, ctx.task_id)
             run = await db.get(AgentRun, ctx.run_id)
             assert agent is not None and task is not None and run is not None
-            target = await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
+            target = await self._target(ctx, db, agent, task)
             extra = await self.extra_system(ctx, db, agent, task)
             memory = "\n\n".join(
                 p

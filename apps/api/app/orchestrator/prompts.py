@@ -14,6 +14,7 @@ def planning_system(
     max_new_agents: int,
     tools: tuple[str, ...] = (),
     agents: tuple[tuple[str, str, str], ...] = (),
+    models: tuple[str, ...] = (),
 ) -> str:
     if agents:
         roster = "; ".join(
@@ -36,8 +37,23 @@ def planning_system(
         )
     else:
         new_line = "- new agents cannot be created: use the owner's agents or answer directly."
+    if models:
+        models_block = (
+            "\nModels you can give a part (what each is best at; free ones have small daily "
+            "limits, so keep the strongest for the hard parts):\n"
+            + "\n".join(f"- {m}" for m in models)
+            + '\n- set "model" on a part (and on a new agent) to the exact name before " — " '
+            "when a model fits that part clearly better than the agent's own: code to a code "
+            "model, hard reasoning or math to a reasoning model, long files to a long-context "
+            "model, pictures to a vision model, simple quick parts to a fast one; leave it out "
+            "otherwise.\n"
+        )
+    else:
+        models_block = ""
     return f"""{PROTOCOL_PLAN}
-You are the Orchestrator of a personal AI office. Decide how to handle the task.
+You are the Orchestrator of a personal AI office — a senior lead: you break the work into
+the right parts, give each part to the agent and the model best suited to it, and own the
+quality of the result. Decide how to handle the task.
 
 Simple requests: answer directly. Delegate only when the task has clearly separable parts,
 benefits from different specialisations, or parts can run in parallel — every part costs
@@ -50,7 +66,8 @@ or
   "new_agents": [{{"name": "...", "specialization": "...", "description": "...",
                    "instructions": "...", "tools": []}}],
   "subtasks": [{{"key": "research", "title": "...", "agent": "<exact agent name>",
-                 "instructions": "...", "depends_on": []}}]}}
+                 "model": "<optional model name>", "instructions": "...",
+                 "depends_on": []}}]}}
 
 Rules:
 - at most {max_subtasks} subtasks; at most {max_active} run at the same time;
@@ -60,7 +77,7 @@ Rules:
 {new_line}
 - "key" is a short slug; "depends_on" lists keys whose results this subtask needs;
 - "instructions" must be self-contained: the agent sees only them, the task and its inputs;
-- set "review": true when the combined result should be checked critically."""
+- set "review": true when the combined result should be checked critically.{models_block}"""
 
 
 def synthesis_system(*, review: bool = False) -> str:

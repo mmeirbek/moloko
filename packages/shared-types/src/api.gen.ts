@@ -1152,6 +1152,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/free-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Platforms with a free tier of their official API (add one with your own key) */
+        get: operations["free_catalog_api_v1_providers_free_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers/kinds": {
         parameters: {
             query?: never;
@@ -2667,6 +2684,26 @@ export interface components {
             type: string;
             /** Version */
             version: number;
+        };
+        /**
+         * FreeProviderOut
+         * @description A platform with a free tier of its official API (app/providers/free_catalog.py): the
+         *     owner gets a key there and adds it as an ordinary provider with this address.
+         */
+        FreeProviderOut: {
+            /** Base Url */
+            base_url: string;
+            /** Key */
+            key: string;
+            /** Key Url */
+            key_url: string;
+            /** Name */
+            name: string;
+            /**
+             * Needs Account
+             * @description The address needs the account id ({account_id}).
+             */
+            needs_account: boolean;
         };
         /**
          * FullAccessForAllOut
@@ -6852,6 +6889,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    free_catalog_api_v1_providers_free_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FreeProviderOut"][];
                 };
             };
         };

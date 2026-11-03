@@ -25,6 +25,8 @@ import {
   updateProvider,
 } from "@/lib/api/providers";
 
+import { FreeProvidersCard } from "./free-providers";
+
 // Brand names stay as they are; the offline test provider gets a translated name.
 const KIND_LABEL: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic" };
 
@@ -336,6 +338,7 @@ export function ProvidersSection() {
 
   return (
     <>
+      <FreeProvidersCard providers={providers.data} />
       <Card>
         <CardHeader>
           <CardTitle>{t("providers.title")}</CardTitle>

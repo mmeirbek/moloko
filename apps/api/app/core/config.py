@@ -165,6 +165,8 @@ class Settings(BaseSettings):
     # New agents the Orchestrator may create in one plan when none of the owner's fits
     # (they join the office and stay); 0 = it only uses the owner's agents.
     orchestrator_max_new_agents: int = Field(3, ge=0, le=10)
+    # How many of the owner's models the Orchestrator sees when it plans (strongest first).
+    orchestrator_max_models_listed: int = Field(40, ge=0, le=500)
     max_steps_per_run: int = Field(50, ge=1, le=1000)
     run_timeout_seconds: int = Field(1800, ge=10)
     max_retries_per_step: int = Field(2, ge=0, le=10)

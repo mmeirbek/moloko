@@ -167,3 +167,11 @@ No third-party art assets. All Pixel Office art is original and drawn in code; e
 asset is listed with its source and license in `apps/web/assets/MANIFEST.md`
 (spec 18.2). The brand logo belongs to the owner. The heading font, Moloko Pixel, is our own:
 drawn for moloko after the logo's lettering (`apps/web/scripts/make-font.py`).
+
+## tashfeenahmed/freellmapi — reference only (MIT)
+
+Read on 2026-11-03 (commit 741d030) for its list of free-tier platforms, their OpenAI-compatible
+addresses, its per-provider terms-of-service review and its model ranks. No code was copied;
+`apps/api/app/providers/free_catalog.py` and `model_profiles.py` are our own.
+Copyright (c) Tashfeen Ahmed — MIT License.
+

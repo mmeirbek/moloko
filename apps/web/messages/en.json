@@ -411,6 +411,61 @@
       "otherDevices": "The new length applies to this sign-in at once. On other devices a sign-in becomes no longer than the new length — it is never extended.",
       "save": "Save",
       "saved": "Saved. This sign-in now lasts until {date}."
+    },
+    "freeProviders": {
+      "title": "Free models",
+      "description": "Platforms whose official API is free within daily limits. Get a key on the platform's site and paste it — its free models are added, and the Orchestrator picks the best of them for each part of a task.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "addAnother": "Another key",
+      "getKey": "Get a key",
+      "key": "API key",
+      "account": "Cloudflare account ID",
+      "cancel": "Cancel",
+      "added": "Models added: {count}",
+      "privacy": "Only the platforms' own official APIs (from the freellmapi list). The small resale gateways of that list are not included: they would get your prompts and memory. Cohere is left out — its terms forbid personal use.",
+      "platforms": {
+        "google": {
+          "allowance": "Gemini 2.5 Pro, Flash, Flash-Lite — ~100 to ~1000 requests a day, 1M context",
+          "caution": "terms since March 2026: «for professional purposes»"
+        },
+        "groq": {
+          "allowance": "Llama, Qwen, GPT-OSS, Kimi — about 1000 requests a day, very fast"
+        },
+        "cerebras": {
+          "allowance": "Qwen3 Coder 480B, GPT-OSS 120B, Llama — 1M tokens a day, the fastest"
+        },
+        "mistral": {
+          "allowance": "Experiment plan: Mistral Large, Magistral, Codestral — 2 requests a minute"
+        },
+        "openrouter": {
+          "allowance": "«:free» models: DeepSeek, Kimi K2, Qwen3 Coder, GLM and more — 50–200 requests a day"
+        },
+        "github": {
+          "allowance": "GPT-5, GPT-4.1, DeepSeek R1, Llama — a token with «Models: read», 50–150 requests a day"
+        },
+        "nvidia": {
+          "allowance": "Hundreds of open models, 40 requests a minute",
+          "caution": "trial terms: «evaluation only»"
+        },
+        "huggingface": {
+          "allowance": "Inference Providers: small free monthly credits"
+        },
+        "sambanova": {
+          "allowance": "Llama, DeepSeek, Qwen — free tier with daily limits"
+        },
+        "zhipu": {
+          "allowance": "GLM Flash models — free"
+        },
+        "ollama": {
+          "allowance": "Free plan: cloud models, one at a time"
+        },
+        "cloudflare": {
+          "allowance": "Workers AI: 10,000 «neurons» a day",
+          "caution": "the address needs your account ID"
+        }
+      }
     }
   },
   "realtime": {

@@ -29,7 +29,7 @@ from app.models.agent import Agent, AgentRun
 from app.models.chat import Conversation, Message
 from app.models.task import Task
 from app.orchestrator.messaging import format_inputs, inbox
-from app.orchestrator.parts import create_subtasks, owner_agents
+from app.orchestrator.parts import create_subtasks, owner_agents, owner_models
 from app.orchestrator.plan import Plan, PlanError, parse_plan
 from app.orchestrator.prompts import planning_system, synthesis_system
 from app.orchestrator.scheduler import WAITING_FOR_SUBTASKS
@@ -121,6 +121,7 @@ class OrchestratorRuntime(NativeRuntime):
         agent, task = setup.agent, setup.task
         async with ctx.sessionmaker() as db:
             roster = await owner_agents(db, agent.user_id)
+            models = await owner_models(db, agent.user_id, settings.orchestrator_max_models_listed)
         # A new agent may only get tools the Orchestrator itself may use; every agent has
         # the read-only history tools anyway (not part of the plan).
         tools = tuple(t.name for t in setup.tools if t.name not in ALWAYS_ALLOWED)
@@ -130,6 +131,7 @@ class OrchestratorRuntime(NativeRuntime):
             max_new_agents=settings.orchestrator_max_new_agents,
             tools=tools,
             agents=tuple((a.name, a.specialization or "", a.description) for a in roster),
+            models=tuple(line for line, _ in models.values()),
         )
         system = with_owner_context(system, setup)
         async with ctx.sessionmaker() as db:
@@ -148,6 +150,7 @@ class OrchestratorRuntime(NativeRuntime):
                     agents=[a.name for a in roster],
                     max_new_agents=settings.orchestrator_max_new_agents,
                     tools=list(tools),
+                    models={name: model_id for name, (_, model_id) in models.items()},
                 )
                 break
             except PlanError as exc:

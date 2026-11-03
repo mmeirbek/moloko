@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 
 import { Maximize, Minus, Plus, UserPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { AgentAvatar } from "@/features/agents/agent-avatar";
+import { AgentAvatar, useAgentLooks } from "@/features/agents/agent-avatar";
+import { lookOf, type Look } from "@/features/agents/agent-looks";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { playMoo } from "@/features/mascot/moo";
@@ -74,12 +75,15 @@ export function cameraActionForKey(key: string): CameraAction | null {
   }
 }
 
-function toOfficeAgent(a: AgentOut): OfficeAgent {
+function toOfficeAgent(a: AgentOut, looks: Map<string, Look>): OfficeAgent {
+  const look = looks.get(a.id) ?? lookOf(a.id, a.animal);
   return {
     id: a.id,
     name: a.name,
     status: a.status,
     kind: a.agent_type as OfficeAgent["kind"],
+    // the same animal as its face
+    animal: look.animal === "cow" ? undefined : look.animal,
   };
 }
 
@@ -134,6 +138,7 @@ export function OfficeView({
   const shownHour = forcedHour !== null && /^\d{1,2}$/.test(forcedHour) ? Number(forcedHour) % 24 : hour;
 
   const shown = useMemo(() => officeAgents(Object.values(agentsById)), [agentsById]);
+  const looks = useAgentLooks();
   // Progress over the heads: task %, step, what it does now, waiting for approval (engine/hud.ts).
   const tasks = useRealtimeStore((s) => s.tasks);
   const runs = useRealtimeStore((s) => s.runs);
@@ -187,8 +192,8 @@ export function OfficeView({
 
   // Store → scene (one direction only).
   useEffect(() => {
-    if (ready) bus.emit("agents", shown.map(toOfficeAgent));
-  }, [bus, ready, shown]);
+    if (ready) bus.emit("agents", shown.map((a) => toOfficeAgent(a, looks)));
+  }, [bus, ready, shown, looks]);
 
   useEffect(() => {
     if (ready) bus.emit("hud", hud);

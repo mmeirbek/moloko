@@ -15,9 +15,11 @@ from app.agents.looks import pick_animal
 from app.agents.state import AgentStatus, AgentType, TaskStatus, TaskType
 from app.events import bus
 from app.models.agent import Agent
+from app.models.provider import ModelConfig, Provider
 from app.models.task import Task
 from app.orchestrator.plan import NewAgentSpec, Plan
 from app.orchestrator.prompts import new_agent_system
+from app.providers.model_profiles import describe, profile_for
 from app.repositories.users import UserRepository
 from app.services.audit import AuditService
 
@@ -72,7 +74,7 @@ async def create_agent(
         description=spec.description,
         agent_type=AgentType.AUTONOMOUS.value,
         specialization=spec.specialization,
-        model_config_id=orchestrator.model_config_id,
+        model_config_id=uuid.UUID(spec.model) if spec.model else orchestrator.model_config_id,
         system_prompt=new_agent_system(spec.specialization, spec.instructions),
         allowed_tools=[t for t in dict.fromkeys(spec.tools) if t in orchestrator.allowed_tools],
         autonomy_level=orchestrator.autonomy_level,
@@ -116,6 +118,33 @@ async def create_agent(
     return agent
 
 
+async def owner_models(
+    db: AsyncSession, user_id: uuid.UUID, limit: int
+) -> dict[str, tuple[str, str]]:
+    """The owner's enabled models for the Orchestrator to choose from: name → (its line in the
+    plan prompt with what it is best at, its model config id). At most ``limit``
+    (ORCHESTRATOR_MAX_MODELS_LISTED), the strongest first, so the prompt stays short."""
+    rows = (
+        await db.execute(
+            select(ModelConfig, Provider.name)
+            .join(Provider, ModelConfig.provider_id == Provider.id)
+            .where(
+                ModelConfig.user_id == user_id,
+                ModelConfig.enabled.is_(True),
+                Provider.enabled.is_(True),
+            )
+        )
+    ).all()
+    ranked = sorted(
+        rows, key=lambda r: (profile_for(r[0].model).tier, profile_for(r[0].model).speed)
+    )
+    out: dict[str, tuple[str, str]] = {}
+    for config, provider_name in ranked[:limit]:
+        name = f"{config.model} @ {provider_name}"
+        out[name] = (describe(name, config.model), str(config.id))
+    return out
+
+
 async def create_subtasks(
     db: AsyncSession, *, orchestrator: Agent, parent_task: Task, plan: Plan
 ) -> list[Task]:
@@ -145,6 +174,8 @@ async def create_subtasks(
                 "assigned": True,
                 "root_run": str(root),
                 "specialization": worker.specialization,
+                # the model the Orchestrator picked for this part (runtimes/native.py)
+                **({"model_config_id": spec.model} if spec.model else {}),
             },
         )
         db.add(task)

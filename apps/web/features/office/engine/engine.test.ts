@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SeatAssigner } from "./assign";
 import { BEHAVIOR, behaviorFor } from "./behavior";
 import { COLS, DESKS, isSeat, LAYOUT, ROWS, stepsTo, walkable, ZONES } from "./map";
-import { findPath } from "./pathfinding";
+import { findPath, smoothPath } from "./pathfinding";
 
 describe("office map", () => {
   it("has the declared size", () => {
@@ -90,3 +90,35 @@ describe("seat assignment", () => {
     expect(overflow).toBeLessThan(3);
   });
 });
+
+describe("walking", () => {
+  it("cuts straight across open floor, never through walls or furniture", () => {
+    const door = ZONES.door[0]!;
+    for (const spot of [...DESKS.map((d) => d.seat), ...ZONES.lounge, ...ZONES.meeting]) {
+      const steps = stepsTo(spot);
+      const path = findPath(door, spot, steps)!;
+      const smooth = smoothPath(path, steps);
+      expect(smooth[0]).toEqual(path[0]);
+      expect(smooth.at(-1)).toEqual(path.at(-1));
+      expect(smooth.length).toBeLessThanOrEqual(path.length);
+      // every straight leg only crosses walkable tiles (sampled finely)
+      for (let i = 1; i < smooth.length; i++) {
+        const a = smooth[i - 1]!;
+        const b = smooth[i]!;
+        for (let t = 0; t <= 1; t += 0.05) {
+          const col = Math.round(a.col + (b.col - a.col) * t);
+          const row = Math.round(a.row + (b.row - a.row) * t);
+          const end = (col === b.col && row === b.row) || (col === a.col && row === a.row);
+          expect(end || steps(col, row), `${a.col},${a.row} → ${b.col},${b.row} at ${col},${row}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("a straight corridor is one leg", () => {
+    const open = () => true;
+    const line = Array.from({ length: 6 }, (_, i) => ({ col: i, row: 0 }));
+    expect(smoothPath(line, open)).toEqual([line[0], line[5]]);
+  });
+});
+

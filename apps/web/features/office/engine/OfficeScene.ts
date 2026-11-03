@@ -30,8 +30,8 @@ import {
 import { isNight, skyFor } from "./daynight";
 import { deskMarkSpot, monitorSpot, paintMap, paintOffice, paintWindows, petSpot, PROP_ART, propPlacements } from "./decor";
 import { BAR_INNER, barFill, hudText } from "./hud";
-import { DESKS, stepsTo, tileCenter, walkable, WORLD_H, WORLD_W, ZONES, type Spot } from "./map";
-import { findPath, type Cell } from "./pathfinding";
+import { COLS, DESKS, isSeat, ROWS, stepsTo, tileCenter, walkable, WORLD_H, WORLD_W, ZONES, type Spot } from "./map";
+import { findPath, smoothPath, type Cell } from "./pathfinding";
 import {
   BADGE_H,
   BADGE_W,
@@ -112,6 +112,11 @@ interface Character {
   tagStyle: TagStyle | null;
   /** the caption sits under the name tag (no room above, e.g. at the task board) */
   tagBelow: boolean;
+  /** its sprite sheet (the agent's animal) */
+  texture: string;
+  /** free between tasks: out for a walk round the office, and when it goes next */
+  strolling: boolean;
+  stroll: Phaser.Time.TimerEvent | null;
 }
 
 const DAY_ENV: OfficeEnv = { hour: 12, locale: "ru", season: null, attention: false };
@@ -287,10 +292,10 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private ensureAgentTexture(agent: OfficeAgent): string {
-    const key = `agent:${agent.id}`;
+    const key = `agent:${agent.id}:${agent.animal ?? "person"}`;
     if (this.textures.exists(key)) return key;
     const tex = this.textures.createCanvas(key, FRAME * FRAME_ORDER.length, FRAME)!;
-    paintSheet(tex.context, paletteFor(agent.id, agent.kind));
+    paintSheet(tex.context, paletteFor(agent.id, agent.kind, agent.animal), agent.animal);
     tex.refresh();
     FRAME_ORDER.forEach((name, i) => tex.add(name, 0, i * FRAME, 0, FRAME, FRAME));
     for (const [pose, frames] of Object.entries(POSE_FRAMES)) {
@@ -313,7 +318,15 @@ export class OfficeScene extends Phaser.Scene {
       const existing = this.characters.get(agent.id);
       if (existing) {
         const changed = existing.agent.status !== agent.status;
+        const redrawn = existing.cow === null && existing.agent.animal !== agent.animal;
         existing.agent = agent;
+        if (redrawn) {
+          // the owner gave it another animal: new sprite sheet, same place
+          existing.texture = this.ensureAgentTexture(agent);
+          existing.sprite.setTexture(existing.texture, "stand");
+          if (existing.path.length > 0) existing.sprite.play(this.animKey(existing, "walk"), true);
+          else this.applyPose(existing);
+        }
         existing.label.setText(shortName(agent.name));
         if (changed || existing.leaving) {
           if (existing.leaving) {
@@ -332,11 +345,19 @@ export class OfficeScene extends Phaser.Scene {
     this.refreshMonitors();
   }
 
+  /**
+   * A character appears at its place — its desk, the lounge, the cow on its pasture — instead of
+   * walking in from the door each time the office opens (owner, 2026-11-03).
+   */
   private spawn(agent: OfficeAgent): void {
     const isCow = agent.kind === "orchestrator";
     const key = isCow ? this.ensureCowTexture() : this.ensureAgentTexture(agent);
-    const door = ZONES.door[this.seats.seat("door", agent.id)]!;
-    const { x, y } = tileCenter(door.col, door.row);
+    const home: Spot = isCow
+      ? ZONES.pasture[0]!
+      : agent.kind === "autonomous"
+        ? DESKS[this.seats.seat("desk", agent.id)]!.seat
+        : (ZONES.lounge[this.seats.seat("lounge", agent.id)] ?? ZONES.lounge[0]!);
+    const { x, y } = tileCenter(home.col, home.row);
     const sprite = this.add
       .sprite(x, y, key, "stand")
       .setOrigin(0.5, isCow ? (COW_H - 1.5) / COW_H : 0.85)
@@ -347,7 +368,7 @@ export class OfficeScene extends Phaser.Scene {
       shadow: this.add.image(x, y, isCow ? "shadow:cow" : "shadow:small"),
       badge: this.add.image(x, y, "badge:check").setOrigin(0.5, 1).setVisible(false),
       label: this.makeLabel(x, y, agent.name),
-      cell: { col: door.col, row: door.row },
+      cell: { col: home.col, row: home.row },
       path: [],
       target: null,
       behavior: behaviorFor(agent.status),
@@ -367,6 +388,9 @@ export class OfficeScene extends Phaser.Scene {
       tag: this.makeTag(x, y),
       tagStyle: null,
       tagBelow: false,
+      texture: key,
+      strolling: false,
+      stroll: null,
     };
     sprite.on("pointerdown", (p: Phaser.Input.Pointer) => {
       p.event.stopPropagation();
@@ -503,6 +527,7 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private leave(character: Character): void {
+    this.stopStroll(character);
     character.leaving = true;
     this.applyHud(character, null);
     character.badge.setVisible(false);
@@ -532,6 +557,7 @@ export class OfficeScene extends Phaser.Scene {
       this.routeCow(character);
       return;
     }
+    this.stopStroll(character);
     const behavior = behaviorFor(character.agent.status);
     character.behavior = behavior;
     // free spots in other zones (desks stay reserved for the agent's lifetime)
@@ -550,8 +576,10 @@ export class OfficeScene extends Phaser.Scene {
 
   private walkTo(character: Character, spot: Spot): void {
     const goal = { col: spot.col, row: spot.row };
-    const path = findPath(character.cell, goal, stepsTo(goal));
-    character.path = path ? path.slice(1) : [];
+    const steps = stepsTo(goal);
+    const path = findPath(character.cell, goal, steps);
+    // straight across the floor where nothing is in the way, not along the grid
+    character.path = path ? smoothPath(path, steps).slice(1) : [];
     character.badge.setVisible(false);
     if (character.path.length === 0) {
       this.arrive(character);
@@ -562,9 +590,66 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private animKey(character: Character, pose: string): string {
-    return character.cow !== null
-      ? `cow:${this.env.season ?? "plain"}:${pose}`
-      : `agent:${character.agent.id}:${pose}`;
+    return character.cow !== null ? `cow:${this.env.season ?? "plain"}:${pose}` : `${character.texture}:${pose}`;
+  }
+
+  // --- walks between tasks -------------------------------------------------------------------
+
+  /**
+   * A free agent (idle, nothing to do) does not sit still all day: after a while at its desk it
+   * strolls to a random free spot of the office, looks around there, perhaps walks on, and comes
+   * back (owner: «агенты должны спокойно ходить, а не по определённой дороге»). Any task brings
+   * it straight back to its desk (route() cancels the walk).
+   */
+  private planStroll(character: Character): void {
+    if (character.cow !== null || character.leaving || character.agent.status !== "idle") return;
+    this.stopStroll(character);
+    const away = character.strolling;
+    const wait = away ? Phaser.Math.Between(4000, 11000) : Phaser.Math.Between(9000, 26000);
+    character.stroll = this.time.delayedCall(wait, () => {
+      character.stroll = null;
+      if (character.leaving || character.agent.status !== "idle") return;
+      // out on a walk: walk on now and then, otherwise back to the desk
+      if (away && Math.random() < 0.55) {
+        character.strolling = false;
+        this.route(character);
+        return;
+      }
+      const spot = this.freeSpot(character);
+      if (!spot) {
+        this.planStroll(character);
+        return;
+      }
+      character.strolling = true;
+      character.target = spot;
+      this.walkTo(character, spot);
+    });
+  }
+
+  private stopStroll(character: Character): void {
+    character.stroll?.remove(false);
+    character.stroll = null;
+    character.strolling = false;
+  }
+
+  /** A random walkable floor tile nobody stands on or heads for, a calm walk away. */
+  private freeSpot(character: Character): Spot | null {
+    const taken = new Set<string>();
+    for (const c of this.characters.values()) {
+      if (c === character) continue;
+      taken.add(`${c.cell.col},${c.cell.row}`);
+      if (c.target) taken.add(`${c.target.col},${c.target.row}`);
+    }
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const col = Phaser.Math.Between(1, COLS - 2);
+      const row = Phaser.Math.Between(1, ROWS - 2);
+      if (!walkable(col, row) || isSeat(col, row) || taken.has(`${col},${row}`)) continue;
+      const far = Math.abs(col - character.cell.col) + Math.abs(row - character.cell.row);
+      if (far < 4 || far > 26) continue;
+      const path = findPath(character.cell, { col, row }, stepsTo({ col, row }));
+      if (path && path.length <= 34) return { col, row, facing: Math.random() < 0.5 ? "down" : "up" };
+    }
+    return null;
   }
 
   // --- the cow ------------------------------------------------------------------------------
@@ -695,6 +780,7 @@ export class OfficeScene extends Phaser.Scene {
       return;
     }
     this.applyPose(character);
+    this.planStroll(character);
     if (character.patrol) {
       const cow = character;
       character.patrol.timer = this.time.delayedCall(1600, () => this.patrolNext(cow));
@@ -707,7 +793,7 @@ export class OfficeScene extends Phaser.Scene {
       return;
     }
     const { pose, indicator, animated } = character.behavior;
-    const key = `agent:${character.agent.id}:${pose}`;
+    const key = this.animKey(character, pose);
     if (animated) character.sprite.play(key, true);
     else character.sprite.stop();
     character.sprite.setAlpha(pose === "frozen" ? 0.65 : 1);

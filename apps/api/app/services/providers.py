@@ -14,6 +14,7 @@ from app.core.crypto import secret_hint
 from app.core.errors import AppError, Conflict, NotFound
 from app.models.provider import ModelConfig, Provider
 from app.providers.base import ProviderError
+from app.providers.free_catalog import free_models, preset_for
 from app.providers.gateway import ModelGateway
 from app.providers.registry import available_kinds, env_api_key
 from app.schemas.providers import (
@@ -191,7 +192,11 @@ class ProviderService:
                 provider.kind, self._credentials(provider), provider.base_url
             )
         except ProviderError as exc:
-            raise AppError(exc.message, code=f"provider_{exc.kind}", status_code=502) from None
+            preset = preset_for(provider.base_url)
+            if preset is None or not preset.known_models or exc.kind == "auth_failed":
+                raise AppError(exc.message, code=f"provider_{exc.kind}", status_code=502) from None
+            models = []  # the platform does not list its models: its known ones below
+        models = free_models(provider.base_url, models)
         existing = set(
             (
                 await self.db.execute(

@@ -2470,6 +2470,41 @@
         "title": "EventOut",
         "type": "object"
       },
+      "FreeProviderOut": {
+        "description": "A platform with a free tier of its official API (app/providers/free_catalog.py): the\nowner gets a key there and adds it as an ordinary provider with this address.",
+        "properties": {
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "key_url": {
+            "title": "Key Url",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_account": {
+            "description": "The address needs the account id ({account_id}).",
+            "title": "Needs Account",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "base_url",
+          "key_url",
+          "needs_account"
+        ],
+        "title": "FreeProviderOut",
+        "type": "object"
+      },
       "FullAccessForAllOut": {
         "description": "«Полный доступ всем агентам»: whether every persistent agent of the office (and every\none added later, also by the Orchestrator) works without approvals.",
         "properties": {
@@ -11130,6 +11165,31 @@
           }
         },
         "summary": "Create Provider",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers/free-catalog": {
+      "get": {
+        "operationId": "free_catalog_api_v1_providers_free_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FreeProviderOut"
+                  },
+                  "title": "Response Free Catalog Api V1 Providers Free Catalog Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Platforms with a free tier of their official API (add one with your own key)",
         "tags": [
           "models"
         ]

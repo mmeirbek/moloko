@@ -5,8 +5,10 @@ import uuid
 from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentAuth, DbSession, GatewayDep, SettingsDep
+from app.providers.free_catalog import FREE_PROVIDERS
 from app.providers.registry import available_kinds
 from app.schemas.providers import (
+    FreeProviderOut,
     ModelCreate,
     ModelOut,
     ModelUpdate,
@@ -26,6 +28,24 @@ router = APIRouter(tags=["models"])
 )
 async def provider_kinds(settings: SettingsDep) -> list[str]:
     return list(available_kinds(settings))
+
+
+@router.get(
+    "/providers/free-catalog",
+    response_model=list[FreeProviderOut],
+    summary="Platforms with a free tier of their official API (add one with your own key)",
+)
+async def free_catalog() -> list[FreeProviderOut]:
+    return [
+        FreeProviderOut(
+            key=p.key,
+            name=p.name,
+            base_url=p.base_url,
+            key_url=p.key_url,
+            needs_account=p.needs_account,
+        )
+        for p in FREE_PROVIDERS
+    ]
 
 
 @router.get("/providers", response_model=list[ProviderOut])

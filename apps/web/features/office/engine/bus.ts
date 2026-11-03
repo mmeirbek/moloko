@@ -3,11 +3,16 @@
  * THIRD_PARTY_NOTICES.md). Typed and dependency-free so it is safe to import on the
  * server. Direction: store → React → bus → scene (render); scene → bus → React (clicks).
  */
+
+import type { Species } from "@/features/agents/agent-looks";
+
 export interface OfficeAgent {
   id: string;
   name: string;
   status: string;
   kind: "orchestrator" | "subagent" | "autonomous";
+  /** the animal it is drawn as — the same species as its face (none for the Orchestrator cow) */
+  animal?: Species;
 }
 
 /**

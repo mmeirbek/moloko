@@ -73,6 +73,10 @@ You are the implementing coding agent for the project "shvluup". The full specif
 - EVALUATED, not used: `speaches-ai/speaches` (MIT) — the same engine plus TTS, realtime API and UI; last release v0.9.0-rc.3 (2025-12-27, still a release candidate), last commit 2026-04-18 — a much larger surface for one endpoint. `ggml-org/whisper.cpp` (MIT, very active, v1.9.5; multi-arch image `ghcr.io/ggml-org/whisper.cpp:main`, a moving tag) — about as fast on a CPU (faster-whisper's published benchmark, small model: 2m05s vs 1m42s for int8), but its server speaks `/inference`, not the OpenAI path, needs ffmpeg in the image for webm/mp4 (`--convert`) and separate GGML model files. Vosk / `alphacep/vosk-server` (Apache-2.0; server last pushed 2025-07) — fast but clearly weaker on free Russian dictation (no punctuation, small vocabulary models).
 - The backend also uses PyAV (same pinned version) to make smaller copies of big pictures for vision models (`app/services/images.py`, in a child process). Pillow was not used: its license (MIT-CMU) is not marked OSI-approved by SPDX, so it would need the owner's approval first.
 
+### Free models (added 2026-11-03)
+> Added after the MVP sprints: the owner asked to use all the models of freellmapi and make it part of moloko.
+- REFERENCE: `tashfeenahmed/freellmapi` (MIT; last commit 2026-11-02). A Node/Electron gateway with its own SQLite key store, a signed model catalog pulled from freellmapi.co (paid live tier) and ~50 platforms. Read for its platform list, OpenAI-compatible addresses, ToS review and model ranks; re-implemented as presets of our `openai` provider (`app/providers/free_catalog.py`) and model profiles (`app/providers/model_profiles.py`). Not run as a service (state outside PostgreSQL, phone-home catalog, a second gateway). Its small resale gateways and Cohere are not included (docs/decisions.md ⚠).
+
 ## What to do now
 1. Read `shvluup-spec.md` fully.
 2. Create `docs/decisions.md` with an empty "Dependency register" table and `THIRD_PARTY_NOTICES.md`.
