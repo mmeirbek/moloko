@@ -303,7 +303,7 @@
     "agentsMode": "Hand to agents",
     "handOff": "Hand off to agents",
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
-    "agentsWorking": "Agents are working on it…",
+    "agentsWorking": "The agents are on it",
     "handedOff": "Done by agents — open the run",
     "attach": "Attach files — any kind, as many as you like",
     "attachments": "Attached files",
@@ -348,7 +348,11 @@
     "mention": {
       "target": "A task for «{name}» — its page will open",
       "pick": "Who should do it"
-    }
+    },
+    "pondering": "Pondering",
+    "composing": "Working out the answer",
+    "stillThinking": "Still thinking",
+    "writing": "Writing"
   },
   "settings": {
     "providers": {
@@ -519,7 +523,7 @@
       "collapseAll": "Collapse all",
       "owner": "You wrote: “{text}”",
       "runningFor": "running for {seconds} s",
-      "thinking": "Thinking about the next step…",
+      "thinking": "Thinking about the next step",
       "queued": "Queued — starts soon",
       "args": "What it passed to the tool",
       "output": "What came out",
@@ -631,7 +635,9 @@
       "testsPassed": "all passed: {passed}",
       "testsFailed": "{failed} failed, {passed} passed",
       "succeeded": "succeeded",
-      "failedCode": "didn't work (code {code})"
+      "failedCode": "didn't work (code {code})",
+      "pondering": "Pondering",
+      "stillThinking": "Still thinking"
     },
     "chat": {
       "label": "The task's conversation",

@@ -56,7 +56,7 @@ test("orchestrator: gives the parts to agents (creating them when none fits), me
   await input.fill("Plan a trip [[mock:plan:2]]");
   await input.press("Enter");
   await page.waitForURL(/\/chat\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("Агенты работают над этим…")).toBeVisible();
+  await expect(page.getByTestId("agents-working")).toBeVisible();
   // In the chat (the «готово» notification says it too).
   await expect(page.getByRole("log", { name: "Сообщения" }).getByText(/Final answer combining/)).toBeVisible({ timeout: 90_000 });
   await page.getByText("Сделано агентами — открыть запуск").click();

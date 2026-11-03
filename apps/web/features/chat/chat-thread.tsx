@@ -20,6 +20,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { LogoMark } from "@/components/brand/logo";
 import { ArrowDown, Check, Copy, Network, RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Thinking } from "@/components/ui/thinking";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
@@ -90,7 +91,7 @@ function UserMessage() {
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
         >
           <Network className="size-3.5" />
-          {answered.has(runId) ? t("handedOff") : t("agentsWorking")}
+          {answered.has(runId) ? t("handedOff") : <Thinking label={t("agentsWorking")} since={message?.created_at} className="text-xs" testId="agents-working" />}
         </Link>
       )}
     </MessagePrimitive.Root>
@@ -117,15 +118,12 @@ function AssistantMessage() {
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="max-w-full text-sm leading-relaxed">
           {streaming && !message?.content ? (
-            <span className="inline-flex gap-1 py-2" aria-label={t("thinking")}>
-              <span className="size-1.5 animate-pulse bg-muted-foreground" />
-              <span className="size-1.5 animate-pulse bg-muted-foreground [animation-delay:150ms]" />
-              <span className="size-1.5 animate-pulse bg-muted-foreground [animation-delay:300ms]" />
-            </span>
+            <Thinking phases={[t("thinking"), t("pondering"), t("composing"), t("stillThinking")]} since={message?.created_at} className="py-1.5 text-muted-foreground" />
           ) : (
             <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
           )}
         </div>
+        {streaming && !!message?.content && <Thinking label={t("writing")} className="text-xs text-muted-foreground" />}
         {failed && message && (
           <div role="alert" className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
             <p>{errorText(message)}</p>
@@ -312,9 +310,8 @@ export function ChatThread({ chatId }: { chatId: string }) {
             {/* Files dropped anywhere on the chat are attached. */}
             <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col" {...(agentsMode ? {} : files.dropProps)}>
               {files.dropOverlay}
-              <h1 className="mx-auto w-full max-w-3xl truncate px-1 pb-2 font-sans text-sm font-medium text-muted-foreground sm:text-base">
-                {chat.data ? chatTitle(chat.data.title) : ""}
-              </h1>
+              {/* The chat's name is in the work list; here only for screen readers (owner: no title line). */}
+              <h1 className="sr-only">{chat.data ? chatTitle(chat.data.title) : ""}</h1>
               {/* Older messages no longer fit the model's context: they live on as a summary. */}
               {chat.data?.summary_updated_at && <SummaryNotice chatId={chatId} count={chat.data.summary_messages ?? 0} />}
 

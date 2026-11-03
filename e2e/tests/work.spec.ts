@@ -30,7 +30,7 @@ test("work list: «@agent» makes a task, work from the chat goes to the agents,
   await input.fill("Почини форму входа [[mock:work]]");
   await input.press("Enter");
   await page.waitForURL(/\/chat\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("Агенты работают над этим…").or(page.getByText("Сделано агентами — открыть запуск"))).toBeVisible({
+  await expect(page.getByTestId("agents-working").or(page.getByText("Сделано агентами — открыть запуск"))).toBeVisible({
     timeout: 30_000,
   });
   await expect(page.getByText("[[agents]]")).toHaveCount(0); // the chat's marker answer is never shown

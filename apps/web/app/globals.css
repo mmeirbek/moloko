@@ -361,6 +361,31 @@
   }
 }
 
+/* Thinking (components/ui/thinking): the dots hop one after another, a light runs over the words. */
+@keyframes thinking-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+[data-dot="1"] {
+  animation-delay: 0.15s;
+}
+[data-dot="2"] {
+  animation-delay: 0.3s;
+}
+.thinking-shimmer {
+  background: linear-gradient(90deg, currentColor 0%, currentColor 40%, color-mix(in srgb, currentColor 35%, transparent) 50%, currentColor 60%, currentColor 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* the text's own colour (currentColor) paints the gradient; only the fill goes clear */
+  -webkit-text-fill-color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .thinking-shimmer {
+    animation: shimmer 2.2s linear infinite;
+  }
+}
+
 /* Loading: placeholders shimmer softly (components/ui/skeleton), milk fills its glass (MilkGlass). */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

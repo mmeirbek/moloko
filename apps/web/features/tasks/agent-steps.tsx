@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { Brain, Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
+import { Thinking } from "@/components/ui/thinking";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { shortText } from "@/lib/notifications/text";
 import { taskEvents, taskKeys } from "@/lib/api/agents";
@@ -163,7 +164,9 @@ function StepRow({
   tone,
   children,
   testId,
+  live = false,
 }: {
+  live?: boolean;
   icon: React.ReactNode;
   title: string;
   preview?: string;
@@ -189,7 +192,8 @@ function StepRow({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block break-words">{title}</span>
+          {/* the step running now: a light runs over its words (it has not frozen) */}
+          <span className={cn("block break-words", live && "thinking-shimmer")}>{title}</span>
           {preview && !open && <span className="block truncate text-xs text-muted-foreground">⎿ {preview}</span>}
         </span>
         {expandable && (
@@ -431,6 +435,7 @@ export function AgentSteps({
               icon={icon}
               tone={live ? "text-sky" : waiting ? "text-amber-600" : failed ? "text-destructive" : "text-grass"}
               title={t(titleKey as "tools.other", label.params as { tool: string })}
+              live={live}
               preview={preview}
               open={isOpen(item.id)}
               onToggle={() => toggle(item.id)}
@@ -456,9 +461,12 @@ export function AgentSteps({
           );
         })}
         {running && !busyTool && (
-          <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-sky" role="status" data-testid="step-live">
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            {status === "queued" ? t("queued") : t("thinking")}
+          <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-sky" data-testid="step-live">
+            <Thinking
+              phases={status === "queued" ? [t("queued")] : [t("thinking"), t("pondering"), t("stillThinking")]}
+              every={8}
+              since={events?.at(-1)?.timestamp}
+            />
           </li>
         )}
       </ol>
