@@ -196,7 +196,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
             <label
               key={level}
               className={cn(
-                "flex cursor-pointer flex-col gap-1 border-2 p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                "flex cursor-pointer flex-col gap-1 border p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
                 values.autonomy === level && "border-primary bg-accent",
               )}
             >

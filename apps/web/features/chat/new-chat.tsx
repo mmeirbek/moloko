@@ -145,7 +145,7 @@ export function NewChat() {
           {shownError ? (
             <div
               role="alert"
-              className="flex items-center justify-between gap-2 border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-2 border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
             >
               <span>{toMessage(shownError).message}</span>
               <button

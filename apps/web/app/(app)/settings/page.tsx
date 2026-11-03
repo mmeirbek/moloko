@@ -48,7 +48,7 @@ export default async function SettingsPage() {
       {/* Jump to a section: one row, scrolls sideways on phones, stays under the header. */}
       <nav
         aria-label={t("sectionsLabel")}
-        className="sticky top-14 z-[5] -mx-4 mb-6 flex gap-1 overflow-x-auto border-b-2 bg-background px-4 py-2 md:top-0 md:mx-0 md:px-0"
+        className="sticky top-14 z-[5] -mx-4 mb-6 flex gap-1 overflow-x-auto border-b bg-background px-4 py-2 md:top-0 md:mx-0 md:px-0"
       >
         {SECTIONS.map((id) => (
           <a

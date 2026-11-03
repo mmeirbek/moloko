@@ -46,7 +46,7 @@ export function SystemStatus() {
         <CardTitle>{t("title")}</CardTitle>
         {data && <CardDescription>{t("version", { version: data.version })}</CardDescription>}
       </CardHeader>
-      <CardContent className="divide-y-2">
+      <CardContent className="divide-y">
         <StatusRow label={t("api")} ok={health.isError ? false : data ? true : null} />
         <StatusRow label={t("database")} ok={data ? data.checks.database === "ok" : null} />
         <StatusRow label={t("redis")} ok={data ? data.checks.redis === "ok" : null} />

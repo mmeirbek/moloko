@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { CalendarDays, Check, Folder, Link2, Loader2, Network, X } from "@/components/icons";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { TeamLine } from "@/features/agents/team-links";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
@@ -19,7 +20,7 @@ const ACTIVE = new Set(["queued", "running", "waiting", "waiting_approval"]);
 
 function Section({ title, children, testId }: { title: string; children: ReactNode; testId?: string }) {
   return (
-    <section className="flex flex-col gap-1.5 border-b-2 px-3 py-3 last:border-b-0" data-testid={testId}>
+    <section className="flex flex-col gap-1.5 border-b px-3 py-3 last:border-b-0" data-testid={testId}>
       <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h2>
       {children}
     </section>
@@ -30,7 +31,7 @@ function PartStatus({ status }: { status: string }) {
   if (ACTIVE.has(status)) return <Loader2 className="size-3.5 shrink-0 animate-spin text-sky" aria-hidden />;
   if (status === "completed") return <Check className="size-3.5 shrink-0 text-grass" aria-hidden />;
   if (status === "failed" || status === "cancelled") return <X className="size-3.5 shrink-0 text-destructive" aria-hidden />;
-  return <span className="size-3.5 shrink-0 border-2" aria-hidden />;
+  return <span className="size-3.5 shrink-0 border" aria-hidden />;
 }
 
 /** Where the agents work, from what they actually did: repositories (and branches), sites,
@@ -219,7 +220,8 @@ export function TaskSidebar({
             const agent = agents[id];
             return (
               <li key={id} className="flex items-start justify-between gap-2">
-                <span className="min-w-0">
+                <AgentAvatar agentId={id} size={28} />
+                <span className="min-w-0 flex-1">
                   <Link href={`/office/agents/${id}`} className="block truncate font-medium hover:underline">
                     {agent?.name ?? "—"}
                   </Link>
@@ -264,7 +266,7 @@ export function TaskSidebar({
       <Section title={t("log")}>
         <details>
           <summary className="cursor-pointer text-xs text-muted-foreground">{t("logShow", { count: events?.length ?? 0 })}</summary>
-          <ol className="mt-2 flex flex-col gap-1 border-l-2 pl-3 text-xs">
+          <ol className="mt-2 flex flex-col gap-1 border-l pl-3 text-xs">
             {events?.map((e) => (
               <li key={e.id}>
                 <span className="text-muted-foreground tabular-nums">

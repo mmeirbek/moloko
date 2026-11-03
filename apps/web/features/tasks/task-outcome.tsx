@@ -80,7 +80,7 @@ export function TaskOutcome({ task, parts }: { task: TaskOut; parts: TaskOut[] }
                 <button
                   type="button"
                   onClick={() => setOpen(path)}
-                  className="inline-flex max-w-full items-center gap-1.5 border-2 px-2 py-1 text-xs break-all hover:bg-accent"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs break-all hover:bg-accent"
                   title={path}
                 >
                   <File className="size-3.5 shrink-0" aria-hidden /> {path.split("/").pop()}

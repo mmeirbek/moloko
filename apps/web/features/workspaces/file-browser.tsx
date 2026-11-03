@@ -43,7 +43,7 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
         </Button>
       </div>
       {entries.data?.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
-      <ul className="flex flex-col divide-y-2 border-2">
+      <ul className="flex flex-col divide-y border">
         {entries.data?.map((e) => (
           <li key={e.path}>
             <button
@@ -84,7 +84,7 @@ export function FileView({ workspaceId, path, onClose }: { workspaceId: string; 
       {/\.(png|jpe?g)$/i.test(file.data.path) ? (
         <a href={workspaceRawUrl(workspaceId, file.data.path)} target="_blank" rel="noreferrer">
           {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
-          <img src={workspaceRawUrl(workspaceId, file.data.path)} alt={file.data.path} className="max-h-96 border-2 object-contain" />
+          <img src={workspaceRawUrl(workspaceId, file.data.path)} alt={file.data.path} className="max-h-96 border object-contain" />
         </a>
       ) : /\.pdf$/i.test(file.data.path) ? (
         <a className="text-sm underline" href={workspaceRawUrl(workspaceId, file.data.path)} download>

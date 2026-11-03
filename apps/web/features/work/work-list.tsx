@@ -10,6 +10,8 @@ import { useMemo, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, Check, Loader2, MessageSquare, ShieldAlert, Trash2, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { SkeletonRows } from "@/components/ui/skeleton";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { taskBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { useChatTitle } from "@/features/chat/chat-title";
@@ -85,7 +87,12 @@ export function WorkList({ onNavigate, className }: { onNavigate?: () => void; c
         </Group>
       )}
       <Group title={t("recent")} testId="work-recent">
-        {loading && <p className="px-3 py-1.5 text-sm text-muted-foreground">{tc("loading")}</p>}
+        {loading && (
+          <div role="status" className="px-3 py-1.5">
+            <span className="sr-only">{tc("loading")}</span>
+            <SkeletonRows rows={5} />
+          </div>
+        )}
         {!loading && !failed && recent.length === 0 && waiting.length === 0 && active.length === 0 && (
           <p className="px-3 py-1.5 text-sm text-muted-foreground">{t("empty")}</p>
         )}
@@ -95,7 +102,7 @@ export function WorkList({ onNavigate, className }: { onNavigate?: () => void; c
         <Link
           href="/tasks"
           onClick={onNavigate}
-          className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="mt-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           {t("allTasks")} <ArrowRight className="size-3" aria-hidden />
         </Link>
@@ -144,12 +151,12 @@ function Row({ item, onNavigate }: { item: WorkItem; onNavigate?: () => void }) 
 }
 
 function TaskIcon({ status, reason }: { status: string; reason?: WaitReason }) {
-  if (reason === "approval") return <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />;
-  if (reason === "question") return <MessageSquare className="size-4 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />;
-  if (status === "failed") return <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden />;
-  if (status === "cancelled") return <X className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
-  if (status === "completed") return <Check className="size-4 shrink-0 text-grass" aria-hidden />;
-  return <Loader2 className={cn("size-4 shrink-0 text-sky", status === "running" && "animate-spin")} aria-hidden />;
+  if (reason === "approval") return <ShieldAlert className="size-3 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />;
+  if (reason === "question") return <MessageSquare className="size-3 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />;
+  if (status === "failed") return <AlertTriangle className="size-3 shrink-0 text-destructive" aria-hidden />;
+  if (status === "cancelled") return <X className="size-3 shrink-0 text-muted-foreground" aria-hidden />;
+  if (status === "completed") return <Check className="size-3 shrink-0 text-grass" aria-hidden />;
+  return <Loader2 className={cn("size-3 shrink-0 text-sky", status === "running" && "animate-spin")} aria-hidden />;
 }
 
 function TaskRow({ task, reason, onNavigate }: { task: TaskOut; reason?: WaitReason; onNavigate?: () => void }) {
@@ -171,12 +178,15 @@ function TaskRow({ task, reason, onNavigate }: { task: TaskOut; reason?: WaitRea
         title={`${task.title} — ${meta}`}
         data-testid="work-task"
         className={cn(
-          "flex items-start gap-2 px-3 py-1.5",
+          "flex items-start gap-2 rounded-lg px-3 py-1.5",
           current ? "bg-primary text-primary-foreground" : "hover:bg-accent",
         )}
       >
-        <span className="mt-0.5">
-          <TaskIcon status={task.status} reason={reason} />
+        <span className="relative mt-0.5 shrink-0">
+          <AgentAvatar agentId={task.agent_id} size={24} />
+          <span className="absolute -right-1 -bottom-1 flex rounded-full bg-card p-px">
+            <TaskIcon status={task.status} reason={reason} />
+          </span>
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm">{task.title}</span>
@@ -209,7 +219,7 @@ function ChatRow({ chat, onNavigate }: { chat: ConversationOut; onNavigate?: () 
   const title = chatTitle(chat.title);
   const when = format.relativeTime(notAfter(new Date(chat.last_message_at), now), now);
   return (
-    <li className={cn("group flex items-center", current ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
+    <li className={cn("group flex items-center rounded-lg", current ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
       <Link
         href={href}
         onClick={onNavigate}

@@ -20,6 +20,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { LogoMark } from "@/components/brand/logo";
 import { ArrowDown, Check, Copy, Network, RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
 import { handOff } from "@/lib/api/runs";
@@ -73,7 +74,7 @@ function UserMessage() {
   const runId = message?.agent_run_id;
   return (
     <MessagePrimitive.Root className="flex flex-col items-end gap-1.5">
-      <div className="max-w-[85%] bg-muted px-4 py-2.5 whitespace-pre-wrap text-foreground">
+      <div className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 whitespace-pre-wrap text-foreground">
         <MessagePrimitive.Parts />
       </div>
       {message?.attachments && message.attachments.length > 0 && (
@@ -126,7 +127,7 @@ function AssistantMessage() {
           )}
         </div>
         {failed && message && (
-          <div role="alert" className="border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+          <div role="alert" className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
             <p>{errorText(message)}</p>
             <div className="mt-1 flex items-center justify-between gap-2">
               {message.error_id && (
@@ -327,7 +328,17 @@ export function ChatThread({ chatId }: { chatId: string }) {
                 className="flex min-h-0 flex-1 flex-col overflow-y-auto"
               >
                 <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-1 py-6">
-                  {thread.isLoading && <p className="m-auto text-sm text-muted-foreground">{tc("loading")}</p>}
+                  {thread.isLoading && (
+                    <div role="status" className="mx-auto flex w-full max-w-3xl flex-col gap-5 py-6">
+                      <span className="sr-only">{tc("loading")}</span>
+                      <Skeleton className="ml-auto h-10 w-2/5 rounded-2xl" />
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="h-3.5 w-full" />
+                        <Skeleton className="h-3.5 w-11/12" />
+                        <Skeleton className="h-3.5 w-3/5" />
+                      </div>
+                    </div>
+                  )}
                   {loadFailed && (
                     <div role="alert" className="m-auto flex max-w-sm flex-col items-center gap-2 text-center text-sm">
                       <p>{toMessage(thread.loadError).message}</p>
@@ -362,7 +373,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                 {sendError && (
                   <div
                     role="alert"
-                    className="flex items-center justify-between gap-2 border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
+                    className="flex items-center justify-between gap-2 border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
                   >
                     <span>{sendError.message}</span>
                     <button
@@ -379,7 +390,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   </div>
                 )}
                 {looksComplex && !agentsMode && lastUser && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-2 bg-accent/50 px-3 py-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border bg-accent/50 px-3 py-2 text-sm">
                     <span>{t("suggestAgents")}</span>
                     <Button
                       size="sm"

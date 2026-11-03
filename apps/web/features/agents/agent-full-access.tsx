@@ -25,7 +25,7 @@ export function FullAccessBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 bg-destructive/15 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-destructive",
+        "inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-destructive",
         className,
       )}
       title={t("badgeHint")}
@@ -61,7 +61,7 @@ export function FullAccessOption({ agent, onChanged }: { agent: AgentOut; onChan
 
   return (
     <div
-      className={cn("flex flex-col gap-2 border-2 border-destructive/50 p-3 text-sm", on && "bg-destructive/10")}
+      className={cn("flex flex-col gap-2 border border-destructive/50 p-3 text-sm", on && "bg-destructive/10")}
       data-testid="full-access-option"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">

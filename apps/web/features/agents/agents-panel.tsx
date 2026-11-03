@@ -8,7 +8,9 @@ import { useState } from "react";
 
 import { Plus, Send, Settings2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { SkeletonRows } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, listAgents, runAgent, taskKeys } from "@/lib/api/agents";
 import { useRealtimeStore } from "@/lib/realtime/store";
@@ -43,7 +45,8 @@ function AgentCard({ agent }: { agent: AgentOut }) {
     // max-w-full: a long task title (a URL, a script) is cut, it never widens the page.
     <li className="flex max-w-full min-w-0 flex-col gap-3 bg-card p-4 pixel-frame" data-agent-id={agent.id}>
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <AgentAvatar agentId={agent.id} size={36} />
+        <div className="min-w-0 flex-1">
           <Link href={`/office/agents/${agent.id}`} className="block truncate font-medium hover:underline">
             {live.name}
           </Link>
@@ -113,9 +116,14 @@ export function AgentsPanel({ types }: { types?: string[] }) {
           <AgentCard key={a.id} agent={a} />
         ))}
       </ul>
-      {agents.isPending && <p className="text-sm text-muted-foreground">{tc("loading")}</p>}
+      {agents.isPending && (
+        <div role="status">
+          <span className="sr-only">{tc("loading")}</span>
+          <SkeletonRows rows={3} />
+        </div>
+      )}
       {agents.isError && !agents.data && (
-        <div role="alert" className="flex flex-col items-start gap-2 border-2 p-4 text-sm">
+        <div role="alert" className="flex flex-col items-start gap-2 border p-4 text-sm">
           <p>{toMessage(agents.error).message}</p>
           <Button variant="outline" size="sm" onClick={() => agents.refetch()}>
             {tc("retry")}
@@ -123,7 +131,7 @@ export function AgentsPanel({ types }: { types?: string[] }) {
         </div>
       )}
       {agents.data && shown.length === 0 && (
-        <EmptyState title={t("empty")} className="border-2 border-dashed" />
+        <EmptyState title={t("empty")} className="border border-dashed" />
       )}
     </div>
   );

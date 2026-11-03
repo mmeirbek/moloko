@@ -176,7 +176,7 @@ export function AgentTaskControl({ agentId, currentTaskId }: { agentId: string; 
   if (current) return <MessageAgent task={current} compact />;
   if (!liveLatest || !canContinue(liveLatest)) return null;
   return (
-    <section className="flex flex-col gap-1.5 border-2 border-dashed p-2 text-xs" data-testid="stopped-task">
+    <section className="flex flex-col gap-1.5 border border-dashed p-2 text-xs" data-testid="stopped-task">
       <p>
         {t("lastStopped")}{" "}
         <Link href={`/tasks/${liveLatest.id}`} className="font-medium underline-offset-2 hover:underline">

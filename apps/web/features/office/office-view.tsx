@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 
 import { Maximize, Minus, Plus, UserPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { playMoo } from "@/features/mascot/moo";
@@ -272,7 +273,8 @@ export function OfficeView({
             addToOffice.mutate(item);
           }}
           className={cn(
-            "w-full touch-none overflow-hidden bg-[#0c1024] pixel-frame outline-none select-none focus-visible:[--frame-color:var(--color-ring)]",
+            // the office stays pixel art: its captions read the container's font (Ark Pixel)
+            "w-full touch-none overflow-hidden bg-[#0c1024] font-[family-name:var(--font-body)] pixel-frame outline-none select-none focus-visible:[--frame-color:var(--color-ring)]",
             compact ? "h-full min-h-48" : "aspect-[4/3] max-h-[70vh] sm:aspect-video",
             dropping && "[--frame-color:var(--color-sky)]",
           )}
@@ -293,7 +295,7 @@ export function OfficeView({
           <div
             role="group"
             aria-label={t("zoom")}
-            className="absolute top-2 right-2 flex items-center gap-0.5 border-2 border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg md:top-auto md:right-auto md:bottom-2 md:left-2"
+            className="absolute top-2 right-2 flex items-center gap-0.5 border border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg md:top-auto md:right-auto md:bottom-2 md:left-2"
           >
             <MapButton label={t("zoomOut")} shortcut="-" disabled={!zoom.canZoomOut} onClick={() => bus.emit("camera", "out")}>
               <Minus />
@@ -347,10 +349,11 @@ export function OfficeView({
               type="button"
               onClick={() => setSelected(a.id)}
               className={cn(
-                "flex items-center gap-2 border-2 px-3 py-1 text-sm",
+                "flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-sm",
                 selected === a.id ? "border-primary" : "hover:bg-accent/60",
               )}
             >
+              <AgentAvatar agentId={a.id} size={22} />
               <span className="max-w-40 truncate">{a.name}</span>
               <StatusBadge status={a.status} />
               {hud[a.id]?.tag && (

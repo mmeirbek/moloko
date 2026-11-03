@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import { ExternalLink, Send, Settings2, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { AgentControls } from "@/features/agents/agent-controls";
 import { hasFullAccess } from "@/features/agents/agent-form-model";
 import { FullAccessBadge } from "@/features/agents/agent-full-access";
@@ -95,7 +96,8 @@ export function AgentInspector({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <AgentAvatar agentId={agent.id} size={40} />
+        <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-semibold">{agent.name}</h2>
           <p className="text-xs text-muted-foreground">
             {tTypes(agent.agent_type as "autonomous")}
@@ -113,7 +115,7 @@ export function AgentInspector({
 
       {task && (
         // Its task first, with what it is doing right now, and one tap to the task.
-        <div className="flex flex-col gap-1.5 border-2 border-sky/40 bg-sky/10 p-2.5" data-testid="inspector-task">
+        <div className="flex flex-col gap-1.5 border border-sky/40 bg-sky/10 p-2.5" data-testid="inspector-task">
           <p className="text-xs text-muted-foreground">{t("task")}</p>
           <p className="font-medium break-words">{task.title}</p>
           {now && <p className="text-xs text-muted-foreground">{t("doingNow", { what: now })}</p>}
@@ -197,7 +199,7 @@ export function AgentInspector({
         <ApprovalCard key={a.id} approval={a} compact />
       ))}
       {showLogs && (
-        <ol className="flex flex-col gap-0.5 border-t-2 pt-2 text-xs">
+        <ol className="flex flex-col gap-0.5 border-t pt-2 text-xs">
           {events.data?.map((e) => (
             <li key={e.id} className="flex gap-2">
               <span className="text-muted-foreground tabular-nums">

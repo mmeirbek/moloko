@@ -21,7 +21,7 @@ const WARNINGS = [
 ] as const;
 
 const warningClass =
-  "flex items-start gap-2 border-2 border-amber-400/50 bg-amber-400/10 px-3 py-2 text-amber-800 dark:text-amber-200";
+  "flex items-start gap-2 border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-amber-800 dark:text-amber-200";
 
 /** Dates and sizes the same way in both cards. */
 function useFormat() {

@@ -46,7 +46,7 @@ export function AgentMessages({ agentId }: { agentId: string }) {
       {messages.isPending && <LoadingState />}
       {messages.isError && <ErrorState error={messages.error} onRetry={() => messages.refetch()} />}
       {messages.data && items.length === 0 && (
-        <p className="border-2 border-dashed p-6 text-center text-sm text-muted-foreground">{t("empty")}</p>
+        <p className="border border-dashed p-6 text-center text-sm text-muted-foreground">{t("empty")}</p>
       )}
       {items.length > 0 && (
         <ul className="flex flex-col gap-3" aria-label={t("title")}>

@@ -6,8 +6,9 @@ import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ArrowLeft, Bot, ChevronDown, ChevronRight, Info, X } from "@/components/icons";
+import { ArrowLeft, ChevronDown, ChevronRight, Info, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { MilkBottle } from "@/features/mascot/milk-bottle";
@@ -103,7 +104,7 @@ function useStickToBottom<T extends HTMLElement>() {
 function OwnerBubble({ text, at, testId }: { text: string; at?: string; testId?: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="max-w-[85%] bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words" data-testid={testId}>
+      <div className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words" data-testid={testId}>
         {text}
       </div>
       {at && <span className="text-xs text-muted-foreground">{at}</span>}
@@ -183,9 +184,7 @@ function AgentTurn({
   const name = useRealtimeStore((s) => (agentId ? s.agents[agentId]?.name : undefined));
   return (
     <div className="flex gap-3" data-testid={testId}>
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center bg-muted pixel-frame" aria-hidden>
-        <Bot className="size-4" />
-      </span>
+      <AgentAvatar agentId={agentId} size={30} className="mt-0.5" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="flex flex-wrap items-center gap-2 text-sm">
           {agentId ? (
@@ -287,7 +286,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
     // The task as a chat (like Claude Code): the conversation in the middle, the details on the right.
     <div className="-mt-2 flex h-[calc(100dvh-10.5rem)] min-w-0 gap-4 md:h-[calc(100dvh-5.5rem)]">
       <section className="flex min-w-0 flex-1 flex-col" aria-label={tChat("label")}>
-        <header className="flex flex-wrap items-center gap-2 border-b-2 pb-2">
+        <header className="flex flex-wrap items-center gap-2 border-b pb-2">
           <Link href="/tasks" className="inline-flex items-center text-muted-foreground" aria-label={t("allTasks")}>
             <ArrowLeft className="size-4" />
           </Link>
@@ -351,7 +350,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
             )}
             {!ACTIVE_TASK.has(task.status) && <TaskOutcome task={task} parts={subtasks} />}
             {task.status === "failed" && (
-              <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
+              <section role="alert" className="border border-destructive/40 bg-destructive/10 p-4 text-sm">
                 {task.error_code === "agent_budget_exceeded" && task.agent_id ? (
                   // A readable reason in the owner's language, and where to raise the budget.
                   <p className="mb-1">
@@ -368,7 +367,7 @@ export function TaskDetailView({ taskId }: { taskId: string }) {
               </section>
             )}
             {task.status === "waiting" && task.status_reason === "unknown_outcome" && (
-              <section role="alert" className="border-2 border-amber-400/50 bg-amber-400/10 p-4 text-sm">
+              <section role="alert" className="border border-amber-400/50 bg-amber-400/10 p-4 text-sm">
                 {t("unknownOutcome")}
               </section>
             )}

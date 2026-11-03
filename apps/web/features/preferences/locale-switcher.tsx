@@ -32,7 +32,7 @@ export function LocaleSwitcher({ className, wide = false }: { className?: string
       role="group"
       aria-label={t("language")}
       className={cn(
-        wide ? "grid grid-cols-2 gap-1 border-2 p-1 text-sm" : "inline-flex border-2 p-0.5 text-xs",
+        wide ? "grid grid-cols-2 gap-1 border p-1 text-sm" : "inline-flex border p-0.5 text-xs",
         className,
       )}
     >

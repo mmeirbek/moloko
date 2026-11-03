@@ -100,7 +100,7 @@ export function AuditLog() {
           <option value="denied">{t("outcomes.denied")}</option>
         </select>
       </div>
-      <ul className="divide-y-2 bg-card px-4 pixel-frame" aria-label={t("title")}>
+      <ul className="divide-y bg-card px-4 pixel-frame" aria-label={t("title")}>
         {items.map((e) => (
           <Row key={e.id} entry={e} />
         ))}

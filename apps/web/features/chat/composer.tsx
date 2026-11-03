@@ -4,8 +4,10 @@ import { ComposerPrimitive, ThreadPrimitive, useAui, useAuiState } from "@assist
 import { useTranslations } from "next-intl";
 import type { ClipboardEvent, ReactNode } from "react";
 
-import { ArrowUp, Bot, Network, Square } from "@/components/icons";
+import { ArrowUp, Network, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { AgentAvatar, AvatarArt } from "@/features/agents/agent-avatar";
+import { BOSS_LOOK } from "@/features/agents/agent-looks";
 import { MicButton } from "@/features/voice/mic-button";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +29,11 @@ function ComposerMic({ disabled }: { disabled?: boolean }) {
   );
 }
 
+/** The agent's face; the Orchestrator's aliases show its crowned cow. */
+function MentionFace({ agent, size }: { agent: { id: string; orchestrator?: boolean }; size: number }) {
+  return agent.orchestrator ? <AvatarArt look={BOSS_LOOK} size={size} /> : <AgentAvatar agentId={agent.id} size={size} />;
+}
+
 /** While «@…» is typed: the agents to pick; once one is named, whose task it becomes. */
 function AgentMentions() {
   const t = useTranslations("chat");
@@ -38,7 +45,7 @@ function AgentMentions() {
   if (named) {
     return (
       <p className="flex items-center gap-1.5 px-4 pt-3 text-xs text-sky" role="status" data-testid="mention-target">
-        <Bot className="size-3.5" aria-hidden /> {t("mention.target", { name: named.agent.name })}
+        <MentionFace agent={named.agent} size={18} /> {t("mention.target", { name: named.agent.name })}
       </p>
     );
   }
@@ -50,9 +57,9 @@ function AgentMentions() {
           <button
             type="button"
             onClick={() => aui.composer().setText(`@${agent.name} `)}
-            className="inline-flex items-center gap-1 border-2 px-2 py-1 text-xs hover:bg-accent"
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs hover:bg-accent"
           >
-            <Bot className="size-3.5" aria-hidden /> {agent.name}
+            <MentionFace agent={agent} size={18} /> {agent.name}
           </button>
         </li>
       ))}
@@ -73,7 +80,7 @@ function AgentsSwitch({ on, onChange, disabled }: { on: boolean; onChange: (on: 
       disabled={disabled}
       onClick={() => onChange(!on)}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-1.5 border-2 px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
         on
           ? "border-sky/60 bg-sky/15 text-sky"
           : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -170,7 +177,7 @@ export function Suggestions({ className }: { className?: string }) {
           <button
             type="button"
             onClick={() => aui.composer().setText(text)}
-            className="w-full bg-card px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pixel-frame"
+            className="w-full rounded-xl bg-card px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pixel-frame"
           >
             {text}
           </button>

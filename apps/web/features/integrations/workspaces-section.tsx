@@ -58,7 +58,7 @@ export function WorkspacesSection() {
             {toMessage(create.error).message}
           </p>
         )}
-        <ul className="flex flex-col divide-y-2 border-2">
+        <ul className="flex flex-col divide-y border">
           {workspaces.data?.map((ws) => (
             <li key={ws.id} className="flex flex-col gap-2 p-3">
               <button

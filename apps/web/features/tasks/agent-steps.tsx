@@ -181,7 +181,7 @@ function StepRow({
         onClick={expandable ? onToggle : undefined}
         aria-expanded={expandable ? open : undefined}
         className={cn(
-          "flex min-h-9 w-full items-start gap-2 px-2 py-1.5 text-left text-sm",
+          "flex min-h-9 w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm",
           expandable && "hover:bg-accent/60",
         )}
       >
@@ -292,7 +292,7 @@ export function AgentSteps({
       className={bare ? undefined : "bg-card pixel-frame"}
       data-testid="agent-steps"
     >
-      <div className={cn("flex items-center justify-between gap-2", bare ? "hidden" : "border-b-2 px-3 py-2")}>
+      <div className={cn("flex items-center justify-between gap-2", bare ? "hidden" : "border-b px-3 py-2")}>
         <h2 id="agent-steps-title" className="font-medium">
           {t("title")}
           {items.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">{items.length}</span>}

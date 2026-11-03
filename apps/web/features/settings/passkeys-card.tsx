@@ -61,7 +61,7 @@ export function PasskeysCard() {
 
 function Note({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 border-2 border-dashed p-3 text-sm">
+    <div className="flex items-start gap-2 border border-dashed p-3 text-sm">
       <Info className="mt-0.5 text-muted-foreground" />
       <div className="flex flex-col gap-1">{children}</div>
     </div>
@@ -89,7 +89,7 @@ function PasskeysBody({ data, support }: { data: PasskeyListOut; support: Passke
       )}
 
       {data.passkeys.length > 0 ? (
-        <ul className="flex flex-col divide-y-2" data-testid="passkey-list">
+        <ul className="flex flex-col divide-y" data-testid="passkey-list">
           {data.passkeys.map((p) => (
             <PasskeyRow key={p.id} passkey={p} />
           ))}
@@ -208,7 +208,7 @@ function PasskeyRow({ passkey }: { passkey: PasskeyOut }) {
             <p className="flex flex-wrap items-center gap-2 text-sm">
               <span className="truncate font-semibold">{passkey.name}</span>
               {passkey.backed_up && (
-                <span className="border-2 px-1.5 text-xs text-muted-foreground" title={t("syncedHint")}>
+                <span className="border px-1.5 text-xs text-muted-foreground" title={t("syncedHint")}>
                   {t("synced")}
                 </span>
               )}
@@ -378,7 +378,7 @@ function AddPasskeyForm({ onDone, onCancel }: { onDone: (name: string) => void; 
   }
 
   return (
-    <form className="flex flex-col gap-3 border-2 p-4" onSubmit={submit} data-testid="passkey-add">
+    <form className="flex flex-col gap-3 border p-4" onSubmit={submit} data-testid="passkey-add">
       <p className="font-pixel text-lg">{t("addTitle")}</p>
       {step.kind === "form" ? (
         <>

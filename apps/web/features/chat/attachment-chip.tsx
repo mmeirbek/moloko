@@ -24,7 +24,7 @@ export function AttachmentChip({
       <li className="relative" data-attachment={a.filename}>
         <a href={url} target="_blank" rel="noreferrer" title={a.filename}>
           {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
-          <img src={url} alt={a.filename} className="size-20 border-2 object-cover" loading="lazy" />
+          <img src={url} alt={a.filename} className="size-20 border object-cover" loading="lazy" />
         </a>
         {children && <span className="absolute top-0.5 right-0.5 bg-card">{children}</span>}
       </li>

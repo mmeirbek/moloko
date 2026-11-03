@@ -38,7 +38,7 @@ export function StandingApprovals({ agentId, permissions }: { agentId: string; p
         <ShieldCheck className="size-4 text-sky" aria-hidden /> {t("title")}
       </h2>
       <p className="text-xs text-muted-foreground">{t("hint")}</p>
-      <ul className="flex flex-col divide-y-2">
+      <ul className="flex flex-col divide-y">
         {rules.map((rule) => {
           const what = standingWhat(rule.tool, [rule.scope ?? ""]);
           return (
