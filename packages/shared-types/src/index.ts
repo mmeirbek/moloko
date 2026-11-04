@@ -43,6 +43,7 @@ export type ConversationSummaryOut = Schemas["ConversationSummaryOut"];
 export type RecalledSourceOut = Schemas["RecalledSourceOut"];
 export type MessagePage = Schemas["Page_MessageOut_"];
 export type FreeProviderOut = Schemas["FreeProviderOut"];
+export type CodexStatusOut = Schemas["CodexStatusOut"];
 export type ProviderOut = Schemas["ProviderOut"];
 export type ProviderCreate = Schemas["ProviderCreate"];
 export type ProviderUpdate = Schemas["ProviderUpdate"];

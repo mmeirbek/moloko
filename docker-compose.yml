@@ -86,6 +86,10 @@ x-backend-env: &backend-env
   CHAT_CONTEXT_IMAGES: ${CHAT_CONTEXT_IMAGES:-4}
   # Voice: the local Whisper service (`stt`), else the OpenAI provider.
   STT_URL: ${STT_URL-http://stt:8000}  # empty in .env = no local speech model
+  # Codex signed in with the owner's ChatGPT account (service `codex`); empty in .env = off
+  CODEX_URL: ${CODEX_URL-http://codex:8095}
+  CODEX_SERVICE_TOKEN: ${CODEX_SERVICE_TOKEN:-}
+  CODEX_RUN_TIMEOUT_SECONDS: ${CODEX_RUN_TIMEOUT_SECONDS:-3600}
   STT_MODEL: ${STT_MODEL:-large-v3-turbo}
   STT_TIMEOUT_SECONDS: ${STT_TIMEOUT_SECONDS:-900}
   VOICE_UPLOAD_MAX_BYTES: ${VOICE_UPLOAD_MAX_BYTES:-200000000}
@@ -186,7 +190,7 @@ services:
       - files:/data/files  # chat attachments (any size; streamed here, not into memory)
       - ${BACKUP_DIR:-./backups}:/backups:ro  # backup status for Settings → Backups
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
-    networks: [internal, edge]
+    networks: [internal, edge, codex-rpc]
     healthcheck:
       test:
         - CMD
@@ -220,7 +224,7 @@ services:
     volumes:
       - workspaces:/data/workspaces  # file tools work here
     # Needs PostgreSQL/Redis (internal) and AI providers (edge). No published ports.
-    networks: [internal, edge]
+    networks: [internal, edge, codex-rpc]
     healthcheck:
       test: ["CMD", "arq", "--check", "app.workers.main.WorkerSettings"]
       interval: 30s
@@ -393,6 +397,45 @@ services:
       retries: 3
     logging: *logging
 
+  # OpenAI's Codex CLI signed in with the owner's ChatGPT account (owner's decision 2026-11-04)
+  # runs agents' coding tasks in their workspace (apps/api/app/codex_service/server.py).
+  # Only the backend and the worker reach it (codex-rpc + a token); it goes out to the internet
+  # on codex-out (OpenAI, and what the task's commands fetch). No docker socket, no database.
+  # Sign in once: docker compose exec codex codex login --device-auth
+  codex:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/codex.Dockerfile
+    image: moloko-codex:local
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g
+    cap_drop: [ALL]
+    environment:
+      CODEX_SERVICE_TOKEN: ${CODEX_SERVICE_TOKEN:-}
+      CODEX_RUN_TIMEOUT_SECONDS: ${CODEX_RUN_TIMEOUT_SECONDS:-3600}
+      CODEX_WORKSPACES: /data/workspaces
+    volumes:
+      - workspaces:/data/workspaces
+      - codex-home:/codex-home  # the sign-in (auth.json): like a password, never backed up
+    cpus: ${CODEX_CPUS:-4}
+    mem_limit: ${CODEX_MEMORY:-4g}
+    pids_limit: 1024
+    networks: [codex-rpc, codex-out]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8095/v1/health', timeout=4)"
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 10s
+    logging: *logging
+
   # Image of the agents' commands (Python 3.12 + Node.js 22 + git); not a running service.
   # deploy.sh and e2e.sh build it: docker compose --profile sandbox-image build sandbox-image
   sandbox-image:
@@ -531,6 +574,9 @@ networks:
     name: ${PACKAGES_NETWORK:-moloko_packages}
   offsite: {}  # the backup service's way out (off-site copies); no other service is on it
   stt-download: {}  # only stt-models: fetches the speech model, nothing else lives here
+  codex-rpc:
+    internal: true  # backend and worker → codex only
+  codex-out: {}  # codex's way out (OpenAI); no other service is on it
 
 volumes:
   workspaces:
@@ -538,6 +584,7 @@ volumes:
   files:
     name: ${FILES_VOLUME:-moloko_files}  # fixed name: restore.sh mounts it
   stt-models:  # re-downloadable, not backed up
+  codex-home:  # Codex's sign-in and sessions; not backed up (sign in again after a restore)
   postgres-data:
   valkey-data:
   caddy-data:

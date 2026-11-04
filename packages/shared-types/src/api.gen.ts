@@ -821,6 +821,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/codex/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether Codex is signed in with ChatGPT on the server */
+        get: operations["codex_status_api_v1_codex_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/costs": {
         parameters: {
             query?: never;
@@ -2516,6 +2533,33 @@ export interface components {
             /** Cancelled */
             cancelled: boolean;
         };
+        /**
+         * CodexStatusOut
+         * @description Codex with the owner's ChatGPT sign-in (service `codex`).
+         */
+        CodexStatusOut: {
+            /**
+             * Configured
+             * @description CODEX_URL is set (the codex service is part of moloko)
+             */
+            configured: boolean;
+            /** Logged In */
+            logged_in: boolean;
+            /**
+             * Login Command
+             * @description What the owner runs on the server to sign in
+             */
+            login_command: string;
+            /**
+             * Mode
+             * @description "chatgpt" or "api_key" — how Codex is signed in
+             */
+            mode: string | null;
+            /** Reachable */
+            reachable: boolean;
+            /** Version */
+            version: string;
+        };
         /** ConversationCreate */
         ConversationCreate: {
             /** Model Config Id */
@@ -3414,7 +3458,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "openai" | "anthropic" | "mock";
+            kind: "openai" | "anthropic" | "mock" | "codex";
             /** Name */
             name: string;
         };
@@ -6086,6 +6130,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    codex_status_api_v1_codex_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexStatusOut"];
                 };
             };
         };

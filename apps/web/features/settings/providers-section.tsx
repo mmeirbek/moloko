@@ -25,10 +25,11 @@ import {
   updateProvider,
 } from "@/lib/api/providers";
 
+import { CodexCard } from "./codex-card";
 import { FreeProvidersCard } from "./free-providers";
 
 // Brand names stay as they are; the offline test provider gets a translated name.
-const KIND_LABEL: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic" };
+const KIND_LABEL: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic", codex: "Codex (ChatGPT)" };
 
 function useKindLabel(): (kind: string) => string {
   const t = useTranslations("settings.providers");
@@ -338,6 +339,7 @@ export function ProvidersSection() {
 
   return (
     <>
+      <CodexCard providers={providers.data} />
       <FreeProvidersCard providers={providers.data} />
       <Card>
         <CardHeader>
@@ -345,7 +347,8 @@ export function ProvidersSection() {
           <CardDescription>{t("providers.description")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {kinds.data && <AddProviderForm kinds={kinds.data} />}
+          {/* Codex is connected from its own card (it signs in on the server, no key) */}
+          {kinds.data && <AddProviderForm kinds={kinds.data.filter((k) => k !== "codex")} />}
           <ul className="divide-y">
             {providers.data?.map((p) => <ProviderRow key={p.id} provider={p} />)}
           </ul>

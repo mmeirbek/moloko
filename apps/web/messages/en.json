@@ -466,6 +466,26 @@
           "caution": "the address needs your account ID"
         }
       }
+    },
+    "codex": {
+      "title": "Codex — sign in with ChatGPT",
+      "description": "The coding models of your ChatGPT plan (Plus or Pro). An agent with a Codex model does its task through OpenAI's official Codex CLI, right in the task's folder; its steps show in the task's chat. The Orchestrator can give it coding parts too.",
+      "off": "The codex service is not on for this server (CODEX_URL is empty).",
+      "unreachable": "The codex service does not answer — check the container: docker compose ps codex",
+      "signedIn": "Signed in ({mode})",
+      "notSignedIn": "Not signed in yet",
+      "step1": "In ChatGPT: Settings → Security → turn on device code sign-in.",
+      "step2": "On the server, in the moloko folder, run this command, open the link it shows and enter the code:",
+      "step3": "Press «Connect» — your plan's models appear in the list.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "refresh": "Refresh models",
+      "check": "Check sign-in",
+      "added": "Models: {count}",
+      "copy": "Copy",
+      "copied": "Copied",
+      "caution": "For automation OpenAI recommends an API key; the ChatGPT sign-in is for private trusted machines (your server is one). Codex tasks run one at a time: one sign-in must not serve parallel runs. The sign-in file stays inside the codex container."
     }
   },
   "realtime": {
@@ -694,7 +714,14 @@
       "succeeded": "succeeded",
       "failedCode": "didn't work (code {code})",
       "pondering": "Pondering",
-      "stillThinking": "Still thinking"
+      "stillThinking": "Still thinking",
+      "codex": {
+        "command": "Codex ran: {what}",
+        "files": "Codex changed files: {what}",
+        "search": "Codex searched: {what}",
+        "tool": "Codex: {what}",
+        "error": "Codex: error — {what}"
+      }
     },
     "chat": {
       "label": "The task's conversation",

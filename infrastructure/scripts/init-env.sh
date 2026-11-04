@@ -27,6 +27,11 @@ if [[ "${1:-}" == "--add-missing" ]]; then
     echo "SANDBOX_RUNNER_TOKEN=$(gen)" >> .env
     echo "Added SANDBOX_RUNNER_TOKEN."
   fi
+  if ! grep -qE '^CODEX_SERVICE_TOKEN=.+' .env; then
+    sed -i '/^CODEX_SERVICE_TOKEN=/d' .env
+    echo "CODEX_SERVICE_TOKEN=$(gen)" >> .env
+    echo "Added CODEX_SERVICE_TOKEN."
+  fi
   # Sandbox values copied from an older .env.example → today's defaults (the command image
   # with Node.js and git, room for npm/builds). A value changed by hand is left alone.
   new_default() {  # key old new
@@ -70,6 +75,7 @@ sed \
   -e "s|^SECRET_KEY=.*|SECRET_KEY=$(gen)|" \
   -e "s|^APP_ENCRYPTION_KEY=.*|APP_ENCRYPTION_KEY=$(gen)|" \
   -e "s|^SANDBOX_RUNNER_TOKEN=.*|SANDBOX_RUNNER_TOKEN=$(gen)|" \
+  -e "s|^CODEX_SERVICE_TOKEN=.*|CODEX_SERVICE_TOKEN=$(gen)|" \
   -e "s|^DOCKER_GID=.*|DOCKER_GID=$(docker_gid)|" \
   -e "s|^WEBAUTHN_RP_ID=.*|WEBAUTHN_RP_ID=$name|" \
   -e "s|^WEBAUTHN_ORIGINS=.*|WEBAUTHN_ORIGINS=${name:+https://$name}|" \

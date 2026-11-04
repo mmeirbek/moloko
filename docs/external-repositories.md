@@ -77,6 +77,10 @@ You are the implementing coding agent for the project "shvluup". The full specif
 > Added after the MVP sprints: the owner asked to use all the models of freellmapi and make it part of moloko.
 - REFERENCE: `tashfeenahmed/freellmapi` (MIT; last commit 2026-11-02). A Node/Electron gateway with its own SQLite key store, a signed model catalog pulled from freellmapi.co (paid live tier) and ~50 platforms. Read for its platform list, OpenAI-compatible addresses, ToS review and model ranks; re-implemented as presets of our `openai` provider (`app/providers/free_catalog.py`) and model profiles (`app/providers/model_profiles.py`). Not run as a service (state outside PostgreSQL, phone-home catalog, a second gateway). Its small resale gateways and Cohere are not included (docs/decisions.md ⚠).
 
+### Codex with the ChatGPT sign-in (added 2026-11-04)
+> The owner's decision on spec 13.5 / 26.1 (subscription access), after the official terms were checked (docs/decisions.md).
+- USE (release binary, not a library): `openai/codex` (Apache-2.0; release rust-v0.166.0, 2026-10-29) — the `codex` CLI from the GitHub release archives `codex-{x86_64,aarch64}-unknown-linux-musl.tar.gz`, SHA-256 pinned in `infrastructure/docker/codex.Dockerfile`; driven only through its documented `codex exec --json` and `codex login` / `codex debug models` commands. No token is ever read out of it; the sign-in stays in its own volume.
+
 ## What to do now
 1. Read `shvluup-spec.md` fully.
 2. Create `docs/decisions.md` with an empty "Dependency register" table and `THIRD_PARTY_NOTICES.md`.

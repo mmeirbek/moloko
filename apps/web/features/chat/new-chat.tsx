@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { GettingStarted } from "@/features/onboarding/getting-started";
-import { chatKeys, createChat, listPickerModels, modelKeys, sendMessage } from "@/lib/api/chat";
+import { chatKeys, createChat, chatModels, listPickerModels, modelKeys, sendMessage } from "@/lib/api/chat";
 import { handOff } from "@/lib/api/runs";
 
 import { useComposerAttachments } from "./attachments";
@@ -46,7 +46,7 @@ export function NewChat() {
   const toMessage = useErrorMessage();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
+  const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal), select: chatModels });
   const [model, setModel] = useState<string | null>(null);
   const [agentsMode, setAgentsMode] = useState(false);
   const agentTask = useAgentTask();

@@ -350,6 +350,11 @@ class Settings(BaseSettings):
     # --- Voice input: the local Whisper service first (no key, no cost), else the
     # owner's OpenAI provider. Empty STT_URL = no local service.
     stt_url: str | None = None
+    # --- Codex signed in with the owner's ChatGPT account (service `codex`, owner's decision
+    # 2026-11-04). Unset CODEX_URL = off. Agents whose model is a Codex model run through it.
+    codex_url: str | None = None
+    codex_service_token: SecretStr | None = None
+    codex_run_timeout_seconds: int = Field(3600, ge=60, le=86_400)
     stt_model: str = "large-v3-turbo"  # must match the `stt` service's STT_MODEL
     stt_timeout_seconds: float = Field(900.0, gt=0, le=7200)  # a 15-minute recording
     stt_connect_timeout_seconds: float = Field(3.0, gt=0, le=60)
@@ -414,6 +419,8 @@ class Settings(BaseSettings):
         "searxng_url",
         "webauthn_rp_id",
         "stt_url",
+        "codex_url",
+        "codex_service_token",
         mode="before",
     )
     @classmethod

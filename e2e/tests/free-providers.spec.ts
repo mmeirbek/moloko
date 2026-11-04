@@ -20,3 +20,16 @@ test("free models: official platforms with a link for the key and a field to pas
   await expect(card.getByTestId("free-cohere")).toHaveCount(0); // its terms forbid personal use
   expect(errors).toEqual([]);
 });
+
+test("codex: the ChatGPT sign-in card says what to run on the server", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/settings/ai");
+  const card = page.getByTestId("codex-card");
+  await expect(card.getByRole("heading", { name: "Codex — вход через ChatGPT" })).toBeVisible();
+  // the throwaway stack's codex service runs, nobody signed in there
+  await expect(card.getByRole("status")).toContainText("Вход ещё не выполнен", { timeout: 30_000 });
+  await expect(card.getByTestId("codex-login-command")).toHaveText("docker compose exec codex codex login --device-auth");
+  await expect(card.getByRole("button", { name: "Подключить" })).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+

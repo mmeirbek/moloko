@@ -62,6 +62,9 @@ export function listPickerModels(signal?: AbortSignal): Promise<ModelOut[]> {
   return api.request<ModelOut[]>("/models", { signal });
 }
 
+/** Models that answer in the chat: Codex models (the owner's ChatGPT plan) only do agents' tasks. */
+export const chatModels = (models: ModelOut[]): ModelOut[] => models.filter((m) => m.provider_kind !== "codex");
+
 export type StreamHandlers = {
   /** `assistant` is null for a message sent while an answer is still being written: it waits
    * in line and is answered right after (the answer then streams like one from another device). */

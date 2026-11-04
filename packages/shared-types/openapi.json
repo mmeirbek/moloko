@@ -2019,6 +2019,55 @@
         "title": "CancelResult",
         "type": "object"
       },
+      "CodexStatusOut": {
+        "description": "Codex with the owner's ChatGPT sign-in (service `codex`).",
+        "properties": {
+          "configured": {
+            "description": "CODEX_URL is set (the codex service is part of moloko)",
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "logged_in": {
+            "title": "Logged In",
+            "type": "boolean"
+          },
+          "login_command": {
+            "description": "What the owner runs on the server to sign in",
+            "title": "Login Command",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "\"chatgpt\" or \"api_key\" — how Codex is signed in",
+            "title": "Mode"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "reachable",
+          "logged_in",
+          "mode",
+          "version",
+          "login_command"
+        ],
+        "title": "CodexStatusOut",
+        "type": "object"
+      },
       "ConversationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -4681,7 +4730,8 @@
             "enum": [
               "openai",
               "anthropic",
-              "mock"
+              "mock",
+              "codex"
             ],
             "title": "Kind",
             "type": "string"
@@ -9970,6 +10020,27 @@
         "summary": "Get Chat Summary",
         "tags": [
           "chats"
+        ]
+      }
+    },
+    "/api/v1/codex/status": {
+      "get": {
+        "operationId": "codex_status_api_v1_codex_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Whether Codex is signed in with ChatGPT on the server",
+        "tags": [
+          "models"
         ]
       }
     },

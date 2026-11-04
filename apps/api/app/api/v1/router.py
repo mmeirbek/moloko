@@ -18,6 +18,7 @@ from app.api.v1 import (
     ai_services,
     auth,
     chats,
+    codex,
     costs,
     events,
     health,
@@ -42,6 +43,7 @@ protected = APIRouter(dependencies=[Depends(require_auth)])
 protected.include_router(auth.protected_router)
 protected.include_router(passkeys.protected_router)
 protected.include_router(providers.router)
+protected.include_router(codex.router)
 protected.include_router(chats.router)
 protected.include_router(agents.router)
 protected.include_router(tasks.router)

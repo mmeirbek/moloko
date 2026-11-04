@@ -175,3 +175,9 @@ addresses, its per-provider terms-of-service review and its model ranks. No code
 `apps/api/app/providers/free_catalog.py` and `model_profiles.py` are our own.
 Copyright (c) Tashfeen Ahmed — MIT License.
 
+## openai/codex — Codex CLI (Apache-2.0)
+
+The release binary of Codex CLI 0.166.0 is included, unmodified, in the `codex` container image
+(`infrastructure/docker/codex.Dockerfile`). Copyright 2025 OpenAI. Licensed under the Apache
+License, Version 2.0: https://github.com/openai/codex/blob/main/LICENSE
+

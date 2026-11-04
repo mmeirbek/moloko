@@ -94,6 +94,11 @@ jobs:
           docker build -f infrastructure/docker/web.Dockerfile -t moloko-frontend:ci .
           docker build -f infrastructure/docker/stt.Dockerfile -t moloko-stt:ci .
           docker build -f infrastructure/docker/sandbox-runner.Dockerfile -t moloko-sandbox:ci infrastructure/docker
+          docker build -f infrastructure/docker/codex.Dockerfile -t moloko-codex:ci .
+      - name: Codex image runs the pinned Codex CLI and its service (as uid 10001, no network)
+        run: >-
+          docker run --rm --network none --read-only --tmpfs /tmp --user 10001:10001 moloko-codex:ci
+          sh -c 'codex --version && node --version && git --version && python -c "import ast; ast.parse(open(\"/opt/moloko/codex_server.py\").read())"'
       - name: Sandbox image has Python, Node.js and git (as the sandbox user, no network)
         run: >-
           docker run --rm --network none --read-only --user 10001:10001 moloko-sandbox:ci

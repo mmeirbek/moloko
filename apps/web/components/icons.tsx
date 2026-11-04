@@ -69,6 +69,7 @@ import {
   Square as LucideSquare,
   SquarePen as LucideSquarePen,
   Sun as LucideSun,
+  Terminal as LucideTerminal,
   Trash2 as LucideTrash2,
   UserPlus as LucideUserPlus,
   WifiOff as LucideWifiOff,
@@ -153,6 +154,7 @@ export const Sparkles = icon(LucideSparkles, "Sparkles");
 export const Square = icon(LucideSquare, "Square");
 export const SquarePen = icon(LucideSquarePen, "SquarePen");
 export const Sun = icon(LucideSun, "Sun");
+export const Terminal = icon(LucideTerminal, "Terminal");
 export const Trash2 = icon(LucideTrash2, "Trash2");
 export const UserPlus = icon(LucideUserPlus, "UserPlus");
 export const WifiOff = icon(LucideWifiOff, "WifiOff");

@@ -42,7 +42,9 @@ def _p(family: str, tier: int, speed: int, best: str, context_k: int) -> ModelPr
 
 
 _FAMILIES: tuple[tuple[str, ModelProfile], ...] = (
-    # OpenAI
+    # OpenAI (the newest first: Codex on the owner's ChatGPT plan lists them)
+    (r"gpt-6", _p("GPT-6", 1, 3, "code agentic reasoning", 400)),
+    (r"gpt-5\.[5-9]", _p("GPT-5.5+", 1, 3, "code agentic reasoning", 400)),
     (
         r"gpt-5(\.\d)?-?(pro|codex)",
         _p("GPT-5 Pro/Codex", 1, 5, "code agentic reasoning", 400),

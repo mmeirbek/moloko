@@ -40,7 +40,10 @@ def provider_out(p: Provider, settings: Settings) -> ProviderOut:
     source: Literal["stored", "environment", "none"]
     if p.api_key_encrypted:
         source, hint = "stored", p.api_key_hint
-    elif env_api_key(p.kind, settings) or p.kind == "mock":
+    elif env_api_key(p.kind, settings) or p.kind in (
+        "mock",
+        "codex",
+    ):  # codex: signed in on the server
         source, hint = "environment", None
     else:
         source, hint = "none", None

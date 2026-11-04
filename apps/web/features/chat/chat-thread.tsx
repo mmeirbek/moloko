@@ -24,7 +24,7 @@ import { Thinking } from "@/components/ui/thinking";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import type { VoiceMessage } from "@/features/voice/mic-button";
-import { chatKeys, getChat, listPickerModels, modelKeys, updateChat, uploadAttachment } from "@/lib/api/chat";
+import { chatKeys, getChat, chatModels, listPickerModels, modelKeys, updateChat, uploadAttachment } from "@/lib/api/chat";
 import { handOff } from "@/lib/api/runs";
 import { useDocumentTitle } from "@/lib/hooks";
 
@@ -187,7 +187,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const chatTitle = useChatTitle();
   const chat = useQuery({ queryKey: chatKeys.detail(chatId), queryFn: ({ signal }) => getChat(chatId, signal) });
   useDocumentTitle(chat.data ? chatTitle(chat.data.title) : null);
-  const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
+  const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal), select: chatModels });
   const [modelOverride, setModelOverride] = useState<string | null | undefined>(undefined);
   const [agentsMode, setAgentsMode] = useState(false);
   const agentTask = useAgentTask();

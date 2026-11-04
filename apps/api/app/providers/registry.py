@@ -9,15 +9,20 @@ import httpx2
 from app.core.config import Settings
 from app.providers.anthropic_provider import AnthropicProvider
 from app.providers.base import ModelProvider
+from app.providers.codex_provider import CodexProvider
 from app.providers.mock_provider import MockProvider
 from app.providers.openai_provider import OpenAIProvider
 
-ProviderKind = Literal["openai", "anthropic", "mock"]
-PROVIDER_KINDS: tuple[ProviderKind, ...] = ("openai", "anthropic", "mock")
+ProviderKind = Literal["openai", "anthropic", "mock", "codex"]
+PROVIDER_KINDS: tuple[ProviderKind, ...] = ("openai", "anthropic", "mock", "codex")
 
 
 def available_kinds(settings: Settings) -> list[ProviderKind]:
-    return [k for k in PROVIDER_KINDS if k != "mock" or settings.enable_mock_provider]
+    return [
+        k
+        for k in PROVIDER_KINDS
+        if (k != "mock" or settings.enable_mock_provider) and (k != "codex" or settings.codex_url)
+    ]
 
 
 def env_api_key(kind: str, settings: Settings) -> str | None:
@@ -36,6 +41,8 @@ def build_provider(
     timeout = settings.provider_timeout_seconds
     if kind == "mock":
         return MockProvider()
+    if kind == "codex":  # signed in with ChatGPT inside the codex service: no API key here
+        return CodexProvider(settings)
     if not api_key:
         from app.providers.base import ProviderError
 

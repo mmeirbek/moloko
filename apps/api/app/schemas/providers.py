@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
-ProviderKindLiteral = Literal["openai", "anthropic", "mock"]
+ProviderKindLiteral = Literal["openai", "anthropic", "mock", "codex"]
 
 
 def _check_base_url(value: str | None) -> str | None:

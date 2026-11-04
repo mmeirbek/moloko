@@ -407,6 +407,13 @@ class NativeRuntime:
         transcript = load_messages(setup.run.state.get("messages")) or [
             ChatMessage(role="user", content=await self._first_prompt(ctx, setup))
         ]
+        if setup.target.provider_kind == "codex":  # a Codex model: Codex does the task
+            from app.runtimes.codex_run import run_with_codex
+
+            async with asyncio.timeout(setup.remaining):
+                final = await run_with_codex(self, ctx, setup, system, transcript[0].content)
+            await self._complete(ctx, final)
+            return
         async with asyncio.timeout(setup.remaining):
             final = await self._loop(
                 ctx,

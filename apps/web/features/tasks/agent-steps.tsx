@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import { Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
+import { Check, ChevronDown, ChevronRight, FileText, ListChecks, Loader2, MessageSquare, Search, ShieldAlert, Terminal, X } from "@/components/icons";
 import { Thinking } from "@/components/ui/thinking";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { shortText } from "@/lib/notifications/text";
@@ -27,7 +27,13 @@ type Item =
   /** Several finished reads in a row, as one line («Прочитал 3 файла: …»). */
   | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] }
   | { kind: "owner"; id: string; text: string }
+  /** A step Codex took (it works with its own tools in its container): a command, files, a search. */
+  | { kind: "codex"; id: string; what: string; title: string; detail: string; ok: boolean; exitCode: number | null }
   | { kind: "plan"; id: string; mode: string; summary: string; parts: { title: string; agent: string }[] };
+
+const CODEX_KINDS = ["command", "files", "search", "tool", "error"] as const;
+type CodexKind = (typeof CODEX_KINDS)[number];
+const codexKind = (what: string): CodexKind => (CODEX_KINDS as readonly string[]).includes(what) ? (what as CodexKind) : "tool";
 
 /** The Orchestrator's planning reply is JSON — shown as its plan instead of raw text. */
 const PLAN_JSON = /^\s*(```(json)?\s*)?\{[\s\S]*"mode"\s*:/;
@@ -265,6 +271,16 @@ export function AgentSteps({
         }
       } else if (e.type === "task.owner_message") {
         out.push({ kind: "owner", id: e.id, text: String(p.text ?? "") });
+      } else if (e.type === "agent.codex_step") {
+        out.push({
+          kind: "codex",
+          id: e.id,
+          what: String(p.kind ?? ""),
+          title: String(p.title ?? ""),
+          detail: String(p.detail ?? ""),
+          ok: p.ok !== false,
+          exitCode: typeof p.exit_code === "number" ? p.exit_code : null,
+        });
       }
     }
     // calls whose step event is not loaded yet (e.g. the history is still on its way)
@@ -354,6 +370,21 @@ export function AgentSteps({
                     ))}
                   </ul>
                 ) : null}
+              </StepRow>
+            );
+          if (item.kind === "codex")
+            return (
+              <StepRow
+                key={item.id}
+                icon={item.what === "files" ? <FileText className="size-3.5" /> : item.what === "search" ? <Search className="size-3.5" /> : <Terminal className="size-3.5" />}
+                tone={item.ok ? undefined : "text-destructive"}
+                title={t(`codex.${codexKind(item.what)}`, { what: firstLine(item.title, 140) })}
+                preview={item.what === "command" && item.exitCode !== null && item.exitCode !== 0 ? t("failedCode", { code: item.exitCode }) : undefined}
+                open={isOpen(item.id)}
+                onToggle={() => toggle(item.id)}
+                testId="step-codex"
+              >
+                {item.detail ? <pre className="max-h-64 overflow-auto bg-muted p-2 font-mono text-xs whitespace-pre-wrap">{item.detail}</pre> : null}
               </StepRow>
             );
           if (item.kind === "thought")
