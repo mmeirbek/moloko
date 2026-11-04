@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from typing import Any
 
 import httpx2
@@ -74,6 +75,29 @@ def _messages(req: ChatRequest) -> list[dict[str, Any]]:
         else:
             out.append({"role": m.role, "content": m.content})
     return out
+
+
+def without_images(req: ChatRequest) -> ChatRequest:
+    """The request for a model that takes text only (many free models, e.g. GPT-OSS on Groq,
+    reject a picture with 400 «content must be a string»): pictures become a note."""
+    return replace(
+        req,
+        messages=tuple(
+            replace(
+                m,
+                images=(),
+                content=f"{m.content}\n\n[{len(m.images)} picture(s) attached — this model "
+                "cannot see pictures]",
+            )
+            if m.images
+            else m
+            for m in req.messages
+        ),
+    )
+
+
+def _rejected_pictures(req: ChatRequest, error: ProviderError) -> bool:
+    return error.kind == "bad_request" and any(m.images for m in req.messages)
 
 
 def _kwargs(req: ChatRequest) -> dict[str, Any]:
@@ -176,7 +200,10 @@ class OpenAIProvider:
         try:
             resp = await self._client.chat.completions.create(**_kwargs(req))
         except openai.OpenAIError as exc:
-            raise _map_error(exc) from exc
+            error = _map_error(exc)
+            if not _rejected_pictures(req, error):
+                raise error from exc
+            return await self.complete(without_images(req))
         if not resp.choices:
             raise ProviderError("unknown", "empty choices", provider="openai")
         choice = resp.choices[0]
@@ -211,9 +238,17 @@ class OpenAIProvider:
         finish: str | None = None
         model: str | None = None
         try:
-            stream = await self._client.chat.completions.create(
-                **_kwargs(req), stream=True, stream_options={"include_usage": True}
-            )
+            try:
+                stream = await self._client.chat.completions.create(
+                    **_kwargs(req), stream=True, stream_options={"include_usage": True}
+                )
+            except openai.OpenAIError as exc:
+                if not _rejected_pictures(req, _map_error(exc)):
+                    raise
+                req = without_images(req)  # a text-only model: the same chat, words only
+                stream = await self._client.chat.completions.create(
+                    **_kwargs(req), stream=True, stream_options={"include_usage": True}
+                )
             async for chunk in stream:
                 model = chunk.model or model
                 if chunk.usage is not None:

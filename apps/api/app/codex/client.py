@@ -78,11 +78,24 @@ class CodexClient:
         return [ModelInfo(id=m["id"], display_name=m.get("name")) for m in resp.json()]
 
     async def run(
-        self, *, cwd: str, prompt: str, model: str | None, thread_id: str | None
+        self,
+        *,
+        cwd: str,
+        prompt: str,
+        model: str | None,
+        thread_id: str | None,
+        wait_seconds: int | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Codex's events (``codex exec --json``), then ``{"type": "moloko.exit", ...}``.
         Leaving the iteration early (a stop) ends the run in the service."""
-        body = {"cwd": cwd, "prompt": prompt, "model": model, "thread_id": thread_id}
+        body: dict[str, Any] = {
+            "cwd": cwd,
+            "prompt": prompt,
+            "model": model,
+            "thread_id": thread_id,
+        }
+        if wait_seconds is not None:
+            body["wait_seconds"] = wait_seconds
         try:
             async with (
                 self._client(self._timeout + 60) as client,

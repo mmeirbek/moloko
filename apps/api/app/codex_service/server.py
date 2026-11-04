@@ -13,7 +13,7 @@ API (all but /v1/health need ``Authorization: Bearer $CODEX_SERVICE_TOKEN``):
   GET  /v1/status  → {"logged_in": bool, "mode": "chatgpt"|"api_key"|null, "version": str}
   GET  /v1/models  → [{"id": "...", "name": "..."}]   (the signed-in account's models)
   POST /v1/run     {"cwd": "<dir under the workspaces>", "prompt": "...", "model": "..."|null,
-                    "thread_id": "..."|null}
+                    "thread_id": "..."|null, "wait_seconds": N|null}  (409 if busy longer)
                    → JSON Lines: Codex's own events (`codex exec --json`), then
                      {"type": "moloko.exit", "code": N, "stderr": "<last lines>"}
 """
@@ -169,7 +169,11 @@ class Handler(BaseHTTPRequestHandler):
         if cwd is None:
             self._json(HTTPStatus.BAD_REQUEST, {"error": "cwd must be a folder of the workspaces"})
             return
-        if not _one_at_a_time.acquire(timeout=QUEUE_WAIT):
+        try:
+            wait = min(int(body.get("wait_seconds") or QUEUE_WAIT), QUEUE_WAIT)
+        except (TypeError, ValueError):
+            wait = QUEUE_WAIT
+        if not _one_at_a_time.acquire(timeout=wait):
             self._json(HTTPStatus.CONFLICT, {"error": "busy"})
             return
         try:

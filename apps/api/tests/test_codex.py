@@ -292,20 +292,57 @@ async def test_the_owners_note_continues_the_codex_thread_and_a_plan_limit_is_na
     assert (task.status, task.error_code) == ("failed", "provider_rate_limited")
 
 
-async def test_codex_models_are_not_for_chat_answers(
+async def test_a_codex_model_answers_in_the_chat_too(
     app_factory: AppFactory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.providers.base import ChatMessage, ChatRequest, ProviderError
-    from app.providers.codex_provider import CodexProvider
+    """The owner's default model was a Codex model, and the chat refused it."""
+    from app.providers.base import ChatMessage, ChatRequest
+    from app.providers.codex_provider import CHAT_FOLDER, CodexProvider
 
-    app = await _codex_app(app_factory, tmp_path, monkeypatch, _fake_service([], [TURN]))
-    with pytest.raises(ProviderError) as refused:
-        await CodexProvider(app.state.settings).complete(
-            ChatRequest(model="gpt-6-sol", messages=(ChatMessage(role="user", content="hi"),))
+    runs: list[dict[str, Any]] = []
+    app = await _codex_app(app_factory, tmp_path, monkeypatch, _fake_service(runs, [TURN]))
+    chunks = [
+        c
+        async for c in CodexProvider(app.state.settings).stream(
+            ChatRequest(
+                model="gpt-6-sol",
+                system="You are moloko.",
+                messages=(
+                    ChatMessage(role="user", content="Привет"),
+                    ChatMessage(role="assistant", content="Здравствуйте!"),
+                    ChatMessage(role="user", content="Сколько тестов?"),
+                ),
+            )
         )
-    assert refused.value.kind == "bad_request"
-    owner = await _owner(app)
-    assert owner is not None
+    ]
+    assert [c.text for c in chunks[:-1]] == [DONE]
+    final = chunks[-1].result
+    assert final is not None and final.text == DONE and final.usage.input_tokens == 100
+    [call] = runs
+    assert call["cwd"] == CHAT_FOLDER and call["wait_seconds"] == 90
+    assert call["prompt"].index("Привет") < call["prompt"].index("Сколько тестов?")
+    assert "You are moloko." in call["prompt"]
+    assert (tmp_path / "ws" / CHAT_FOLDER).is_dir()
+
+
+def test_a_text_only_model_gets_the_chat_without_its_pictures() -> None:
+    from app.providers.base import ChatMessage, ChatRequest, ImagePart
+    from app.providers.openai_provider import without_images
+
+    req = ChatRequest(
+        model="openai/gpt-oss-120b",
+        messages=(
+            ChatMessage(
+                role="user",
+                content="Что на фото?",
+                images=(ImagePart(media_type="image/png", data_b64="AAAA"),),
+            ),
+        ),
+    )
+    plain = without_images(req)
+    assert plain.messages[0].images == ()
+    assert plain.messages[0].content.startswith("Что на фото?")
+    assert "1 picture(s)" in plain.messages[0].content
 
 
 async def _owner(app: FastAPI) -> User | None:
