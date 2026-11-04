@@ -23,12 +23,13 @@ log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
 case "${1:-}" in
   --install)
-    (crontab -l 2>/dev/null | grep -v 'infrastructure/scripts/autodeploy.sh'; echo "$CRON_LINE") | crontab -
+    # no crontab yet (or only this line): grep finds nothing — not an error
+    { crontab -l 2>/dev/null | grep -v 'infrastructure/scripts/autodeploy.sh' || true; echo "$CRON_LINE"; } | crontab -
     echo "Автодеплой включён: каждые 2 минуты, журнал — ~/autodeploy.log"
     exit 0
     ;;
   --uninstall)
-    (crontab -l 2>/dev/null | grep -v 'infrastructure/scripts/autodeploy.sh') | crontab - || true
+    { crontab -l 2>/dev/null | grep -v 'infrastructure/scripts/autodeploy.sh' || true; } | crontab -
     echo "Автодеплой выключен."
     exit 0
     ;;
@@ -82,6 +83,6 @@ else
   echo "$target" >>"$STATE/skipped"
 fi
 # keep the logs small
-ls -1t "$HOME"/deploy-auto-*.log 2>/dev/null | tail -n +11 | xargs -r rm -f
+{ ls -1t "$HOME"/deploy-auto-*.log 2>/dev/null || true; } | tail -n +11 | xargs -r rm -f
 [[ -f "$HOME/autodeploy.log" ]] && tail -n 500 "$HOME/autodeploy.log" >"$STATE/log.tmp" && mv "$STATE/log.tmp" "$HOME/autodeploy.log"
 exit 0

@@ -15,6 +15,7 @@ jobs:
   api:
     name: Backend (lint, types, tests)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30  # a hung test fails the run instead of holding the auto-deploy for hours
     services:
       postgres:
         image: pgvector/pgvector:0.8.1-pg17-trixie  # PostgreSQL 17 + pgvector, as in production
@@ -49,6 +50,7 @@ jobs:
   stt:
     name: Speech-to-text service (lint, types, tests)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30  # a hung test fails the run instead of holding the auto-deploy for hours
     steps:
       - uses: actions/checkout@v5
       - name: Install uv
@@ -61,6 +63,7 @@ jobs:
   web:
     name: Frontend (lint, types, tests, build)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30  # a hung test fails the run instead of holding the auto-deploy for hours
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -80,6 +83,7 @@ jobs:
   docker:
     name: Docker images and Compose file
     runs-on: ubuntu-24.04
+    timeout-minutes: 30  # a hung test fails the run instead of holding the auto-deploy for hours
     steps:
       - uses: actions/checkout@v5
       - name: Validate docker-compose.yml
