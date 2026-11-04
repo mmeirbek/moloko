@@ -59,8 +59,13 @@ fi
 verdict="$(curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' "${auth[@]}" \
   "https://api.github.com/repos/$repo/commits/$target/check-runs?per_page=100" 2>/dev/null | python3 -c '
 import json, sys
-runs = json.load(sys.stdin).get("check_runs", [])
-if not runs or any(r["status"] != "completed" for r in runs):
+latest = {}  # a re-run adds a new check run of the same name: only the newest counts
+for r in json.load(sys.stdin).get("check_runs", []):
+    if r["name"] not in latest or r["id"] > latest[r["name"]]["id"]:
+        latest[r["name"]] = r
+runs = list(latest.values())
+# a cancelled check is usually re-run (by hand or after a timeout): wait, do not skip
+if not runs or any(r["status"] != "completed" or r["conclusion"] == "cancelled" for r in runs):
     print("pending")
 else:
     bad = [r["name"] for r in runs if r["conclusion"] not in ("success", "skipped", "neutral")]

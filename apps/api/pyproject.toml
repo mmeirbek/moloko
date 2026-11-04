@@ -71,3 +71,5 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 filterwarnings = ["error::DeprecationWarning:app.*"]
+# A test that hangs (rare, seen only in CI) prints where every thread is stuck after 5 minutes.
+faulthandler_timeout = 300
