@@ -16,6 +16,7 @@ set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/moloko-autodeploy"
+TOKEN_FILE="${AUTODEPLOY_TOKEN_FILE:-$HOME/.config/moloko-autodeploy/github-token}"
 CRON_LINE="*/2 * * * * $ROOT/infrastructure/scripts/autodeploy.sh >> \$HOME/autodeploy.log 2>&1"
 mkdir -p "$STATE"
 
@@ -48,9 +49,15 @@ short="${target:0:7}"
 grep -qx "$target" "$STATE/skipped" 2>/dev/null && exit 0
 
 repo="${AUTODEPLOY_REPO:-$(git remote get-url origin | sed -E 's#^(https://github.com/|git@github.com:)##; s#\.git$##')}"
+# Without a token GitHub allows 60 questions an hour per IP (shared with other devices at home);
+# a read-only token in $TOKEN_FILE raises that to 5000. It is never printed or logged.
+auth=()
+if [[ -s "$TOKEN_FILE" ]]; then
+  auth=(-H "Authorization: Bearer $(tr -d '[:space:]' <"$TOKEN_FILE")")
+fi
 # The commit's GitHub checks: "pending", "failed <names>" or "ok".
-verdict="$(curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' \
-  "https://api.github.com/repos/$repo/commits/$target/check-runs?per_page=100" | python3 -c '
+verdict="$(curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' "${auth[@]}" \
+  "https://api.github.com/repos/$repo/commits/$target/check-runs?per_page=100" 2>/dev/null | python3 -c '
 import json, sys
 runs = json.load(sys.stdin).get("check_runs", [])
 if not runs or any(r["status"] != "completed" for r in runs):
@@ -58,7 +65,14 @@ if not runs or any(r["status"] != "completed" for r in runs):
 else:
     bad = [r["name"] for r in runs if r["conclusion"] not in ("success", "skipped", "neutral")]
     print("failed " + ", ".join(bad) if bad else "ok")
-')" || { log "$short: не удалось спросить GitHub о проверках, попробую позже"; exit 0; }
+' 2>/dev/null)" || {
+  # say it once per commit, not every 2 minutes (e.g. while the hourly limit is used up)
+  if ! grep -qx "$target" "$STATE/asked-failed" 2>/dev/null; then
+    log "$short: GitHub не ответил о проверках (лимит запросов или сеть) — спрошу позже"
+    echo "$target" >>"$STATE/asked-failed"
+  fi
+  exit 0
+}
 
 case "$verdict" in
   pending) exit 0 ;;  # CI is still running: next time

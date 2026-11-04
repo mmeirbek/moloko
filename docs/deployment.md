@@ -197,6 +197,8 @@ tail -f ~/autodeploy.log                         # что происходило
 
 Журнал каждого деплоя — `~/deploy-auto-<коммит>.log` (хранятся последние 10). Список пропущенных коммитов — `~/.local/state/moloko-autodeploy/skipped`.
 
+Без токена GitHub отвечает на 60 вопросов в час с одного IP (общего для всех устройств дома) — серверу хватает, но если лимит кончился, автодеплой просто подождёт. Чтобы не зависеть от этого: создайте на GitHub fine-grained токен только на чтение этого репозитория (Actions: read) и положите его в `~/.config/moloko-autodeploy/github-token` (`chmod 600`). Токен нигде не печатается.
+
 ## 5. Инструменты агентов (песочница, GitHub, MCP)
 
 - **Песочница.** Сервис `sandbox` — единственный, кому доступен Docker (`/var/run/docker.sock`). Команды агентов выполняются в отдельных контейнерах без сети и без root. Нужен Docker Engine 26 или новее: проверьте `docker version`. Образ для команд — `moloko-sandbox:local` (Python 3.12, Node.js 22 с npm/npx, git, make). Его собирает `deploy.sh`; вручную: `docker compose --profile sandbox-image build sandbox-image`. Без него агенты не смогут выполнять команды. Лимиты на одну команду по умолчанию: 2 ГБ памяти, 512 процессов, до 10 минут (`SANDBOX_MEMORY_MB`, `SANDBOX_PIDS_LIMIT`, `SANDBOX_TIMEOUT_SECONDS`). Этого хватает на `npm ci`, проверку типов и сборку Next.js. `init-env.sh --add-missing` (его запускает `deploy.sh`) заменяет в `.env` старые значения по умолчанию (`python:3.12.16-slim`, 512, 128, 60) на новые. Значения, которые вы меняли сами, он не трогает.
