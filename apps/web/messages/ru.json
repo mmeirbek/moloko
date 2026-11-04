@@ -1365,13 +1365,13 @@
   },
   "integrations": {
     "github": {
-      "description": "Агенты читают репозитории, issues и историю, скачивают репозиторий в свою папку, создают ветки и коммиты. Коммит нескольких файлов, коммит в основную ветку и pull request — только с вашим одобрением.",
+      "description": "Агенты работают в GitHub от вашего имени: читают репозитории, issues и историю, скачивают код, создают ветки, коммиты, issues и pull request. Агенты на модели Codex получают тот же доступ для git и gh (официальный GitHub CLI) — коммиты подписываются вашим именем на GitHub.",
       "error": "Ошибка подключения: {error}",
       "connected": "Подключено как {login} (токен {hint}).",
       "notConnected": "Не подключено.",
       "newToken": "Новый токен (если нужно заменить)",
       "token": "Токен доступа (fine-grained)",
-      "tokenHint": "Создайте fine-grained token на github.com → Settings → Developer settings, только для нужных репозиториев, с правами Contents и Pull requests: Read and write (с правом только на чтение агенты смогут читать, но не коммитить). Хранится зашифрованным, в браузер не возвращается.",
+      "tokenHint": "Создайте fine-grained token на github.com → Settings → Developer settings → Fine-grained tokens: «All repositories» (или нужные), права Contents, Issues, Pull requests и Workflows — Read and write, Metadata — Read. Хранится зашифрованным, в браузер не возвращается; агенты Codex получают его в своём контейнере. Отключить — кнопка «Отключить» или отзовите токен на GitHub.",
       "repos": "Разрешённые репозитории",
       "reposHint": "По одному owner/repo на строку. Пусто — все, к которым есть доступ у токена.",
       "save": "Сохранить",

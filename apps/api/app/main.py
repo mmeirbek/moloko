@@ -5,6 +5,7 @@ Run with: ``uvicorn app.main:create_app --factory``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -43,6 +44,26 @@ async def _recover(app: FastAPI) -> None:
         await app.state.chat_streams.resume_waiting()
     except Exception:  # noqa: BLE001 — the DB may still be starting; health shows it
         logger.warning("startup_recovery_skipped")
+    app.state.codex_sync = asyncio.create_task(_codex_github(app))
+
+
+async def _codex_github(app: FastAPI) -> None:
+    """The owner's GitHub access for Codex, in case the codex service was (re)built since it was
+    saved; the codex service may still be starting, so a few tries."""
+    from sqlalchemy import select
+
+    from app.codex.github import sync_github
+    from app.models import User
+
+    for _ in range(5):
+        try:
+            async with app.state.db.sessionmaker() as db:
+                owner = (await db.execute(select(User.id).limit(1))).scalar_one_or_none()
+                if owner is not None:
+                    await sync_github(db, app.state.settings, owner)
+            return
+        except Exception:  # noqa: BLE001 — best effort, logged in sync_github
+            await asyncio.sleep(20)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

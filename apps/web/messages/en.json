@@ -1365,13 +1365,13 @@
   },
   "integrations": {
     "github": {
-      "description": "Agents read repositories, issues and history, download a repository into their folder, create branches and commits. Commits of several files, commits to the default branch and pull requests need your approval.",
+      "description": "Agents work on GitHub on your behalf: they read repositories, issues and history, download code, create branches, commits, issues and pull requests. Agents on a Codex model get the same access for git and gh (the official GitHub CLI) — commits carry your GitHub name.",
       "error": "Connection error: {error}",
       "connected": "Connected as {login} (token {hint}).",
       "notConnected": "Not connected.",
       "newToken": "New token (to replace it)",
       "token": "Access token (fine-grained)",
-      "tokenHint": "Create a fine-grained token at github.com → Settings → Developer settings, only for the repositories you need, with Contents and Pull requests: Read and write (with read-only access agents can read but not commit). Stored encrypted, never sent back to the browser.",
+      "tokenHint": "Create a fine-grained token on github.com → Settings → Developer settings → Fine-grained tokens: «All repositories» (or the ones you need), Contents, Issues, Pull requests and Workflows — Read and write, Metadata — Read. Stored encrypted, never sent back to the browser; Codex agents get it in their container. To stop: «Disconnect», or revoke the token on GitHub.",
       "repos": "Allowed repositories",
       "reposHint": "One owner/repo per line. Empty = everything the token can access.",
       "save": "Save",

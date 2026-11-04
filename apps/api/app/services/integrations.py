@@ -92,6 +92,9 @@ class IntegrationService:
             details={"changed": changed},
         )
         await bus.commit(self.db)
+        from app.codex.github import sync_github  # Codex's git and gh act as the owner too
+
+        await sync_github(self.db, self.settings, user_id)
         return github_out(row)
 
     async def test_github(self, user_id: uuid.UUID) -> GitHubIntegrationOut:

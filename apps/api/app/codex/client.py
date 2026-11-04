@@ -77,6 +77,18 @@ class CodexClient:
             raise ProviderError("unavailable", resp.text[:200], provider="codex")
         return [ModelInfo(id=m["id"], display_name=m.get("name")) for m in resp.json()]
 
+    async def set_github(self, token: str | None, login: str | None) -> None:
+        """Give Codex the owner's GitHub access (or take it away)."""
+        try:
+            async with self._client(20) as client:
+                resp = await client.put("/v1/github", json={"token": token, "login": login})
+        except httpx2.HTTPError as exc:
+            raise ProviderError("unavailable", str(exc)[:200], provider="codex") from None
+        if resp.status_code != 200:
+            raise ProviderError(
+                "unavailable", f"codex /v1/github: {resp.status_code}", provider="codex"
+            )
+
     async def run(
         self,
         *,

@@ -88,6 +88,7 @@ def codex_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[st
     monkeypatch.setattr(server, "CODEX", str(fake))
     monkeypatch.setattr(server, "WORKSPACES", (tmp_path / "ws").resolve())
     monkeypatch.setattr(server, "TOKEN", "secret-token")
+    monkeypatch.setattr(server, "GITHUB_FILE", tmp_path / "home" / "moloko-github.json")
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}"
@@ -132,11 +133,20 @@ def test_the_service_runs_codex_and_streams_its_events(codex_server: str, tmp_pa
     assert (tmp_path / "stdin").read_text() == "Fix it"
 
 
-def _fake_service(runs: list[dict[str, Any]], replies: list[list[dict[str, Any]]]) -> Any:
+def _fake_service(
+    runs: list[dict[str, Any]],
+    replies: list[list[dict[str, Any]]],
+    github: list[dict[str, Any]] | None = None,
+) -> Any:
+    github = github if github is not None else []
+
     def handler(request: httpx2.Request) -> httpx2.Response:
         assert request.headers["authorization"] == "Bearer t"
         if request.url.path == "/v1/models":
             return httpx2.Response(200, json=[{"id": "gpt-6-sol", "name": "GPT-6 Sol"}])
+        if request.url.path == "/v1/github":
+            github.append(json.loads(request.content))
+            return httpx2.Response(200, json={"ok": True, "github": True})
         if request.url.path == "/v1/status":
             return httpx2.Response(200, json={"logged_in": True, "mode": "chatgpt", "version": "v"})
         runs.append(json.loads(request.content))
@@ -348,3 +358,49 @@ def test_a_text_only_model_gets_the_chat_without_its_pictures() -> None:
 async def _owner(app: FastAPI) -> User | None:
     async with app.state.db.sessionmaker() as db:
         return (await db.execute(select(User))).scalar_one_or_none()
+
+
+def test_codex_runs_with_the_owners_github_access(codex_server: str, tmp_path: Path) -> None:
+    """Saved GitHub access: Codex's git and gh act as the owner; the token never shows."""
+    auth = {"Authorization": "Bearer secret-token"}
+    token = "github_pat_" + "y" * 40
+    saved = httpx.put(
+        f"{codex_server}/v1/github", headers=auth, json={"token": token, "login": "meirbek"}
+    )
+    assert saved.json() == {"ok": True, "github": True}
+    assert oct(server.GITHUB_FILE.stat().st_mode & 0o777) == "0o600"
+    env = server.run_env()
+    assert env["GH_TOKEN"] == token and env["GITHUB_TOKEN"] == token
+    config = {
+        env[f"GIT_CONFIG_KEY_{i}"]: env[f"GIT_CONFIG_VALUE_{i}"]
+        for i in range(int(env["GIT_CONFIG_COUNT"]))
+    }
+    assert "x-access-token" in config["credential.https://github.com.helper"]
+    assert config["user.name"] == "meirbek"
+    assert config["user.email"] == "meirbek@users.noreply.github.com"
+    assert "CODEX_SERVICE_TOKEN" not in env
+    assert token not in server.redact(f"fatal: {token} rejected")
+    # taken away again
+    httpx.put(f"{codex_server}/v1/github", headers=auth, json={"token": None})
+    assert "GH_TOKEN" not in server.run_env() and not server.GITHUB_FILE.exists()
+
+
+async def test_saving_the_github_token_gives_it_to_codex(
+    app_factory: AppFactory, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.integrations import github as gh
+    from tests.test_tools_integrations import github_mock
+
+    sent: list[dict[str, Any]] = []
+    app = await _codex_app(app_factory, tmp_path, monkeypatch, _fake_service([], [TURN], sent))
+    monkeypatch.setattr(gh, "TRANSPORT", github_mock([]))
+    token = "github_pat_" + "z" * 40
+    async with logged_in_client(app) as client:
+        headers = await csrf_headers(client)
+        resp = await client.put(
+            "/api/v1/integrations/github", json={"token": token}, headers=headers
+        )
+        assert resp.status_code == 200, resp.text
+        assert sent[-1] == {"token": token, "login": "owner"}
+        await client.put("/api/v1/integrations/github", json={"enabled": False}, headers=headers)
+    assert sent[-1] == {"token": None, "login": None}  # switched off: Codex loses it

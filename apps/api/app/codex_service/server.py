@@ -12,6 +12,8 @@ API (all but /v1/health need ``Authorization: Bearer $CODEX_SERVICE_TOKEN``):
   GET  /v1/health  → {"ok": true}
   GET  /v1/status  → {"logged_in": bool, "mode": "chatgpt"|"api_key"|null, "version": str}
   GET  /v1/models  → [{"id": "...", "name": "..."}]   (the signed-in account's models)
+  PUT  /v1/github  {"token": "..."|null, "login": "..."|null} — the owner's GitHub access for
+                   Codex's git and gh (kept in its home next to the sign-in; null = remove)
   POST /v1/run     {"cwd": "<dir under the workspaces>", "prompt": "...", "model": "..."|null,
                     "thread_id": "..."|null, "wait_seconds": N|null}  (409 if busy longer)
                    → JSON Lines: Codex's own events (`codex exec --json`), then
@@ -43,7 +45,11 @@ STDERR_KEEP = 2000
 
 _one_at_a_time = threading.Lock()
 # Never echo anything that looks like a credential back (stderr goes to the backend's logs).
-_SECRET = re.compile(r"(sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_.-]+|Bearer\s+\S+)")
+_SECRET = re.compile(
+    r"(sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_.-]+|Bearer\s+\S+"
+    r"|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})"
+)
+GITHUB_FILE = Path(os.environ.get("CODEX_HOME", "/codex-home")) / "moloko-github.json"
 
 
 def redact(text: str) -> str:
@@ -112,6 +118,42 @@ def list_models() -> list[dict[str, str]]:
     ]
 
 
+def save_github(token: str | None, login: str | None) -> bool:
+    """Keep (or forget) the owner's GitHub token for Codex's runs; only this file has it."""
+    if not token:
+        GITHUB_FILE.unlink(missing_ok=True)
+        return False
+    GITHUB_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = GITHUB_FILE.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        json.dump({"token": token, "login": login or ""}, fh)
+    tmp.replace(GITHUB_FILE)
+    return True
+
+
+def run_env() -> dict[str, str]:
+    """Codex's environment: with the owner's GitHub token, git (over HTTPS) and gh act as the
+    owner, and commits carry the owner's GitHub name."""
+    env = dict(os.environ)
+    env.pop("CODEX_SERVICE_TOKEN", None)  # Codex's commands never see the service's token
+    try:
+        saved = json.loads(GITHUB_FILE.read_text())
+    except (OSError, ValueError):
+        return env
+    token, login = str(saved.get("token") or ""), str(saved.get("login") or "")
+    if not token:
+        return env
+    helper = '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
+    config = [("credential.https://github.com.helper", helper)]
+    if login:
+        config += [("user.name", login), ("user.email", f"{login}@users.noreply.github.com")]
+    env.update({"GH_TOKEN": token, "GITHUB_TOKEN": token, "GIT_CONFIG_COUNT": str(len(config))})
+    for i, (key, value) in enumerate(config):
+        env[f"GIT_CONFIG_KEY_{i}"], env[f"GIT_CONFIG_VALUE_{i}"] = key, value
+    return env
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "moloko-codex"
     sys_version = ""
@@ -148,6 +190,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.BAD_GATEWAY, {"error": str(exc)[:300]})
         else:
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
+    def do_PUT(self) -> None:
+        if self.path != "/v1/github":
+            self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            return
+        if not self._authorized():
+            return
+        length = int(self.headers.get("Content-Length") or 0)
+        try:
+            body = json.loads(self.rfile.read(length)) if 0 < length <= 10_000 else {}
+            saved = save_github(body.get("token"), body.get("login"))
+        except (ValueError, OSError, AttributeError):
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "need token (or null)"})
+            return
+        self._json(HTTPStatus.OK, {"ok": True, "github": saved})
 
     def do_POST(self) -> None:
         if self.path != "/v1/run":
@@ -191,6 +248,7 @@ class Handler(BaseHTTPRequestHandler):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env=run_env(),
             start_new_session=True,  # so a stop ends Codex and everything it started
         )
         stderr: list[str] = []
