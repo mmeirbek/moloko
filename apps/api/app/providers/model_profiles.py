@@ -154,3 +154,23 @@ def describe(name: str, model_id: str) -> str:
     speed = {1: "very fast", 2: "fast", 3: "medium", 4: "slow", 5: "very slow"}[p.speed]
     best = ", ".join(p.best_at) if p.best_at else "general"
     return f"{name} — {tier}, {speed}, best at: {best}; context {p.context_k}k"
+
+
+# Models that do not answer an ordinary chat request: speech, pictures, search, embeddings,
+# moderation, old completions-only models.
+_NOT_CHAT = re.compile(
+    r"(embed|whisper|tts|speech|audio|transcri|realtime|image|dall-e|moderation|rerank|"
+    r"search-api|search-preview|computer-use|deep-research|davinci|babbage|-instruct$|"
+    r"sora|veo|imagen|lyria|guard|ocr)",
+    re.IGNORECASE,
+)
+# On OpenAI's own API these work only through the Responses API, not chat completions.
+_OPENAI_RESPONSES_ONLY = re.compile(r"(codex|-pro\b|^o\d+-pro)", re.IGNORECASE)
+
+
+def chat_capable(model_id: str, *, openai_direct: bool = False) -> bool:
+    """Whether a model can do a part of a task (a chat with tools) — the Orchestrator is only
+    offered these. ``openai_direct``: the model is served by api.openai.com itself."""
+    if _NOT_CHAT.search(model_id):
+        return False
+    return not (openai_direct and _OPENAI_RESPONSES_ONLY.search(model_id))

@@ -38,6 +38,7 @@ from app.core.errors import AppError, new_error_id
 from app.events import bus
 from app.memory.context import build_memory_context, build_work_context
 from app.models.agent import Agent, AgentRun
+from app.models.provider import ModelConfig
 from app.models.task import Task
 from app.providers.base import (
     ChatMessage,
@@ -329,6 +330,34 @@ class NativeRuntime:
                 pass  # removed or switched off since the plan: the agent's own model
         return await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
 
+    async def _drop_picked_model(
+        self, ctx: RunContext, target: ModelTarget, exc: ProviderError
+    ) -> ModelTarget | None:
+        """After the picked model refused (unknown to the provider, or a request it cannot
+        serve): forget the pick for this part, mark the model so plans no longer offer it, and
+        return the agent's own model — None when there was no pick or it is that same model."""
+        if exc.kind not in ("model_not_found", "bad_request"):
+            return None
+        async with ctx.sessionmaker() as db:
+            task = await lock_task(db, ctx.task_id)
+            agent = await db.get(Agent, ctx.agent_id)
+            picked = (task.extra or {}).get("model_config_id")
+            if agent is None or not picked or str(picked) != str(target.model_config_id):
+                return None
+            own = await ctx.gateway.resolve(db, ctx.user_id, agent.model_config_id)
+            if own.model_config_id == target.model_config_id:
+                return None
+            task.extra = {k: v for k, v in (task.extra or {}).items() if k != "model_config_id"}
+            config = await db.get(ModelConfig, target.model_config_id)
+            if config is not None:
+                config.params = {**(config.params or {}), "not_for_plans": exc.kind}
+            logger.warning(
+                "picked_model_refused",
+                extra={"run_id": str(ctx.run_id), "model": target.model, "kind": exc.kind},
+            )
+            await bus.commit(db)
+        return own
+
     async def setup(self, ctx: RunContext) -> RunSetup:
         async with ctx.sessionmaker() as db:
             agent = await db.get(Agent, ctx.agent_id)
@@ -457,7 +486,17 @@ class NativeRuntime:
                 max_tokens=max_tokens,
                 tools=tools,
             )
-            result: ChatResult = await ctx.control.guard(ctx.gateway.complete(target, request))
+            try:
+                result: ChatResult = await ctx.control.guard(ctx.gateway.complete(target, request))
+            except ProviderError as exc:
+                # The model the Orchestrator picked does not answer as a chat model (e.g. a
+                # Responses-only or search model): the part goes on with its agent's own model.
+                fallback = await self._drop_picked_model(ctx, target, exc)
+                if fallback is None:
+                    raise
+                target = fallback
+                request = replace(request, model=target.model)
+                result = await ctx.control.guard(ctx.gateway.complete(target, request))
             steps += 1
             if result.stop_reason in CUT_OFF_REASONS:
                 # Cut off by the output limit: the last tool call may be half-written, so none

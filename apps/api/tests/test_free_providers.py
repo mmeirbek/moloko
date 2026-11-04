@@ -128,3 +128,61 @@ async def test_the_part_runs_on_the_model_the_orchestrator_picked(
     assert uuid.UUID(picked)
     # the part on the picked model (not the default); the merge on the Orchestrator's own
     assert used == ["mock-smart", "mock-fast"]
+
+
+def test_only_chat_models_are_offered_for_parts() -> None:
+    from app.providers.model_profiles import chat_capable
+
+    for model in ("gpt-5-search-api", "text-embedding-3-large", "gpt-4o-mini-tts", "dall-e-3"):
+        assert not chat_capable(model)
+    assert chat_capable("gpt-5.1") and chat_capable("gemini-2.5-pro")
+    # Responses-only on OpenAI itself, fine elsewhere (e.g. OpenRouter)
+    assert not chat_capable("gpt-5.2-codex", openai_direct=True)
+    assert not chat_capable("gpt-5-pro", openai_direct=True)
+    assert chat_capable("openai/gpt-5-codex")
+
+
+async def test_a_part_whose_picked_model_refuses_goes_on_with_its_agents_model(
+    app: FastAPI, owner: User, queue: RecordingQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The owner's failure of 2026-11-04: the Orchestrator picked models the provider refused
+    («model not found»), so every part failed and the whole task with them."""
+    from app.models.provider import ModelConfig
+    from app.orchestrator.prompts import PROTOCOL_PLAN
+    from app.providers.base import ProviderError
+
+    used: list[str] = []
+
+    def model(req: ChatRequest) -> ChatResult | None:
+        if PROTOCOL_PLAN in (req.system or ""):
+            plan = {
+                "mode": "delegate",
+                "new_agents": [{"name": "Coder"}],
+                "subtasks": [
+                    {"key": "a", "title": "Do it", "agent": "Coder", "model": "mock-smart"}
+                ],
+            }
+            return ChatResult(text=json.dumps(plan))
+        used.append(req.model)
+        if req.model == "mock-smart":
+            raise ProviderError("model_not_found", provider="mock")
+        return ChatResult(text="Done.")
+
+    monkeypatch.setattr(mock_provider, "_handlers", [model])
+    async with logged_in_client(app) as client:
+        await add_mock_model(client)  # the default (and the new agent's model) is mock-fast
+        resp = await client.post(
+            "/api/v1/runs", json={"title": "Build"}, headers=await csrf_headers(client)
+        )
+        assert resp.status_code == 200, resp.text
+        await drain(app, queue)
+    async with app.state.db.sessionmaker() as db:
+        parent = (await db.execute(select(Task).where(Task.parent_task_id.is_(None)))).scalar_one()
+        part = (await db.execute(select(Task).where(Task.parent_task_id.is_not(None)))).scalar_one()
+        smart = (
+            await db.execute(select(ModelConfig).where(ModelConfig.model == "mock-smart"))
+        ).scalar_one()
+    assert part.status == "completed" and parent.status == "completed"
+    assert used[:2] == ["mock-smart", "mock-fast"]  # refused, then the agent's own model
+    assert "model_config_id" not in part.extra
+    assert smart.params.get("not_for_plans") == "model_not_found"  # not offered again

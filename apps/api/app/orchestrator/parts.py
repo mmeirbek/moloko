@@ -19,7 +19,7 @@ from app.models.provider import ModelConfig, Provider
 from app.models.task import Task
 from app.orchestrator.plan import NewAgentSpec, Plan
 from app.orchestrator.prompts import new_agent_system
-from app.providers.model_profiles import describe, profile_for
+from app.providers.model_profiles import chat_capable, describe, profile_for
 from app.repositories.users import UserRepository
 from app.services.audit import AuditService
 
@@ -126,7 +126,7 @@ async def owner_models(
     (ORCHESTRATOR_MAX_MODELS_LISTED), the strongest first, so the prompt stays short."""
     rows = (
         await db.execute(
-            select(ModelConfig, Provider.name)
+            select(ModelConfig, Provider.name, Provider.kind, Provider.base_url)
             .join(Provider, ModelConfig.provider_id == Provider.id)
             .where(
                 ModelConfig.user_id == user_id,
@@ -135,8 +135,15 @@ async def owner_models(
             )
         )
     ).all()
+    usable = [
+        (config, provider_name)
+        for config, provider_name, kind, base_url in rows
+        # not a chat model, or it already refused a part (runtimes/native.py)
+        if chat_capable(config.model, openai_direct=kind == "openai" and not base_url)
+        and not (config.params or {}).get("not_for_plans")
+    ]
     ranked = sorted(
-        rows, key=lambda r: (profile_for(r[0].model).tier, profile_for(r[0].model).speed)
+        usable, key=lambda r: (profile_for(r[0].model).tier, profile_for(r[0].model).speed)
     )
     out: dict[str, tuple[str, str]] = {}
     for config, provider_name in ranked[:limit]:
