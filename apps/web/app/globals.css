@@ -5,60 +5,245 @@
 @custom-variant sidebar-collapsed (&:where([data-sidebar="collapsed"] *));
 
 /*
- * Brand palette, taken from the moloko logo: night-navy background, milk-cream
- * wordmark, sky blue and grass green from the pixel scene.
+ * A calm, clean palette (owner's decision 2026-11-03): warm white by day, graphite at night —
+ * neutral greys like Claude or Linear, the logo's milk as the accent. Pixel art stays where it
+ * is art: the office, the cow and the logo.
  * Tokens follow shadcn/ui naming so components stay drop-in compatible.
  */
 :root {
-  --background: #fbf8ef; /* milk */
-  --foreground: #10142b; /* navy ink */
+  --background: #faf9f7;
+  --foreground: #1c1b19;
   --card: #ffffff;
-  --card-foreground: #10142b;
-  --muted: #f1ecdf;
-  --muted-foreground: #5b6078;
-  --primary: #10142b;
-  --primary-foreground: #f6efdc;
-  --accent: #dcecf9;
-  --accent-foreground: #10142b;
-  /* Sky and grass are also text colours (status badges, links, "saved"): darkened in the light
-     theme to WCAG AA — ≥4.5:1 on card, milk, muted and their own 15 % tint. */
-  --sky: #1c6aa3;
-  --grass: #357526;
-  --chart-bar: #2f86c6; /* validated: ≥3:1 on the card surface */
-  --destructive: #c8372f;
+  --card-foreground: #1c1b19;
+  --muted: #f3f2ef;
+  --muted-foreground: #6b6862; /* ≥4.5:1 on card, background and muted */
+  --primary: #1c1b19;
+  --primary-foreground: #faf9f7;
+  --accent: #efede9;
+  --accent-foreground: #1c1b19;
+  /* Sky and grass are also text colours (status badges, links, "saved"): WCAG AA (≥4.5:1)
+     on card, background, muted and their own 15 % tint. */
+  --sky: #1f62c4;
+  --grass: #2c7a3f;
+  --chart-bar: #3b7ddd; /* ≥3:1 on the card surface */
+  --destructive: #c93a32;
   --destructive-foreground: #ffffff;
-  --border: #e2dccb;
-  --input: #d6cfbb;
-  --ring: #1c6aa3; /* focus ring ≥3:1 on every light surface */
-  /* Pixel style: one art pixel of the interface, the frame around boxes and the bevel shade. */
-  --px: 3px;
-  --frame: #10142b;
-  --shade: rgb(16 20 43 / 0.22);
+  --border: #e6e3de;
+  --input: #dad6cf;
+  --ring: #1f62c4; /* focus ring ≥3:1 on every light surface */
+  /* The thin frame of boxes (pixel-frame — the name stays from the pixel style). */
+  --frame: var(--border);
+  --shade: rgb(28 27 25 / 0.06);
   /* Desktop sidebar width; the owner drags it (sidebar-prefs.ts sets it on <html>). */
   --sidebar-width: 256px;
+  /* Room around a framed box inside a scroller (the frame is drawn outside the box). */
+  --px: 1px;
+  /* Code blocks: dark in both themes. */
+  --code-bg: #1d1d1f;
+  --code-fg: #e8e6e1;
 }
 
 .dark {
-  --background: #0c1024; /* logo night */
-  --foreground: #f6efdc; /* logo cream */
-  --card: #131a38;
-  --card-foreground: #f6efdc;
-  --muted: #1a2247;
-  --muted-foreground: #a7aecb;
-  --primary: #f6efdc;
-  --primary-foreground: #0c1024;
-  --accent: #1f2a57;
-  --accent-foreground: #f6efdc;
-  --sky: #5fb3ec;
-  --grass: #6cc04a;
-  --destructive: #e5534b;
+  /* Graphite (owner's choice): neutral, never blue; milk for the main buttons. */
+  --background: #141414;
+  --foreground: #ececec;
+  --card: #1c1c1e;
+  --card-foreground: #ececec;
+  --muted: #232325;
+  --muted-foreground: #9a9aa0; /* ≥4.5:1 on card and muted */
+  --primary: #f2e6c9;
+  --primary-foreground: #141414;
+  --accent: #2a2a2d;
+  --accent-foreground: #ececec;
+  --sky: #74aefc;
+  --grass: #66c98a;
+  --destructive: #ff6f66;
+  --destructive-foreground: #141414;
+  --border: #2c2c2f;
+  --input: #3a3a3e;
+  --ring: #74aefc;
+  --chart-bar: #5f9cf3;
+  --frame: var(--border);
+  --shade: rgb(0 0 0 / 0.3);
+  --code-bg: #101011;
+  --code-fg: #e8e6e1;
+}
+
+/*
+ * Styles on top of light / dark (features/preferences/style-prefs.ts): <html data-style="…">.
+ * Text colours keep WCAG AA on their surfaces, like the classic palette.
+ */
+:root[data-style="neon"] {
+  --background: #fbfaff;
+  --foreground: #14112b;
+  --card: #ffffff;
+  --card-foreground: #14112b;
+  --muted: #f3f0fb;
+  --muted-foreground: #615a80;
+  --primary: #c026d3;
+  --primary-foreground: #ffffff;
+  --accent: #f1ebfd;
+  --accent-foreground: #14112b;
+  --sky: #0e7490;
+  --grass: #047857;
+  --chart-bar: #c026d3;
+  --destructive: #be123c;
+  --border: #e9e3f6;
+  --input: #dcd3f0;
+  --ring: #c026d3;
+}
+:root.dark[data-style="neon"] {
+  --background: #0a0a12;
+  --foreground: #ecebff;
+  --card: #12121d;
+  --card-foreground: #ecebff;
+  --muted: #191927;
+  --muted-foreground: #a4a3c8;
+  --primary: #ff2bd6;
+  --primary-foreground: #0a0a12;
+  --accent: #20203a;
+  --accent-foreground: #ecebff;
+  --sky: #22d3ee;
+  --grass: #39f08f;
+  --chart-bar: #ff2bd6;
+  --destructive: #ff5277;
+  --destructive-foreground: #0a0a12;
+  --border: #2a2a48;
+  --input: #34345a;
+  --ring: #22d3ee;
+  --shade: rgb(34 211 238 / 0.16);
+}
+/* Neon glows a little: the main buttons and focused boxes. */
+:root.dark[data-style="neon"] .bg-primary {
+  box-shadow: 0 0 18px -2px rgb(255 43 214 / 0.55);
+}
+:root.dark[data-style="neon"] .pixel-frame:focus-within {
+  --frame-color: #22d3ee;
+}
+
+:root[data-style="mono"] {
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --muted: #f2f2f2;
+  --muted-foreground: #555555;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --accent: #ededed;
+  --accent-foreground: #000000;
+  --sky: #222222;
+  --grass: #222222;
+  --chart-bar: #333333;
+  --destructive: #000000;
   --destructive-foreground: #ffffff;
-  --border: #262f57;
-  --input: #2d3766;
-  --ring: #5fb3ec;
-  --chart-bar: #3f9ddf;
-  --frame: #3a4680;
-  --shade: rgb(0 0 0 / 0.35);
+  --border: #d6d6d6;
+  --input: #bdbdbd;
+  --ring: #000000;
+}
+:root.dark[data-style="mono"] {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0b0b0b;
+  --card-foreground: #ffffff;
+  --muted: #161616;
+  --muted-foreground: #a6a6a6;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --accent: #1f1f1f;
+  --accent-foreground: #ffffff;
+  --sky: #dddddd;
+  --grass: #dddddd;
+  --chart-bar: #cccccc;
+  --destructive: #ffffff;
+  --destructive-foreground: #000000;
+  --border: #2a2a2a;
+  --input: #3a3a3a;
+  --ring: #ffffff;
+}
+/* Black and white for real: pictures, faces and the office too. */
+:root[data-style="mono"] :is(img, canvas, svg[data-avatar], .pixelated) {
+  filter: grayscale(1);
+}
+
+:root[data-style="milk"] {
+  --background: #fbf6ea;
+  --foreground: #2b2118;
+  --card: #fffdf7;
+  --card-foreground: #2b2118;
+  --muted: #f4ecda;
+  --muted-foreground: #6e5e4c;
+  --primary: #3b2f22;
+  --primary-foreground: #fbf6ea;
+  --accent: #f1e6cf;
+  --accent-foreground: #2b2118;
+  --sky: #8a4a17;
+  --grass: #3f7a2f;
+  --chart-bar: #b5652b;
+  --destructive: #b3261e;
+  --border: #eadfc8;
+  --input: #ddcfb2;
+  --ring: #b5652b;
+}
+:root.dark[data-style="milk"] {
+  --background: #17130f;
+  --foreground: #f1e9dc;
+  --card: #211b16;
+  --card-foreground: #f1e9dc;
+  --muted: #2a231c;
+  --muted-foreground: #b3a593;
+  --primary: #e8c48a;
+  --primary-foreground: #17130f;
+  --accent: #2f271f;
+  --accent-foreground: #f1e9dc;
+  --sky: #e2a868;
+  --grass: #9ccc7a;
+  --chart-bar: #d9a066;
+  --destructive: #ff7b6b;
+  --destructive-foreground: #17130f;
+  --border: #322a22;
+  --input: #42382d;
+  --ring: #e2a868;
+}
+
+:root[data-style="ocean"] {
+  --background: #f4f8fc;
+  --foreground: #0d1b2a;
+  --card: #ffffff;
+  --card-foreground: #0d1b2a;
+  --muted: #eaf1f8;
+  --muted-foreground: #4e6175;
+  --primary: #0b5cad;
+  --primary-foreground: #ffffff;
+  --accent: #e3eef9;
+  --accent-foreground: #0d1b2a;
+  --sky: #0b5cad;
+  --grass: #0b7a6f;
+  --chart-bar: #0e8f8f;
+  --destructive: #c0392b;
+  --border: #dce7f2;
+  --input: #c9d9ea;
+  --ring: #0b5cad;
+}
+:root.dark[data-style="ocean"] {
+  --background: #0c141f;
+  --foreground: #e4eef8;
+  --card: #122031;
+  --card-foreground: #e4eef8;
+  --muted: #16283b;
+  --muted-foreground: #93a9c0;
+  --primary: #6cb6ff;
+  --primary-foreground: #0c141f;
+  --accent: #1a2f45;
+  --accent-foreground: #e4eef8;
+  --sky: #6cb6ff;
+  --grass: #41d3c4;
+  --chart-bar: #41d3c4;
+  --destructive: #ff7a70;
+  --destructive-foreground: #0c141f;
+  --border: #1f3349;
+  --input: #2a425c;
+  --ring: #6cb6ff;
 }
 
 @theme inline {
@@ -79,73 +264,31 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  /* Pixel style: square corners everywhere; boxes get notched pixel frames (pixel-frame). */
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
-  --radius-4xl: 0px;
-  /* Shadows are hard pixel offsets, never blurred. */
-  --shadow-2xs: var(--px) var(--px) 0 0 var(--shade);
-  --shadow-xs: var(--px) var(--px) 0 0 var(--shade);
-  --shadow-sm: var(--px) var(--px) 0 0 var(--shade);
-  --shadow-md: calc(var(--px) * 2) calc(var(--px) * 2) 0 0 var(--shade);
-  --shadow-lg: calc(var(--px) * 2) calc(var(--px) * 2) 0 0 var(--shade);
-  --shadow-xl: calc(var(--px) * 3) calc(var(--px) * 3) 0 0 var(--shade);
-  --shadow-2xl: calc(var(--px) * 3) calc(var(--px) * 3) 0 0 var(--shade);
-  /* Text sizes that put every font pixel on whole screen pixels (Ark Pixel is drawn at 12 px:
-     12 = 1×, 18 = 1.5× — 3 device px on a retina screen —, 24 = 2×, 36 = 3×, 48 = 4×). In-between
-     sizes blur the letters and make them look bolder, so there are none. */
-  --text-xs: 12px;
-  --text-xs--line-height: 18px;
-  --text-sm: 18px;
-  --text-sm--line-height: 27px;
-  --text-base: 18px;
-  --text-base--line-height: 27px;
-  --text-lg: 24px;
-  --text-lg--line-height: 32px;
-  --text-xl: 24px;
-  --text-xl--line-height: 32px;
-  --text-2xl: 24px;
-  --text-2xl--line-height: 32px;
-  --text-3xl: 36px;
-  --text-3xl--line-height: 44px;
-  --text-4xl: 48px;
-  --text-4xl--line-height: 56px;
-  /* A pixel loader turns in quarter steps (a 45° pixel image is a blur). */
-  --animate-spin: spin 1s steps(4, end) infinite;
-  /* Ark Pixel (TakWolf, OFL — app/fonts, scripts/subset-ark.py) for text and code; Moloko Pixel
-     (our own, drawn after the logo — scripts/make-font.py) for headings and big numbers. */
-  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-code), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-pixel: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  /* The system font of each device (SF Pro on Apple, Segoe UI on Windows, Roboto on Android):
+     sharp at every size. Ark Pixel stays for the office's captions only (--font-body). */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-pixel: var(--font-sans);
 }
 
 /*
- * A notched pixel frame, one --px thick, drawn outside the box with four offset copies of it (the
- * corners stay empty). It lives in Tailwind's --tw-shadow, so focus rings and the bevels below
- * stack with it. --frame-color recolours it (focus, selection, status).
+ * Boxes (cards, fields, buttons, dialogs): a hairline frame and soft corners. Drawn as a ring
+ * outside the box (it lives in Tailwind's --tw-shadow, so focus rings stack with it and nothing
+ * moves); --frame-color recolours it (focus, selection, status).
  */
 @utility pixel-frame {
-  --tw-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--frame-color, var(--frame)),
-    0 var(--px) 0 0 var(--frame-color, var(--frame)),
-    calc(-1 * var(--px)) 0 0 0 var(--frame-color, var(--frame)),
-    var(--px) 0 0 0 var(--frame-color, var(--frame));
+  border-radius: var(--radius-xl);
+  --tw-shadow: 0 0 0 1px var(--frame-color, var(--frame)), 0 1px 2px 0 var(--shade);
   box-shadow:
     var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
-/* Raised (buttons): shade on the inner right and bottom edges. */
+/* Kept for the markup of the pixel style; flat now. */
 @utility pixel-raised {
-  --tw-inset-shadow: inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 0 var(--shade);
+  --tw-inset-shadow: 0 0 #0000;
 }
-/* Sunken (fields): shade on the inner left and top edges. */
 @utility pixel-sunken {
-  --tw-inset-shadow: inset var(--px) var(--px) 0 0 var(--shade);
+  --tw-inset-shadow: 0 0 #0000;
 }
 
 @layer base {
@@ -162,11 +305,8 @@
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    /* Pixel fonts at whole-pixel sizes: no smoothing, every pixel crisp (macOS). */
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: unset;
-    /* The pixel fonts have one weight: never a smeared fake bold or italic. */
-    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     /* Long words, links and ids wrap instead of widening the page on phones. */
     overflow-wrap: break-word;
   }
@@ -182,75 +322,88 @@
     -webkit-mask: url("/brand/wordmark-mask.png") center / contain no-repeat;
     mask: url("/brand/wordmark-mask.png") center / contain no-repeat;
   }
-  /* Page titles, the logo and big numbers: Moloko Pixel. */
+  /* Page titles and big numbers: the same font, a little heavier and tighter. */
   h1,
   .font-pixel {
-    font-family: var(--font-pixel);
-    /* The letters already stand 2 pixels apart, as in the logo; extra spacing would push them
-       off the pixel grid and blur their edges. */
-    letter-spacing: 0;
-  }
-  /* Bold, the pixel way: the letter doubled one font pixel (1/12 em) to the right. */
-  strong,
-  b,
-  .font-semibold,
-  .font-bold {
-    text-shadow: calc(1em / 12) 0 0 currentColor;
-  }
-  /* Moloko Pixel is already bold: no doubling (also beats .font-semibold on a heading). */
-  :is(h1, .font-pixel):is(.font-semibold, .font-bold, .font-medium),
-  :is(h1, .font-pixel) :is(strong, b, .font-semibold, .font-bold) {
-    text-shadow: none;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
   ::selection {
-    background: var(--color-sky);
-    color: #fff;
+    background: color-mix(in srgb, var(--color-sky) 30%, transparent);
   }
   :focus-visible {
-    outline: var(--px) solid var(--color-ring);
-    outline-offset: var(--px);
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
-  /* Pixel checkboxes and radios: a framed square; checked = a filled square inside. */
+  /* iPhone zooms the page into any field under 16 px when it gets focus: never on touch screens. */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"], [type="radio"], [type="range"]),
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
   input[type="checkbox"],
   input[type="radio"] {
-    appearance: none;
-    display: inline-grid;
-    place-content: center;
-    flex: none;
-    width: 18px;
-    height: 18px;
-    margin: 3px;
-    background: var(--color-card);
-    box-shadow:
-      0 -3px 0 0 var(--frame), 0 3px 0 0 var(--frame), -3px 0 0 0 var(--frame), 3px 0 0 0 var(--frame),
-      inset 3px 3px 0 0 var(--shade);
+    accent-color: var(--color-sky);
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-  }
-  input[type="checkbox"]::before,
-  input[type="radio"]::before {
-    content: "";
-    width: 9px;
-    height: 9px;
-    background: var(--color-sky);
-    transform: scale(0);
-  }
-  input[type="radio"]::before {
-    width: 6px;
-    height: 6px;
-  }
-  input[type="checkbox"]:checked::before,
-  input[type="radio"]:checked::before {
-    transform: scale(1);
   }
   input[type="checkbox"]:disabled,
   input[type="radio"]:disabled {
     opacity: 0.5;
     cursor: default;
   }
-  /* Square, quiet scrollbars. */
   * {
-    scrollbar-color: var(--frame) transparent;
+    scrollbar-color: var(--input) transparent;
   }
+}
+
+/* Thinking (components/ui/thinking): the dots hop one after another, a light runs over the words. */
+@keyframes thinking-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+[data-dot="1"] {
+  animation-delay: 0.15s;
+}
+[data-dot="2"] {
+  animation-delay: 0.3s;
+}
+.thinking-shimmer {
+  background: linear-gradient(90deg, currentColor 0%, currentColor 40%, color-mix(in srgb, currentColor 35%, transparent) 50%, currentColor 60%, currentColor 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* the text's own colour (currentColor) paints the gradient; only the fill goes clear */
+  -webkit-text-fill-color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .thinking-shimmer {
+    animation: shimmer 2.2s linear infinite;
+  }
+}
+
+/* Loading: placeholders shimmer softly (components/ui/skeleton), milk fills its glass (MilkGlass). */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes milk-fill {
+  0% { transform: translateY(100%); }
+  55%, 70% { transform: translateY(18%); }
+  100% { transform: translateY(100%); }
+}
+@keyframes milk-wave {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes milk-drop {
+  0% { transform: translateY(-6px); opacity: 0; }
+  20% { opacity: 1; }
+  60%, 100% { transform: translateY(14px); opacity: 0; }
 }
 
 /* Milk bottles clink when a task is done (MilkBottle). */
@@ -269,25 +422,128 @@
   50% { opacity: 1; transform: scale(1.2); }
 }
 
+/* Agent faces live (features/agents/agent-avatar): they blink, and the mood moves them. Only for
+   people who did not ask the system for less motion. */
+@keyframes avatar-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+@keyframes avatar-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.6px); }
+}
+@keyframes avatar-hop {
+  0%, 70%, 100% { transform: translateY(0); }
+  80% { transform: translateY(-3px); }
+  90% { transform: translateY(0); }
+}
+@keyframes avatar-droop {
+  0%, 100% { transform: translateY(0.5px) rotate(0deg); }
+  50% { transform: translateY(1.5px) rotate(-2deg); }
+}
+@keyframes avatar-think {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+@keyframes avatar-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@keyframes avatar-float {
+  0% { transform: translate(0, 2px); opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { transform: translate(2px, -2px); opacity: 0.2; }
+}
+@keyframes avatar-tear {
+  0%, 30% { transform: translateY(0); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translateY(9px); opacity: 0; }
+}
+.avatar-live .avatar-eyes,
+.avatar-live .avatar-bob,
+.avatar-live .avatar-hop,
+.avatar-live .avatar-droop,
+.avatar-live .avatar-pulse,
+.avatar-live .avatar-twinkle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .avatar-live .avatar-eyes {
+    animation: avatar-blink 5.2s ease-in-out infinite;
+  }
+  .avatar-live .avatar-blink-1 {
+    animation-duration: 6.1s;
+    animation-delay: 1.3s;
+  }
+  .avatar-live .avatar-blink-2 {
+    animation-duration: 4.7s;
+    animation-delay: 2.6s;
+  }
+  .avatar-live .avatar-blink-3 {
+    animation-duration: 5.7s;
+    animation-delay: 0.7s;
+  }
+  .avatar-live .avatar-bob {
+    animation: avatar-bob 1.1s ease-in-out infinite;
+  }
+  .avatar-live .avatar-hop {
+    animation: avatar-hop 2.4s ease-out infinite;
+  }
+  .avatar-live .avatar-droop {
+    animation: avatar-droop 3s ease-in-out infinite;
+  }
+  .avatar-live .avatar-think {
+    animation: avatar-think 1.2s ease-in-out infinite;
+  }
+  .avatar-live .avatar-think-1 {
+    animation-delay: 0.2s;
+  }
+  .avatar-live .avatar-think-2 {
+    animation-delay: 0.4s;
+  }
+  .avatar-live .avatar-pulse {
+    animation: avatar-pulse 1.6s ease-in-out infinite;
+  }
+  .avatar-live .avatar-float {
+    animation: avatar-float 2.4s ease-in-out infinite;
+  }
+  .avatar-live .avatar-twinkle {
+    animation: sparkle 2.4s ease-in-out infinite;
+  }
+  .avatar-live .avatar-twinkle-late {
+    animation-delay: 1.1s;
+  }
+  .avatar-live .avatar-tear {
+    animation: avatar-tear 2.8s ease-in infinite;
+  }
+}
+
 /* Chat Markdown (model output). */
+.markdown {
+  line-height: 1.65;
+}
 .markdown > * + * {
   margin-top: 0.75em;
 }
 .markdown h1,
 .markdown h2,
 .markdown h3 {
-  font-family: var(--font-pixel);
-  font-size: 24px;
-  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.markdown h1 {
+  font-size: 1.35em;
+}
+.markdown h2 {
+  font-size: 1.2em;
 }
 .markdown h3 {
-  font-family: var(--font-sans);
-  text-shadow: calc(1em / 12) 0 0 currentColor;
-  font-size: 18px;
-  line-height: 27px;
+  font-size: 1.05em;
 }
 .markdown ul {
-  list-style: square;
+  list-style: disc;
   padding-left: 1.5em;
 }
 .markdown ol {
@@ -297,9 +553,10 @@
 .markdown a {
   color: var(--color-sky);
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .markdown blockquote {
-  border-left: var(--px) solid var(--frame);
+  border-left: 3px solid var(--color-border);
   padding-left: 0.75em;
   color: var(--color-muted-foreground);
 }
@@ -310,26 +567,25 @@
 }
 .markdown th,
 .markdown td {
-  border: 2px solid var(--color-border);
+  border: 1px solid var(--color-border);
   padding: 0.25em 0.6em;
 }
 .markdown :not(pre) > code {
   background: var(--color-muted);
-  padding: 0 0.25em;
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
   font-family: var(--font-mono);
+  font-size: 0.9em;
 }
 .markdown pre {
   overflow-x: auto;
-  background: #0c1024;
-  color: #e8e3d3;
-  padding: 12px 15px;
-  margin-inline: var(--px);
-  box-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--frame), 0 var(--px) 0 0 var(--frame),
-    calc(-1 * var(--px)) 0 0 0 var(--frame), var(--px) 0 0 0 var(--frame);
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-radius: 10px;
+  padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 12px; /* Ark Pixel mono at 1× */
-  line-height: 18px;
+  font-size: 13px;
+  line-height: 1.55;
 }
 /* highlight.js token colours (our own palette). */
 .hljs-keyword,
@@ -353,7 +609,7 @@
 .hljs-title,
 .hljs-function,
 .hljs-section {
-  color: #f6efdc;
+  color: #f2e6c9;
 }
 .hljs-variable,
 .hljs-params {

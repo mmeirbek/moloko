@@ -4,10 +4,10 @@ import { OWNER, watchErrors } from "./helpers";
 
 test("chat: streaming, markdown, history, attachments, stop, errors, second device", async ({ page, browser }) => {
   const errors = watchErrors(page);
-  await page.goto("/chat");
-  await page.getByRole("link", { name: "Новый чат" }).first().click();
+  await page.goto("/office/agents");
+  await page.getByTestId("new-chat-sidebar").click(); // «Новое»
   await page.waitForURL(/\/chat\/new$/);
-  const input = page.getByPlaceholder("Сообщение для moloko…");
+  const input = page.getByPlaceholder(/Спросите или поручите работу/);
   /** The composer accepts a message only when no answer is running (Send button shown). */
   const say = async (text: string) => {
     await expect(page.getByRole("button", { name: "Отправить" })).toBeVisible({ timeout: 30_000 });
@@ -63,6 +63,16 @@ test("chat: streaming, markdown, history, attachments, stop, errors, second devi
   await expect(ppage.getByText("Echo: раз два три четыре пять шесть семь восемь")).toBeVisible();
   await phone.close();
   await expect(page.getByText("Echo: раз два три четыре пять шесть семь восемь")).toBeVisible();
+
+  // Written while an answer is still coming: it waits in line and is answered right after.
+  await say("[[mock:slow]] q r s t u v w x y z один два три четыре пять шесть");
+  await input.fill("И ещё вопрос");
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  await expect(page.getByTestId("message-queued")).toBeVisible();
+  await expect(page.getByText("Echo: q r s t u v w x y z один два три четыре пять шесть")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Echo: И ещё вопрос")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("message-queued")).toHaveCount(0);
 
   // Stop, and an honest provider error.
   await say("[[mock:slow]] a b c d e f g h i j k l m n o p");

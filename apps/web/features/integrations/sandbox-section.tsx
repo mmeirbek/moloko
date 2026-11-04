@@ -46,7 +46,7 @@ export function SandboxSection() {
             {t("commands")}: <span className="font-mono">{s.allowed_commands.join(" ")}</span>
           </p>
         )}
-        <p className="border-t-2 pt-2 text-sm">{status.data?.web_search ? t("searchOn") : t("searchOff")}</p>
+        <p className="border-t pt-2 text-sm">{status.data?.web_search ? t("searchOn") : t("searchOff")}</p>
       </CardContent>
     </Card>
   );

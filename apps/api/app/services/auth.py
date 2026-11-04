@@ -50,6 +50,8 @@ PASSKEY_ADDED = "auth.passkey_added"
 PASSKEY_DELETED = "auth.passkey_deleted"
 # «Полный доступ» for an agent (app.services.agents) is turned on with the password.
 AGENT_FULL_ACCESS_GRANTED = "agent.full_access_granted"
+# «Полный доступ всем агентам» (app.services.agents) is turned on with the password too.
+AGENT_FULL_ACCESS_ALL_GRANTED = "agent.full_access_all_granted"
 
 # Every wrong password — at login or when confirming a change — and every failed passkey
 # sign-in counts toward the same per-username lockout, so no endpoint can be used to guess
@@ -63,6 +65,7 @@ PASSWORD_SUCCESS_ACTIONS = (
     PASSKEY_ADDED,
     PASSKEY_DELETED,
     AGENT_FULL_ACCESS_GRANTED,
+    AGENT_FULL_ACCESS_ALL_GRANTED,
 )
 
 LoginMethod = Literal["password", "passkey"]

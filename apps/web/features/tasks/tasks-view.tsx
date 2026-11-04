@@ -10,7 +10,8 @@ import { Plus, Search } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StatusBadge } from "@/features/agents/status-badge";
+import { SkeletonRows } from "@/components/ui/skeleton";
+import { StatusBadge, taskBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { agentKeys, createTask, listAgents, listTasks, taskKeys } from "@/lib/api/agents";
 import { useDebounced } from "@/lib/hooks";
@@ -117,7 +118,7 @@ function TaskRow({ task, now }: { task: TaskOut; now: Date }) {
             {waiting && ` · ${tt("waitingFor")} ${waiting.agentName}`}
           </p>
         </div>
-        <StatusBadge status={live.status} />
+        <StatusBadge status={taskBadge(live)} />
       </Link>
     </li>
   );
@@ -154,7 +155,7 @@ export function TasksView() {
               aria-pressed={filter === f}
               onClick={() => setFilter(f)}
               className={cn(
-                "min-h-9 shrink-0 px-3.5 text-sm whitespace-nowrap",
+                "min-h-9 shrink-0 rounded-full px-3.5 text-sm whitespace-nowrap",
                 filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
               )}
             >
@@ -181,7 +182,7 @@ export function TasksView() {
         />
       </div>
       {tasks.isError && !tasks.data ? (
-        <div role="alert" className="flex flex-col items-start gap-2 border-2 p-4 text-sm">
+        <div role="alert" className="flex flex-col items-start gap-2 border p-4 text-sm">
           <p>{toMessage(tasks.error).message}</p>
           <Button variant="outline" size="sm" onClick={() => tasks.refetch()}>
             {tc("retry")}
@@ -189,10 +190,15 @@ export function TasksView() {
         </div>
       ) : (
         <ul
-          className={cn("divide-y-2 bg-card transition-opacity pixel-frame", tasks.isPlaceholderData && "opacity-60")}
+          className={cn("divide-y bg-card transition-opacity pixel-frame", tasks.isPlaceholderData && "opacity-60")}
           aria-busy={tasks.isFetching}
         >
-          {tasks.isPending && <li className="px-3 py-4 text-sm text-muted-foreground">{tc("loading")}</li>}
+          {tasks.isPending && (
+            <li role="status" className="px-3 py-4">
+              <span className="sr-only">{tc("loading")}</span>
+              <SkeletonRows rows={6} avatar={false} />
+            </li>
+          )}
           {tasks.data?.items.map((task) => <TaskRow key={task.id} task={task} now={now} />)}
           {tasks.data?.items.length === 0 && (
             <li>

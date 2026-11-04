@@ -43,7 +43,7 @@ export function ApprovalsView() {
         </h2>
         {loading && <LoadingState />}
         {!loading && pending.length === 0 && (
-          <EmptyState title={t("none")} hint={t("noneHint")} mood="happy" className="border-2 border-dashed" />
+          <EmptyState title={t("none")} hint={t("noneHint")} mood="happy" className="border border-dashed" />
         )}
         {pending.map((a) => (
           <ApprovalCard key={a.id} approval={a} />

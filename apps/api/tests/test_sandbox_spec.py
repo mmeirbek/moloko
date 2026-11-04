@@ -38,6 +38,23 @@ def test_commands_run_in_the_image_with_node_by_default() -> None:
     assert {"node", "npm", "npx", "git", "python"} <= set(make_settings().sandbox_allowed_commands)
 
 
+def test_browser_tests_have_room_and_reach_localhost_directly() -> None:
+    """Playwright + Chromium: shared memory, a bigger /tmp, more open files; a test server in
+    the same container is never reached through the package proxy."""
+    spec = container_spec(RunnerSettings(), uuid.uuid4(), ["npx", "playwright", "test"], "packages")
+    host = spec["HostConfig"]
+    assert host["ShmSize"] == 256 * 1024 * 1024
+    assert host["Tmpfs"]["/tmp"].endswith("size=256m")  # noqa: S108 — inside the sandbox
+    assert host["Ulimits"] == [{"Name": "nofile", "Soft": 4096, "Hard": 4096}]
+    env = dict(e.split("=", 1) for e in spec["Env"])
+    assert env["NO_PROXY"] == env["no_proxy"] == "localhost,127.0.0.1,::1"
+    assert env["PLAYWRIGHT_BROWSERS_PATH"] == "/workspace/.cache/ms-playwright"
+    assert env["CHROMIUM_PATH"] == "/usr/bin/chromium-headless-shell"
+    assert host["ReadonlyRootfs"] is True and host["CapDrop"] == ["ALL"]  # nothing loosened
+    hosts = make_settings().sandbox_package_hosts
+    assert {"cdn.playwright.dev", "playwright.download.prss.microsoft.com"} <= set(hosts)
+
+
 def runner_sandbox(docker: httpx2.MockTransport) -> RunnerSandbox:
     """The worker's client talking to a runner whose Docker API is ``docker``."""
     runner = create_runner_app(

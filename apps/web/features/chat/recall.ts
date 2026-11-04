@@ -9,7 +9,7 @@ export function recallHref(source: RecalledSourceOut): string | null {
   if (source.type === "conversation") return `/chat/${source.id}`;
   if (source.conversation_id) return `/chat/${source.conversation_id}`;
   if (source.type === "task") return `/tasks/${source.id}`;
-  if (source.type === "memory") return source.agent_id ? `/office/agents/${source.agent_id}` : "/settings#memory";
+  if (source.type === "memory") return source.agent_id ? `/office/agents/${source.agent_id}` : "/settings/agents";
   if (source.agent_id) return `/office/agents/${source.agent_id}`;
   return null;
 }

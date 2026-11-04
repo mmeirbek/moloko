@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TONE: Record<string, string> = {
   idle: "bg-muted text-muted-foreground",
   created: "bg-muted text-muted-foreground",
+  in_line: "bg-accent text-accent-foreground",
   queued: "bg-accent text-accent-foreground",
   planning: "bg-sky/15 text-sky",
   working: "bg-sky/15 text-sky",
@@ -20,19 +21,24 @@ const TONE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground line-through",
 };
 
+/** A task's badge: «В очереди» while it waits for its busy agent (status «created»). */
+export function taskBadge(task: { status: string; status_reason?: string | null }): string {
+  return task.status === "created" && task.status_reason === "waiting_for_agent" ? "in_line" : task.status;
+}
+
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const t = useTranslations("status");
   const key = status as Parameters<typeof t>[0];
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
         TONE[status] ?? "bg-muted",
         className,
       )}
     >
       {["planning", "working", "running", "reviewing"].includes(status) && (
-        <span className="size-1.5 animate-pulse bg-current" aria-hidden="true" />
+        <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
       )}
       {t.has(key) ? t(key) : status}
     </span>

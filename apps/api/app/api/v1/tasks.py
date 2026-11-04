@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Header, Query, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 
 from app.api.deps import CurrentAuth, DbSession, QueueDep, SettingsDep
+from app.api.v1.chats import UPLOAD_BODY
 from app.models.event import AgentEvent
 from app.schemas.common import Page
 from app.schemas.tasks import (
@@ -13,12 +14,14 @@ from app.schemas.tasks import (
     TaskContinue,
     TaskCreate,
     TaskDetail,
+    TaskFileOut,
     TaskFilter,
     TaskOut,
     TaskOwnerMessage,
     TaskUpdate,
 )
 from app.services.idempotency import idempotent
+from app.services.task_files import receive_task_file
 from app.services.tasks import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -139,7 +142,7 @@ async def retry_task(
 @router.post(
     "/{task_id}/continue",
     response_model=TaskOut,
-    summary="Continue a stopped task from where it stopped (a new attempt)",
+    summary="Continue a finished task from where it stopped, or reply to its result",
 )
 async def continue_task(
     task_id: uuid.UUID,
@@ -147,11 +150,12 @@ async def continue_task(
     ctx: CurrentAuth,
     db: DbSession,
     queue: QueueDep,
+    settings: SettingsDep,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> TaskOut:
     async def action() -> TaskOut:
         return TaskOut.model_validate(
-            await TaskService(db, queue).continue_from_stop(
+            await TaskService(db, queue, settings).continue_from_stop(
                 ctx.user.id, task_id, (body.instruction or "").strip() or None
             )
         )
@@ -178,6 +182,25 @@ async def message_task_agent(
     return TaskOut.model_validate(
         await TaskService(db, queue).message_agent(ctx.user.id, task_id, body.text.strip())
     )
+
+
+@router.post(
+    "/{task_id}/files",
+    response_model=TaskFileOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send the task a file: saved in its workspace (inbox/) for its agents to read",
+    openapi_extra=UPLOAD_BODY,
+)
+async def upload_task_file(
+    task_id: uuid.UUID,
+    request: Request,
+    ctx: CurrentAuth,
+    db: DbSession,
+    settings: SettingsDep,
+    queue: QueueDep,
+) -> TaskFileOut:
+    # Streamed to disk as it arrives (app/services/files.py), never into memory.
+    return await receive_task_file(db, queue, settings, ctx.user.id, task_id, request)
 
 
 @router.get("/{task_id}/events", response_model=list[EventOut], summary="Execution history")

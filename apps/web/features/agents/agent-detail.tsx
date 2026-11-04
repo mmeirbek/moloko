@@ -10,6 +10,7 @@ import { ArrowLeft, Send, Trash2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { MemoryPanel } from "@/features/memory/memory-panel";
 import { agentKeys, deleteAgent, getAgent, listAgentTasks, runAgent, taskKeys } from "@/lib/api/agents";
@@ -44,10 +45,10 @@ function AgentTasks({ agentId }: { agentId: string }) {
   const taskError = useTaskError();
   if (tasks.data?.items.length === 0)
     return (
-      <p className="border-2 border-dashed p-6 text-center text-sm text-muted-foreground">{t("noTasks")}</p>
+      <p className="border border-dashed p-6 text-center text-sm text-muted-foreground">{t("noTasks")}</p>
     );
   return (
-    <ul className="flex flex-col divide-y-2 bg-card pixel-frame" aria-label={t("tasks")}>
+    <ul className="flex flex-col divide-y bg-card pixel-frame" aria-label={t("tasks")}>
       {tasks.data?.items.map((task) => {
         const current = live[task.id] ?? task;
         return (
@@ -129,7 +130,7 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
           <ArrowLeft className="size-4" /> {td("back")}
         </Link>
         <h1 className="truncate font-sans text-2xl font-semibold">{agent.data.name}</h1>
-        <p role="status" className="border-2 border-dashed p-4 text-sm text-muted-foreground">
+        <p role="status" className="border border-dashed p-4 text-sm text-muted-foreground">
           {td("archived")}
         </p>
         <AgentTasks agentId={agentId} />
@@ -147,7 +148,8 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
           <ArrowLeft className="size-4" /> {td("back")}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+          <AgentAvatar agentId={live.id} size={52} />
+          <div className="min-w-0 flex-1">
             <h1 className="truncate font-sans text-2xl font-semibold">{live.name}</h1>
             <p className="text-sm text-muted-foreground">
               {t(`types.${live.agent_type as "autonomous"}`)}
@@ -200,7 +202,7 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
         {live.agent_type === "autonomous" && <SaveTemplateButton agent={{ id: agentId, name: live.name ?? "" }} />}
       </div>
 
-      <div role="tablist" aria-label={td("sections")} className="flex gap-1 border-b-2">
+      <div role="tablist" aria-label={td("sections")} className="flex gap-1 border-b">
         {TABS.map((name) => (
           <button
             key={name}
@@ -211,7 +213,7 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
             aria-controls={`agent-panel-${name}`}
             onClick={() => setTab(name)}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm",
+              "-mb-px border-b px-3 py-2 text-sm",
               tab === name
                 ? "border-primary font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -241,7 +243,7 @@ export function AgentDetail({ agentId, initialTab }: { agentId: string; initialT
       {live.agent_type === "autonomous" && (
         <section
           aria-labelledby="danger-title"
-          className="flex flex-col items-start gap-2 border-2 border-destructive/40 p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col items-start gap-2 border border-destructive/40 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex flex-col gap-0.5">
             <p id="danger-title" className="text-sm font-medium">

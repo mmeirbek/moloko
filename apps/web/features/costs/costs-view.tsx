@@ -80,7 +80,7 @@ export function CostsView() {
       <DailyChart data={data} locale={locale} />
 
       {data.calls === 0 ? (
-        <EmptyState title={t("empty")} hint={t("emptyHint")} mood="sleep" className="border-2 border-dashed" />
+        <EmptyState title={t("empty")} hint={t("emptyHint")} mood="sleep" className="border border-dashed" />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <BreakdownTable
@@ -314,7 +314,7 @@ function BreakdownTable({ title, rows, locale }: { title: string; rows: Breakdow
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} className="border-t-2">
+              <tr key={r.key} className="border-t">
                 <td className="py-1.5">
                   {r.href ? (
                     <Link href={r.href} className="block max-w-56 truncate underline-offset-2 hover:underline">
@@ -437,7 +437,7 @@ function PriceRow({ model }: { model: ModelOut }) {
   });
   return (
     <form
-      className="grid items-end gap-2 border-t-2 pt-2 sm:grid-cols-[1fr_8rem_8rem_auto]"
+      className="grid items-end gap-2 border-t pt-2 sm:grid-cols-[1fr_8rem_8rem_auto]"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate();

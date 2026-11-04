@@ -58,6 +58,9 @@ class Agent(UUIDPrimaryKey, Timestamps, Base):
     # may use every enabled, available tool without approvals; NULL = off. Set only through
     # PUT /agents/{id}/full-access (password), never copied to subagents or templates.
     full_access_since: Mapped[datetime | None]
+    # Its face and office character: one of app/agents/looks.py ANIMALS (owner's choice or
+    # random); NULL for the Orchestrator (the moloko cow).
+    animal: Mapped[str | None] = mapped_column(String(40))
 
     @property
     def full_access(self) -> bool:

@@ -29,11 +29,6 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
     queryKey: toolingKeys.files(workspaceId, path),
     queryFn: ({ signal }) => workspaceFiles(workspaceId, path, signal),
   });
-  const file = useQuery({
-    queryKey: toolingKeys.file(workspaceId, open ?? ""),
-    queryFn: ({ signal }) => workspaceFile(workspaceId, open ?? "", signal),
-    enabled: open !== null,
-  });
   return (
     <div className="flex flex-col gap-2 text-sm" data-testid="file-browser">
       <div className="flex items-center gap-2">
@@ -48,7 +43,7 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
         </Button>
       </div>
       {entries.data?.length === 0 && <p className="text-muted-foreground">{t("empty")}</p>}
-      <ul className="flex flex-col divide-y-2 border-2">
+      <ul className="flex flex-col divide-y border">
         {entries.data?.map((e) => (
           <li key={e.path}>
             <button
@@ -64,37 +59,41 @@ export function FileBrowser({ workspaceId }: { workspaceId: string }) {
           </li>
         ))}
       </ul>
-      {open && file.isPending && <LoadingState />}
-      {open && file.isError && <ErrorState error={file.error} onRetry={() => file.refetch()} />}
-      {open && file.data && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-mono text-xs">{file.data.path}</span>
-            <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>
-              {t("close")}
-            </Button>
-          </div>
-          {/\.(png|jpe?g)$/i.test(file.data.path) ? (
-            <a href={workspaceRawUrl(workspaceId, file.data.path)} target="_blank" rel="noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
-              <img
-                src={workspaceRawUrl(workspaceId, file.data.path)}
-                alt={file.data.path}
-                className="max-h-96 border-2 object-contain"
-              />
-            </a>
-          ) : /\.pdf$/i.test(file.data.path) ? (
-            <a className="text-sm underline" href={workspaceRawUrl(workspaceId, file.data.path)} download>
-              {t("downloadPdf")}
-            </a>
-          ) : (
-            <pre className="max-h-96 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap break-all">
-              {file.data.content}
-            </pre>
-          )}
-          {file.data.truncated && <p className="text-xs text-muted-foreground">{t("truncated")}</p>}
-        </div>
+      {open && <FileView workspaceId={workspaceId} path={open} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}
+
+/** One file of a workspace: text as is, a picture shown, a PDF to download. */
+export function FileView({ workspaceId, path, onClose }: { workspaceId: string; path: string; onClose: () => void }) {
+  const t = useTranslations("workspaces");
+  const file = useQuery({
+    queryKey: toolingKeys.file(workspaceId, path),
+    queryFn: ({ signal }) => workspaceFile(workspaceId, path, signal),
+  });
+  if (file.isPending) return <LoadingState />;
+  if (file.isError) return <ErrorState error={file.error} onRetry={() => file.refetch()} />;
+  return (
+    <div className="flex flex-col gap-1" data-testid="file-view">
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate font-mono text-xs">{file.data.path}</span>
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          {t("close")}
+        </Button>
+      </div>
+      {/\.(png|jpe?g)$/i.test(file.data.path) ? (
+        <a href={workspaceRawUrl(workspaceId, file.data.path)} target="_blank" rel="noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin file */}
+          <img src={workspaceRawUrl(workspaceId, file.data.path)} alt={file.data.path} className="max-h-96 border object-contain" />
+        </a>
+      ) : /\.pdf$/i.test(file.data.path) ? (
+        <a className="text-sm underline" href={workspaceRawUrl(workspaceId, file.data.path)} download>
+          {t("downloadPdf")}
+        </a>
+      ) : (
+        <pre className="max-h-96 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap break-all">{file.data.content}</pre>
       )}
+      {file.data.truncated && <p className="text-xs text-muted-foreground">{t("truncated")}</p>}
     </div>
   );
 }

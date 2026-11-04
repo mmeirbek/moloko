@@ -2,9 +2,10 @@
 
 Every part of a plan goes to one of the owner's persistent agents — an existing one, or a
 new one the plan describes in ``new_agents`` when none fits (owner's decision, see
-docs/decisions.md: no temporary subagents). A new agent gets the Orchestrator's model and
-autonomy level and only tools the Orchestrator itself may use (a plan can never pick a
-model name or grant itself more rights).
+docs/decisions.md: no temporary subagents). A new agent gets the Orchestrator's autonomy level
+and only tools the Orchestrator itself may use (a plan never grants itself more rights). A part
+(and a new agent) may name the model it runs on — only one of the owner's enabled models
+(owner, 2026-11-03: the Orchestrator picks the best model for each part).
 """
 
 from __future__ import annotations
@@ -32,6 +33,8 @@ class NewAgentSpec(BaseModel):
     description: str = Field(default="", max_length=500)
     instructions: str = Field(default="", max_length=4000)  # its role: the system prompt
     tools: list[str] = Field(default_factory=list)
+    # its model (as for a subtask); empty = the Orchestrator's model
+    model: str = Field(default="", max_length=200)
 
     @field_validator("name")
     @classmethod
@@ -52,6 +55,9 @@ class SubtaskSpec(BaseModel):
     # Exact name of the agent that does this part: one of the owner's agents or one of the
     # plan's ``new_agents``.
     agent: str = Field(default="", max_length=100)
+    # The model this part runs on (one of the owner's models, by its name in the list; after
+    # parsing: its model config id). Empty = the agent's own model.
+    model: str = Field(default="", max_length=200)
 
     @field_validator("key")
     @classmethod
@@ -130,11 +136,13 @@ def parse_plan(
     agents: list[str] | None = None,
     max_new_agents: int = 0,
     tools: list[str] | None = None,
+    models: dict[str, str] | None = None,
 ) -> tuple[Plan, list[str]]:
     """Parse + validate. Returns the plan and warnings about what was adjusted.
 
     ``agents``: the owner's agents (exact names); ``tools``: what a new agent may get (the
-    Orchestrator's own tools)."""
+    Orchestrator's own tools); ``models``: the owner's models, name → model config id (a
+    named model becomes its id; an unknown one is dropped with a warning)."""
     try:
         plan = Plan.model_validate(extract_json(text))
     except ValidationError as exc:
@@ -177,4 +185,24 @@ def parse_plan(
                 + ")"
             )
         sub.agent = canonical
+    for sub in plan.subtasks:
+        sub.model = _model_id(sub.model, models or {}, warnings)
+    for spec in plan.new_agents:
+        spec.model = _model_id(spec.model, models or {}, warnings)
     return plan, warnings
+
+
+def _model_id(name: str, models: dict[str, str], warnings: list[str]) -> str:
+    """The id of a model named in the plan: its full name in the list, or just the model id
+    part before " @ " when that is unambiguous."""
+    wanted = " ".join(name.split()).casefold()
+    if not wanted:
+        return ""
+    exact = {n.casefold(): i for n, i in models.items()}
+    if wanted in exact:
+        return exact[wanted]
+    short = [i for n, i in models.items() if n.split(" @ ")[0].casefold() == wanted]
+    if len(short) == 1:
+        return short[0]
+    warnings.append(f"model '{name}' is not one of the owner's models: the agent's own is used")
+    return ""

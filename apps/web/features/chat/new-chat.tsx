@@ -19,8 +19,9 @@ import { chatKeys, createChat, listPickerModels, modelKeys, sendMessage } from "
 import { handOff } from "@/lib/api/runs";
 
 import { useComposerAttachments } from "./attachments";
-import { Composer, Suggestions } from "./composer";
+import { Composer } from "./composer";
 import { ModelPicker } from "./model-picker";
+import { useAgentTask } from "./use-agent-task";
 import { ChatWelcome } from "./welcome";
 
 const NO_MESSAGES: ThreadMessageLike[] = [];
@@ -48,6 +49,7 @@ export function NewChat() {
   const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
   const [model, setModel] = useState<string | null>(null);
   const [agentsMode, setAgentsMode] = useState(false);
+  const agentTask = useAgentTask();
   const creating = useRef<Promise<string> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -77,6 +79,18 @@ export function NewChat() {
     if (!text || busy) return;
     setBusy(true);
     setError(null);
+    const mention = agentTask.match(text);
+    if (mention) {
+      // «@Кодер почини…»: that agent's task, no chat.
+      try {
+        await agentTask.start(mention);
+      } catch (e) {
+        setError(e);
+        setDraft(text);
+        setBusy(false);
+      }
+      return;
+    }
     const kept = agentsMode ? [] : await files.take(); // waits for files still uploading
     try {
       const id = await ensureChat();
@@ -131,7 +145,7 @@ export function NewChat() {
           {shownError ? (
             <div
               role="alert"
-              className="flex items-center justify-between gap-2 border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-2 border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
             >
               <span>{toMessage(shownError).message}</span>
               <button
@@ -160,7 +174,6 @@ export function NewChat() {
             }
           />
           <DraftRestorer draft={draft} />
-          {!noModels && <Suggestions />}
           <GettingStarted className="mt-2" />
         </div>
       </ThreadPrimitive.Root>

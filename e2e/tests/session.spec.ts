@@ -4,7 +4,7 @@ import { OWNER, api, watchErrors } from "./helpers";
 
 test("settings: the owner changes how long a sign-in lasts, confirmed with the password", async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto("/settings#system");
+  await page.goto("/settings/system");
   const card = page.getByTestId("session-lifetime");
   await expect(card).toContainText("по умолчанию");
 
@@ -33,7 +33,7 @@ test("settings: the owner changes how long a sign-in lasts, confirmed with the p
 test("settings: moloko addresses the owner the way he asks", async ({ page, request }) => {
   const errors = watchErrors(page);
   await api(request, "PATCH", "/auth/profile", { address_as: null }); // start from no form of address
-  await page.goto("/settings#system");
+  await page.goto("/settings/system");
   const field = page.getByLabel("Как moloko к вам обращается");
   await field.fill("Мейрбек Максатович");
   await field.press("Enter");
@@ -41,7 +41,7 @@ test("settings: moloko addresses the owner the way he asks", async ({ page, requ
   await page.goto("/chat/new");
   await expect(page.getByRole("heading", { name: "Чем помочь, Мейрбек Максатович?" })).toBeVisible();
 
-  await page.goto("/settings#system"); // back to no special form of address
+  await page.goto("/settings/system"); // back to no special form of address
   await page.getByLabel("Как moloko к вам обращается").fill("");
   await page.getByLabel("Как moloko к вам обращается").press("Enter");
   await expect(page.getByRole("status").filter({ hasText: "Сохранено." })).toBeVisible();

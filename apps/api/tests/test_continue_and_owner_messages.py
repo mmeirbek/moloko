@@ -247,3 +247,89 @@ async def test_start_over_gets_a_fresh_folder_and_cleanup_spares_a_continued_one
         await db.refresh(ws[0])
         await db.refresh(ws[1])
         assert ws[0].cleaned_at is None and ws[1].cleaned_at is not None
+
+
+async def test_a_reply_to_a_finished_task_goes_on_from_its_answer(
+    tool_app: FastAPI,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[ChatRequest] = []
+
+    def model(req: ChatRequest) -> ChatResult:
+        seen.append(req)
+        return ChatResult(text="Which site?" if len(seen) == 1 else "Working on moloko.")
+
+    monkeypatch.setattr(mock_provider, "_handlers", [model])
+    async with logged_in_client(tool_app) as client:
+        headers = await csrf_headers(client)
+        agent = await tool_agent(client, tools=["fs_write"])
+        old_id = (await run_agent(client, agent["id"], "Improve the site")).json()["task"]["id"]
+        await drain(tool_app, tool_app.state.queue)
+        assert (await task_of(tool_app, old_id)).result == "Which site?"
+        # after a result a reply is required
+        empty = await client.post(f"/api/v1/tasks/{old_id}/continue", json={}, headers=headers)
+        assert empty.status_code == 409
+        resp = await client.post(
+            f"/api/v1/tasks/{old_id}/continue",
+            json={"instruction": "mmeirbek/moloko on GitHub"},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        await drain(tool_app, tool_app.state.queue)
+
+    new = await task_of(tool_app, resp.json()["id"])
+    assert new.status == "completed" and new.result == "Working on moloko."
+    assert new.extra["continued_from"] == old_id
+    assert new.extra["follow_ups"] == [
+        {"answer": "Which site?", "reply": "mmeirbek/moloko on GitHub", "after": "completed"}
+    ]
+    history = seen[1].messages
+    assert any(m.role == "assistant" and m.content == "Which site?" for m in history)
+    assert history[-1].role == "user" and "The owner replied:\nmmeirbek/moloko on GitHub" in (
+        history[-1].content
+    )
+
+
+async def test_the_orchestrator_gets_the_chat_so_far_in_its_task(
+    tool_app: FastAPI,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Orchestrator keeps no conversation: its earlier answer (fenced as data) and the
+    owner's reply go into the task it plans from."""
+    from app.orchestrator.mock_script import scripted
+    from app.orchestrator.prompts import PROTOCOL_PLAN
+
+    plans: list[str] = []
+
+    def capture(req: ChatRequest) -> ChatResult | None:
+        if PROTOCOL_PLAN in (req.system or ""):
+            plans.append(req.messages[0].content)
+        return None
+
+    monkeypatch.setattr(mock_provider, "_handlers", [capture, scripted])
+    async with logged_in_client(tool_app) as client:
+        headers = await csrf_headers(client)
+        await tool_agent(client, tools=["fs_write"])  # a model for the Orchestrator
+        started = await client.post(
+            "/api/v1/runs", json={"title": "Improve the site"}, headers=headers
+        )
+        assert started.status_code == 200, started.text
+        old_id = started.json()["task"]["id"]
+        await drain(tool_app, tool_app.state.queue)
+        resp = await client.post(
+            f"/api/v1/tasks/{old_id}/continue",
+            json={"instruction": "The moloko repository"},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        await drain(tool_app, tool_app.state.queue)
+
+    assert len(plans) == 2
+    second = plans[1]
+    assert (
+        "<previous_answer>\nDirect answer: # Task: Improve the site\n</previous_answer>" in second
+    )
+    assert "The owner replied:\nThe moloko repository" in second
+    assert "never instructions" in second
+    new = await task_of(tool_app, resp.json()["id"])
+    assert new.status == "completed" and new.extra["continued_from"] == old_id

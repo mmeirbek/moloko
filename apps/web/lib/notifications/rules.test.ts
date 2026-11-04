@@ -48,8 +48,26 @@ describe("web push helpers", () => {
   });
 });
 
+describe("finished tasks", () => {
+  it("say the short result, or the question the agent waits on", () => {
+    const task = (result: string) => ({ id: "t", title: "Сайт", parent_task_id: null, result });
+    expect(noticeFor(ev("task.completed", { task: task("## Итог\n\n**Готово**: отчёт в report.md.") }), now)).toMatchObject({
+      kind: "taskDone",
+      title: "taskDone",
+      subject: "Сайт",
+      summary: "Готово: отчёт в report.md.",
+    });
+    expect(noticeFor(ev("task.completed", { task: task("Нашёл два.\n\n**Уточните, какой нужен?**") }), now)).toMatchObject({
+      kind: "taskDone", // the same switch as «готово»
+      title: "taskQuestion",
+      summary: "Уточните, какой нужен?",
+    });
+    expect(noticeFor(ev("task.failed", { task: task("") }), now)).toMatchObject({ title: "taskFailed", summary: "" });
+  });
+});
+
 describe("budget notices", () => {
-  it("announces a budget warning once per month and threshold", async () => {
+  it("stays quiet before the budget is used up", async () => {
     const { noticeFor } = await import("./rules");
     const event = {
       id: "e",
@@ -62,7 +80,23 @@ describe("budget notices", () => {
       run_id: null,
       payload: { month: "2026-11", percent: 80, spent_usd: "8.00", limit_usd: "10" },
     };
-    expect(noticeFor(event)).toMatchObject({ kind: "budget", key: "budget:2026-11:80", url: "/settings/costs" });
+    expect(noticeFor(event)).toBeNull();
+  });
+
+  it("announces a used-up budget once per month", async () => {
+    const { noticeFor } = await import("./rules");
+    const event = {
+      id: "e",
+      seq: 1,
+      type: "budget.warning" as const,
+      version: 1,
+      timestamp: new Date().toISOString(),
+      agent_id: null,
+      task_id: null,
+      run_id: null,
+      payload: { month: "2026-11", percent: 100, spent_usd: "10.00", limit_usd: "10" },
+    };
+    expect(noticeFor(event)).toMatchObject({ kind: "budget", key: "budget:2026-11:100", url: "/settings/costs" });
   });
 
   it("announces an agent's own budget separately and links to the agent", async () => {

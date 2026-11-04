@@ -43,7 +43,10 @@ async def create_run(
         task, run = await start_orchestrated_run(
             db, queue, ctx.user.id, title=body.title, description=body.description
         )
-        return StartedRun(task=TaskOut.model_validate(task), run=RunOut.model_validate(run))
+        return StartedRun(
+            task=TaskOut.model_validate(task),
+            run=RunOut.model_validate(run) if run is not None else None,
+        )
 
     return await idempotent(
         db,

@@ -50,7 +50,7 @@ export function ThemeSwitcher() {
     { value: "system", label: t("themeSystemShort"), Icon: Monitor },
   ] as const;
   return (
-    <div role="group" aria-label={t("theme")} className="grid grid-cols-3 gap-1 border-2 p-1">
+    <div role="group" aria-label={t("theme")} className="grid grid-cols-3 gap-1 border p-1">
       {options.map(({ value, label, Icon }) => (
         <button
           key={value}

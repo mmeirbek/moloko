@@ -2,11 +2,13 @@
 
 import type { AgentOut } from "@moloko/shared-types";
 import { useLocale, useTranslations } from "next-intl";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Maximize, Minus, Plus, UserPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { AgentAvatar, useAgentLooks } from "@/features/agents/agent-avatar";
+import { lookOf, type Look } from "@/features/agents/agent-looks";
 import { StatusBadge } from "@/features/agents/status-badge";
 import { useErrorMessage } from "@/features/auth/use-error-message";
 import { playMoo } from "@/features/mascot/moo";
@@ -73,12 +75,15 @@ export function cameraActionForKey(key: string): CameraAction | null {
   }
 }
 
-function toOfficeAgent(a: AgentOut): OfficeAgent {
+function toOfficeAgent(a: AgentOut, looks: Map<string, Look>): OfficeAgent {
+  const look = looks.get(a.id) ?? lookOf(a.id, a.animal);
   return {
     id: a.id,
     name: a.name,
     status: a.status,
     kind: a.agent_type as OfficeAgent["kind"],
+    // the same animal as its face
+    animal: look.animal === "cow" ? undefined : look.animal,
   };
 }
 
@@ -105,6 +110,16 @@ export function OfficeView({
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+  // A second click on a busy agent opens its task (owner: «нажал на агента — открылась его
+  // задача»; the first click shows the agent's card with its task on top).
+  const router = useRouter();
+  const openTaskRef = useRef<(agentId: string) => void>(() => undefined);
+  useEffect(() => {
+    openTaskRef.current = (agentId) => {
+      const taskId = useRealtimeStore.getState().agents[agentId]?.current_task_id;
+      if (taskId && !compact) router.push(`/tasks/${taskId}`);
+    };
+  }, [compact, router]);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
@@ -123,6 +138,7 @@ export function OfficeView({
   const shownHour = forcedHour !== null && /^\d{1,2}$/.test(forcedHour) ? Number(forcedHour) % 24 : hour;
 
   const shown = useMemo(() => officeAgents(Object.values(agentsById)), [agentsById]);
+  const looks = useAgentLooks();
   // Progress over the heads: task %, step, what it does now, waiting for approval (engine/hud.ts).
   const tasks = useRealtimeStore((s) => s.tasks);
   const runs = useRealtimeStore((s) => s.runs);
@@ -150,6 +166,7 @@ export function OfficeView({
       setSelected(id);
       onSelectRef.current?.(id);
     });
+    const offOpen = bus.on("open", (id) => openTaskRef.current(id));
     const offMoo = bus.on("moo", () => {
       if (mascotSnapshot().sound) playMoo();
     });
@@ -166,6 +183,7 @@ export function OfficeView({
       cancelled = true;
       offReady();
       offSelected();
+      offOpen();
       offMoo();
       offZoom();
       game?.destroy(true);
@@ -174,8 +192,8 @@ export function OfficeView({
 
   // Store → scene (one direction only).
   useEffect(() => {
-    if (ready) bus.emit("agents", shown.map(toOfficeAgent));
-  }, [bus, ready, shown]);
+    if (ready) bus.emit("agents", shown.map((a) => toOfficeAgent(a, looks)));
+  }, [bus, ready, shown, looks]);
 
   useEffect(() => {
     if (ready) bus.emit("hud", hud);
@@ -260,7 +278,8 @@ export function OfficeView({
             addToOffice.mutate(item);
           }}
           className={cn(
-            "w-full touch-none overflow-hidden bg-[#0c1024] pixel-frame outline-none select-none focus-visible:[--frame-color:var(--color-ring)]",
+            // the office stays pixel art: its captions read the container's font (Ark Pixel)
+            "w-full touch-none overflow-hidden bg-[#0c1024] font-[family-name:var(--font-body)] pixel-frame outline-none select-none focus-visible:[--frame-color:var(--color-ring)]",
             compact ? "h-full min-h-48" : "aspect-[4/3] max-h-[70vh] sm:aspect-video",
             dropping && "[--frame-color:var(--color-sky)]",
           )}
@@ -281,7 +300,7 @@ export function OfficeView({
           <div
             role="group"
             aria-label={t("zoom")}
-            className="absolute top-2 right-2 flex items-center gap-0.5 border-2 border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg md:top-auto md:right-auto md:bottom-2 md:left-2"
+            className="absolute top-2 right-2 flex items-center gap-0.5 border border-[#f5ecd6]/15 bg-[#10142b]/85 p-1 text-[#f5ecd6] shadow-lg md:top-auto md:right-auto md:bottom-2 md:left-2"
           >
             <MapButton label={t("zoomOut")} shortcut="-" disabled={!zoom.canZoomOut} onClick={() => bus.emit("camera", "out")}>
               <Minus />
@@ -335,10 +354,11 @@ export function OfficeView({
               type="button"
               onClick={() => setSelected(a.id)}
               className={cn(
-                "flex items-center gap-2 border-2 px-3 py-1 text-sm",
+                "flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-sm",
                 selected === a.id ? "border-primary" : "hover:bg-accent/60",
               )}
             >
+              <AgentAvatar agentId={a.id} size={22} />
               <span className="max-w-40 truncate">{a.name}</span>
               <StatusBadge status={a.status} />
               {hud[a.id]?.tag && (

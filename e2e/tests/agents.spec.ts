@@ -12,6 +12,12 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await expect(mockOption).toBeAttached(); // models load asynchronously
   await model.selectOption((await mockOption.getAttribute("value"))!);
   await page.getByLabel("Инструкции").fill("Отвечай кратко.");
+  // Its animal: picked from the exotic list (by default the server picks at random).
+  const picker = page.getByTestId("animal-picker");
+  await expect(picker).toContainText("Случайное");
+  await picker.getByRole("button", { name: "Выбрать животное" }).click();
+  await picker.getByRole("radio", { name: "Аксолотль" }).click();
+  await expect(picker).toContainText("Аксолотль");
   await page.getByText("Сбалансированно").click();
   await page.getByLabel("Максимум шагов").fill("60");
   await page.getByRole("button", { name: "Создать агента" }).click();
@@ -20,6 +26,7 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await page.getByRole("button", { name: "Создать агента" }).click();
   await page.waitForURL(/\/office\/agents\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("main svg[data-avatar^='axolotl-']").first()).toBeVisible(); // its face
 
   await page.getByLabel("Инструкции").fill("Отвечай кратко и по делу.");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click(); // not «Сохранить как шаблон»
@@ -50,6 +57,7 @@ test("agents: create with limits, edit, memory with history, run/pause/resume, d
   await page.getByRole("button", { name: "Удалить", exact: true }).click(); // not the chats' delete buttons in the sidebar
   await page.getByTestId("confirm-dialog").getByRole("button", { name: "Удалить" }).click(); // in-app confirm
   await page.waitForURL(/\/office\/agents$/);
-  await expect(page.getByRole("link", { name })).toHaveCount(0);
+  // Gone from the office (its finished tasks stay in the work list, under its name).
+  await expect(page.getByRole("main").getByRole("link", { name })).toHaveCount(0);
   expect(errors).toEqual([]);
 });

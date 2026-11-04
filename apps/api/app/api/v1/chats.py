@@ -245,24 +245,36 @@ async def send_message(
     settings: SettingsDep,
     gateway: GatewayDep,
     streams: ChatStreamsDep,
+    queue: QueueDep,
 ) -> Response:
     service = ChatService(db, settings, gateway)
     user_msg, assistant_msg, _ = await service.send(
-        ctx.user.id, chat_id, body.content, body.model_config_id, streams, body.attachment_ids
+        ctx.user.id,
+        chat_id,
+        body.content,
+        body.model_config_id,
+        streams,
+        body.attachment_ids,
+        queue=queue,
     )
     sent_files = (await service.attachments_by_message([user_msg.id])).get(user_msg.id, [])
-    # Subscribe before yielding control so no token is missed.
-    subscription = streams.subscribe(assistant_msg.id)
+    # Subscribe before yielding control so no token is missed. A message in line (an answer
+    # is still being written) gets no stream now: it is answered right after.
+    subscription = streams.subscribe(assistant_msg.id) if assistant_msg is not None else None
     created = {
         "user_message": MessageOut.model_validate(user_msg)
         .model_copy(update={"attachments": [AttachmentOut.model_validate(a) for a in sent_files]})
         .model_dump(mode="json"),
-        "assistant_message": MessageOut.model_validate(assistant_msg).model_dump(mode="json"),
+        "assistant_message": (
+            MessageOut.model_validate(assistant_msg).model_dump(mode="json")
+            if assistant_msg is not None
+            else None
+        ),
     }
 
     async def events() -> AsyncIterator[str]:
         yield sse_event("message.created", created)
-        if subscription is None:
+        if subscription is None or assistant_msg is None:
             return
         queue, _ = subscription
         try:
@@ -339,4 +351,7 @@ async def handoff(
     _, task, run = await hand_off_chat(
         db, queue, ctx.user.id, chat_id, body.content, title_chars=settings.chat_title_max_chars
     )
-    return StartedRun(task=TaskOut.model_validate(task), run=RunOut.model_validate(run))
+    return StartedRun(
+        task=TaskOut.model_validate(task),
+        run=RunOut.model_validate(run) if run is not None else None,
+    )

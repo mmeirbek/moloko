@@ -1,26 +1,85 @@
 "use client";
 
-import { ComposerPrimitive, ThreadPrimitive, useAui } from "@assistant-ui/react";
+import { ComposerPrimitive, ThreadPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { useTranslations } from "next-intl";
 import type { ClipboardEvent, ReactNode } from "react";
 
 import { ArrowUp, Network, Square } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { MicButton } from "@/features/voice/mic-button";
+import { AgentAvatar, AvatarArt } from "@/features/agents/agent-avatar";
+import { BOSS_LOOK } from "@/features/agents/agent-looks";
+import { MicButton, type VoiceMessage } from "@/features/voice/mic-button";
 import { cn } from "@/lib/utils";
 
-/** Voice input appends the spoken text to what is already typed. */
-function ComposerMic({ disabled }: { disabled?: boolean }) {
+import { mentionSuggestions, parseAgentMention } from "./agent-mention";
+import { useMentionAgents } from "./use-agent-task";
+
+/** Voice input appends the spoken text to what is already typed, or is sent as a voice message. */
+function ComposerMic({ disabled, onVoice }: { disabled?: boolean; onVoice?: (voice: VoiceMessage) => Promise<void> }) {
   const aui = useAui();
   return (
     <MicButton
       disabled={disabled}
+      onVoice={onVoice}
       onText={(text) => {
         const composer = aui.composer();
         const current = composer.getState().text;
         composer.setText(current ? `${current.trimEnd()} ${text}` : text);
       }}
     />
+  );
+}
+
+/** Send; during an answer it appears once something is typed (the message waits in line). */
+function SendButton() {
+  const t = useTranslations("chat");
+  const running = useAuiState((s) => s.thread.isRunning);
+  const empty = useAuiState((s) => s.composer.isEmpty);
+  if (running && empty) return null;
+  return (
+    <ComposerPrimitive.Send asChild>
+      <Button size="icon" aria-label={running ? t("sendQueued") : t("send")} title={running ? t("sendQueued") : undefined} className="shrink-0">
+        <ArrowUp />
+      </Button>
+    </ComposerPrimitive.Send>
+  );
+}
+
+/** The agent's face; the Orchestrator's aliases show its crowned cow. */
+function MentionFace({ agent, size }: { agent: { id: string; orchestrator?: boolean }; size: number }) {
+  return agent.orchestrator ? <AvatarArt look={BOSS_LOOK} size={size} /> : <AgentAvatar agentId={agent.id} size={size} />;
+}
+
+/** While «@…» is typed: the agents to pick; once one is named, whose task it becomes. */
+function AgentMentions() {
+  const t = useTranslations("chat");
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const agents = useMentionAgents();
+  const named = parseAgentMention(text, agents);
+  const options = mentionSuggestions(text, agents);
+  if (named) {
+    return (
+      <p className="flex items-center gap-1.5 px-4 pt-3 text-xs text-sky" role="status" data-testid="mention-target">
+        <MentionFace agent={named.agent} size={18} /> {t("mention.target", { name: named.agent.name })}
+      </p>
+    );
+  }
+  if (options.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-1 px-3 pt-3" aria-label={t("mention.pick")}>
+      {options.map((agent) => (
+        <li key={agent.id}>
+          <button
+            type="button"
+            onClick={() => aui.composer().setText(`@${agent.name} `)}
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs hover:bg-accent"
+          >
+            <MentionFace agent={agent} size={18} /> {agent.name}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -37,7 +96,7 @@ function AgentsSwitch({ on, onChange, disabled }: { on: boolean; onChange: (on: 
       disabled={disabled}
       onClick={() => onChange(!on)}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-1.5 border-2 px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
         on
           ? "border-sky/60 bg-sky/15 text-sky"
           : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -61,6 +120,7 @@ export function Composer({
   chips,
   model,
   onPaste,
+  onVoice,
   className,
 }: {
   disabled?: boolean;
@@ -74,6 +134,8 @@ export function Composer({
   model?: ReactNode;
   /** A paste with files in it (screenshots, copied files) attaches them. */
   onPaste?: (e: ClipboardEvent) => void;
+  /** Send a recording at once as a voice message (its text plus the audio file). */
+  onVoice?: (voice: VoiceMessage) => Promise<void>;
   className?: string;
 }) {
   const t = useTranslations("chat");
@@ -87,6 +149,7 @@ export function Composer({
         )}
       >
         {chips}
+        <AgentMentions />
         <ComposerPrimitive.Input
           rows={1}
           autoFocus
@@ -99,14 +162,7 @@ export function Composer({
           <AgentsSwitch on={agents} onChange={onAgentsChange} disabled={disabled} />
           <div className="min-w-0 flex-1" />
           {model}
-          <ComposerMic disabled={disabled} />
-          <ThreadPrimitive.If running={false}>
-            <ComposerPrimitive.Send asChild>
-              <Button size="icon" aria-label={t("send")} className="shrink-0">
-                <ArrowUp />
-              </Button>
-            </ComposerPrimitive.Send>
-          </ThreadPrimitive.If>
+          <ComposerMic disabled={disabled} onVoice={onVoice} />
           <ThreadPrimitive.If running>
             <ComposerPrimitive.Cancel asChild>
               <Button size="icon" variant="outline" aria-label={t("stop")} className="shrink-0">
@@ -114,31 +170,11 @@ export function Composer({
               </Button>
             </ComposerPrimitive.Cancel>
           </ThreadPrimitive.If>
+          {/* While an answer is written a typed message goes in line (answered right after). */}
+          <SendButton />
         </div>
       </ComposerPrimitive.Root>
       {agents && <p className="px-4 text-xs text-muted-foreground">{t("agentsModeHint")}</p>}
     </div>
-  );
-}
-
-/** Example questions: a tap puts one into the composer to edit or send. */
-export function Suggestions({ className }: { className?: string }) {
-  const t = useTranslations("chat");
-  const aui = useAui();
-  const items = [t("suggestions.explain"), t("suggestions.plan"), t("suggestions.letter")];
-  return (
-    <ul className={cn("grid grid-cols-1 gap-2 sm:grid-cols-3", className)} aria-label={t("suggestions.label")}>
-      {items.map((text) => (
-        <li key={text} className="flex">
-          <button
-            type="button"
-            onClick={() => aui.composer().setText(text)}
-            className="w-full bg-card px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pixel-frame"
-          >
-            {text}
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }

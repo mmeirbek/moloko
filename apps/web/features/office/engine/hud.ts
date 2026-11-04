@@ -16,6 +16,8 @@ export const BAR_INNER = 14;
 /** Words and letters of the activity label. */
 export const ACTIVITY_WORDS = 4;
 export const ACTIVITY_CHARS = 24;
+/** The task's name over a busy agent: short, so the captions of neighbours rarely collide. */
+export const TASK_CHARS = 20;
 
 const TERMINAL_TASK = new Set(["completed", "failed", "cancelled"]);
 const BUSY_TASK = ["running", "waiting_approval", "waiting", "queued"];
@@ -148,7 +150,8 @@ export function agentHud(
   return {
     percent,
     tag: approval ? words.approval : progress,
-    activity: cleanActivity(message?.text) ?? cleanActivity(task?.title),
+    activity: cleanActivity(message?.text),
+    task: cleanActivity(task?.title, { chars: TASK_CHARS }),
     tone: approval ? "approval" : mode === "frozen" ? "paused" : "work",
   };
 }
@@ -182,7 +185,11 @@ export function officeHud(agents: HudAgent[], source: HudSource, words: HudWords
 /** The caption the scene draws: the short tag, plus what it is doing for the focused agent. */
 export function hudText(hud: AgentHud | null, focused: boolean): string | null {
   if (!hud) return null;
-  const lines = focused ? [hud.tag, hud.activity] : [hud.tag];
+  // Every busy agent: the short tag and which task (owner: «над каждым агентом — какая задача»);
+  // the hovered / selected one also says what it is doing right now.
+  const first = [hud.tag, hud.task].filter(Boolean).join(" · ");
+  const doing = hud.activity && hud.activity !== hud.task ? hud.activity : null;
+  const lines = focused ? [first, doing] : [first];
   const text = lines.filter((line): line is string => !!line).join("\n");
   return text || null;
 }

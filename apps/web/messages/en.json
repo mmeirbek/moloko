@@ -175,7 +175,30 @@
     "toggleTheme": "Switch theme",
     "appearanceTitle": "Theme and language",
     "appearanceHint": "Saved on this device.",
-    "themeSystemShort": "Auto"
+    "themeSystemShort": "Auto",
+    "styles": {
+      "label": "Style",
+      "classic": {
+        "name": "Classic",
+        "hint": "Calm warm white and graphite"
+      },
+      "neon": {
+        "name": "Neon",
+        "hint": "Pink and teal with a glow"
+      },
+      "mono": {
+        "name": "Black & white",
+        "hint": "Only black, white and grey — pictures too"
+      },
+      "milk": {
+        "name": "Milk",
+        "hint": "Cream, coffee and caramel"
+      },
+      "ocean": {
+        "name": "Ocean",
+        "hint": "Blue and sea green"
+      }
+    }
   },
   "pages": {
     "chat": {
@@ -215,7 +238,7 @@
         },
         "agents": {
           "title": "Agents",
-          "hint": "Emergency stop and the shared memory every agent can see."
+          "hint": "Full access without approvals, the emergency stop and the shared memory every agent sees."
         },
         "appearance": {
           "title": "Appearance",
@@ -253,11 +276,13 @@
     "allChats": "All chats",
     "deleteChat": "Delete “{title}”",
     "confirmDelete": "Delete this chat and all its messages?",
-    "placeholder": "Message moloko…",
+    "placeholder": "Ask or hand over work… “@Coder …” makes it that agent's task",
     "send": "Send",
     "stop": "Stop",
     "thinking": "Thinking",
     "stopped": "Stopped.",
+    "queued": "In line — answered next",
+    "sendQueued": "Send — answered next",
     "tokens": "{count} tokens",
     "model": "Model",
     "defaultModel": "Default model",
@@ -274,12 +299,13 @@
       "provider_model_not_found": "The provider does not know this model.",
       "provider_unknown": "The provider request failed.",
       "interrupted": "The answer was interrupted because the server restarted.",
-      "internal_error": "Something went wrong while generating the answer."
+      "internal_error": "Something went wrong while generating the answer.",
+      "handoff_failed": "The agents can't take this work now: work is stopped with «Stop everything». Turn it back on in Settings → Agents and send it again."
     },
     "agentsMode": "Hand to agents",
     "handOff": "Hand off to agents",
     "suggestAgents": "This looks like a multi-step task. Let the Orchestrator split it between agents?",
-    "agentsWorking": "Agents are working on it…",
+    "agentsWorking": "The agents are on it",
     "handedOff": "Done by agents — open the run",
     "attach": "Attach files — any kind, as many as you like",
     "attachments": "Attached files",
@@ -290,12 +316,6 @@
     "placeholderAgents": "Describe the job for the agents…",
     "agentsModeHint": "The Orchestrator splits the job into steps for agents. For bigger work.",
     "messages": "Messages",
-    "suggestions": {
-      "label": "Example questions",
-      "explain": "Explain in simple words how search by meaning works",
-      "plan": "Make a weekly plan: three workouts and an hour of reading a day",
-      "letter": "Help me write a polite email declining a meeting"
-    },
     "recent": "Recent chats",
     "greeting": "How can I help, {name}?",
     "greetingNoName": "How can I help?",
@@ -326,7 +346,15 @@
         "memory": "memory",
         "other": "other"
       }
-    }
+    },
+    "mention": {
+      "target": "A task for «{name}» — its page will open",
+      "pick": "Who should do it"
+    },
+    "pondering": "Pondering",
+    "composing": "Working out the answer",
+    "stillThinking": "Still thinking",
+    "writing": "Writing"
   },
   "settings": {
     "providers": {
@@ -383,6 +411,81 @@
       "otherDevices": "The new length applies to this sign-in at once. On other devices a sign-in becomes no longer than the new length — it is never extended.",
       "save": "Save",
       "saved": "Saved. This sign-in now lasts until {date}."
+    },
+    "freeProviders": {
+      "title": "Free models",
+      "description": "Platforms whose official API is free within daily limits. Get a key on the platform's site and paste it — its free models are added, and the Orchestrator picks the best of them for each part of a task.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "addAnother": "Another key",
+      "getKey": "Get a key",
+      "key": "API key",
+      "account": "Cloudflare account ID",
+      "cancel": "Cancel",
+      "added": "Models added: {count}",
+      "privacy": "Only the platforms' own official APIs (from the freellmapi list). The small resale gateways of that list are not included: they would get your prompts and memory. Cohere is left out — its terms forbid personal use.",
+      "platforms": {
+        "google": {
+          "allowance": "Gemini 2.5 Pro, Flash, Flash-Lite — ~100 to ~1000 requests a day, 1M context",
+          "caution": "terms since March 2026: «for professional purposes»"
+        },
+        "groq": {
+          "allowance": "Llama, Qwen, GPT-OSS, Kimi — about 1000 requests a day, very fast"
+        },
+        "cerebras": {
+          "allowance": "Qwen3 Coder 480B, GPT-OSS 120B, Llama — 1M tokens a day, the fastest"
+        },
+        "mistral": {
+          "allowance": "Experiment plan: Mistral Large, Magistral, Codestral — 2 requests a minute"
+        },
+        "openrouter": {
+          "allowance": "«:free» models: DeepSeek, Kimi K2, Qwen3 Coder, GLM and more — 50–200 requests a day"
+        },
+        "github": {
+          "allowance": "GPT-5, GPT-4.1, DeepSeek R1, Llama — a token with «Models: read», 50–150 requests a day"
+        },
+        "nvidia": {
+          "allowance": "Hundreds of open models, 40 requests a minute",
+          "caution": "trial terms: «evaluation only»"
+        },
+        "huggingface": {
+          "allowance": "Inference Providers: small free monthly credits"
+        },
+        "sambanova": {
+          "allowance": "Llama, DeepSeek, Qwen — free tier with daily limits"
+        },
+        "zhipu": {
+          "allowance": "GLM Flash models — free"
+        },
+        "ollama": {
+          "allowance": "Free plan: cloud models, one at a time"
+        },
+        "cloudflare": {
+          "allowance": "Workers AI: 10,000 «neurons» a day",
+          "caution": "the address needs your account ID"
+        }
+      }
+    },
+    "codex": {
+      "title": "Codex — sign in with ChatGPT",
+      "description": "The coding models of your ChatGPT plan (Plus or Pro). An agent with a Codex model does its task through OpenAI's official Codex CLI, right in the task's folder; its steps show in the task's chat. The Orchestrator can give it coding parts too.",
+      "off": "The codex service is not on for this server (CODEX_URL is empty).",
+      "unreachable": "The codex service does not answer — check the container: docker compose ps codex",
+      "signedIn": "Signed in ({mode})",
+      "notSignedIn": "Not signed in yet",
+      "step1": "In ChatGPT: Settings → Security → turn on device code sign-in.",
+      "step2": "On the server, in the moloko folder, run this command, open the link it shows and enter the code:",
+      "step3": "Press «Connect» — your plan's models appear in the list.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "refresh": "Refresh models",
+      "check": "Check sign-in",
+      "added": "Models: {count}",
+      "copy": "Copy",
+      "copied": "Copied",
+      "caution": "For automation OpenAI recommends an API key; the ChatGPT sign-in is for private trusted machines (your server is one). Codex tasks run one at a time: one sign-in must not serve parallel runs. The sign-in file stays inside the codex container."
     }
   },
   "realtime": {
@@ -404,7 +507,8 @@
     "queued": "Queued",
     "running": "Running",
     "waiting_approval": "Needs approval",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "in_line": "In line"
   },
   "tasks": {
     "new": "New task",
@@ -494,9 +598,9 @@
       "title": "The agent's steps",
       "expandAll": "Expand all",
       "collapseAll": "Collapse all",
-      "owner": "You wrote: “{text}”",
+      "ownerLabel": "Your message",
       "runningFor": "running for {seconds} s",
-      "thinking": "Thinking about the next step…",
+      "thinking": "Thinking about the next step",
       "queued": "Queued — starts soon",
       "args": "What it passed to the tool",
       "output": "What came out",
@@ -508,7 +612,6 @@
         "fs_list": "Looks at the folder {path}",
         "fs_move": "Moves {file} → {to}",
         "fs_delete": "Deletes the file {file}",
-        "terminal_run": "Runs: {command}",
         "github_read_file": "Reads {file} in {repo}",
         "github_write_file": "Saves {file} to {repo}",
         "github_list_dir": "Looks at {path} in {repo}",
@@ -528,10 +631,177 @@
         "agent_ask": "Asks the agent {agent}",
         "agent_tell": "Messages the agent {agent}",
         "agents_list": "Looks who is in the office",
-        "other": "Tool “{tool}”"
+        "other": "Tool “{tool}”",
+        "github_checkout": "Downloads {repo} into the work folder",
+        "github_commit_files": "Saves the changes in {repo} ({branch})",
+        "cmd_tests": "Tests",
+        "cmd_browserTests": "Browser tests",
+        "cmd_build": "Building the project",
+        "cmd_install": "Installing packages",
+        "cmd_lint": "Linting the code",
+        "cmd_typecheck": "Type checking",
+        "cmd_git": "Working with git",
+        "cmd_look": "Looking at files in the sandbox",
+        "cmd_script": "Script {program}",
+        "cmd_other": "Command {program}"
       },
       "plan": "Plan: {summary} — {count} parts",
-      "planDirect": "Decided to answer itself, no helpers"
+      "planDirect": "Decided to answer itself, no helpers",
+      "done": {
+        "fs_read": "Read the file {file}",
+        "fs_write": "Wrote the file {file}",
+        "fs_append": "Added to the file {file}",
+        "fs_list": "Looked at the folder {path}",
+        "fs_move": "Moved {file} → {to}",
+        "fs_delete": "Deleted the file {file}",
+        "github_read_file": "Read {file} in {repo}",
+        "github_write_file": "Saved {file} in {repo}",
+        "github_list_dir": "Looked at {path} in {repo}",
+        "github_create_branch": "Created the branch {branch} in {repo}",
+        "github_list_issues": "Looked at the issues in {repo}",
+        "github_get_issue": "Read issue #{number} in {repo}",
+        "github_list_commits": "Looked at the commits in {repo}",
+        "github_create_pull_request": "Opened a pull request in {repo}",
+        "github_list_repos": "Looked at the list of repositories",
+        "github_checkout": "Downloaded {repo} into the work folder",
+        "github_commit_files": "Saved the changes in {repo} ({branch})",
+        "web_search": "Searched the web: {query}",
+        "web_fetch": "Opened {host}",
+        "browser_screenshot": "Took a screenshot of {host}",
+        "knowledge_search": "Searched memory: {query}",
+        "work_search": "Searched the work history: {query}",
+        "work_read": "Read an entry of the work history",
+        "memory_save": "Remembered: {title}",
+        "agent_ask": "Asked the agent {agent}",
+        "agent_tell": "Wrote to the agent {agent}",
+        "agents_list": "Looked at who is in the office",
+        "other": "Used the tool «{tool}»",
+        "cmd_tests": "Tests",
+        "cmd_browserTests": "Browser tests",
+        "cmd_build": "Building the project",
+        "cmd_install": "Installing packages",
+        "cmd_lint": "Linting the code",
+        "cmd_typecheck": "Type checking",
+        "cmd_git": "Working with git",
+        "cmd_look": "Looking at files in the sandbox",
+        "cmd_script": "Script {program}",
+        "cmd_other": "Command {program}"
+      },
+      "cmd": {
+        "cmd_tests": "Tests",
+        "cmd_browserTests": "Browser tests",
+        "cmd_build": "Building the project",
+        "cmd_install": "Installing packages",
+        "cmd_lint": "Linting the code",
+        "cmd_typecheck": "Type checking",
+        "cmd_git": "Working with git",
+        "cmd_look": "Looking at files in the sandbox",
+        "cmd_script": "Script {program}",
+        "cmd_other": "Command {program}"
+      },
+      "group": {
+        "fs_read": "Read {count, plural, one {# file} other {# files}}: {list}",
+        "fs_list": "Looked at {count, plural, one {# folder} other {# folders}}: {list}",
+        "github_read_file": "Read {count, plural, one {# file} other {# files}} in GitHub: {list}",
+        "github_list_dir": "Looked at {count, plural, one {# folder} other {# folders}} in GitHub: {list}",
+        "web_fetch": "Opened {count, plural, one {# site} other {# sites}}: {list}",
+        "work_read": "Read {count, plural, one {# entry} other {# entries}} of the work history",
+        "knowledge_search": "Searched memory {count, plural, one {once} other {# times}}: {list}",
+        "web_search": "Searched the web {count, plural, one {once} other {# times}}: {list}"
+      },
+      "testsPassed": "all passed: {passed}",
+      "testsFailed": "{failed} failed, {passed} passed",
+      "succeeded": "succeeded",
+      "failedCode": "didn't work (code {code})",
+      "pondering": "Pondering",
+      "stillThinking": "Still thinking",
+      "codex": {
+        "command": "Codex ran: {what}",
+        "files": "Codex changed files: {what}",
+        "search": "Codex searched: {what}",
+        "tool": "Codex: {what}",
+        "error": "Codex: error — {what}"
+      }
+    },
+    "chat": {
+      "label": "The task's conversation",
+      "details": "Details",
+      "orchestratorLabel": "plans and merges the result",
+      "part": "does the part “{title}”",
+      "consult": "answers the question “{title}”",
+      "showSteps": "Show steps",
+      "hideSteps": "Hide steps",
+      "openPart": "open the part",
+      "goal": "Goal",
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "state": "State",
+      "created": "Created",
+      "started": "Started",
+      "finished": "Finished",
+      "stepsLabel": "Steps",
+      "tokensLabel": "Tokens",
+      "attemptLabel": "Attempt",
+      "plan": "Plan",
+      "planDirect": "The Orchestrator answered itself, no helpers.",
+      "planPending": "The Orchestrator is making a plan…",
+      "planNone": "No plan: the agent does the task itself, step by step.",
+      "agents": "Agents",
+      "roleMain": "does the task",
+      "roleOrchestrator": "Orchestrator: plan and result",
+      "rolePart": "{count, plural, one {part} other {parts}}: {titles}",
+      "roleConsult": "answers a question",
+      "where": "Where they work",
+      "workspace": "The task's folder",
+      "sandbox": "{count, plural, one {# command in the sandbox} other {# commands in the sandbox}}",
+      "log": "Event log",
+      "logShow": "Show all events ({count})",
+      "answer": "answer",
+      "earlier": "earlier in this chat",
+      "openAttempt": "open"
+    },
+    "composer": {
+      "send": "Send",
+      "continue": "Continue from where it stopped",
+      "reply": "Reply",
+      "stop": "Cancel task",
+      "startOver": "Start over",
+      "sent": "Sent — the agent reads it before its next step",
+      "label": {
+        "message": "Message to the agent",
+        "continue": "Instruction for continuing",
+        "reply": "Reply to the agent",
+        "orchestrator": "Message to the whole task",
+        "inLine": "The task is in line"
+      },
+      "placeholder": {
+        "message": "Write to the agent — it reads this before its next step…",
+        "continue": "What next? (may be empty — it goes on as before)",
+        "reply": "Reply or ask for something more…",
+        "orchestrator": "Write to the task — the agents doing the parts and the Orchestrator get it…",
+        "inLine": "Write — the agent reads it as soon as it takes the task…"
+      },
+      "hint": {
+        "message": "Enter sends, Shift+Enter is a new line.",
+        "continue": "The agent goes on from where it stopped: it keeps what it did and takes your instruction into account.",
+        "reply": "The reply continues the task: the agent takes its previous answer and your message into account.",
+        "orchestrator": "The agents doing the parts get the message now; the Orchestrator takes it into account when it puts the result together.",
+        "inLine": "The agent is busy with another task. This one starts by itself; whatever you write it reads first."
+      },
+      "sentInLine": "Sent — the agent reads it as soon as it takes the task",
+      "sentOrchestrator": "Sent — the agents doing the parts and the Orchestrator get it",
+      "attach": "Attach a file",
+      "uploading": "Uploading…",
+      "removeFile": "Remove the file",
+      "filesNote": "Files in the task's folder: {paths}",
+      "voiceNote": "Voice message (recording: {path}):"
+    },
+    "outcome": {
+      "title": "What came out",
+      "pullRequest": "Pull request #{number} in {repo}",
+      "commit": "Commit {sha} in {repo} ({branch})",
+      "branch": "Branch {branch} in {repo}",
+      "files": "{count, plural, one {# file} other {# files}} in the work folder — tap to open"
     }
   },
   "agents": {
@@ -559,6 +829,8 @@
     "form": {
       "newDescription": "A persistent agent: its own model, instructions, autonomy level and memory.",
       "profile": "Profile",
+      "animal": "Animal",
+      "animalHint": "The agent's face and its character in the office. «Random» takes a species the office has fewest of.",
       "description": "Description",
       "descriptionHint": "In a few words: what this agent does. Shown in the office and the list.",
       "specialization": "Specialization",
@@ -753,7 +1025,7 @@
       "title": "Full access — permanent, no approvals",
       "body": "The agent does everything itself, including deleting files, pushing to GitHub and running commands: it may use every enabled tool (also ones you add later) and needs no approvals. Everything is recorded in the audit log; you can switch it off at any time.",
       "stillApplies": "Still in force: «Stop everything», budgets, step and time limits, the sandbox, tools you switched off and MCP tools you have not enabled.",
-      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Colleagues it asks for help and agents the Orchestrator creates do not get full access.",
+      "exceptions": "Exceptions for this agent are under «Tools»: «block» or «always ask» for a single tool. Colleagues it asks for help act under their own settings; agents the Orchestrator creates get full access only when it is on for all agents (Settings → Agents).",
       "turnOn": "Turn on full access…",
       "turnOff": "Turn off",
       "on": "Full access is on.",
@@ -776,6 +1048,19 @@
       "since": "since {date}",
       "remove": "Remove",
       "removeConfirm": "Ask again before it may {what}?"
+    },
+    "fullAccessAll": {
+      "title": "Full access for all agents",
+      "body": "Every agent of the office does everything itself, without approvals: commands, files, GitHub, the internet. New agents — yours and the ones the Orchestrator creates — get full access right away. Everything is logged.",
+      "exceptions": "An exception for one agent is on its page under «Tools»: «block» or «always ask» for a tool.",
+      "off": "Off: agents ask for permission according to their autonomy level.",
+      "onSince": "On since {date}. Agents no longer ask for permission.",
+      "turnOn": "Turn on for all…",
+      "turnOff": "Turn off for all",
+      "confirmOff": "Turn full access off for every agent? They will ask for permission again — also the ones you gave it to one by one.",
+      "dialogTitle": "Full access for all agents",
+      "confirm": "Turn on for all",
+      "pending": "Actions already waiting for approval stay in their tasks — approve them once."
     }
   },
   "office": {
@@ -813,7 +1098,9 @@
       "settings": "Settings",
       "giveTask": "Give a task",
       "giveTaskHint": "The agent is waiting for work. Describe a task and it starts.",
-      "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best"
+      "giveTaskPlaceholder": "For example: compare three hosting plans and pick the best",
+      "openTask": "Open the task",
+      "doingNow": "Now: {what}"
     },
     "addAgent": "Add agent",
     "dropHere": "Drop — the agent walks into the office"
@@ -1190,25 +1477,24 @@
     "dismiss": "Dismiss notification",
     "approval": {
       "title": "Your approval is needed",
-      "body": "{subject}",
       "titleNamed": "{name} needs your approval"
     },
     "taskDone": {
-      "title": "Task done",
-      "body": "{subject}"
+      "title": "Done: {task}",
+      "titlePlain": "Task done"
     },
     "taskFailed": {
-      "title": "Task failed",
-      "body": "{subject}"
+      "title": "Didn't work out: {task}",
+      "titlePlain": "Task failed"
     },
     "settings": {
       "title": "Notifications",
       "description": "What to tell you about on this device.",
       "kinds": {
-        "approval": "An agent needs approval",
-        "taskDone": "A task is done",
-        "taskFailed": "A task failed",
-        "budget": "Costs reached the threshold or the limit"
+        "approval": "An agent needs your approval",
+        "taskDone": "A task is done (with a short result) or an agent waits for your answer",
+        "taskFailed": "A task broke",
+        "budget": "The cost limit is used up — agents stopped"
       },
       "system": "System notifications while moloko is in the background",
       "allow": "Allow system notifications",
@@ -1227,8 +1513,7 @@
       }
     },
     "budget": {
-      "title": "Costs near the limit",
-      "body": "{subject}"
+      "title": "The cost limit is used up"
     },
     "ops": {
       "fs_write": "Write the file {file}",
@@ -1249,6 +1534,10 @@
       "terminal_run_packages_plain": "Run a command with package downloads",
       "github_checkout": "Download {repo} into the work folder",
       "github_commit_files": "Commit files to GitHub ({repo}, {branch})"
+    },
+    "taskQuestion": {
+      "title": "An agent is waiting for your answer",
+      "titleNamed": "{name} is waiting for your answer"
     }
   },
   "backups": {
@@ -1428,6 +1717,8 @@
     "recording": "Recording",
     "cancel": "Cancel the recording",
     "done": "Done — turn it into text",
+    "sendVoice": "Send as a voice message",
+    "voiceMessage": "Voice message",
     "transcribing": "Recognising speech…",
     "language": "Speech language",
     "langs": {
@@ -1667,5 +1958,48 @@
       "date": "{date} at {time}"
     },
     "preview": "{rule} · next run {when}"
+  },
+  "work": {
+    "waiting": "Waiting for you",
+    "active": "In progress",
+    "recent": "Recent",
+    "empty": "Your tasks and chats will appear here.",
+    "allTasks": "All tasks",
+    "reason": {
+      "approval": "needs your approval",
+      "question": "waits for your answer",
+      "failed": "broke"
+    },
+    "open": "Work",
+    "openHint": "Tasks and chats: what waits for you, what runs, recent",
+    "new": "New",
+    "search": "Search",
+    "more": "Sections"
+  },
+  "animals": {
+    "random": "Random",
+    "choose": "Choose an animal",
+    "done": "Collapse",
+    "amur_tiger": "Amur tiger",
+    "snow_leopard": "Snow leopard",
+    "pallas_cat": "Pallas's cat",
+    "fennec_fox": "Fennec fox",
+    "red_panda": "Red panda",
+    "capybara": "Capybara",
+    "axolotl": "Axolotl",
+    "quokka": "Quokka",
+    "okapi": "Okapi",
+    "tarsier": "Tarsier",
+    "ring_tailed_lemur": "Ring-tailed lemur",
+    "malayan_tapir": "Malayan tapir",
+    "sea_otter": "Sea otter",
+    "atlantic_puffin": "Atlantic puffin",
+    "three_toed_sloth": "Three-toed sloth",
+    "platypus": "Platypus",
+    "barn_owl": "Barn owl",
+    "saiga": "Saiga",
+    "mandrill": "Mandrill",
+    "emperor_tamarin": "Emperor tamarin",
+    "cow": "The moloko cow"
   }
 }

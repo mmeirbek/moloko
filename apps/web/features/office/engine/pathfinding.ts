@@ -62,3 +62,46 @@ function rebuild(came: Map<number, Cell>, end: Cell, key: (c: Cell) => number): 
   }
   return path;
 }
+
+/**
+ * Straightens a grid path: from each corner, go straight to the farthest later cell that is in
+ * plain sight (the whole body width clear), so characters cut across rooms instead of walking
+ * in right angles. Start and end stay; the result only drops cells. Pure.
+ */
+export function smoothPath(path: Cell[], isWalkable: (col: number, row: number) => boolean): Cell[] {
+  if (path.length <= 2) return path;
+  const out = [path[0]!];
+  let from = 0;
+  while (from < path.length - 1) {
+    let to = from + 1;
+    for (let k = path.length - 1; k > from + 1; k--) {
+      if (clear(path[from]!, path[k]!, isWalkable)) {
+        to = k;
+        break;
+      }
+    }
+    out.push(path[to]!);
+    from = to;
+  }
+  return out;
+}
+
+function clear(a: Cell, b: Cell, isWalkable: (col: number, row: number) => boolean): boolean {
+  const dx = b.col - a.col;
+  const dy = b.row - a.row;
+  const length = Math.hypot(dx, dy);
+  const steps = Math.ceil(length / 0.2);
+  // two lines a body's width apart (±0.35 tile), not just the centre line
+  const nx = length ? (-dy / length) * 0.35 : 0;
+  const ny = length ? (dx / length) * 0.35 : 0;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    for (const side of [-1, 1]) {
+      const col = Math.round(a.col + dx * t + nx * side);
+      const row = Math.round(a.row + dy * t + ny * side);
+      const ends = (col === a.col && row === a.row) || (col === b.col && row === b.row);
+      if (!ends && !isWalkable(col, row)) return false;
+    }
+  }
+  return true;
+}

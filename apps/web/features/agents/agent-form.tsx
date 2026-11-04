@@ -30,6 +30,7 @@ import {
 import { FullAccessOption } from "./agent-full-access";
 import { AgentToolsField } from "./agent-tools-field";
 import { AgentContactsField } from "./agent-contacts-field";
+import { AnimalPicker } from "./animal-picker";
 
 const textareaClass = "bg-background px-3 py-2 text-base md:text-sm pixel-frame pixel-sunken";
 
@@ -134,6 +135,13 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
             autoFocus={!agent}
           />
         </Field>
+        {agent?.agent_type !== "orchestrator" && (
+          <div className="flex flex-col gap-1.5">
+            <Label id={id("animal-label")}>{t("animal")}</Label>
+            <AnimalPicker id={id("animal")} value={values.animal} onChange={(animal) => set("animal", animal)} />
+            <p className="text-xs text-muted-foreground">{t("animalHint")}</p>
+          </div>
+        )}
         <Field id={id("description")} label={t("description")} hint={t("descriptionHint")}>
           <Input
             id={id("description")}
@@ -196,7 +204,7 @@ export function AgentForm({ agent, onSaved }: { agent?: AgentOut; onSaved?: (age
             <label
               key={level}
               className={cn(
-                "flex cursor-pointer flex-col gap-1 border-2 p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                "flex cursor-pointer flex-col gap-1 border p-3 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
                 values.autonomy === level && "border-primary bg-accent",
               )}
             >

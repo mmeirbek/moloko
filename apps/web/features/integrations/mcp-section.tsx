@@ -51,7 +51,7 @@ function AddServer({ onDone }: { onDone: () => void }) {
   const valid = name.trim() && /^https?:\/\//.test(url.trim());
   return (
     <form
-      className="flex flex-col gap-3 border-2 p-4"
+      className="flex flex-col gap-3 border p-4"
       onSubmit={(e: FormEvent) => {
         e.preventDefault();
         if (valid) add.mutate();
@@ -113,7 +113,7 @@ function ServerCard({ server }: { server: McpServerOut }) {
   const remove = useMutation({ mutationFn: () => deleteMcpServer(server.id), onSuccess: invalidate });
   const error = refresh.error ?? toggle.error ?? remove.error;
   return (
-    <li className="flex flex-col gap-2 border-2 p-4" data-mcp-server={server.slug}>
+    <li className="flex flex-col gap-2 border p-4" data-mcp-server={server.slug}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-medium">{server.name}</p>
@@ -155,7 +155,7 @@ function ServerCard({ server }: { server: McpServerOut }) {
         </div>
       </div>
       {server.tools.length > 0 && (
-        <ul className="divide-y-2 border-t-2">
+        <ul className="divide-y border-t">
           {server.tools.map((tool) => (
             <ToolRow key={tool.name} tool={tool} />
           ))}
@@ -181,7 +181,7 @@ function GitHubMcp({ connected, present }: { connected: boolean; present: boolea
   const [toolsets, setToolsets] = useState<string[]>(["repos", "issues", "pull_requests"]);
   const add = useMutation({ mutationFn: () => addGitHubMcp({ readonly, toolsets }), onSuccess: invalidate });
   return (
-    <div className="flex flex-col gap-2 border-2 border-dashed p-4 text-sm" data-testid="github-mcp">
+    <div className="flex flex-col gap-2 border border-dashed p-4 text-sm" data-testid="github-mcp">
       <p className="font-medium">{t("title")}</p>
       <p className="text-xs text-muted-foreground">{connected ? t("hint") : t("needsToken")}</p>
       <label className="flex items-center gap-2">

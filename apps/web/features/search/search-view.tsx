@@ -124,7 +124,7 @@ export function SearchView() {
               aria-pressed={on}
               onClick={() => setTypes((list) => (on ? list.filter((x) => x !== type) : [...list, type]))}
               className={cn(
-                "inline-flex items-center gap-1.5 border-2 px-3 py-1 text-sm",
+                "inline-flex items-center gap-1.5 border px-3 py-1 text-sm",
                 on ? "bg-accent text-accent-foreground" : "text-muted-foreground",
               )}
             >
@@ -139,7 +139,7 @@ export function SearchView() {
         <ErrorState error={results.error} onRetry={() => results.refetch()} />
       )}
       {query && results.isSuccess && hits.length === 0 && (
-        <EmptyState title={t("nothing")} hint={t("nothingHint")} mood="sad" className="border-2 border-dashed" />
+        <EmptyState title={t("nothing")} hint={t("nothingHint")} mood="sad" className="border border-dashed" />
       )}
       {hits.length > 0 && (
         <>

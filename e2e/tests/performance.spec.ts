@@ -10,13 +10,13 @@ test("performance targets", async ({ page, request }) => {
 
   let started = Date.now();
   await page.goto("/chat");
-  await expect(page.getByPlaceholder("Сообщение для moloko…")).toBeVisible();
+  await expect(page.getByPlaceholder(/Спросите или поручите работу/)).toBeVisible();
   results.mainPageMs = Date.now() - started;
 
   const chat = await api<{ id: string }>(request, "POST", "/chats", {});
   started = Date.now();
   await page.goto(`/chat/${chat.id}`);
-  await expect(page.getByPlaceholder("Сообщение для moloko…")).toBeVisible();
+  await expect(page.getByPlaceholder(/Спросите или поручите работу/)).toBeVisible();
   results.savedChatMs = Date.now() - started;
 
   await page.goto("/office/agents");

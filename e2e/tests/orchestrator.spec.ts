@@ -5,15 +5,17 @@ import { api, unique, watchErrors } from "./helpers";
 test("orchestrator: gives the parts to agents (creating them when none fits), merges, answers simple requests directly, chat hand-off", async ({ page, request }) => {
   const errors = watchErrors(page);
   await page.goto("/office/agents");
-  /** The cow button → «Новая задача» → the task's own page. */
+  /** «Новое» → «@Оркестратор …» in the message box → the task's own page. */
   const startTask = async (text: string) => {
     const title = `${text} ${unique("run")}`;
-    await page.getByTestId("new-task-sidebar").click();
-    const dialog = page.getByTestId("new-task-dialog");
-    await dialog.getByRole("textbox").fill(title);
-    await dialog.getByRole("button", { name: "Начать" }).click(); // waits while the Orchestrator is busy
+    await page.getByTestId("new-chat-sidebar").click();
+    await page.waitForURL(/\/chat\/new$/);
+    const input = page.getByPlaceholder(/Спросите или поручите работу/);
+    await input.fill(`@Оркестратор ${title}`);
+    await expect(page.getByTestId("mention-target")).toContainText("Оркестратор");
+    await input.press("Enter");
     await page.waitForURL(/\/tasks\/[0-9a-f-]{36}$/);
-    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByTestId("task-request")).toContainText(title);
   };
   await startTask("Compare three laptops [[mock:plan:3]] [[mock:slowparts]]");
   const parts = page.getByTestId("part-agent");
@@ -22,6 +24,14 @@ test("orchestrator: gives the parts to agents (creating them when none fits), me
   await expect(parts.filter({ hasText: "Analyst" })).toHaveCount(1);
   await expect(page.getByText(/^Final answer combining/)).toBeVisible({ timeout: 90_000 });
   await expect(page.getByTestId("step-plan")).toContainText("частей: 3"); // the plan, as a step
+  // The task as a chat: the request on top, the details in the right bar.
+  await expect(page.getByTestId("task-request")).toContainText("Compare three laptops");
+  const bar = page.getByTestId("task-sidebar");
+  await expect(bar.getByTestId("task-goal")).toContainText("Compare three laptops");
+  await expect(bar.getByTestId("plan-part")).toHaveCount(3);
+  await expect(bar.getByTestId("task-agents")).toContainText("Orchestrator");
+  await expect(bar.getByTestId("task-agents")).toContainText("части: Part 1, Part 3"); // Researcher
+  await expect(bar.getByTestId("task-agents")).toContainText("часть: Part 2"); // Analyst
   // No temporary subagents: the agents it needed are ordinary agents of the office.
   const agents = await api<{ name: string; agent_type: string; archived_at: string | null }[]>(request, "GET", "/agents");
   expect(agents.some((a) => a.agent_type === "subagent")).toBe(false);
@@ -36,8 +46,8 @@ test("orchestrator: gives the parts to agents (creating them when none fits), me
   await page.goto("/office/subagents");
   await page.waitForURL(/\/office\/agents$/);
 
-  await page.goto("/chat");
-  await page.getByRole("link", { name: "Новый чат" }).first().click();
+  await page.goto("/office/agents");
+  await page.getByTestId("new-chat-sidebar").click();
   await page.waitForURL(/\/chat\/new$/);
   const agentsSwitch = page.getByRole("switch", { name: "Отдать агентам" });
   await agentsSwitch.click();
@@ -46,8 +56,9 @@ test("orchestrator: gives the parts to agents (creating them when none fits), me
   await input.fill("Plan a trip [[mock:plan:2]]");
   await input.press("Enter");
   await page.waitForURL(/\/chat\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("Агенты работают над этим…")).toBeVisible();
-  await expect(page.getByText(/Final answer combining/)).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByTestId("agents-working")).toBeVisible();
+  // In the chat (the «готово» notification says it too).
+  await expect(page.getByRole("log", { name: "Сообщения" }).getByText(/Final answer combining/)).toBeVisible({ timeout: 90_000 });
   await page.getByText("Сделано агентами — открыть запуск").click();
   await page.waitForURL(/\/tasks\/[0-9a-f-]{36}$/); // the run's task page
   expect(errors).toEqual([]);

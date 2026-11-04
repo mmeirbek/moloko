@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import struct
 import uuid
+from dataclasses import replace
 from typing import Any
 
 import httpx2
@@ -169,7 +170,14 @@ async def test_subscribe_and_receive_pushes_for_new_events(
         push_app,
         user_id,
         "task.completed",
-        {"task": {"id": "t1", "title": "Report", "parent_task_id": None}},
+        {
+            "task": {
+                "id": "t1",
+                "title": "Report",
+                "parent_task_id": None,
+                "result": "## Итог\n\n**Готово**: отчёт в report.md.",
+            }
+        },
     )
     await emit(
         push_app,
@@ -196,8 +204,8 @@ async def test_subscribe_and_receive_pushes_for_new_events(
             "tag": "approval:a1",
         },
         {
-            "title": "Задача выполнена",
-            "body": "Report",
+            "title": "Готово: Report",
+            "body": "Готово: отчёт в report.md.",
             "url": "/tasks/t1",
             "tag": "task:t1:task.completed",
         },
@@ -311,10 +319,60 @@ def test_notifications_are_plain_words_not_code() -> None:
         error_code="empty_result",
     )
     title, body = render(failed, "ru")
-    assert title == "Задача не выполнена" and body.startswith("Кодер король: Найди репозитории")
-    assert "…" in body and body.endswith("— агент закончил без результата") and "```" not in body
+    assert title.startswith("Сломалось: Найди репозитории") and title.endswith("…")
+    assert len(title) < 80 and "```" not in title
+    assert body == "Кодер король: агент закончил без результата"
     done = Notice("taskDone", "k", "[[mock:sleep:1]] Отчёт", "/tasks/t")
-    assert render(done, "ru") == ("Задача выполнена", "Отчёт")
+    assert render(done, "ru") == ("Готово: Отчёт", "")
+    assert render(Notice("taskDone", "k", "", "/tasks/t"), "en") == ("Task done", "")
+
+
+def test_a_finished_task_says_its_short_result_or_the_question_it_asks() -> None:
+    from datetime import UTC, datetime
+
+    from app.models.event import AgentEvent
+    from app.push.dispatcher import notice_for, render
+
+    now = datetime.now(UTC)
+
+    def finished(result: str) -> tuple[str, str]:
+        task = {"id": "t1", "title": "Сайт", "parent_task_id": None, "result": result}
+        event = AgentEvent(
+            type="task.completed", payload={"task": task}, created_at=now, user_id=uuid.uuid4()
+        )
+        notice = notice_for(event, now)
+        assert notice is not None and notice.kind == "taskDone"  # same switch as «готово»
+        return render(replace(notice, name="Оркестратор"), "ru")
+
+    long = "Сделал: " + "проверил страницы, " * 30 + "всё работает."
+    title, body = finished(long + "\n\n```sh\nnpm test\n```")
+    assert title == "Готово: Сайт" and body.startswith("Оркестратор: Сделал: проверил")
+    assert body.endswith("…") and len(body) < 230 and "npm" not in body
+    assert finished("Нашёл два сайта.\n\n**Уточните, какой из них нужен?**") == (
+        "Оркестратор ждёт вашего ответа",
+        "Уточните, какой из них нужен?",
+    )
+    assert finished("Что сделать? Всё готово.")[0] == "Готово: Сайт"
+
+
+def test_only_a_used_up_budget_is_announced() -> None:
+    from datetime import UTC, datetime
+
+    from app.models.event import AgentEvent
+    from app.push.dispatcher import notice_for, render
+
+    now = datetime.now(UTC)
+
+    def warning(percent: int) -> AgentEvent:
+        payload = {"percent": percent, "month": "2026-11", "spent_usd": "5", "limit_usd": "5"}
+        return AgentEvent(
+            type="budget.warning", payload=payload, created_at=now, user_id=uuid.uuid4()
+        )
+
+    assert notice_for(warning(80), now) is None
+    used_up = notice_for(warning(100), now)
+    assert used_up is not None
+    assert render(used_up, "ru") == ("Месячный лимит расходов исчерпан", "$5 / $5")
 
 
 def test_repository_and_package_actions_in_plain_words() -> None:

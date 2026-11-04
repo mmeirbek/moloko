@@ -9,6 +9,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 TITLE_MAX = 90
+SUMMARY_MAX = 200  # a task's short result in the notification text
+TASK_IN_TITLE_MAX = 60
 
 # What an agent asks to do, by tool. {file} is a file name (not the whole path), {program}
 # the command's program (python3, npm, git…), never the command itself.
@@ -103,6 +105,30 @@ def short_text(text: str, limit: int = TITLE_MAX) -> str:
     if " " in cut[limit // 2 :]:
         cut = cut[: cut.rfind(" ")]
     return cut.rstrip(" ,.;:—-") + "…"
+
+
+# Markdown that means nothing in a one-line notification: emphasis, list and quote marks,
+# table bars, and headings («## Итог») when there is text besides them.
+_EMPHASIS = re.compile(r"\*\*|__")
+_LINE_MARKS = re.compile(r"^\s*(?:[-*>]|\d+[.)])\s+|\|", re.M)
+_HEADINGS = re.compile(r"^\s*#.*$", re.M)
+
+
+def result_summary(text: str, limit: int = SUMMARY_MAX) -> str:
+    """The start of an agent's answer as one readable line (the short result of a task)."""
+    text = _LINE_MARKS.sub(" ", _EMPHASIS.sub("", _FENCES.sub(" ", text or "")))
+    without_headings = _HEADINGS.sub(" ", text)
+    return short_text(without_headings if without_headings.strip() else text, limit)
+
+
+def owner_question(text: str) -> str:
+    """The question an answer ends with («Уточните, какой сайт?») — the agent waits for the
+    owner's reply — or "" when the answer does not end with a question."""
+    paragraphs = [p for p in re.split(r"\n\s*\n", _FENCES.sub(" ", text or "")) if p.strip()]
+    if not paragraphs:
+        return ""
+    last = re.sub(r"[*_»\")\s]+$", "", paragraphs[-1])
+    return result_summary(paragraphs[-1]) if last.endswith("?") else ""
 
 
 def _file(path: Any) -> str:

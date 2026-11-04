@@ -241,9 +241,12 @@ def test_agent_budget_push_notice() -> None:
         },
         created_at=now,
     )
+    # Owner: notify when something broke — only a used-up budget stops the agent.
+    assert notice_for(event, now) is None
+    event.payload = {**event.payload, "percent": 100, "spent_usd": "5.01"}
     notice = notice_for(event, now)
     assert notice is not None and notice.kind == "budget"
-    assert notice.key == f"budget:2026-11:{agent_id}:80"
+    assert notice.key == f"budget:2026-11:{agent_id}:100"
     assert notice.url == f"/office/agents/{agent_id}"
     title = TITLES["ru"][notice.title].format(percent=notice.percent, name=notice.name)
-    assert title == "«Spender»: 80% бюджета агента на месяц"
+    assert title == "«Spender»: бюджет агента на месяц исчерпан"

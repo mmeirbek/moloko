@@ -49,10 +49,12 @@ describe("agent form", () => {
       workspace_id: "ws1",
       monthly_budget_usd: "7.50",
       contacts: { mode: "list", agent_ids: ["a2", "a3"] },
+      animal: "okapi",
     } as unknown as AgentOut;
     const payload = toPayload(fromAgent(agent));
     expect(payload).toEqual({
       name: "Dev",
+      animal: "okapi",
       description: "Writes code",
       specialization: "coding",
       model_config_id: "m1",

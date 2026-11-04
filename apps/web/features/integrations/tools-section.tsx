@@ -90,7 +90,7 @@ export function ToolsSection() {
         {groups.map(([group, items]) => (
           <section key={group} aria-label={t(`groups.${group as "files"}`)}>
             <h3 className="text-sm font-semibold">{t(`groups.${group as "files"}`)}</h3>
-            <ul className="divide-y-2">
+            <ul className="divide-y">
               {items.map((tool) => (
                 <ToolRow key={tool.name} tool={tool} />
               ))}

@@ -1,11 +1,15 @@
 import type { AgentCreate, AgentFullAccessUpdate, AgentOut, SystemLimits } from "@moloko/shared-types";
 
+import { isSpecies, type Species } from "./agent-looks";
+
 export const AUTONOMY = ["supervised", "balanced", "restricted"] as const;
 export type Autonomy = (typeof AUTONOMY)[number];
 
 /** What the form edits. Numbers stay strings while typing; "" = use the global limit. */
 export type AgentFormValues = {
   name: string;
+  /** Its animal; "" = chosen at random by the server (a species the office has fewest of). */
+  animal: Species | "";
   description: string;
   specialization: string;
   modelId: string;
@@ -83,6 +87,7 @@ export function fromAgent(agent?: AgentOut): AgentFormValues {
   };
   return {
     name: agent?.name ?? "",
+    animal: isSpecies(agent?.animal) ? agent.animal : "",
     description: agent?.description ?? "",
     specialization: agent?.specialization ?? "",
     modelId: agent?.model_config_id ?? "",
@@ -182,6 +187,7 @@ export function toPayload(values: AgentFormValues): Omit<AgentCreate, "agent_typ
   const chars = whole(values.maxContextChars);
   return {
     name: values.name.trim(),
+    animal: values.animal || null,
     description: values.description.trim(),
     specialization: values.specialization.trim() || null,
     model_config_id: values.modelId || null,

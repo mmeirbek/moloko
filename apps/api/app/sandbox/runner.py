@@ -54,6 +54,11 @@ class RunnerSettings(BaseSettings):
     sandbox_cpus: float = Field(1.0, gt=0, le=16)
     sandbox_memory_mb: int = Field(2048, ge=64, le=65_536)
     sandbox_pids_limit: int = Field(512, ge=16, le=4096)
+    # Browser tests (Playwright + Chromium) need shared memory, a bigger /tmp (profiles) and
+    # more open files than plain commands.
+    sandbox_shm_mb: int = Field(256, ge=64, le=4096)
+    sandbox_tmp_mb: int = Field(256, ge=16, le=4096)
+    sandbox_nofile: int = Field(4096, ge=256, le=65_536)
     sandbox_timeout_seconds: int = Field(600, ge=1, le=3600)
     sandbox_output_max_bytes: int = Field(64_000, ge=1000, le=10_000_000)
     sandbox_max_concurrent: int = Field(2, ge=1, le=16)
@@ -203,6 +208,10 @@ COMMAND_ENV = (
     "npm_config_fund=false",
     "npm_config_audit=false",
     "NEXT_TELEMETRY_DISABLED=1",
+    # Browser tests: Playwright keeps its browsers in the workspace (downloaded once with
+    # network "packages"); the image's own headless Chromium is here.
+    "PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright",
+    "CHROMIUM_PATH=/usr/bin/chromium-headless-shell",
     "GIT_AUTHOR_NAME=moloko agent",
     "GIT_AUTHOR_EMAIL=agent@moloko.invalid",
     "GIT_COMMITTER_NAME=moloko agent",
@@ -264,9 +273,12 @@ def container_spec(
             "Privileged": False,
             "Init": True,
             "IpcMode": "private",
-            "Tmpfs": {"/tmp": "rw,nosuid,nodev,size=64m"},  # noqa: S108 — inside the sandbox
+            "ShmSize": settings.sandbox_shm_mb * 1024 * 1024,
+            "Tmpfs": {"/tmp": f"rw,nosuid,nodev,size={settings.sandbox_tmp_mb}m"},  # noqa: S108
             "Mounts": [mount],
-            "Ulimits": [{"Name": "nofile", "Soft": 1024, "Hard": 1024}],
+            "Ulimits": [
+                {"Name": "nofile", "Soft": settings.sandbox_nofile, "Hard": settings.sandbox_nofile}
+            ],
             "LogConfig": {"Type": "json-file", "Config": {"max-size": "1m"}},
         },
     }
@@ -274,6 +286,8 @@ def container_spec(
         spec["NetworkDisabled"] = False
         spec["HostConfig"]["NetworkMode"] = settings.sandbox_packages_network
         spec["Env"] += [f"{name}={settings.sandbox_packages_proxy}" for name in PROXY_VARS]
+        # A test server inside the container is reached directly, never through the proxy.
+        spec["Env"] += ["NO_PROXY=localhost,127.0.0.1,::1", "no_proxy=localhost,127.0.0.1,::1"]
         spec["Labels"][f"{LABEL}.network"] = "packages"
     return spec
 

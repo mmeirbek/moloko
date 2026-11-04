@@ -5,11 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import { Brain, Check, ChevronDown, ChevronRight, ListChecks, Loader2, MessageSquare, ShieldAlert, X } from "@/components/icons";
+import { Check, ChevronDown, ChevronRight, FileText, ListChecks, Loader2, MessageSquare, Search, ShieldAlert, Terminal, X } from "@/components/icons";
+import { Thinking } from "@/components/ui/thinking";
 import { MarkdownBody } from "@/features/chat/markdown";
 import { shortText } from "@/lib/notifications/text";
+import { taskEvents, taskKeys } from "@/lib/api/agents";
 import { taskToolCalls, toolingKeys } from "@/lib/api/tooling";
 import { cn } from "@/lib/utils";
+
+import { commandKind, commandOutcome, commandProgram, GROUPABLE } from "./step-words";
 
 /**
  * What the agent did, step by step — like Claude Code: every step is one short line (what it
@@ -20,13 +24,23 @@ import { cn } from "@/lib/utils";
 type Item =
   | { kind: "thought"; id: string; step: number; text: string }
   | { kind: "tool"; id: string; step: number; call: ToolCallOut }
+  /** Several finished reads in a row, as one line («Прочитал 3 файла: …»). */
+  | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] }
   | { kind: "owner"; id: string; text: string }
+  /** A step Codex took (it works with its own tools in its container): a command, files, a search. */
+  | { kind: "codex"; id: string; what: string; title: string; detail: string; ok: boolean; exitCode: number | null }
   | { kind: "plan"; id: string; mode: string; summary: string; parts: { title: string; agent: string }[] };
+
+const CODEX_KINDS = ["command", "files", "search", "tool", "error"] as const;
+type CodexKind = (typeof CODEX_KINDS)[number];
+const codexKind = (what: string): CodexKind => (CODEX_KINDS as readonly string[]).includes(what) ? (what as CodexKind) : "tool";
 
 /** The Orchestrator's planning reply is JSON — shown as its plan instead of raw text. */
 const PLAN_JSON = /^\s*(```(json)?\s*)?\{[\s\S]*"mode"\s*:/;
 
 const RUNNING = new Set(["running", "pending"]);
+/** Commands whose result is «worked or not» (tests, build, install, checks). */
+const CHECKS = new Set(["cmd_tests", "cmd_browserTests", "cmd_build", "cmd_install", "cmd_lint", "cmd_typecheck"]);
 const FAILED = new Set(["failed", "denied", "rejected", "expired", "unknown"]);
 
 /** `tasks.agentSteps.tools.<key>` and its params: what a tool call does, in a few words. */
@@ -50,8 +64,15 @@ export function stepLabel(tool: string, args: Record<string, unknown>): { key: s
       return { key: tool, params: { path: s("path", 60) || "." } };
     case "fs_move":
       return { key: tool, params: { file: file("source"), to: s("destination", 60) } };
-    case "terminal_run":
-      return { key: tool, params: { command: shortText(String(args.command ?? "").split("\n")[0] ?? "", 80) } };
+    case "terminal_run": {
+      // What the command is for, not the command (it is one click away).
+      const command = String(args.command ?? "");
+      return { key: `cmd_${commandKind(command)}`, params: { program: commandProgram(command) } };
+    }
+    case "github_checkout":
+      return { key: tool, params: { repo: s("repo", 50) } };
+    case "github_commit_files":
+      return { key: tool, params: { repo: s("repo", 50), branch: s("branch", 40) } };
     case "github_read_file":
     case "github_write_file":
       return { key: tool, params: { file: file("path"), repo: s("repo", 50) } };
@@ -91,6 +112,35 @@ function firstLine(text: string | null | undefined, max = 110): string {
   return shortText(line, max);
 }
 
+/** Merge finished reads of one kind in a row into one line; the step running now stays its
+ *  own line, so it can say what the agent does at this moment. Pure: tested. */
+export function groupReads<T extends { kind: string }>(items: T[], callOf: (item: T) => ToolCallOut | null): (T | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] })[] {
+  const out: (T | { kind: "group"; id: string; tool: string; calls: ToolCallOut[] })[] = [];
+  let run: ToolCallOut[] = [];
+  let first: T | null = null;
+  const flush = () => {
+    if (run.length > 1) out.push({ kind: "group", id: `group:${run[0]!.id}`, tool: run[0]!.tool_name, calls: run });
+    else if (first) out.push(first);
+    run = [];
+    first = null;
+  };
+  for (const item of items) {
+    const call = callOf(item);
+    const groupable = call && GROUPABLE.has(call.tool_name) && !RUNNING.has(call.status) && !FAILED.has(call.status) && !call.is_error;
+    if (groupable && run.length > 0 && run[0]!.tool_name === call.tool_name) {
+      run.push(call);
+      continue;
+    }
+    flush();
+    if (groupable) {
+      run = [call];
+      first = item;
+    } else out.push(item);
+  }
+  flush();
+  return out;
+}
+
 /** What came out, in one line: for a command its first output line («exit code 0» only when
  *  it printed nothing), otherwise the first line of the result. */
 export function outputPreview(tool: string, result: string | null | undefined): string {
@@ -120,7 +170,9 @@ function StepRow({
   tone,
   children,
   testId,
+  live = false,
 }: {
+  live?: boolean;
   icon: React.ReactNode;
   title: string;
   preview?: string;
@@ -138,7 +190,7 @@ function StepRow({
         onClick={expandable ? onToggle : undefined}
         aria-expanded={expandable ? open : undefined}
         className={cn(
-          "flex min-h-9 w-full items-start gap-2 px-2 py-1.5 text-left text-sm",
+          "flex min-h-9 w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm",
           expandable && "hover:bg-accent/60",
         )}
       >
@@ -146,7 +198,8 @@ function StepRow({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block break-words">{title}</span>
+          {/* the step running now: a light runs over its words (it has not frozen) */}
+          <span className={cn("block break-words", live && "thinking-shimmer")}>{title}</span>
           {preview && !open && <span className="block truncate text-xs text-muted-foreground">⎿ {preview}</span>}
         </span>
         {expandable && (
@@ -163,14 +216,18 @@ function StepRow({
 export function AgentSteps({
   taskId,
   status,
-  events,
+  events: given,
   result,
+  bare = false,
 }: {
   taskId: string;
   status: string;
-  events: EventOut[] | undefined;
+  /** The task's events when the caller has them already (otherwise fetched here). */
+  events?: EventOut[];
   /** The final answer is shown below on its own: not repeated as a step. */
   result?: string | null;
+  /** In the task chat: just the lines, no card and no heading. */
+  bare?: boolean;
 }) {
   const t = useTranslations("tasks.agentSteps");
   const tStatus = useTranslations("tools.calls.status");
@@ -178,6 +235,12 @@ export function AgentSteps({
     queryKey: [...toolingKeys.taskCalls(taskId), status],
     queryFn: ({ signal }) => taskToolCalls(taskId, signal),
   });
+  const fetched = useQuery({
+    queryKey: taskKeys.events(taskId),
+    queryFn: ({ signal }) => taskEvents(taskId, signal),
+    enabled: given === undefined,
+  });
+  const events = given ?? fetched.data;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [allOpen, setAllOpen] = useState(false);
   const running = status === "running" || status === "queued";
@@ -208,13 +271,34 @@ export function AgentSteps({
         }
       } else if (e.type === "task.owner_message") {
         out.push({ kind: "owner", id: e.id, text: String(p.text ?? "") });
+      } else if (e.type === "agent.codex_step") {
+        out.push({
+          kind: "codex",
+          id: e.id,
+          what: String(p.kind ?? ""),
+          title: String(p.title ?? ""),
+          detail: String(p.detail ?? ""),
+          ok: p.ok !== false,
+          exitCode: typeof p.exit_code === "number" ? p.exit_code : null,
+        });
       }
     }
     // calls whose step event is not loaded yet (e.g. the history is still on its way)
     for (const c of calls.data ?? []) if (!placed.has(c.id)) out.push({ kind: "tool", id: c.id, step: c.step, call: c });
-    return out;
+    return groupReads(out, (i) => (i.kind === "tool" ? i.call : null)) as Item[];
   }, [calls.data, events, result]);
 
+  /** A command's result in words: tests passed / failed, or success / the error code. */
+  const commandPreview = (out: string | null, key: string): string => {
+    const o = commandOutcome(out);
+    if (o.failed !== undefined || o.passed !== undefined) {
+      return o.failed ? t("testsFailed", { failed: o.failed, passed: o.passed ?? 0 }) : t("testsPassed", { passed: o.passed ?? 0 });
+    }
+    if (o.code === null || !CHECKS.has(key)) return "";
+    if (o.code === 0) return t("succeeded");
+    const line = outputPreview("terminal_run", out);
+    return t("failedCode", { code: o.code }) + (line && !line.startsWith("exit code") ? `: ${line}` : "");
+  };
   const busyTool = items.find((i) => i.kind === "tool" && RUNNING.has(i.call.status));
   const now = useNow(running);
   const isOpen = (id: string) => allOpen || Boolean(open[id]);
@@ -222,8 +306,13 @@ export function AgentSteps({
 
   if (items.length === 0 && !running) return null;
   return (
-    <section aria-labelledby="agent-steps-title" className="bg-card pixel-frame" data-testid="agent-steps">
-      <div className="flex items-center justify-between gap-2 border-b-2 px-3 py-2">
+    <section
+      aria-labelledby={bare ? undefined : "agent-steps-title"}
+      aria-label={bare ? t("title") : undefined}
+      className={bare ? undefined : "bg-card pixel-frame"}
+      data-testid="agent-steps"
+    >
+      <div className={cn("flex items-center justify-between gap-2", bare ? "hidden" : "border-b px-3 py-2")}>
         <h2 id="agent-steps-title" className="font-medium">
           {t("title")}
           {items.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">{items.length}</span>}
@@ -244,15 +333,17 @@ export function AgentSteps({
       <ol className="flex flex-col py-1">
         {items.map((item) => {
           if (item.kind === "owner")
+            // The owner's message in the task's chat: whole, on the right like in the chat.
             return (
-              <StepRow
-                key={item.id}
-                icon={<MessageSquare className="size-3.5" />}
-                tone="text-sky"
-                title={t("owner", { text: firstLine(item.text, 90) })}
-                open={false}
-                onToggle={() => undefined}
-              />
+              <li key={item.id} className="flex justify-end py-1.5">
+                <p
+                  className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words"
+                  aria-label={t("ownerLabel")}
+                  data-testid="owner-note"
+                >
+                  {item.text}
+                </p>
+              </li>
             );
           if (item.kind === "plan")
             return (
@@ -281,22 +372,75 @@ export function AgentSteps({
                 ) : null}
               </StepRow>
             );
-          if (item.kind === "thought")
+          if (item.kind === "codex")
             return (
               <StepRow
                 key={item.id}
-                icon={<Brain className="size-3.5" />}
-                tone="text-muted-foreground"
-                title={firstLine(item.text)}
+                icon={item.what === "files" ? <FileText className="size-3.5" /> : item.what === "search" ? <Search className="size-3.5" /> : <Terminal className="size-3.5" />}
+                tone={item.ok ? undefined : "text-destructive"}
+                title={t(`codex.${codexKind(item.what)}`, { what: firstLine(item.title, 140) })}
+                preview={item.what === "command" && item.exitCode !== null && item.exitCode !== 0 ? t("failedCode", { code: item.exitCode }) : undefined}
+                open={isOpen(item.id)}
+                onToggle={() => toggle(item.id)}
+                testId="step-codex"
+              >
+                {item.detail ? <pre className="max-h-64 overflow-auto bg-muted p-2 font-mono text-xs whitespace-pre-wrap">{item.detail}</pre> : null}
+              </StepRow>
+            );
+          if (item.kind === "thought")
+            // The agent's short report between actions (what it did, what it does next): said
+            // in full, like a line in a chat; only a long one folds.
+            return (
+              <StepRow
+                key={item.id}
+                icon={<MessageSquare className="size-3.5" />}
+                tone="text-sky"
+                title={firstLine(item.text, 280)}
                 open={isOpen(item.id)}
                 onToggle={() => toggle(item.id)}
                 testId="step-thought"
               >
-                {item.text.length > 110 || item.text.includes("\n") ? <MarkdownBody text={item.text} /> : null}
+                {item.text.length > 280 || item.text.trim().includes("\n") ? <MarkdownBody text={item.text} /> : null}
               </StepRow>
             );
+          if (item.kind === "group") {
+            const names = item.calls.map((call) => {
+              const p = stepLabel(call.tool_name, call.args).params;
+              return p.file ?? p.path ?? p.host ?? p.query ?? "";
+            });
+            const list = [...new Set(names.filter(Boolean))];
+            return (
+              <StepRow
+                key={item.id}
+                icon={<Check className="size-3.5" />}
+                tone="text-grass"
+                title={t(`group.${item.tool}` as "group.fs_read", {
+                  count: item.calls.length,
+                  list: list.slice(0, 3).join(", ") + (list.length > 3 ? "…" : ""),
+                })}
+                open={isOpen(item.id)}
+                onToggle={() => toggle(item.id)}
+                testId="step-group"
+              >
+                <ul className="flex flex-col gap-0.5 text-xs">
+                  {item.calls.map((call) => {
+                    const l = stepLabel(call.tool_name, call.args);
+                    return (
+                      <li key={call.id}>
+                        {t(`done.${l.key}` as "done.other", l.params as { tool: string })}
+                        {outputPreview(call.tool_name, call.result) && (
+                          <span className="text-muted-foreground"> ⎿ {outputPreview(call.tool_name, call.result)}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </StepRow>
+            );
+          }
           const c = item.call;
           const label = stepLabel(c.tool_name, c.args);
+          const command = c.tool_name === "terminal_run";
           const live = RUNNING.has(c.status);
           const failed = FAILED.has(c.status) || c.is_error;
           const waiting = c.status === "awaiting_approval" || c.status === "awaiting_agent";
@@ -314,14 +458,19 @@ export function AgentSteps({
             ? t("runningFor", { seconds: seconds ?? 0 })
             : waiting
               ? tStatus(c.status as "awaiting_approval")
-              : outputPreview(c.tool_name, c.result) ||
+              : (command ? commandPreview(c.result, label.key) : "") ||
+                outputPreview(c.tool_name, c.result) ||
                 (c.decision_reason && c.decision !== "allow" ? c.decision_reason : undefined);
+          // Commands are named by what they are for («Тесты», «Сборка проекта»); other steps say
+          // what the agent does now, or did.
+          const titleKey = command ? `cmd.${label.key}` : live || waiting || failed ? `tools.${label.key}` : `done.${label.key}`;
           return (
             <StepRow
               key={item.id}
               icon={icon}
               tone={live ? "text-sky" : waiting ? "text-amber-600" : failed ? "text-destructive" : "text-grass"}
-              title={t(`tools.${label.key}` as "tools.other", label.params as { tool: string })}
+              title={t(titleKey as "tools.other", label.params as { tool: string })}
+              live={live}
               preview={preview}
               open={isOpen(item.id)}
               onToggle={() => toggle(item.id)}
@@ -347,9 +496,12 @@ export function AgentSteps({
           );
         })}
         {running && !busyTool && (
-          <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-sky" role="status" data-testid="step-live">
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            {status === "queued" ? t("queued") : t("thinking")}
+          <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-sky" data-testid="step-live">
+            <Thinking
+              phases={status === "queued" ? [t("queued")] : [t("thinking"), t("pondering"), t("stillThinking")]}
+              every={8}
+              since={events?.at(-1)?.timestamp}
+            />
           </li>
         )}
       </ol>

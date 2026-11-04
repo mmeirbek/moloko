@@ -36,18 +36,26 @@ TITLES = {
     "ru": {
         "approval": "Нужно ваше одобрение",
         "approvalNamed": "{name} ждёт вашего одобрения",
-        "taskDone": "Задача выполнена",
-        "taskFailed": "Задача не выполнена",
-        "budget": "Расходы: {percent}% месячного лимита",
-        "agentBudget": "«{name}»: {percent}% бюджета агента на месяц",
+        "taskDone": "Готово: {task}",
+        "taskDonePlain": "Задача выполнена",
+        "taskFailed": "Сломалось: {task}",
+        "taskFailedPlain": "Задача не выполнена",
+        "taskQuestion": "Агент ждёт вашего ответа",
+        "taskQuestionNamed": "{name} ждёт вашего ответа",
+        "budget": "Месячный лимит расходов исчерпан",
+        "agentBudget": "«{name}»: бюджет агента на месяц исчерпан",
     },
     "en": {
         "approval": "Your approval is needed",
         "approvalNamed": "{name} needs your approval",
-        "taskDone": "Task done",
-        "taskFailed": "Task failed",
-        "budget": "Costs: {percent}% of the monthly limit",
-        "agentBudget": "{name}: {percent}% of the agent's monthly budget",
+        "taskDone": "Done: {task}",
+        "taskDonePlain": "Task done",
+        "taskFailed": "Didn't work out: {task}",
+        "taskFailedPlain": "Task failed",
+        "taskQuestion": "An agent is waiting for your answer",
+        "taskQuestionNamed": "{name} is waiting for your answer",
+        "budget": "The monthly cost limit is used up",
+        "agentBudget": "{name}: the agent's monthly budget is used up",
     },
 }
 
@@ -64,6 +72,7 @@ class Notice:
     tool: str = ""  # approvals: which tool, and its arguments (worded in texts.py)
     args: dict[str, Any] = field(default_factory=dict)
     error_code: str = ""  # failed tasks
+    summary: str = ""  # finished tasks: the short result, or the question the agent asks
     agent_id: str = ""  # tasks: whose name to look up
     tag: str = ""  # notifications with one tag replace each other (default: the key)
 
@@ -89,6 +98,8 @@ def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
             # one notification per task: the next request replaces the previous one
             tag=f"approval:task:{task_id}" if task_id else "",
         )
+    if event.type == "budget.warning" and int(payload.get("percent", 0)) < 100:
+        return None  # only a used-up budget stops agents (owner: notify when something broke)
     if event.type == "budget.warning" and payload.get("scope") == "agent":
         percent = int(payload.get("percent", 0))
         agent_id = str(payload.get("agent_id", ""))
@@ -115,11 +126,15 @@ def notice_for(event: AgentEvent, now: datetime) -> Notice | None:
         if not task.get("id") or task.get("parent_task_id"):
             return None  # subtasks are part of a bigger job
         done = event.type == "task.completed"
+        result = str(task.get("result") or "") if done else ""
+        question = texts.owner_question(result)
         return Notice(
             "taskDone" if done else "taskFailed",
             f"task:{task['id']}:{event.type}",
             str(task.get("title", "")),
             f"/tasks/{task['id']}",
+            title="taskQuestion" if question else "",
+            summary=question or texts.result_summary(result),
             error_code="" if done else str(task.get("error_code") or ""),
             agent_id=str(task.get("agent_id") or event.agent_id or ""),
         )
@@ -236,13 +251,24 @@ def render(notice: Notice, locale: str) -> tuple[str, str]:
         )
         return title, body
     if notice.kind in ("taskDone", "taskFailed"):
-        body = texts.short_text(notice.subject)
-        if notice.name:
-            body = f"{notice.name}: {body}"
-        reason = (
-            texts.failure_reason(locale, notice.error_code) if notice.kind == "taskFailed" else ""
+        # Which task in the title; who and the short result (or why it failed) in the text.
+        # An answer that ends with a question: the agent waits for the owner's reply.
+        if notice.title == "taskQuestion":
+            title = (
+                titles["taskQuestionNamed"].format(name=notice.name)
+                if notice.name
+                else titles["taskQuestion"]
+            )
+            return title, notice.summary
+        task = texts.short_text(notice.subject, texts.TASK_IN_TITLE_MAX)
+        title = titles[notice.kind].format(task=task) if task else titles[f"{notice.kind}Plain"]
+        detail = (
+            notice.summary
+            if notice.kind == "taskDone"
+            else texts.failure_reason(locale, notice.error_code)
         )
-        return titles[notice.kind], f"{body} — {reason}" if reason else body
+        body = f"{notice.name}: {detail}" if notice.name and detail else notice.name or detail
+        return title, body
     title = titles[notice.title or notice.kind].format(percent=notice.percent, name=notice.name)
     return title, texts.short_text(notice.subject, 300)
 

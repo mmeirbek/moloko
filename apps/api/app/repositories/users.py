@@ -12,6 +12,12 @@ class UserRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    async def full_access_for_all(self, user_id: uuid.UUID) -> bool:
+        """Whether «Полный доступ всем агентам» is on: every persistent agent added to the
+        office now gets full access as it is added."""
+        since = await self.db.execute(select(User.full_access_all_since).where(User.id == user_id))
+        return since.scalar_one_or_none() is not None
+
     async def get(self, user_id: uuid.UUID) -> User | None:
         return await self.db.get(User, user_id)
 

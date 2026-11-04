@@ -31,7 +31,7 @@ export function AgentToolsField({
   return (
     <div className="flex flex-col gap-4">
       {values.fullAccess ? (
-        <p role="note" className="border-2 border-destructive/50 bg-destructive/10 p-2 text-xs" data-testid="tools-full-access">
+        <p role="note" className="border border-destructive/50 bg-destructive/10 p-2 text-xs" data-testid="tools-full-access">
           <span className="block font-medium text-destructive">{tf("allTools")}</span>
           <span className="block text-muted-foreground">{tf("allToolsHint")}</span>
         </p>

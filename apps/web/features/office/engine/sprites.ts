@@ -2,6 +2,9 @@
  * Original pixel art, drawn in code (no third-party assets — see assets/MANIFEST.md).
  * Characters are 16×16 frames described as character maps; palettes vary per agent.
  */
+import type { Species } from "@/features/agents/agent-looks";
+
+import { animalFrame, ANIMAL_ART } from "./animals";
 import { hash } from "./assign";
 import type { Indicator } from "./behavior";
 import type { AgentHud } from "./bus";
@@ -162,12 +165,19 @@ export interface Palette {
   e: string;
   w: string;
   d: string;
+  /** an animal's head (animals.ts): fur, light fur, marks, nose, second accent */
+  a?: string;
+  b?: string;
+  k?: string;
+  n?: string;
+  x?: string;
 }
 
-export function paletteFor(id: string, kind: string): Palette {
+/** The agent's shirt (its own colour); with a species, its fur, marks and eyes (arms are fur). */
+export function paletteFor(id: string, kind: string, species?: Species): Palette {
   const n = hash(id);
   const shirt = kind === "orchestrator" ? "#f0b43c" : SHIRTS[n % SHIRTS.length]!;
-  return {
+  const human: Palette = {
     o: "#1b1b2e",
     s: SKINS[(n >>> 3) % SKINS.length]!,
     h: HAIRS[(n >>> 7) % HAIRS.length]!,
@@ -178,12 +188,16 @@ export function paletteFor(id: string, kind: string): Palette {
     w: "#ffffff",
     d: "#f6efdc",
   };
+  if (!species) return human;
+  const art = ANIMAL_ART[species];
+  const { a, b, k, n: nose, x, w } = art.colors;
+  return { ...human, s: a, a, b, k, n: nose, x: x ?? a, w: w ?? "#ffffff", e: art.eyes ?? "#1b1b2e" };
 }
 
 /** Paint all frames of one palette side by side, each with a 1 px navy outline (readability). */
-export function paintSheet(ctx: CanvasRenderingContext2D, palette: Palette): void {
+export function paintSheet(ctx: CanvasRenderingContext2D, palette: Palette, species?: Species): void {
   FRAME_ORDER.forEach((name, i) => {
-    const grid = FRAMES[name]!;
+    const grid = species ? animalFrame(name, FRAMES[name]!, species) : FRAMES[name]!;
     const filled = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < FRAME && y < FRAME && grid[y]![x] !== "." && grid[y]![x] !== undefined;
     ctx.fillStyle = OUTLINE;
@@ -198,7 +212,7 @@ export function paintSheet(ctx: CanvasRenderingContext2D, palette: Palette): voi
       for (let x = 0; x < FRAME; x++) {
         const key = line[x] as keyof Palette | ".";
         if (key === "." || key === undefined) continue;
-        ctx.fillStyle = palette[key];
+        ctx.fillStyle = palette[key] ?? palette.o;
         ctx.fillRect(i * FRAME + x, y, 1, 1);
       }
     }

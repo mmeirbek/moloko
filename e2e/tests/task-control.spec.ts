@@ -27,18 +27,19 @@ test("full control: write to a working agent, stop it, continue from where it st
   await box.getByRole("textbox").fill("Пиши коротко");
   await box.getByRole("button", { name: "Отправить" }).click();
   await expect(box.getByRole("status")).toContainText("Отправлено");
-  await expect(page.getByTestId("agent-steps").getByText("Вы написали: «Пиши коротко»")).toBeVisible();
+  await expect(page.getByTestId("agent-steps").getByTestId("owner-note").filter({ hasText: "Пиши коротко" })).toBeVisible();
 
   // Stop it, then continue from where it stopped, with an instruction.
-  await page.getByRole("button", { name: "Отменить задачу" }).first().click();
+  await page.getByTestId("task-composer").getByRole("button", { name: "Отменить задачу" }).click();
   const resume = page.getByTestId("continue-task");
   await expect(resume).toBeVisible();
-  await resume.getByRole("button", { name: "+ Указание" }).click();
-  await resume.getByRole("textbox").fill("Удали черновик");
+  await resume.getByRole("textbox").fill("Удали черновик"); // the chat's box: an instruction
   await resume.getByRole("button", { name: "Продолжить с места остановки" }).click();
   await expect(page).not.toHaveURL(new RegExp(`/tasks/${oldId}$`));
   const newId = page.url().split("/tasks/")[1]!;
-  await expect(page.getByRole("link", { name: "Продолжение остановленной задачи →" })).toBeVisible();
+  // one chat: the stopped attempt above, the instruction as the new message
+  await expect(page.getByTestId("earlier-turn")).toBeVisible();
+  await expect(page.getByTestId("task-request")).toHaveText("Удали черновик");
 
   // The continued attempt does not write the draft again: it goes on to the delete.
   await expect.poll(() => statusOf(newId), { timeout: 60_000 }).toBe("waiting_approval");
@@ -79,12 +80,35 @@ test("agent steps: a live line while it works, then one short line per step that
   await page.goto(`/tasks/${started.task.id}`);
   const steps = page.getByTestId("agent-steps");
   await expect(steps.getByTestId("step-live")).toBeVisible(); // «Думает над следующим шагом…» / «В очереди»
-  const write = steps.getByTestId("step-tool").filter({ hasText: "Записывает файл plan.md" });
+  const write = steps.getByTestId("step-tool").filter({ hasText: /Запис(ывает|ал) файл plan\.md/ });
   await expect(write).toBeVisible({ timeout: 60_000 });
   await expect.poll(async () => (await api<{ task: Task }>(request, "GET", `/tasks/${started.task.id}`)).task.status, { timeout: 60_000 }).toBe("completed");
   await expect(steps.getByTestId("step-live")).toHaveCount(0);
   await write.getByRole("button").click();
   await expect(write.getByText("Что передал инструменту")).toBeVisible();
   await expect(write.locator("pre").first()).toContainText("notes/plan.md");
+  expect(errors).toEqual([]);
+});
+
+test("task chat: a reply after the result continues the task, and the chat shows both turns", async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const models = await api<{ id: string }[]>(request, "GET", "/models");
+  const agent = await newAgent(request, { name: unique("Replier"), model_config_id: models[0]!.id });
+  const started = await api<{ task: Task }>(request, "POST", `/agents/${agent.id}/run`, { title: "Which site", description: "Improve the site" });
+  const statusOf = async (id: string) => (await api<{ task: Task }>(request, "GET", `/tasks/${id}`)).task.status;
+  await expect.poll(() => statusOf(started.task.id), { timeout: 60_000 }).toBe("completed");
+
+  await page.goto(`/tasks/${started.task.id}`);
+  const box = page.getByTestId("composer-reply");
+  await expect(box).toContainText("Ответ продолжит задачу");
+  await box.getByRole("textbox").fill("Сайт moloko на GitHub");
+  await box.getByRole("textbox").press("Enter"); // like the chat: Enter sends
+  await page.waitForURL((url) => !url.pathname.endsWith(started.task.id));
+  // one chat: the first request and answer above, the reply as the new message
+  await expect(page.getByTestId("earlier-turn")).toContainText("Echo:");
+  await expect(page.getByTestId("task-request")).toHaveText("Сайт moloko на GitHub");
+  const newId = page.url().split("/tasks/")[1]!;
+  await expect.poll(() => statusOf(newId), { timeout: 60_000 }).toBe("completed");
+  await expect(page.getByTestId("task-result")).toBeVisible();
   expect(errors).toEqual([]);
 });

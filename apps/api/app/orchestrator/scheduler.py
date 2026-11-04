@@ -4,6 +4,8 @@ dependencies, wakes the Orchestrator when all its parts are done.
 Every part belongs to one of the owner's persistent agents; a busy agent takes its part
 when it is free. All scheduling of one plan is serialised by a row lock on the
 Orchestrator's run, so the active-parts limit is never exceeded by concurrent completions.
+The Orchestrator itself is free while the parts run, so several plans run at once
+(app/agents/waiting.py).
 """
 
 from __future__ import annotations
@@ -15,8 +17,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.engine import agent_is_busy, lock_run, lock_task, set_task_status
+from app.agents.engine import agent_is_busy, lock_agent, lock_run, lock_task, set_task_status
 from app.agents.state import TERMINAL_TASK, AgentStatus, AgentType, TaskStatus, TaskType
+from app.agents.waiting import resume_merge, wait_to_merge
 from app.events import bus
 from app.models.agent import Agent
 from app.models.task import Task
@@ -99,7 +102,8 @@ async def schedule_tree(
             await set_task_status(db, locked, TaskStatus.CANCELLED, reason="dependency_failed")
             await _report(db, locked, agents)
 
-    # 3. Wake the Orchestrator when all its parts are finished.
+    # 3. Wake the Orchestrator when all its parts are finished. It is free while the parts
+    #    run (it takes other tasks meanwhile): busy now → the plan waits for it in line.
     parents = {t.parent_task_id for t in tasks if t.parent_task_id is not None}
     for parent_id in parents:
         parent = await lock_task(db, parent_id)
@@ -109,8 +113,16 @@ async def schedule_tree(
             and parent.status_reason == WAITING_FOR_SUBTASKS
             and all(TaskStatus(c.status) in TERMINAL_TASK for c in children)
         ):
-            await set_task_status(db, parent, TaskStatus.QUEUED, reason="subtasks_done")
-            to_enqueue.append(parent.id)
+            boss = await lock_agent(db, parent.agent_id) if parent.agent_id else None
+            if boss is not None and boss.current_task_id == parent.id:
+                # a plan started before the Orchestrator was set free while waiting
+                await set_task_status(db, parent, TaskStatus.QUEUED, reason="subtasks_done")
+                to_enqueue.append(parent.id)
+            elif boss is not None and not agent_is_busy(boss):
+                await resume_merge(db, parent, boss)
+                to_enqueue.append(parent.id)
+            else:
+                await wait_to_merge(db, parent)
         _update_progress(parent, children)
 
     # 4. Start ready parts within the active limit.

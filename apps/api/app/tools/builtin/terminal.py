@@ -79,7 +79,13 @@ class TerminalRun(BaseTool):
         'network "packages": then the command may download packages from the npm and '
         "PyPI registries only (for `npm ci`, `npm install`, `pip install --user …`); that "
         "needs the owner's approval, so install once and run the other commands without it. "
-        "Give a larger timeout_seconds for installs and builds (the default is short)."
+        "Give a larger timeout_seconds for installs and builds (the default is short). "
+        "Browser tests work: headless Chromium is installed (its path is in $CHROMIUM_PATH) "
+        "and the app can run inside the same command on localhost — use Playwright's "
+        "`webServer` option so `npx playwright test` starts the app itself. Either download "
+        "Playwright's browser once (`npx playwright install chromium` with network "
+        '"packages") or set `launchOptions: { executablePath: process.env.CHROMIUM_PATH }`. '
+        "Screenshots and reports you save stay in the workspace."
     )
     group = "terminal"
     category = ToolCategory.WRITE
@@ -91,7 +97,7 @@ class TerminalRun(BaseTool):
                 "type": "string",
                 "enum": ["none", PACKAGES],
                 "description": "none (default) or packages: downloads from the npm and PyPI "
-                "registries only, with the owner's approval",
+                "registries and Playwright's browser downloads only, with the owner's approval",
             },
         },
         ["command"],

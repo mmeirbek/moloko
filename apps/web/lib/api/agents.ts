@@ -9,6 +9,7 @@ import type {
   AgentRunRequest,
   AgentUpdate,
   EventOut,
+  FullAccessForAllOut,
   SaveAsTemplate,
   StartedRun,
   StopAllResult,
@@ -17,11 +18,12 @@ import type {
   SystemState,
   TaskCreate,
   TaskDetail,
+  TaskFileOut,
   TaskOut,
   TaskPage,
 } from "@moloko/shared-types";
 
-import { api } from "./client";
+import { api, type UploadOptions } from "./client";
 
 export const agentKeys = {
   all: ["agents"] as const,
@@ -29,6 +31,7 @@ export const agentKeys = {
   tasks: (id: string) => ["tasks", "agent", id] as const,
   templates: (locale: string) => ["agents", "templates", locale] as const,
   archived: ["agents", "archived"] as const,
+  fullAccessForAll: ["agents", "full-access"] as const,
   budget: (id: string) => ["agents", id, "budget"] as const,
   // Under "tasks" so agent.message / task events refresh it (lib/realtime/provider.tsx).
   messages: (id: string, direction: MessageDirection) => ["tasks", "agent-messages", id, direction] as const,
@@ -93,6 +96,11 @@ export const updateAgent = (id: string, body: AgentUpdate) =>
 /** «Полный доступ»: turning it on needs the owner's password; turning it off does not. */
 export const setAgentFullAccess = (id: string, body: AgentFullAccessUpdate) =>
   api.request<AgentOut>(`/agents/${id}/full-access`, { method: "PUT", body });
+/** «Полный доступ всем агентам»: every agent of the office (and every new one) works without approvals. */
+export const getFullAccessForAll = (signal?: AbortSignal) =>
+  api.request<FullAccessForAllOut>("/agents/full-access", { signal });
+export const setFullAccessForAll = (body: AgentFullAccessUpdate) =>
+  api.request<FullAccessForAllOut>("/agents/full-access", { method: "PUT", body });
 export const deleteAgent = (id: string) => api.request<void>(`/agents/${id}`, { method: "DELETE" });
 /** Agents removed from the office (newest first) — they can be brought back. */
 export const listArchivedAgents = (signal?: AbortSignal) => api.request<AgentOut[]>("/agents/archived", { signal });
@@ -128,6 +136,12 @@ export const continueTask = (id: string, instruction?: string) =>
 /** Write to the agent while it works: it reads the message before its next step. */
 export const messageTaskAgent = (id: string, text: string) =>
   api.request<TaskOut>(`/tasks/${id}/message`, { method: "POST", body: { text } });
+/** A file for the task's agents: saved in the task's folder (inbox/); the next message names it. */
+export function uploadTaskFile(id: string, file: File, opts: UploadOptions = {}): Promise<TaskFileOut> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return api.upload<TaskFileOut>(`/tasks/${id}/files`, form, opts);
+}
 
 export const systemLimits = (signal?: AbortSignal) => api.request<SystemLimits>("/system/limits", { signal });
 export const systemStorage = (signal?: AbortSignal) => api.request<StorageStatus>("/system/storage", { signal });

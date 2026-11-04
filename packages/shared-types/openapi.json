@@ -200,6 +200,40 @@
             "title": "Allowed Tools",
             "type": "array"
           },
+          "animal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "amur_tiger",
+                  "snow_leopard",
+                  "pallas_cat",
+                  "fennec_fox",
+                  "red_panda",
+                  "capybara",
+                  "axolotl",
+                  "quokka",
+                  "okapi",
+                  "tarsier",
+                  "ring_tailed_lemur",
+                  "malayan_tapir",
+                  "sea_otter",
+                  "atlantic_puffin",
+                  "three_toed_sloth",
+                  "platypus",
+                  "barn_owl",
+                  "saiga",
+                  "mandrill",
+                  "emperor_tamarin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its animal; null = chosen at random.",
+            "title": "Animal"
+          },
           "autonomy_level": {
             "$ref": "#/components/schemas/AutonomyLevel",
             "default": "supervised"
@@ -341,7 +375,7 @@
       },
       "AgentFullAccessUpdate": {
         "additionalProperties": false,
-        "description": "Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password\n(wrong ones count toward the login lockout); turning it off does not.",
+        "description": "Body of ``PUT /agents/{id}/full-access`` and ``PUT /agents/full-access`` (all agents).\nTurning it on needs the owner's password (wrong ones count toward the login lockout);\nturning it off does not.",
         "properties": {
           "enabled": {
             "title": "Enabled",
@@ -652,6 +686,18 @@
             },
             "title": "Allowed Tools",
             "type": "array"
+          },
+          "animal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its animal (face and office character); null = the Orchestrator.",
+            "title": "Animal"
           },
           "archived_at": {
             "anyOf": [
@@ -1064,6 +1110,39 @@
               }
             ],
             "title": "Allowed Tools"
+          },
+          "animal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "amur_tiger",
+                  "snow_leopard",
+                  "pallas_cat",
+                  "fennec_fox",
+                  "red_panda",
+                  "capybara",
+                  "axolotl",
+                  "quokka",
+                  "okapi",
+                  "tarsier",
+                  "ring_tailed_lemur",
+                  "malayan_tapir",
+                  "sea_otter",
+                  "atlantic_puffin",
+                  "three_toed_sloth",
+                  "platypus",
+                  "barn_owl",
+                  "saiga",
+                  "mandrill",
+                  "emperor_tamarin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Animal"
           },
           "autonomy_level": {
             "anyOf": [
@@ -1940,6 +2019,55 @@
         "title": "CancelResult",
         "type": "object"
       },
+      "CodexStatusOut": {
+        "description": "Codex with the owner's ChatGPT sign-in (service `codex`).",
+        "properties": {
+          "configured": {
+            "description": "CODEX_URL is set (the codex service is part of moloko)",
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "logged_in": {
+            "title": "Logged In",
+            "type": "boolean"
+          },
+          "login_command": {
+            "description": "What the owner runs on the server to sign in",
+            "title": "Login Command",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "\"chatgpt\" or \"api_key\" — how Codex is signed in",
+            "title": "Mode"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "reachable",
+          "logged_in",
+          "mode",
+          "version",
+          "login_command"
+        ],
+        "title": "CodexStatusOut",
+        "type": "object"
+      },
       "ConversationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -2389,6 +2517,69 @@
           "payload"
         ],
         "title": "EventOut",
+        "type": "object"
+      },
+      "FreeProviderOut": {
+        "description": "A platform with a free tier of its official API (app/providers/free_catalog.py): the\nowner gets a key there and adds it as an ordinary provider with this address.",
+        "properties": {
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "key_url": {
+            "title": "Key Url",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_account": {
+            "description": "The address needs the account id ({account_id}).",
+            "title": "Needs Account",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "base_url",
+          "key_url",
+          "needs_account"
+        ],
+        "title": "FreeProviderOut",
+        "type": "object"
+      },
+      "FullAccessForAllOut": {
+        "description": "«Полный доступ всем агентам»: whether every persistent agent of the office (and every\none added later, also by the Orchestrator) works without approvals.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it was turned on; null = off.",
+            "title": "Since"
+          }
+        },
+        "required": [
+          "enabled",
+          "since"
+        ],
+        "title": "FullAccessForAllOut",
         "type": "object"
       },
       "GitHubIntegrationOut": {
@@ -4539,7 +4730,8 @@
             "enum": [
               "openai",
               "anthropic",
-              "mock"
+              "mock",
+              "codex"
             ],
             "title": "Kind",
             "type": "string"
@@ -5989,7 +6181,15 @@
       "StartedRun": {
         "properties": {
           "run": {
-            "$ref": "#/components/schemas/RunOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run; null while the task waits in line for its busy agent (it starts by itself when the agent is free)."
           },
           "task": {
             "$ref": "#/components/schemas/TaskOut"
@@ -6232,7 +6432,7 @@
       },
       "TaskContinue": {
         "additionalProperties": false,
-        "description": "Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).",
+        "description": "Continue a finished task (POST /tasks/{id}/continue): a failed / cancelled one from\nwhere it stopped, or a completed one with the owner's reply to its result.",
         "properties": {
           "instruction": {
             "anyOf": [
@@ -6336,6 +6536,35 @@
           "subtasks"
         ],
         "title": "TaskDetail",
+        "type": "object"
+      },
+      "TaskFileOut": {
+        "description": "A file the owner sent to the task (POST /tasks/{id}/files): saved in the task's\nworkspace, where its agents read it.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "filename",
+          "size",
+          "content_type"
+        ],
+        "title": "TaskFileOut",
         "type": "object"
       },
       "TaskOut": {
@@ -7326,6 +7555,66 @@
           }
         },
         "summary": "Add a persistent agent from a template (built-in or own; it waits for a task)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/full-access": {
+      "get": {
+        "operationId": "get_full_access_for_all_api_v1_agents_full_access_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullAccessForAllOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Whether «Полный доступ всем агентам» is on",
+        "tags": [
+          "agents"
+        ]
+      },
+      "put": {
+        "operationId": "set_full_access_for_all_api_v1_agents_full_access_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFullAccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullAccessForAllOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Turn «Полный доступ» on (confirmed with the password) or off for every agent",
         "tags": [
           "agents"
         ]
@@ -9734,6 +10023,27 @@
         ]
       }
     },
+    "/api/v1/codex/status": {
+      "get": {
+        "operationId": "codex_status_api_v1_codex_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Whether Codex is signed in with ChatGPT on the server",
+        "tags": [
+          "models"
+        ]
+      }
+    },
     "/api/v1/costs": {
       "get": {
         "operationId": "costs_api_v1_costs_get",
@@ -10926,6 +11236,31 @@
           }
         },
         "summary": "Create Provider",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers/free-catalog": {
+      "get": {
+        "operationId": "free_catalog_api_v1_providers_free_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FreeProviderOut"
+                  },
+                  "title": "Response Free Catalog Api V1 Providers Free Catalog Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Platforms with a free tier of their official API (add one with your own key)",
         "tags": [
           "models"
         ]
@@ -12250,7 +12585,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Continue a stopped task from where it stopped (a new attempt)",
+        "summary": "Continue a finished task from where it stopped, or reply to its result",
         "tags": [
           "tasks"
         ]
@@ -12388,6 +12723,70 @@
           }
         },
         "summary": "Print the task's result to PDF (sandbox browser, no network)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/files": {
+      "post": {
+        "operationId": "upload_task_file_api_v1_tasks__task_id__files_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentMediaType": "application/octet-stream",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "AttachmentUpload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskFileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send the task a file: saved in its workspace (inbox/) for its agents to read",
         "tags": [
           "tasks"
         ]

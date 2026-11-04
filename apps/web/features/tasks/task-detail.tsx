@@ -1,26 +1,29 @@
 "use client";
 
-import type { EventOut } from "@moloko/shared-types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { EventOut, TaskOut } from "@moloko/shared-types";
+import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
-import { ArrowLeft, CalendarDays, Square } from "@/components/icons";
-import { TaskToolActivity } from "@/features/tasks/tool-calls";
-import { AgentSteps } from "@/features/tasks/agent-steps";
+import { ArrowLeft, ChevronDown, ChevronRight, Info, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/features/agents/status-badge";
-import { MilkBottle } from "@/features/mascot/milk-bottle";
-import { ExportMenu } from "@/features/tasks/export-menu";
-import { useErrorMessage } from "@/features/auth/use-error-message";
+import { AgentAvatar } from "@/features/agents/agent-avatar";
 import { MarkdownBody } from "@/features/chat/markdown";
-import { cancelTask, getTask, taskEvents, taskKeys } from "@/lib/api/agents";
-import { useRealtimeStore } from "@/lib/realtime/store";
+import { MilkBottle } from "@/features/mascot/milk-bottle";
 import { ErrorState, LoadingState } from "@/features/system/query-state";
-import { useDocumentTitle } from "@/lib/hooks";
-import { TeamLine } from "@/features/agents/team-links";
+import { AgentSteps } from "@/features/tasks/agent-steps";
+import { ExportMenu } from "@/features/tasks/export-menu";
+import { TaskComposer } from "@/features/tasks/task-composer";
+import { ACTIVE_TASK } from "@/features/tasks/task-control";
 import { useTaskError } from "@/features/tasks/task-error";
-import { ACTIVE_TASK, ContinueTask, MessageAgent } from "@/features/tasks/task-control";
+import { TaskOutcome } from "@/features/tasks/task-outcome";
+import { TaskSidebar } from "@/features/tasks/task-sidebar";
+import { TaskApprovals } from "@/features/tasks/tool-calls";
+import { getTask, taskEvents, taskKeys } from "@/lib/api/agents";
+import { useDocumentTitle } from "@/lib/hooks";
+import { useRealtimeStore } from "@/lib/realtime/store";
+import { cn } from "@/lib/utils";
 
 function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, ts: (status: string) => string): string {
   const p = e.payload as Record<string, unknown>;
@@ -72,161 +75,332 @@ function describe(e: EventOut, t: ReturnType<typeof useTranslations<"tasks">>, t
   }
 }
 
+/** Keeps a scrolled container at the bottom while new content arrives — unless the owner
+ *  scrolled up to read (then it stays where they are). */
+function useStickToBottom<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let stuck = true;
+    const onScroll = () => {
+      stuck = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    const observer = new MutationObserver(() => {
+      if (stuck) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(el, { childList: true, subtree: true, characterData: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.scrollTop = el.scrollHeight;
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  return ref;
+}
+
+/** The owner's message, on the right like in the chat. */
+function OwnerBubble({ text, at, testId }: { text: string; at?: string; testId?: string }) {
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap break-words" data-testid={testId}>
+        {text}
+      </div>
+      {at && <span className="text-xs text-muted-foreground">{at}</span>}
+    </div>
+  );
+}
+
+/** The owner's reply this attempt was started with (the task's chat), if any. */
+function latestReply(task: TaskOut): string | null {
+  const turns = task.extra?.follow_ups;
+  if (!Array.isArray(turns) || turns.length === 0) return null;
+  const last = turns[turns.length - 1] as { reply?: unknown };
+  return typeof last.reply === "string" && last.reply.trim() ? last.reply : null;
+}
+
+/** The attempts this one continues, oldest first: each the owner's message and the agent's
+ *  answer (its steps on request) — so a continued task reads as one chat. */
+function EarlierTurns({ taskId, depth }: { taskId: string; depth: number }) {
+  const t = useTranslations("tasks.chat");
+  const taskError = useTaskError();
+  const format = useFormatter();
+  const [steps, setSteps] = useState(false);
+  const detail = useQuery({ queryKey: taskKeys.detail(taskId), queryFn: ({ signal }) => getTask(taskId, signal) });
+  const prev = detail.data?.task;
+  if (!prev) return null;
+  const before = typeof prev.extra?.continued_from === "string" ? prev.extra.continued_from : null;
+  const reply = before ? latestReply(prev) : null;
+  return (
+    <>
+      {before && depth < 10 && <EarlierTurns taskId={before} depth={depth + 1} />}
+      {(!before || reply) && (
+        <OwnerBubble
+          text={reply ?? (prev.description?.trim() || prev.title)}
+          at={format.dateTime(new Date(prev.created_at), { dateStyle: "short", timeStyle: "short" })}
+        />
+      )}
+      <AgentTurn agentId={prev.agent_id} label={t("earlier")} status={prev.status} progress={prev.progress} testId="earlier-turn">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+          aria-expanded={steps}
+          onClick={() => setSteps((v) => !v)}
+        >
+          {steps ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          {steps ? t("hideSteps") : t("showSteps")}
+          <Link href={`/tasks/${prev.id}`} className="ml-2 underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
+            {t("openAttempt")}
+          </Link>
+        </button>
+        {steps && <AgentSteps taskId={prev.id} status={prev.status} result={prev.result} bare />}
+        {prev.result ? (
+          <div className="bg-card p-3 text-sm pixel-frame">
+            <MarkdownBody text={prev.result} />
+          </div>
+        ) : prev.status === "failed" ? (
+          <p className="text-sm text-destructive">{taskError(prev)}</p>
+        ) : null}
+      </AgentTurn>
+    </>
+  );
+}
+
+/** How far a task got: a bottle filling with milk and the percent (owner: no «Готово» /
+ *  «Ждёт» words in the chat). */
+function Progress({ status, progress, className }: { status: string; progress: number; className?: string }) {
+  const done = status === "completed";
+  const value = done ? 100 : Math.max(0, Math.min(99, Math.round(progress)));
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums", className)} data-testid="turn-progress">
+      <MilkBottle percent={value} done={done} size={16} />
+      {value}%
+    </span>
+  );
+}
+
+/** One agent's turn in the task chat: who, how far it got, its steps. */
+function AgentTurn({
+  agentId,
+  label,
+  status,
+  progress,
+  children,
+  testId,
+}: {
+  agentId: string | null;
+  label?: string;
+  status: string;
+  progress: number;
+  children: React.ReactNode;
+  testId?: string;
+}) {
+  const name = useRealtimeStore((s) => (agentId ? s.agents[agentId]?.name : undefined));
+  return (
+    <div className="flex gap-3" data-testid={testId}>
+      {/* the face feels how this turn went: busy, waiting for you, happy when done, sad when it broke */}
+      <AgentAvatar agentId={agentId} size={30} status={status} className="mt-0.5" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          {agentId ? (
+            <Link href={`/office/agents/${agentId}`} className="font-medium hover:underline">
+              {name ?? "—"}
+            </Link>
+          ) : (
+            <span className="font-medium">—</span>
+          )}
+          {label && <span className="text-muted-foreground">{label}</span>}
+          <Progress status={status} progress={progress} />
+        </p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** A part of the Orchestrator's plan, done by one of the agents: its steps and its result. */
+function PartTurn({ part }: { part: TaskOut }) {
+  const t = useTranslations("tasks.chat");
+  const live = useRealtimeStore((s) => s.tasks[part.id]) ?? part;
+  const name = useRealtimeStore((s) => (live.agent_id ? s.agents[live.agent_id]?.name : undefined));
+  const active = ACTIVE_TASK.has(live.status);
+  const [open, setOpen] = useState<boolean | null>(null);
+  const shown = open ?? active;
+  return (
+    <AgentTurn
+      agentId={live.agent_id}
+      label={live.task_type === "consult" ? t("consult", { title: live.title }) : t("part", { title: live.title })}
+      status={live.status}
+      progress={live.progress}
+    >
+      <span className="sr-only" data-testid="part-agent">
+        {name ?? ""}
+      </span>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+        aria-expanded={shown}
+        onClick={() => setOpen(!shown)}
+      >
+        {shown ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        {shown ? t("hideSteps") : t("showSteps")}
+        <Link href={`/tasks/${live.id}`} className="ml-2 underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
+          {t("openPart")}
+        </Link>
+      </button>
+      {shown && <AgentSteps taskId={live.id} status={live.status} result={live.result} bare />}
+      {live.result && (
+        <div className="bg-card p-3 text-sm pixel-frame">
+          <MarkdownBody text={live.result} />
+        </div>
+      )}
+    </AgentTurn>
+  );
+}
+
 export function TaskDetailView({ taskId }: { taskId: string }) {
   const t = useTranslations("tasks");
+  const tChat = useTranslations("tasks.chat");
   const taskError = useTaskError();
   const tc = useTranslations("common");
   const tStatus = useTranslations("status");
-  const tSchedules = useTranslations("schedules");
   const ts = (status: string) => {
     const key = status as Parameters<typeof tStatus>[0];
     return tStatus.has(key) ? tStatus(key).toLowerCase() : status;
   };
   const format = useFormatter();
-  const toMessage = useErrorMessage();
-  const queryClient = useQueryClient();
   const detail = useQuery({ queryKey: taskKeys.detail(taskId), queryFn: ({ signal }) => getTask(taskId, signal) });
   const events = useQuery({ queryKey: taskKeys.events(taskId), queryFn: ({ signal }) => taskEvents(taskId, signal) });
   const live = useRealtimeStore((s) => s.tasks[taskId]);
   const task = live ?? detail.data?.task;
   useDocumentTitle(task?.title);
-  const agentName = useRealtimeStore((s) => (task?.agent_id ? s.agents[task.agent_id]?.name : undefined));
-  const agentsById = useRealtimeStore((s) => s.agents);
+  const mainIsOrchestrator = useRealtimeStore((s) =>
+    task?.agent_id ? s.agents[task.agent_id]?.agent_type === "orchestrator" : false,
+  );
+  const [details, setDetails] = useState(false);
+  const scroller = useStickToBottom<HTMLDivElement>();
 
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: taskKeys.all });
-  const cancel = useMutation({ mutationFn: () => cancelTask(taskId), onSuccess: invalidate });
-  const continuedFrom = typeof task?.extra?.continued_from === "string" ? task.extra.continued_from : null;
 
   if (!task) return detail.isError ? <ErrorState error={detail.error} onRetry={() => detail.refetch()} /> : <LoadingState />;
   const run = detail.data?.run;
+  const subtasks = detail.data?.subtasks ?? [];
+  const continuedFrom = typeof task.extra?.continued_from === "string" ? task.extra.continued_from : null;
+  // What the owner wrote for this attempt: the task itself, or — continuing the chat — the reply.
+  const reply = continuedFrom ? latestReply(task) : null;
+  const sidebar = (className?: string) => (
+    <TaskSidebar
+      task={task}
+      run={run}
+      subtasks={subtasks}
+      events={events.data}
+      describe={(e) => describe(e, t, ts)}
+      className={className}
+    />
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link href="/tasks" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeft className="size-4" /> {t("allTasks")}
-      </Link>
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-sans text-2xl font-semibold tracking-tight break-words">{task.title}</h1>
-          <StatusBadge status={task.status} />
-          {(task.progress > 0 || task.status === "completed") && (
-            <MilkBottle percent={task.progress} done={task.status === "completed"} size={20} />
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {agentName ?? t("noAgent")}
-          {task.attempt > 1 && ` · ${t("attempt", { n: task.attempt })}`}
-          {run && ` · ${t("steps", { n: run.steps })}`}
-          {run?.usage?.output_tokens != null && ` · ${t("tokens", { n: Number(run.usage.output_tokens) })}`}
-        </p>
-        {typeof task.extra?.schedule_id === "string" && (
-          <Link
-            href={`/schedules#schedule-${task.extra.schedule_id}`}
-            className="inline-flex items-center gap-1.5 self-start text-sm underline"
+    // The task as a chat (like Claude Code): the conversation in the middle, the details on the right.
+    <div className="-mt-2 flex h-[calc(100dvh-10.5rem-env(safe-area-inset-bottom))] min-w-0 gap-4 md:h-[calc(100dvh-5.5rem)]">
+      <section className="flex min-w-0 flex-1 flex-col" aria-label={tChat("label")}>
+        <header className="flex flex-wrap items-center gap-2 border-b pb-2">
+          <Link href="/tasks" className="inline-flex items-center text-muted-foreground" aria-label={t("allTasks")}>
+            <ArrowLeft className="size-4" />
+          </Link>
+          {/* Phones: two lines of the title rather than a few letters; the bottles are for wide screens. */}
+          <h1 className="line-clamp-2 min-w-0 flex-1 font-sans text-base leading-snug font-semibold tracking-tight break-words sm:truncate sm:text-lg">
+            {task.title}
+          </h1>
+          <Progress status={task.status} progress={task.progress} className="text-sm" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="lg:hidden"
+            aria-expanded={details}
+            onClick={() => setDetails((v) => !v)}
           >
-            <CalendarDays className="size-3" aria-hidden /> {tSchedules("fromSchedule")}
-          </Link>
-        )}
-        {continuedFrom && (
-          <Link href={`/tasks/${continuedFrom}`} className="self-start text-sm underline underline-offset-2">
-            {t("control.continuedFrom")}
-          </Link>
-        )}
-        <TeamLine task={task} />
-        {task.description && <p className="text-sm whitespace-pre-wrap">{task.description}</p>}
-        {ACTIVE_TASK.has(task.status) && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-              <Square /> {t("cancel")}
-            </Button>
-          </div>
-        )}
-        {cancel.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {toMessage(cancel.error).message}
-          </p>
-        )}
-        <div className="max-w-xl">
-          <MessageAgent task={task} />
-          <ContinueTask task={task} />
-        </div>
-      </div>
+            {details ? <X /> : <Info />} <span className="sr-only sm:not-sr-only">{tChat("details")}</span>
+          </Button>
+        </header>
+        {details && sidebar("mt-2 max-h-[55%] shrink-0 overflow-y-auto lg:hidden")}
 
-      {task.result && (
-        <section className="print-area bg-card p-4 pixel-frame">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">{t("result")}</h2>
-            <ExportMenu taskId={task.id} title={task.title} />
-          </div>
-          <MarkdownBody text={task.result} />
-        </section>
-      )}
-      {task.status === "failed" && (
-        <section role="alert" className="border-2 border-destructive/40 bg-destructive/10 p-4 text-sm">
-          {task.error_code === "agent_budget_exceeded" && task.agent_id ? (
-            // A readable reason in the owner's language, and where to raise the budget.
-            <p className="mb-1">
-              {t("agentBudgetExceeded")}{" "}
-              <Link href={`/office/agents/${task.agent_id}`} className="underline underline-offset-2">
-                {t("openAgent")}
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto py-4" data-testid="task-chat">
+          <div className="mx-auto flex max-w-3xl flex-col gap-5 px-1">
+            {/* Earlier in this chat (the attempts this one continues), then the owner's message */}
+            {continuedFrom && <EarlierTurns taskId={continuedFrom} depth={0} />}
+            {continuedFrom && !reply ? (
+              <Link href={`/tasks/${continuedFrom}`} className="self-center text-xs underline underline-offset-2">
+                {t("control.continuedFrom")}
               </Link>
-            </p>
-          ) : null}
-          <p>{taskError(task)}</p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">
-            {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}
-          </p>
-        </section>
-      )}
-      {task.status === "waiting" && task.status_reason === "unknown_outcome" && (
-        <section role="alert" className="border-2 border-amber-400/50 bg-amber-400/10 p-4 text-sm">
-          {t("unknownOutcome")}
-        </section>
-      )}
+            ) : (
+              <OwnerBubble
+                text={reply ?? (task.description?.trim() || task.title)}
+                at={format.dateTime(new Date(task.created_at), { dateStyle: "short", timeStyle: "short" })}
+                testId="task-request"
+              />
+            )}
 
-      <TaskToolActivity taskId={task.id} status={task.status} />
-      <AgentSteps taskId={task.id} status={task.status} events={events.data} result={task.result} />
+            <AgentTurn
+              agentId={task.agent_id}
+              label={mainIsOrchestrator ? tChat("orchestratorLabel") : undefined}
+              status={task.status}
+              progress={task.progress}
+              testId="task-main-turn"
+            >
+              <AgentSteps taskId={task.id} status={task.status} events={events.data} result={task.result} bare />
+            </AgentTurn>
 
-      {detail.data && detail.data.subtasks.length > 0 && (
-        <section>
-          <h2 className="mb-2 font-medium">{t("subtasks")}</h2>
-          <ul className="divide-y-2 bg-card pixel-frame">
-            {detail.data.subtasks.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/tasks/${s.id}`}
-                  className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-accent/60"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm">{s.title}</span>
-                    {s.agent_id && agentsById[s.agent_id] && (
-                      <span className="block truncate text-xs text-muted-foreground" data-testid="part-agent">
-                        {agentsById[s.agent_id]!.name}
-                      </span>
-                    )}
-                  </span>
-                  <StatusBadge status={s.status} />
-                </Link>
-              </li>
+            {subtasks.map((s) => (
+              <PartTurn key={s.id} part={s} />
             ))}
-          </ul>
-        </section>
-      )}
 
-      <details>
-        <summary className="mb-2 cursor-pointer font-medium">{t("history")}</summary>
-        <ol className="flex flex-col gap-1 border-l-2 pl-4 text-sm">
-          {events.data?.map((e) => (
-            <li key={e.id} className="relative">
-              <span className="absolute top-2 -left-[21px] size-2 bg-border" aria-hidden="true" />
-              <span className="text-muted-foreground tabular-nums">
-                {format.dateTime(new Date(e.timestamp), { timeStyle: "medium" })}
-              </span>{" "}
-              {describe(e, t, ts)}
-            </li>
-          ))}
-        </ol>
-      </details>
+            <TaskApprovals taskIds={[task.id, ...subtasks.map((s) => s.id)]} />
+
+            {task.result && (
+              <AgentTurn agentId={task.agent_id} label={tChat("answer")} status={task.status} progress={task.progress} testId="task-result">
+                <div className="print-area bg-card p-4 pixel-frame">
+                  <MarkdownBody text={task.result} />
+                  <div className="mt-3 flex justify-end">
+                    <ExportMenu taskId={task.id} title={task.title} />
+                  </div>
+                </div>
+              </AgentTurn>
+            )}
+            {!ACTIVE_TASK.has(task.status) && <TaskOutcome task={task} parts={subtasks} />}
+            {task.status === "failed" && (
+              <section role="alert" className="border border-destructive/40 bg-destructive/10 p-4 text-sm">
+                {task.error_code === "agent_budget_exceeded" && task.agent_id ? (
+                  // A readable reason in the owner's language, and where to raise the budget.
+                  <p className="mb-1">
+                    {t("agentBudgetExceeded")}{" "}
+                    <Link href={`/office/agents/${task.agent_id}`} className="underline underline-offset-2">
+                      {t("openAgent")}
+                    </Link>
+                  </p>
+                ) : null}
+                <p>{taskError(task)}</p>
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  {task.error_code} · {tc("errorId", { id: task.error_id ?? "—" })}
+                </p>
+              </section>
+            )}
+            {task.status === "waiting" && task.status_reason === "unknown_outcome" && (
+              <section role="alert" className="border border-amber-400/50 bg-amber-400/10 p-4 text-sm">
+                {t("unknownOutcome")}
+              </section>
+            )}
+          </div>
+        </div>
+
+        {/* The chat input, as in the chat: to the working agent, or continuing the task. */}
+        <footer className="mx-auto w-full max-w-3xl pt-2" data-testid="task-composer">
+          <TaskComposer task={task} />
+        </footer>
+      </section>
+
+      <aside className="hidden w-80 shrink-0 overflow-y-auto lg:block" aria-label={tChat("details")}>
+        {sidebar()}
+      </aside>
     </div>
   );
 }

@@ -76,7 +76,7 @@ export function GettingStarted({ className }: { className?: string }) {
         </Button>
       );
     }
-    const href = { model: "/settings#ai", chat: "/chat/new", task: "/office/agents", agent: "/office/agents" }[step];
+    const href = { model: "/settings/ai", chat: "/chat/new", task: "/office/agents", agent: "/office/agents" }[step];
     return (
       <Button size="sm" variant={variant} asChild>
         <Link href={href}>{t(`${step}.action`)}</Link>
@@ -114,7 +114,7 @@ export function GettingStarted({ className }: { className?: string }) {
           >
             <span
               className={cn(
-                "flex size-7 shrink-0 items-center justify-center border-2 text-xs font-semibold",
+                "flex size-7 shrink-0 items-center justify-center border text-xs font-semibold",
                 done[step] && "border-grass bg-grass text-white",
               )}
               aria-hidden

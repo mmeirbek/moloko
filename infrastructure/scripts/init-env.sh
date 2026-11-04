@@ -27,6 +27,11 @@ if [[ "${1:-}" == "--add-missing" ]]; then
     echo "SANDBOX_RUNNER_TOKEN=$(gen)" >> .env
     echo "Added SANDBOX_RUNNER_TOKEN."
   fi
+  if ! grep -qE '^CODEX_SERVICE_TOKEN=.+' .env; then
+    sed -i '/^CODEX_SERVICE_TOKEN=/d' .env
+    echo "CODEX_SERVICE_TOKEN=$(gen)" >> .env
+    echo "Added CODEX_SERVICE_TOKEN."
+  fi
   # Sandbox values copied from an older .env.example → today's defaults (the command image
   # with Node.js and git, room for npm/builds). A value changed by hand is left alone.
   new_default() {  # key old new
@@ -39,6 +44,7 @@ if [[ "${1:-}" == "--add-missing" ]]; then
   new_default SANDBOX_MEMORY_MB 512 2048
   new_default SANDBOX_PIDS_LIMIT 128 512
   new_default SANDBOX_TIMEOUT_SECONDS 60 600
+  new_default SANDBOX_PACKAGE_HOSTS registry.npmjs.org,pypi.org,files.pythonhosted.org registry.npmjs.org,pypi.org,files.pythonhosted.org,cdn.playwright.dev,playwright.download.prss.microsoft.com
   if ! grep -q '^DOCKER_GID=' .env; then
     echo "DOCKER_GID=$(docker_gid)" >> .env
     echo "Added DOCKER_GID."
@@ -69,6 +75,7 @@ sed \
   -e "s|^SECRET_KEY=.*|SECRET_KEY=$(gen)|" \
   -e "s|^APP_ENCRYPTION_KEY=.*|APP_ENCRYPTION_KEY=$(gen)|" \
   -e "s|^SANDBOX_RUNNER_TOKEN=.*|SANDBOX_RUNNER_TOKEN=$(gen)|" \
+  -e "s|^CODEX_SERVICE_TOKEN=.*|CODEX_SERVICE_TOKEN=$(gen)|" \
   -e "s|^DOCKER_GID=.*|DOCKER_GID=$(docker_gid)|" \
   -e "s|^WEBAUTHN_RP_ID=.*|WEBAUTHN_RP_ID=$name|" \
   -e "s|^WEBAUTHN_ORIGINS=.*|WEBAUTHN_ORIGINS=${name:+https://$name}|" \

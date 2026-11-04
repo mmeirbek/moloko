@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictBool
 
+from app.agents.looks import Animal
 from app.agents.state import AgentType, AutonomyLevel
 from app.schemas.tasks import RunOut, TaskOut
 
@@ -57,6 +58,9 @@ class AgentOut(BaseModel):
         "changed only through PUT /agents/{id}/full-access)."
     )
     full_access_since: datetime | None = Field(description="When full access was turned on.")
+    animal: str | None = Field(
+        default=None, description="Its animal (face and office character); null = the Orchestrator."
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -117,6 +121,7 @@ class AgentCreate(BaseModel):
     workspace_id: uuid.UUID | None = None  # a project workspace; None = one per task
     monthly_budget_usd: MonthlyBudget = None
     contacts: AgentContacts = Field(default_factory=AgentContacts)
+    animal: Animal | None = Field(default=None, description="Its animal; null = chosen at random.")
 
 
 class AgentUpdate(BaseModel):
@@ -135,11 +140,13 @@ class AgentUpdate(BaseModel):
     workspace_id: uuid.UUID | None = None
     monthly_budget_usd: MonthlyBudget = None  # sent as null = remove the limit
     contacts: AgentContacts | None = None  # omitted / null = unchanged
+    animal: Animal | None = None  # omitted / null = unchanged
 
 
 class AgentFullAccessUpdate(BaseModel):
-    """Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
-    (wrong ones count toward the login lockout); turning it off does not."""
+    """Body of ``PUT /agents/{id}/full-access`` and ``PUT /agents/full-access`` (all agents).
+    Turning it on needs the owner's password (wrong ones count toward the login lockout);
+    turning it off does not."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -147,6 +154,14 @@ class AgentFullAccessUpdate(BaseModel):
     password: str | None = Field(
         default=None, min_length=1, max_length=1024, description="Required when enabled."
     )
+
+
+class FullAccessForAllOut(BaseModel):
+    """«Полный доступ всем агентам»: whether every persistent agent of the office (and every
+    one added later, also by the Orchestrator) works without approvals."""
+
+    enabled: bool
+    since: datetime | None = Field(description="When it was turned on; null = off.")
 
 
 class AgentTemplateOut(BaseModel):
@@ -257,4 +272,7 @@ class AgentRunRequest(BaseModel):
 
 class StartedRun(BaseModel):
     task: TaskOut
-    run: RunOut
+    run: RunOut | None = Field(
+        description="The run; null while the task waits in line for its busy agent "
+        "(it starts by itself when the agent is free)."
+    )

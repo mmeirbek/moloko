@@ -5,17 +5,22 @@ created first — a regular agent of the office that stays after the task."""
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.engine import agent_payload, task_payload
+from app.agents.looks import pick_animal
 from app.agents.state import AgentStatus, AgentType, TaskStatus, TaskType
 from app.events import bus
 from app.models.agent import Agent
+from app.models.provider import ModelConfig, Provider
 from app.models.task import Task
 from app.orchestrator.plan import NewAgentSpec, Plan
 from app.orchestrator.prompts import new_agent_system
+from app.providers.model_profiles import chat_capable, describe, profile_for
+from app.repositories.users import UserRepository
 from app.services.audit import AuditService
 
 MAX_ROSTER = 20
@@ -60,14 +65,16 @@ async def create_agent(
     db: AsyncSession, *, orchestrator: Agent, spec: NewAgentSpec, task: Task
 ) -> Agent:
     """A new persistent agent for the owner's office. Never more rights than the
-    Orchestrator: its model, its autonomy level and per-tool rules, only its tools."""
+    Orchestrator: its model, its autonomy level and per-tool rules, only its tools — unless
+    the owner turned on «Полный доступ всем агентам», which covers every agent of the office,
+    this one included (owner's decision 2026-11-03)."""
     agent = Agent(
         user_id=orchestrator.user_id,
         name=await _free_name(db, orchestrator.user_id, spec.name),
         description=spec.description,
         agent_type=AgentType.AUTONOMOUS.value,
         specialization=spec.specialization,
-        model_config_id=orchestrator.model_config_id,
+        model_config_id=uuid.UUID(spec.model) if spec.model else orchestrator.model_config_id,
         system_prompt=new_agent_system(spec.specialization, spec.instructions),
         allowed_tools=[t for t in dict.fromkeys(spec.tools) if t in orchestrator.allowed_tools],
         autonomy_level=orchestrator.autonomy_level,
@@ -75,7 +82,10 @@ async def create_agent(
         status=AgentStatus.IDLE.value,
         limits=dict(orchestrator.limits or {}),
         memory_settings={},
+        animal=await pick_animal(db, orchestrator.user_id),  # the Orchestrator picks at random
     )
+    if await UserRepository(db).full_access_for_all(agent.user_id):
+        agent.full_access_since = datetime.now(UTC)
     db.add(agent)
     await db.flush()
     await db.refresh(agent)
@@ -100,11 +110,46 @@ async def create_agent(
             "type": agent.agent_type,
             "autonomy": agent.autonomy_level,
             "tools": agent.allowed_tools,
+            **({"full_access": "all"} if agent.full_access else {}),
             "created_by": "orchestrator",
             "task_id": str(task.id),
         },
     )
     return agent
+
+
+async def owner_models(
+    db: AsyncSession, user_id: uuid.UUID, limit: int
+) -> dict[str, tuple[str, str]]:
+    """The owner's enabled models for the Orchestrator to choose from: name → (its line in the
+    plan prompt with what it is best at, its model config id). At most ``limit``
+    (ORCHESTRATOR_MAX_MODELS_LISTED), the strongest first, so the prompt stays short."""
+    rows = (
+        await db.execute(
+            select(ModelConfig, Provider.name, Provider.kind, Provider.base_url)
+            .join(Provider, ModelConfig.provider_id == Provider.id)
+            .where(
+                ModelConfig.user_id == user_id,
+                ModelConfig.enabled.is_(True),
+                Provider.enabled.is_(True),
+            )
+        )
+    ).all()
+    usable = [
+        (config, provider_name)
+        for config, provider_name, kind, base_url in rows
+        # not a chat model, or it already refused a part (runtimes/native.py)
+        if chat_capable(config.model, openai_direct=kind == "openai" and not base_url)
+        and not (config.params or {}).get("not_for_plans")
+    ]
+    ranked = sorted(
+        usable, key=lambda r: (profile_for(r[0].model).tier, profile_for(r[0].model).speed)
+    )
+    out: dict[str, tuple[str, str]] = {}
+    for config, provider_name in ranked[:limit]:
+        name = f"{config.model} @ {provider_name}"
+        out[name] = (describe(name, config.model), str(config.id))
+    return out
 
 
 async def create_subtasks(
@@ -136,6 +181,8 @@ async def create_subtasks(
                 "assigned": True,
                 "root_run": str(root),
                 "specialization": worker.specialization,
+                # the model the Orchestrator picked for this part (runtimes/native.py)
+                **({"model_config_id": spec.model} if spec.model else {}),
             },
         )
         db.add(task)

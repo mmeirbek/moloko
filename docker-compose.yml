@@ -39,7 +39,9 @@ x-backend-env: &backend-env
   ENABLE_MOCK_PROVIDER: ${ENABLE_MOCK_PROVIDER:-false}
   # Agent execution limits (spec 7.2)
   MAX_ACTIVE_PARTS_PER_RUN: ${MAX_ACTIVE_PARTS_PER_RUN:-5}
+  ORCHESTRATOR_MAX_TASKS_AT_ONCE: ${ORCHESTRATOR_MAX_TASKS_AT_ONCE:-5}
   ORCHESTRATOR_MAX_NEW_AGENTS: ${ORCHESTRATOR_MAX_NEW_AGENTS:-3}
+  ORCHESTRATOR_MAX_MODELS_LISTED: ${ORCHESTRATOR_MAX_MODELS_LISTED:-40}
   MAX_STEPS_PER_RUN: ${MAX_STEPS_PER_RUN:-50}
   RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-1800}
   MAX_RETRIES_PER_STEP: ${MAX_RETRIES_PER_STEP:-2}
@@ -48,6 +50,11 @@ x-backend-env: &backend-env
   AGENT_BUDGET_WARN_PERCENT: ${AGENT_BUDGET_WARN_PERCENT:-80}
   AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-16000}
   AGENT_MAX_CUT_OFFS: ${AGENT_MAX_CUT_OFFS:-3}
+  TASK_FOLLOWUP_TURNS: ${TASK_FOLLOWUP_TURNS:-5}
+  TASK_PROGRESS_HALF_STEPS: ${TASK_PROGRESS_HALF_STEPS:-4}
+  CHAT_AUTO_HANDOFF: ${CHAT_AUTO_HANDOFF:-true}
+  CHAT_PINNED_MEMORY: ${CHAT_PINNED_MEMORY:-true}
+  TASK_FOLLOWUP_ANSWER_MAX_CHARS: ${TASK_FOLLOWUP_ANSWER_MAX_CHARS:-8000}
   AGENT_TEMPLATES_MAX: ${AGENT_TEMPLATES_MAX:-50}
   # Agents talking to each other directly (agent_ask / agent_tell)
   AGENT_ASK_TIMEOUT_MINUTES: ${AGENT_ASK_TIMEOUT_MINUTES:-30}
@@ -61,7 +68,7 @@ x-backend-env: &backend-env
   SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-600}
   SANDBOX_DEFAULT_TIMEOUT_SECONDS: ${SANDBOX_DEFAULT_TIMEOUT_SECONDS:-120}
   # terminal_run with network "packages" reaches only these hosts (egress-packages gets the same list)
-  SANDBOX_PACKAGE_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org}
+  SANDBOX_PACKAGE_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org,cdn.playwright.dev,playwright.download.prss.microsoft.com}
   SEARXNG_URL: ${SEARXNG_URL:-}
   WORKSPACE_TASK_TTL_DAYS: ${WORKSPACE_TASK_TTL_DAYS:-0}
   MEMORY_CONTEXT_MAX_CHARS: ${MEMORY_CONTEXT_MAX_CHARS:-8000}
@@ -79,6 +86,10 @@ x-backend-env: &backend-env
   CHAT_CONTEXT_IMAGES: ${CHAT_CONTEXT_IMAGES:-4}
   # Voice: the local Whisper service (`stt`), else the OpenAI provider.
   STT_URL: ${STT_URL-http://stt:8000}  # empty in .env = no local speech model
+  # Codex signed in with the owner's ChatGPT account (service `codex`); empty in .env = off
+  CODEX_URL: ${CODEX_URL-http://codex:8095}
+  CODEX_SERVICE_TOKEN: ${CODEX_SERVICE_TOKEN:-}
+  CODEX_RUN_TIMEOUT_SECONDS: ${CODEX_RUN_TIMEOUT_SECONDS:-3600}
   STT_MODEL: ${STT_MODEL:-large-v3-turbo}
   STT_TIMEOUT_SECONDS: ${STT_TIMEOUT_SECONDS:-900}
   VOICE_UPLOAD_MAX_BYTES: ${VOICE_UPLOAD_MAX_BYTES:-200000000}
@@ -179,7 +190,7 @@ services:
       - files:/data/files  # chat attachments (any size; streamed here, not into memory)
       - ${BACKUP_DIR:-./backups}:/backups:ro  # backup status for Settings → Backups
     # "internal" for PostgreSQL/Redis, "edge" for Caddy and outbound calls to AI providers.
-    networks: [internal, edge]
+    networks: [internal, edge, codex-rpc]
     healthcheck:
       test:
         - CMD
@@ -213,7 +224,7 @@ services:
     volumes:
       - workspaces:/data/workspaces  # file tools work here
     # Needs PostgreSQL/Redis (internal) and AI providers (edge). No published ports.
-    networks: [internal, edge]
+    networks: [internal, edge, codex-rpc]
     healthcheck:
       test: ["CMD", "arq", "--check", "app.workers.main.WorkerSettings"]
       interval: 30s
@@ -246,6 +257,9 @@ services:
       SANDBOX_CPUS: ${SANDBOX_CPUS:-1}
       SANDBOX_MEMORY_MB: ${SANDBOX_MEMORY_MB:-2048}
       SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-512}
+      SANDBOX_SHM_MB: ${SANDBOX_SHM_MB:-256}
+      SANDBOX_TMP_MB: ${SANDBOX_TMP_MB:-256}
+      SANDBOX_NOFILE: ${SANDBOX_NOFILE:-4096}
       SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-600}
       SANDBOX_WORKSPACES_VOLUME: ${WORKSPACES_VOLUME:-moloko_workspaces}
       # The agents' browser (built with: docker compose --profile browser build browser)
@@ -307,7 +321,7 @@ services:
     cap_drop: [ALL]
     environment:
       EGRESS_PORT: "3128"
-      EGRESS_ALLOWED_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org}
+      EGRESS_ALLOWED_HOSTS: ${SANDBOX_PACKAGE_HOSTS:-registry.npmjs.org,pypi.org,files.pythonhosted.org,cdn.playwright.dev,playwright.download.prss.microsoft.com}
       EGRESS_ALLOWED_PORTS: "443"
       EGRESS_MAX_BYTES: ${PACKAGES_EGRESS_MAX_BYTES:-500000000}
     networks: [packages, edge]
@@ -381,6 +395,45 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    logging: *logging
+
+  # OpenAI's Codex CLI signed in with the owner's ChatGPT account (owner's decision 2026-11-04)
+  # runs agents' coding tasks in their workspace (apps/api/app/codex_service/server.py).
+  # Only the backend and the worker reach it (codex-rpc + a token); it goes out to the internet
+  # on codex-out (OpenAI, and what the task's commands fetch). No docker socket, no database.
+  # Sign in once: docker compose exec codex codex login --device-auth
+  codex:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/codex.Dockerfile
+    image: moloko-codex:local
+    restart: unless-stopped
+    <<: *hardening
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g
+    cap_drop: [ALL]
+    environment:
+      CODEX_SERVICE_TOKEN: ${CODEX_SERVICE_TOKEN:-}
+      CODEX_RUN_TIMEOUT_SECONDS: ${CODEX_RUN_TIMEOUT_SECONDS:-3600}
+      CODEX_WORKSPACES: /data/workspaces
+    volumes:
+      - workspaces:/data/workspaces
+      - codex-home:/codex-home  # the sign-in (auth.json): like a password, never backed up
+    cpus: ${CODEX_CPUS:-4}
+    mem_limit: ${CODEX_MEMORY:-4g}
+    pids_limit: 1024
+    networks: [codex-rpc, codex-out]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8095/v1/health', timeout=4)"
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 10s
     logging: *logging
 
   # Image of the agents' commands (Python 3.12 + Node.js 22 + git); not a running service.
@@ -521,6 +574,9 @@ networks:
     name: ${PACKAGES_NETWORK:-moloko_packages}
   offsite: {}  # the backup service's way out (off-site copies); no other service is on it
   stt-download: {}  # only stt-models: fetches the speech model, nothing else lives here
+  codex-rpc:
+    internal: true  # backend and worker → codex only
+  codex-out: {}  # codex's way out (OpenAI); no other service is on it
 
 volumes:
   workspaces:
@@ -528,6 +584,7 @@ volumes:
   files:
     name: ${FILES_VOLUME:-moloko_files}  # fixed name: restore.sh mounts it
   stt-models:  # re-downloadable, not backed up
+  codex-home:  # Codex's sign-in and sessions; not backed up (sign in again after a restore)
   postgres-data:
   valkey-data:
   caddy-data:

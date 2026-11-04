@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
-ProviderKindLiteral = Literal["openai", "anthropic", "mock"]
+ProviderKindLiteral = Literal["openai", "anthropic", "mock", "codex"]
 
 
 def _check_base_url(value: str | None) -> str | None:
@@ -108,3 +108,14 @@ class ModelUpdate(BaseModel):
     input_price_per_mtok: Decimal | None = Field(default=None, ge=0)
     output_price_per_mtok: Decimal | None = Field(default=None, ge=0)
     params: ModelParams | None = None
+
+
+class FreeProviderOut(BaseModel):
+    """A platform with a free tier of its official API (app/providers/free_catalog.py): the
+    owner gets a key there and adds it as an ordinary provider with this address."""
+
+    key: str
+    name: str
+    base_url: str
+    key_url: str
+    needs_account: bool = Field(description="The address needs the account id ({account_id}).")

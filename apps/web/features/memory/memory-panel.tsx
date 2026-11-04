@@ -151,7 +151,7 @@ function Revisions({ memoryId }: { memoryId: string }) {
     queryFn: ({ signal }) => memoryRevisions(memoryId, signal),
   });
   return (
-    <ol className="flex flex-col gap-2 border-l-2 pl-3 text-sm" aria-label={t("history")}>
+    <ol className="flex flex-col gap-2 border-l pl-3 text-sm" aria-label={t("history")}>
       {revisions.data?.map((r) => (
         <li key={r.revision}>
           <p className="text-xs text-muted-foreground">
@@ -255,7 +255,7 @@ export function MemoryContextPreview({ agentId }: { agentId: string }) {
   if (!ctx.data) return null;
   const { enabled, chars, max_chars, included, omitted, text } = ctx.data;
   return (
-    <div className="flex flex-col gap-2 border-2 border-dashed p-4 text-sm" data-testid="memory-context">
+    <div className="flex flex-col gap-2 border border-dashed p-4 text-sm" data-testid="memory-context">
       {!enabled ? (
         <p className="text-muted-foreground">{t("disabled")}</p>
       ) : (
@@ -307,7 +307,7 @@ export function MemoryPanel({ scope }: { scope: MemoryScope }) {
         ))}
       </ul>
       {memories.data?.length === 0 && !adding && (
-        <EmptyState title={t("empty")} mood="sleep" className="border-2 border-dashed" />
+        <EmptyState title={t("empty")} mood="sleep" className="border border-dashed" />
       )}
     </div>
   );

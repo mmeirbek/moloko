@@ -135,7 +135,7 @@ export function PixelCow({
       {mooing && (
         <span
           role="status"
-          className="font-pixel absolute -top-3 left-3/4 border-2 border-[#1b1b2e] bg-white px-1.5 text-sm leading-tight whitespace-nowrap text-[#1b1b2e] shadow"
+          className="font-pixel absolute -top-3 left-3/4 border border-[#1b1b2e] bg-white px-1.5 text-sm leading-tight whitespace-nowrap text-[#1b1b2e] shadow"
         >
           {t("moo")}
         </span>

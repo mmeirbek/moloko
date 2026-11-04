@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
 from app.events import bus
-from app.models.agent import Agent
+from app.models.agent import Agent, AgentRun
 from app.models.agent_message import AgentMessage
 from app.services.audit import AuditService
 
@@ -30,6 +30,12 @@ class DeliveryRefused(AppError):
 
 def run_of(agent: Agent) -> uuid.UUID | None:
     return agent.run_id
+
+
+async def _runs_tree(db: AsyncSession, agent: Agent, run_id: uuid.UUID) -> bool:
+    """``run_id`` is a run of this agent (an Orchestrator's plan)."""
+    owner = await db.execute(select(AgentRun.agent_id).where(AgentRun.id == run_id))
+    return owner.scalar_one_or_none() == agent.id
 
 
 async def send_message(
@@ -56,7 +62,10 @@ async def send_message(
     }
     if tree_run is not None:
         members = {run_of(sender), run_of(receiver)}
-        same_run = sender.user_id == receiver.user_id and tree_run in members
+        # The Orchestrator has several plans under way: the tree may be any run of its own.
+        same_run = sender.user_id == receiver.user_id and (
+            tree_run in members or await _runs_tree(db, receiver, tree_run)
+        )
         run_id = tree_run
     else:
         same_run = (

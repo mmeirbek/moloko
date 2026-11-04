@@ -94,7 +94,11 @@ FRUITS = ["apple", "banana", "cherry", "durian", "elder", "fig", "grape"]
 
 # With CHAT_CONTEXT_MAX_MESSAGES=5 the model sees 4 earlier messages; a summary folds all
 # but the newest 2 once more than 4 follow it.
-SMALL = {"chat_context_max_messages": 5, "chat_recall_enabled": False}
+# The hand-off instruction and the owner's memory block are left out here
+# (tests/test_chat_handoff.py, tests/test_owner_context.py have them), so the prompts these
+# tests look at hold only the summary and recall.
+NO_HANDOFF = {"chat_auto_handoff": False, "chat_pinned_memory": False}
+SMALL = {"chat_context_max_messages": 5, "chat_recall_enabled": False, **NO_HANDOFF}
 
 
 async def test_long_chat_is_summarised_incrementally_and_used(
@@ -280,7 +284,7 @@ async def test_settings_off_keep_prompts_unchanged(
 async def test_recall_brings_other_chats_and_memory_but_not_this_chat(
     app_factory: AppFactory, model: Model
 ) -> None:
-    app = await app_factory()
+    app = await app_factory(**NO_HANDOFF)
     owner = await make_owner(app)
     async with logged_in_client(app) as client:
         await add_mock_model(client)
@@ -346,7 +350,7 @@ async def test_recall_is_time_boxed(
     model: Model,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    app = await app_factory(chat_recall_timeout_seconds=0.2)
+    app = await app_factory(chat_recall_timeout_seconds=0.2, **NO_HANDOFF)
     await make_owner(app)
 
     async def slow_search(*args: Any, **kwargs: Any) -> Any:

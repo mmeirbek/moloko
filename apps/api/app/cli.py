@@ -92,6 +92,61 @@ async def _set_address(args: argparse.Namespace) -> None:
         print(f"moloko now addresses '{user.username}' as «{user.address_as}».")
 
 
+async def _remember(args: argparse.Namespace) -> None:
+    """A shared memory about the owner (all agents and the chat see it), read from stdin:
+    pinned (always in the prompt, first) unless ``--unpinned`` (then it is in the prompt while
+    there is room, and found by recall when it matters). The same title updates the entry (a
+    new revision) instead of adding another."""
+    from sqlalchemy import select
+
+    from app.agents.state import MemoryType
+    from app.models.memory import Memory
+    from app.repositories.users import UserRepository
+    from app.schemas.memories import MemoryCreate, MemoryUpdate
+    from app.services.memories import MemoryService
+
+    content = sys.stdin.read().strip()
+    if not content:
+        raise SystemExit("Nothing to remember: pass the text on stdin.")
+    settings = get_settings()
+    db = Database(settings)
+    try:
+        async with db.sessionmaker() as session:
+            user = await UserRepository(session).get_by_username(args.username.strip().lower())
+            if user is None:
+                raise SystemExit(f"No user '{args.username}'.")
+            existing = (
+                await session.execute(
+                    select(Memory).where(
+                        Memory.user_id == user.id,
+                        Memory.agent_id.is_(None),
+                        Memory.memory_type == MemoryType.USER.value,
+                        Memory.title == args.title.strip(),
+                    )
+                )
+            ).scalar_one_or_none()
+            service = MemoryService(session, settings)
+            if existing is None:
+                memory = await service.create(
+                    user.id,
+                    MemoryCreate(
+                        memory_type=MemoryType.USER,
+                        title=args.title,
+                        content=content,
+                        pinned=not args.unpinned,
+                    ),
+                )
+            else:
+                memory = await service.update(
+                    user.id, existing.id, MemoryUpdate(content=content, pinned=not args.unpinned)
+                )
+            title, revision, pinned = memory.title, memory.revision, memory.pinned
+    finally:
+        await db.dispose()
+    kind = "pinned" if pinned else "not pinned"
+    print(f"Remembered «{title}» for every agent and the chat ({kind}, revision {revision}).")
+
+
 async def _wait_for_db(args: argparse.Namespace) -> None:
     from sqlalchemy import text
 
@@ -164,6 +219,16 @@ def main(argv: list[str] | None = None) -> None:
     what.add_argument("--address", help='The form of address, e.g. "Мейрбек Максатович"')
     what.add_argument("--clear", action="store_true", help="No particular form of address")
     p.set_defaults(func=_set_address)
+
+    p = sub.add_parser(
+        "remember", help="Save a memory about the user (text on stdin) for agents and chat"
+    )
+    p.add_argument("--username", required=True)
+    p.add_argument("--title", required=True, help="Same title = update that entry")
+    p.add_argument(
+        "--unpinned", action="store_true", help="Not always in the prompt (recalled when relevant)"
+    )
+    p.set_defaults(func=_remember)
 
     p = sub.add_parser("has-owner", help="Exit 0 if the owner account exists, 1 if not")
     p.set_defaults(func=_has_owner)

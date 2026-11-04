@@ -11,17 +11,20 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import type { MessageOut } from "@moloko/shared-types";
+import type { AttachmentOut, MessageOut } from "@moloko/shared-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { LogoMark } from "@/components/brand/logo";
-import { ArrowDown, Check, Copy, Network, RotateCcw } from "@/components/icons";
+import { ArrowDown, Check, Clock, Copy, Network, RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Thinking } from "@/components/ui/thinking";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useErrorMessage } from "@/features/auth/use-error-message";
-import { chatKeys, getChat, listPickerModels, modelKeys, updateChat } from "@/lib/api/chat";
+import type { VoiceMessage } from "@/features/voice/mic-button";
+import { chatKeys, getChat, listPickerModels, modelKeys, updateChat, uploadAttachment } from "@/lib/api/chat";
 import { handOff } from "@/lib/api/runs";
 import { useDocumentTitle } from "@/lib/hooks";
 
@@ -29,9 +32,10 @@ import { AttachmentChip } from "./attachment-chip";
 import { useComposerAttachments } from "./attachments";
 import { RecalledSources, SummaryNotice } from "./chat-memory";
 import { useChatTitle } from "./chat-title";
-import { Composer, Suggestions } from "./composer";
+import { Composer } from "./composer";
 import { MarkdownText } from "./markdown";
 import { ModelPicker } from "./model-picker";
+import { useAgentTask } from "./use-agent-task";
 import { useChatThread } from "./use-chat-thread";
 import { ChatWelcome } from "./welcome";
 
@@ -72,7 +76,7 @@ function UserMessage() {
   const runId = message?.agent_run_id;
   return (
     <MessagePrimitive.Root className="flex flex-col items-end gap-1.5">
-      <div className="max-w-[85%] bg-muted px-4 py-2.5 whitespace-pre-wrap text-foreground">
+      <div className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 whitespace-pre-wrap text-foreground">
         <MessagePrimitive.Parts />
       </div>
       {message?.attachments && message.attachments.length > 0 && (
@@ -82,13 +86,18 @@ function UserMessage() {
           ))}
         </ul>
       )}
+      {message?.status === "queued" && (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="message-queued">
+          <Clock className="size-3.5" aria-hidden /> {t("queued")}
+        </span>
+      )}
       {runId && (
         <Link
           href={`/runs/${runId}`}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
         >
           <Network className="size-3.5" />
-          {answered.has(runId) ? t("handedOff") : t("agentsWorking")}
+          {answered.has(runId) ? t("handedOff") : <Thinking label={t("agentsWorking")} since={message?.created_at} className="text-xs" testId="agents-working" />}
         </Link>
       )}
     </MessagePrimitive.Root>
@@ -115,17 +124,14 @@ function AssistantMessage() {
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="max-w-full text-sm leading-relaxed">
           {streaming && !message?.content ? (
-            <span className="inline-flex gap-1 py-2" aria-label={t("thinking")}>
-              <span className="size-1.5 animate-pulse bg-muted-foreground" />
-              <span className="size-1.5 animate-pulse bg-muted-foreground [animation-delay:150ms]" />
-              <span className="size-1.5 animate-pulse bg-muted-foreground [animation-delay:300ms]" />
-            </span>
+            <Thinking phases={[t("thinking"), t("pondering"), t("composing"), t("stillThinking")]} since={message?.created_at} className="py-1.5 text-muted-foreground" />
           ) : (
             <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
           )}
         </div>
+        {streaming && !!message?.content && <Thinking label={t("writing")} className="text-xs text-muted-foreground" />}
         {failed && message && (
-          <div role="alert" className="border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+          <div role="alert" className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
             <p>{errorText(message)}</p>
             <div className="mt-1 flex items-center justify-between gap-2">
               {message.error_id && (
@@ -184,6 +190,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
   const models = useQuery({ queryKey: modelKeys.picker, queryFn: ({ signal }) => listPickerModels(signal) });
   const [modelOverride, setModelOverride] = useState<string | null | undefined>(undefined);
   const [agentsMode, setAgentsMode] = useState(false);
+  const agentTask = useAgentTask();
   const [handoffError, setHandoffError] = useState<unknown>(null);
   const [handingOff, setHandingOff] = useState(false);
   const [modelError, setModelError] = useState<unknown>(null);
@@ -253,6 +260,16 @@ export function ChatThread({ chatId }: { chatId: string }) {
       .join("")
       .trim();
     if (!text) return;
+    const mention = agentTask.match(text);
+    if (mention) {
+      // «@Кодер почини…»: that agent's task (its page opens); the chat stays as it was.
+      setHandoffError(null);
+      void agentTask.start(mention).catch((e: unknown) => {
+        setHandoffError(e);
+        setDraft(text);
+      });
+      return;
+    }
     if (agentsMode) {
       void sendToAgents(text).then((ok) => !ok && setDraft(text));
       return;
@@ -272,10 +289,49 @@ export function ChatThread({ chatId }: { chatId: string }) {
     })();
   }
 
+  // The server keeps the line (a message sent while an answer is written waits and is answered
+  // right after): with a queue the box stays usable during an answer, and every send goes here.
+  const queue = useMemo(
+    () => ({
+      items: [],
+      steerItems: [],
+      enqueue: (message: AppendMessage) => submitRef.current(message),
+      steer: (message: AppendMessage) => submitRef.current(message),
+      move: () => {},
+      edit: () => {},
+      remove: () => {},
+    }),
+    [],
+  );
+  const submitRef = useRef(submit);
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+
+  /** A voice message: the recording is attached, its text is the message (in line if busy). */
+  async function sendVoice(voice: VoiceMessage) {
+    setHandoffError(null);
+    let audio: AttachmentOut;
+    try {
+      audio = await uploadAttachment(chatId, new File([voice.audio], voice.filename, { type: voice.audio.type }));
+    } catch (error) {
+      setHandoffError(error);
+      setDraft(voice.text); // the words are not lost
+      return;
+    }
+    const kept = await files.take();
+    const accepted = await thread.send(voice.text, selectedModel, [...kept.map((a) => a.id), audio.id]);
+    if (!accepted) {
+      setDraft(voice.text);
+      files.restore(kept);
+    }
+  }
+
   const runtime = useExternalStoreRuntime<MessageOut>({
     messages: thread.messages,
     isRunning: thread.isRunning,
     convertMessage: toThreadMessage,
+    queue,
     // Return at once (send() reports its own errors; isRunning comes from our store).
     onNew: async (message: AppendMessage) => submit(message),
     // assistant-ui treats a send whose parent is not its latest message as an edit (this can
@@ -299,9 +355,8 @@ export function ChatThread({ chatId }: { chatId: string }) {
             {/* Files dropped anywhere on the chat are attached. */}
             <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col" {...(agentsMode ? {} : files.dropProps)}>
               {files.dropOverlay}
-              <h1 className="mx-auto w-full max-w-3xl truncate px-1 pb-2 font-sans text-base font-medium text-muted-foreground">
-                {chat.data ? chatTitle(chat.data.title) : ""}
-              </h1>
+              {/* The chat's name is in the work list; here only for screen readers (owner: no title line). */}
+              <h1 className="sr-only">{chat.data ? chatTitle(chat.data.title) : ""}</h1>
               {/* Older messages no longer fit the model's context: they live on as a summary. */}
               {chat.data?.summary_updated_at && <SummaryNotice chatId={chatId} count={chat.data.summary_messages ?? 0} />}
 
@@ -315,7 +370,17 @@ export function ChatThread({ chatId }: { chatId: string }) {
                 className="flex min-h-0 flex-1 flex-col overflow-y-auto"
               >
                 <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-1 py-6">
-                  {thread.isLoading && <p className="m-auto text-sm text-muted-foreground">{tc("loading")}</p>}
+                  {thread.isLoading && (
+                    <div role="status" className="mx-auto flex w-full max-w-3xl flex-col gap-5 py-6">
+                      <span className="sr-only">{tc("loading")}</span>
+                      <Skeleton className="ml-auto h-10 w-2/5 rounded-2xl" />
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="h-3.5 w-full" />
+                        <Skeleton className="h-3.5 w-11/12" />
+                        <Skeleton className="h-3.5 w-3/5" />
+                      </div>
+                    </div>
+                  )}
                   {loadFailed && (
                     <div role="alert" className="m-auto flex max-w-sm flex-col items-center gap-2 text-center text-sm">
                       <p>{toMessage(thread.loadError).message}</p>
@@ -328,7 +393,6 @@ export function ChatThread({ chatId }: { chatId: string }) {
                     <ThreadPrimitive.Empty>
                       <div className="m-auto flex w-full flex-col gap-6">
                         <ChatWelcome noModels={noModels} />
-                        {!noModels && <Suggestions />}
                       </div>
                     </ThreadPrimitive.Empty>
                   )}
@@ -350,7 +414,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                 {sendError && (
                   <div
                     role="alert"
-                    className="flex items-center justify-between gap-2 border-2 border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
+                    className="flex items-center justify-between gap-2 border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
                   >
                     <span>{sendError.message}</span>
                     <button
@@ -367,7 +431,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   </div>
                 )}
                 {looksComplex && !agentsMode && lastUser && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-2 bg-accent/50 px-3 py-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border bg-accent/50 px-3 py-2 text-sm">
                     <span>{t("suggestAgents")}</span>
                     <Button
                       size="sm"
@@ -387,6 +451,7 @@ export function ChatThread({ chatId }: { chatId: string }) {
                   attach={agentsMode ? undefined : files.button({ disabled })}
                   chips={agentsMode ? undefined : files.chips}
                   onPaste={agentsMode ? undefined : files.onPaste}
+                  onVoice={agentsMode ? undefined : sendVoice}
                   model={
                     models.data && models.data.length > 0 && !agentsMode ? (
                       <ModelPicker models={models.data} value={selectedModel} onChange={chooseModel} />

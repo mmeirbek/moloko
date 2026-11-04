@@ -16,16 +16,18 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.errors import new_error_id
+from app.core.errors import AppError, new_error_id
 from app.events import bus
 from app.models.chat import Conversation, Message
 from app.providers.base import ChatRequest, ChatResult, ProviderError
 from app.providers.gateway import ModelGateway, ModelTarget, estimate_cost
 from app.schemas.chat import MessageOut
 from app.services import chat_memory
+from app.services.chat_handoff import Handoff, hand_to_agents, wants_agents
+from app.tasks.queue import TaskEnqueuer
 
 logger = logging.getLogger("moloko.chat")
 
@@ -46,6 +48,8 @@ class StreamState:
     subscribers: set[asyncio.Queue[StreamEvent | None]] = field(default_factory=set)
     task: asyncio.Task[None] | None = None
     cancel_reason: Literal["user", "shutdown"] | None = None
+    # Set when the chat may hand the message to the agents (services/chat_handoff).
+    handoff: Handoff | None = None
 
     @property
     def text(self) -> str:
@@ -72,10 +76,14 @@ class ChatStreamManager:
         gateway: ModelGateway,
         *,
         hook: EventHook | None = None,
+        task_queue: Callable[[], TaskEnqueuer | None] | None = None,
     ) -> None:
         self.sessionmaker = sessionmaker
         self.gateway = gateway
         self.hook = hook
+        # The job queue for hand-offs of messages answered from the line (read when needed:
+        # tests swap it after startup).
+        self.task_queue = task_queue
         self._streams: dict[uuid.UUID, StreamState] = {}
         # Rolling summaries run after an answer, in the background (services/chat_memory).
         self._background: set[asyncio.Task[None]] = set()
@@ -93,8 +101,14 @@ class ChatStreamManager:
         message_id: uuid.UUID,
         target: ModelTarget,
         request: ChatRequest,
+        handoff: Handoff | None = None,
     ) -> StreamState:
-        state = StreamState(message_id=message_id, conversation_id=conversation_id, user_id=user_id)
+        state = StreamState(
+            message_id=message_id,
+            conversation_id=conversation_id,
+            user_id=user_id,
+            handoff=handoff,
+        )
         self._streams[message_id] = state
         state.task = asyncio.create_task(
             self._run(state, target, request), name=f"chat:{message_id}"
@@ -257,6 +271,50 @@ class ChatStreamManager:
             state.close()
             self._streams.pop(state.message_id, None)
 
+    async def _hand_off(
+        self, state: StreamState, target: ModelTarget, result: ChatResult | None
+    ) -> bool:
+        """The answer asked for the agents: start them, tell the browser. False = they could
+        not take it (the answer then fails with a reason)."""
+        assert state.handoff is not None
+        try:
+            task_id, run_id = await hand_to_agents(
+                self.sessionmaker,
+                user_id=state.user_id,
+                conversation_id=state.conversation_id,
+                answer_id=state.message_id,
+                handoff=state.handoff,
+            )
+        except AppError as exc:
+            logger.info("chat_handoff_refused", extra={"code": exc.code})
+            return False
+        if result is not None:
+            from app.services import usage as ledger
+
+            async with self.sessionmaker() as db:
+                await ledger.record(
+                    db,
+                    user_id=state.user_id,
+                    target=target,
+                    usage=result.usage,
+                    source="chat",
+                    conversation_id=state.conversation_id,
+                )
+                await db.commit()
+        await self._emit(
+            state,
+            (
+                "message.handed_off",
+                {
+                    "message_id": str(state.message_id),
+                    "task_id": str(task_id),
+                    "run_id": str(run_id) if run_id else None,
+                },
+            ),
+        )
+        self.next_in_line(state.user_id, state.conversation_id)
+        return True
+
     async def _finish(
         self,
         state: StreamState,
@@ -268,6 +326,15 @@ class ChatStreamManager:
     ) -> None:
         now = datetime.now(UTC)
         text = state.text if result is None or not result.text else result.text
+        if status == "completed" and state.handoff is not None and wants_agents(text):
+            if await self._hand_off(state, target, result):
+                return
+            error = (
+                "handoff_failed",
+                "The agents could not take this now (work is stopped) — send it again later.",
+                new_error_id(),
+            )
+            status, text = "failed", ""
         values: dict[str, Any] = {"status": status, "content": text, "completed_at": now}
         if result is not None:
             values["input_tokens"] = result.usage.input_tokens
@@ -321,6 +388,46 @@ class ChatStreamManager:
         await self._emit(state, (name, {"message": payload}))
         if status == "completed":
             self.after_answer(state.conversation_id, target)
+        if state.cancel_reason != "shutdown":
+            self.next_in_line(state.user_id, state.conversation_id)
+
+    def next_in_line(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        """Answer the next message waiting in this chat (in the background)."""
+        task = asyncio.create_task(
+            self._answer_next(user_id, conversation_id), name=f"chat-next:{conversation_id}"
+        )
+        self._background.add(task)
+        task.add_done_callback(self._background.discard)
+
+    async def _answer_next(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        from app.services.chat import ChatService  # chat → chat_stream at import time
+
+        try:
+            async with self.sessionmaker() as db:
+                await ChatService(db, self.gateway.settings, self.gateway).answer_next(
+                    user_id,
+                    conversation_id,
+                    self,
+                    self.task_queue() if self.task_queue is not None else None,
+                )
+        except Exception:
+            logger.exception(
+                "chat_next_in_line_failed", extra={"conversation_id": str(conversation_id)}
+            )
+
+    async def resume_waiting(self) -> int:
+        """After a restart: chats with messages in line and no answer running go on."""
+        async with self.sessionmaker() as db:
+            rows = (
+                await db.execute(
+                    select(Message.user_id, Message.conversation_id)
+                    .where(Message.status == "queued", Message.role == "user")
+                    .distinct()
+                )
+            ).all()
+        for user_id, conversation_id in rows:
+            self.next_in_line(user_id, conversation_id)
+        return len(rows)
 
 
 async def fail_orphaned_generations(db: AsyncSession) -> int:

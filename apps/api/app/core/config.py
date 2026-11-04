@@ -131,6 +131,11 @@ class Settings(BaseSettings):
     # background after an answer). CHAT_SUMMARY_MODEL = the name of one of your models
     # (e.g. a cheaper one); empty = the chat's own model. INPUT_MAX_CHARS = how much new
     # conversation text one summary call reads.
+    # The chat hands work (code, repositories, commands, websites, several steps) to the
+    # agents by itself; questions it answers itself.
+    chat_auto_handoff: bool = True
+    # The chat always reads the shared memory about the owner (pinned first) and uses it quietly.
+    chat_pinned_memory: bool = True
     chat_summary_enabled: bool = True
     chat_summary_max_chars: int = Field(4000, ge=500, le=50_000)
     chat_summary_model: str = ""
@@ -154,9 +159,14 @@ class Settings(BaseSettings):
     # --- Agent execution limits (spec 7.2; enforced in code, not prompts) -------
     # Parts of one Orchestrator plan running at the same time (each on one of the agents).
     max_active_parts_per_run: int = Field(5, ge=1, le=50)
+    # Plans the Orchestrator runs at once (it is free while the agents do the parts); more
+    # tasks wait in line and start by themselves.
+    orchestrator_max_tasks_at_once: int = Field(5, ge=1, le=50)
     # New agents the Orchestrator may create in one plan when none of the owner's fits
     # (they join the office and stay); 0 = it only uses the owner's agents.
     orchestrator_max_new_agents: int = Field(3, ge=0, le=10)
+    # How many of the owner's models the Orchestrator sees when it plans (strongest first).
+    orchestrator_max_models_listed: int = Field(40, ge=0, le=500)
     max_steps_per_run: int = Field(50, ge=1, le=1000)
     run_timeout_seconds: int = Field(1800, ge=10)
     max_retries_per_step: int = Field(2, ge=0, le=10)
@@ -169,6 +179,13 @@ class Settings(BaseSettings):
     # most AGENT_MAX_CUT_OFFS times in a row before the task fails with `output_truncated`.
     agent_max_output_tokens: int = Field(16_000, ge=256, le=200_000)
     agent_max_cut_offs: int = Field(3, ge=0, le=20)
+    # Replying in a finished task's chat continues it: an agent without a saved conversation
+    # (the Orchestrator) gets its earlier answers (fenced as data) and the owner's replies —
+    # at most this many turns, each answer cut to this many characters.
+    task_followup_turns: int = Field(5, ge=1, le=50)
+    # The milk bottle of a working agent: half full after this many steps (an estimate).
+    task_progress_half_steps: int = Field(4, ge=1, le=100)
+    task_followup_answer_max_chars: int = Field(8000, ge=500, le=200_000)
     # Per-agent monthly budgets: the owner is warned when an agent has spent this share of
     # its own limit; at 100 % its new model calls are refused.
     agent_budget_warn_percent: int = Field(80, ge=10, le=99)
@@ -302,8 +319,16 @@ class Settings(BaseSettings):
     )
     # `terminal_run` with network "packages" may reach only these hosts (HTTPS, through the
     # `egress-packages` proxy, which gets the same list; public addresses only).
+    # cdn.playwright.dev / playwright.download.prss.microsoft.com: Playwright's browser builds
+    # (`npx playwright install chromium` for browser tests).
     sandbox_package_hosts: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["registry.npmjs.org", "pypi.org", "files.pythonhosted.org"]
+        default_factory=lambda: [
+            "registry.npmjs.org",
+            "pypi.org",
+            "files.pythonhosted.org",
+            "cdn.playwright.dev",
+            "playwright.download.prss.microsoft.com",
+        ]
     )
     # Runner side: how sandbox containers get the workspace (a named volume in compose,
     # or a host directory for development).
@@ -325,6 +350,11 @@ class Settings(BaseSettings):
     # --- Voice input: the local Whisper service first (no key, no cost), else the
     # owner's OpenAI provider. Empty STT_URL = no local service.
     stt_url: str | None = None
+    # --- Codex signed in with the owner's ChatGPT account (service `codex`, owner's decision
+    # 2026-11-04). Unset CODEX_URL = off. Agents whose model is a Codex model run through it.
+    codex_url: str | None = None
+    codex_service_token: SecretStr | None = None
+    codex_run_timeout_seconds: int = Field(3600, ge=60, le=86_400)
     stt_model: str = "large-v3-turbo"  # must match the `stt` service's STT_MODEL
     stt_timeout_seconds: float = Field(900.0, gt=0, le=7200)  # a 15-minute recording
     stt_connect_timeout_seconds: float = Field(3.0, gt=0, le=60)
@@ -389,6 +419,8 @@ class Settings(BaseSettings):
         "searxng_url",
         "webauthn_rp_id",
         "stt_url",
+        "codex_url",
+        "codex_service_token",
         mode="before",
     )
     @classmethod

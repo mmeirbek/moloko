@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { api, newAgent, unique, watchErrors } from "./helpers";
+import { api, newAgent, OWNER, unique, watchErrors } from "./helpers";
 
 type Task = { id: string; status: string };
 
@@ -37,5 +37,42 @@ test("approve and don't ask again: the agent goes on without asking, until the o
   await box.getByRole("button", { name: "Убрать" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Убрать" }).click();
   await expect(box).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("full access for all agents: one switch with the password, then no agent asks", async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const models = await api<{ id: string }[]>(request, "GET", "/models");
+  try {
+    await page.goto("/settings/agents");
+    const card = page.getByTestId("full-access-all");
+    await expect(card).toContainText("агенты спрашивают разрешения");
+    await card.getByRole("button", { name: "Включить для всех…" }).click();
+    const dialog = page.getByTestId("full-access-dialog");
+    await dialog.getByLabel("Ваш пароль moloko").fill(OWNER.password);
+    await dialog.getByRole("button", { name: "Включить для всех" }).click();
+    await expect(card).toContainText("Агенты больше не спрашивают разрешений");
+
+    // A supervised agent added afterwards writes without asking.
+    const agent = await newAgent(request, {
+      name: unique("Writer"),
+      model_config_id: models[0]!.id,
+      autonomy_level: "supervised",
+      allowed_tools: ["fs_write"],
+    });
+    expect(agent).toMatchObject({ full_access: true });
+    const script = `[[mock:tools]][["fs_write",{"path":"a.txt","content":"A"}]][[/mock:tools]]`;
+    const started = await api<{ task: Task }>(request, "POST", `/agents/${agent.id}/run`, { title: "One file", description: script });
+    await expect
+      .poll(async () => (await api<{ task: Task }>(request, "GET", `/tasks/${started.task.id}`)).task.status, { timeout: 60_000 })
+      .toBe("completed");
+
+    await card.getByRole("button", { name: "Выключить для всех" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Выключить для всех" }).click();
+    await expect(card).toContainText("агенты спрашивают разрешения");
+  } finally {
+    // Never leave it on for the other tests (they expect approvals).
+    await api(request, "PUT", "/agents/full-access", { enabled: false });
+  }
   expect(errors).toEqual([]);
 });

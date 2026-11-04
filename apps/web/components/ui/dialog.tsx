@@ -43,11 +43,11 @@ export function Dialog({
       onClick={(e) => e.target === e.currentTarget && onClose()}
       aria-labelledby={labelledBy}
       className={cn(
-        // A pixel window: notched frame and a hard shadow; the page behind dims without blur.
-        "overflow-visible bg-card p-0 text-card-foreground backdrop:bg-black/50",
+        // A soft window over the dimmed, slightly blurred page; on phones a sheet from the bottom.
+        "overflow-visible bg-card p-0 text-card-foreground shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-[2px]",
         variant === "sheet"
-          ? "mx-0 mt-auto mb-0 w-full max-w-none border-t-(length:--px) border-(--frame) pb-[env(safe-area-inset-bottom)]"
-          : "m-auto w-[min(32rem,calc(100vw-2rem))] pixel-frame",
+          ? "mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl border-t pb-[env(safe-area-inset-bottom)]"
+          : "m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl pixel-frame",
         className,
       )}
       {...rest}

@@ -11,6 +11,25 @@ import { useRealtimeClient } from "@/lib/realtime/provider";
 import { useRealtimeStore } from "@/lib/realtime/store";
 
 type Toast = Notice & { text: string; heading: string };
+type Translate = ReturnType<typeof useTranslations<"notifications">>;
+
+/** Who, and what in plain words (never a raw command or path) — the same as the server's
+ *  pushes (apps/api/app/push/dispatcher.py render). */
+function noticeText(notice: Notice, name: string | undefined, t: Translate): { heading: string; text: string } {
+  if (notice.kind === "approval") {
+    const what = notice.op ? t(`ops.${notice.op.key}` as "ops.other", notice.op.params) : notice.subject;
+    return { heading: name ? t("approval.titleNamed", { name }) : t("approval.title"), text: what };
+  }
+  if (notice.title === "taskQuestion") {
+    return { heading: name ? t("taskQuestion.titleNamed", { name }) : t("taskQuestion.title"), text: notice.summary ?? "" };
+  }
+  if (notice.kind === "taskDone" || notice.kind === "taskFailed") {
+    const heading = notice.subject ? t(`${notice.kind}.title`, { task: notice.subject }) : t(`${notice.kind}.titlePlain`);
+    const detail = notice.summary ?? "";
+    return { heading, text: name && detail ? `${name}: ${detail}` : name || detail };
+  }
+  return { heading: t("budget.title"), text: notice.subject };
+}
 
 /** Turns realtime events into in-app toasts and, when the app is in the background and
  *  the owner allowed it, system notifications (spec Sprint 8 "notifications"). */
@@ -36,10 +55,7 @@ export function Notifier() {
       seen.current.add(notice.key);
       // Who, and what in plain words (never a raw command or path).
       const name = notice.agentName || (notice.agentId ? useRealtimeStore.getState().agents[notice.agentId]?.name : undefined);
-      const heading =
-        notice.kind === "approval" && name ? t("approval.titleNamed", { name }) : t(`${notice.kind}.title`);
-      const subject = notice.op ? t(`ops.${notice.op.key}` as "ops.other", notice.op.params) : notice.subject;
-      const text = name && notice.kind !== "approval" ? `${name}: ${subject}` : subject;
+      const { heading, text } = noticeText(notice, name, t);
       setToasts((list) => [...list.slice(-3), { ...notice, heading, text }]);
       window.setTimeout(() => setToasts((list) => list.filter((x) => x.key !== notice.key)), 10_000);
       if (

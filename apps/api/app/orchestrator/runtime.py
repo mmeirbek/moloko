@@ -3,8 +3,8 @@
     planning ── direct answer ──────────────────────────────────────► completed
         │
         └─ delegate: new agents (if the plan needs them) + one part per agent,
-           wait (task ``waiting``) ──────────────────────────────────┐ scheduler
-    aggregating ◄── all parts finished (task re-queued) ◄────────────┘
+           wait (task ``waiting``; the Orchestrator is free for other tasks) ─┐ scheduler
+    aggregating ◄── all parts finished (re-queued when the Orchestrator is free) ◄┘
         └─ synthesis (checked critically when plan.review) → completed
            (or failed if no part succeeded)
 
@@ -22,21 +22,27 @@ from datetime import UTC, datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.engine import lock_agent, lock_run, lock_task, set_agent_status, set_task_status
+from app.agents.engine import lock_agent, lock_run, lock_task, release_agent, set_task_status
 from app.agents.state import AgentStatus, TaskStatus, TaskType
 from app.events import bus
 from app.models.agent import Agent, AgentRun
 from app.models.chat import Conversation, Message
 from app.models.task import Task
 from app.orchestrator.messaging import format_inputs, inbox
-from app.orchestrator.parts import create_subtasks, owner_agents
+from app.orchestrator.parts import create_subtasks, owner_agents, owner_models
 from app.orchestrator.plan import Plan, PlanError, parse_plan
 from app.orchestrator.prompts import planning_system, synthesis_system
 from app.orchestrator.scheduler import WAITING_FOR_SUBTASKS
 from app.providers.base import ChatMessage, ChatRequest, ChatResult
 from app.providers.gateway import ModelTarget
 from app.runtimes.base import RunContext
-from app.runtimes.native import LimitExceeded, NativeRuntime, RunSetup, task_prompt
+from app.runtimes.native import (
+    LimitExceeded,
+    NativeRuntime,
+    RunSetup,
+    owner_note,
+    task_prompt,
+)
 from app.schemas.chat import MessageOut
 from app.tools.policy import ALWAYS_ALLOWED
 
@@ -115,6 +121,7 @@ class OrchestratorRuntime(NativeRuntime):
         agent, task = setup.agent, setup.task
         async with ctx.sessionmaker() as db:
             roster = await owner_agents(db, agent.user_id)
+            models = await owner_models(db, agent.user_id, settings.orchestrator_max_models_listed)
         # A new agent may only get tools the Orchestrator itself may use; every agent has
         # the read-only history tools anyway (not part of the plan).
         tools = tuple(t.name for t in setup.tools if t.name not in ALWAYS_ALLOWED)
@@ -124,11 +131,14 @@ class OrchestratorRuntime(NativeRuntime):
             max_new_agents=settings.orchestrator_max_new_agents,
             tools=tools,
             agents=tuple((a.name, a.specialization or "", a.description) for a in roster),
+            models=tuple(line for line, _ in models.values()),
         )
         system = with_owner_context(system, setup)
         async with ctx.sessionmaker() as db:
             inputs = await inputs_for(db, agent, ctx.run_id)
         prompt = task_prompt(task) + (f"\n\n{inputs}" if inputs else "")
+        if notes := await self._owner_notes(ctx):
+            prompt += f"\n\n{notes}"
         transcript = [ChatMessage(role="user", content=prompt)]
         attempts = 0
         while True:
@@ -140,6 +150,7 @@ class OrchestratorRuntime(NativeRuntime):
                     agents=[a.name for a in roster],
                     max_new_agents=settings.orchestrator_max_new_agents,
                     tools=list(tools),
+                    models={name: model_id for name, (_, model_id) in models.items()},
                 )
                 break
             except PlanError as exc:
@@ -210,11 +221,12 @@ class OrchestratorRuntime(NativeRuntime):
     async def _wait_for_subtasks(
         self, db: AsyncSession, agent: Agent, task: Task, run: AgentRun
     ) -> None:
-        if AgentStatus(agent.status) in (AgentStatus.PLANNING, AgentStatus.WORKING):
-            if AgentStatus(agent.status) == AgentStatus.PLANNING:
-                await set_agent_status(db, agent, AgentStatus.WORKING)
-            await set_agent_status(db, agent, AgentStatus.WAITING, reason=WAITING_FOR_SUBTASKS)
+        """The plan waits for its parts; the Orchestrator does not: it is free for the next
+        task meanwhile (owner: «оркестратор делает сразу несколько задач»). When the parts are
+        done the scheduler gives the plan back to it to merge (app/agents/waiting.py)."""
         await set_task_status(db, task, TaskStatus.WAITING, reason=WAITING_FOR_SUBTASKS, run=run)
+        if agent.current_task_id == task.id:
+            await release_agent(db, agent, to=AgentStatus.IDLE, reason="parts_under_way")
 
     # --- aggregation -----------------------------------------------------------------------
 
@@ -245,10 +257,34 @@ class OrchestratorRuntime(NativeRuntime):
             run = await lock_run(db, ctx.run_id)
             run.phase = "aggregating"
             await bus.commit(db)
-        transcript = [ChatMessage(role="user", content=f"{task_prompt(setup.task)}\n\n{inputs}")]
+        prompt = f"{task_prompt(setup.task)}\n\n{inputs}"
+        if notes := await self._owner_notes(ctx):
+            prompt += f"\n\n{notes}"
+        transcript = [ChatMessage(role="user", content=prompt)]
         system = with_owner_context(synthesis_system(review=plan.review), setup)
         result = await self._call(ctx, setup, system, transcript, segment_started)
         await self._complete(ctx, result.text)
+
+    async def _owner_notes(self, ctx: RunContext) -> str:
+        """What the owner wrote to the whole task (the parts at work got it too): read when
+        the Orchestrator plans and when it merges, then the inbox is empty."""
+        async with ctx.sessionmaker() as db:
+            run = await lock_run(db, ctx.run_id)
+            notes = [str(m["text"]) for m in (run.state or {}).get("owner_inbox") or []]
+            if not notes:
+                return ""
+            run.state = {**(run.state or {}), "owner_inbox": []}
+            await bus.emit(
+                db,
+                user_id=ctx.user_id,
+                type="task.owner_message_read",
+                agent_id=ctx.agent_id,
+                task_id=ctx.task_id,
+                run_id=ctx.run_id,
+                payload={"count": len(notes)},
+            )
+            await bus.commit(db)
+        return owner_note(notes)
 
     # --- results -----------------------------------------------------------------------------
 

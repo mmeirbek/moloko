@@ -56,6 +56,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/full-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether «Полный доступ всем агентам» is on */
+        get: operations["get_full_access_for_all_api_v1_agents_full_access_get"];
+        /** Turn «Полный доступ» on (confirmed with the password) or off for every agent */
+        put: operations["set_full_access_for_all_api_v1_agents_full_access_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/templates": {
         parameters: {
             query?: never;
@@ -803,6 +821,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/codex/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether Codex is signed in with ChatGPT on the server */
+        get: operations["codex_status_api_v1_codex_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/costs": {
         parameters: {
             query?: never;
@@ -1128,6 +1163,23 @@ export interface paths {
         put?: never;
         /** Create Provider */
         post: operations["create_provider_api_v1_providers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/free-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Platforms with a free tier of their official API (add one with your own key) */
+        get: operations["free_catalog_api_v1_providers_free_catalog_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1525,7 +1577,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Continue a stopped task from where it stopped (a new attempt) */
+        /** Continue a finished task from where it stopped, or reply to its result */
         post: operations["continue_task_api_v1_tasks__task_id__continue_post"];
         delete?: never;
         options?: never;
@@ -1578,6 +1630,23 @@ export interface paths {
         put?: never;
         /** Print the task's result to PDF (sandbox browser, no network) */
         post: operations["export_pdf_api_v1_tasks__task_id__export_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the task a file: saved in its workspace (inbox/) for its agents to read */
+        post: operations["upload_task_file_api_v1_tasks__task_id__files_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1850,6 +1919,11 @@ export interface components {
             agent_type?: components["schemas"]["AgentType"];
             /** Allowed Tools */
             allowed_tools?: string[];
+            /**
+             * Animal
+             * @description Its animal; null = chosen at random.
+             */
+            animal?: ("amur_tiger" | "snow_leopard" | "pallas_cat" | "fennec_fox" | "red_panda" | "capybara" | "axolotl" | "quokka" | "okapi" | "tarsier" | "ring_tailed_lemur" | "malayan_tapir" | "sea_otter" | "atlantic_puffin" | "three_toed_sloth" | "platypus" | "barn_owl" | "saiga" | "mandrill" | "emperor_tamarin") | null;
             /** @default supervised */
             autonomy_level?: components["schemas"]["AutonomyLevel"];
             contacts?: components["schemas"]["AgentContacts"];
@@ -1900,8 +1974,9 @@ export interface components {
         };
         /**
          * AgentFullAccessUpdate
-         * @description Body of ``PUT /agents/{id}/full-access``. Turning it on needs the owner's password
-         *     (wrong ones count toward the login lockout); turning it off does not.
+         * @description Body of ``PUT /agents/{id}/full-access`` and ``PUT /agents/full-access`` (all agents).
+         *     Turning it on needs the owner's password (wrong ones count toward the login lockout);
+         *     turning it off does not.
          */
         AgentFullAccessUpdate: {
             /** Enabled */
@@ -2037,6 +2112,11 @@ export interface components {
             agent_type: string;
             /** Allowed Tools */
             allowed_tools: string[];
+            /**
+             * Animal
+             * @description Its animal (face and office character); null = the Orchestrator.
+             */
+            animal?: string | null;
             /** Archived At */
             archived_at: string | null;
             /** Autonomy Level */
@@ -2176,6 +2256,8 @@ export interface components {
         AgentUpdate: {
             /** Allowed Tools */
             allowed_tools?: string[] | null;
+            /** Animal */
+            animal?: ("amur_tiger" | "snow_leopard" | "pallas_cat" | "fennec_fox" | "red_panda" | "capybara" | "axolotl" | "quokka" | "okapi" | "tarsier" | "ring_tailed_lemur" | "malayan_tapir" | "sea_otter" | "atlantic_puffin" | "three_toed_sloth" | "platypus" | "barn_owl" | "saiga" | "mandrill" | "emperor_tamarin") | null;
             autonomy_level?: components["schemas"]["AutonomyLevel"] | null;
             contacts?: components["schemas"]["AgentContacts"] | null;
             /** Description */
@@ -2451,6 +2533,33 @@ export interface components {
             /** Cancelled */
             cancelled: boolean;
         };
+        /**
+         * CodexStatusOut
+         * @description Codex with the owner's ChatGPT sign-in (service `codex`).
+         */
+        CodexStatusOut: {
+            /**
+             * Configured
+             * @description CODEX_URL is set (the codex service is part of moloko)
+             */
+            configured: boolean;
+            /** Logged In */
+            logged_in: boolean;
+            /**
+             * Login Command
+             * @description What the owner runs on the server to sign in
+             */
+            login_command: string;
+            /**
+             * Mode
+             * @description "chatgpt" or "api_key" — how Codex is signed in
+             */
+            mode: string | null;
+            /** Reachable */
+            reachable: boolean;
+            /** Version */
+            version: string;
+        };
         /** ConversationCreate */
         ConversationCreate: {
             /** Model Config Id */
@@ -2619,6 +2728,40 @@ export interface components {
             type: string;
             /** Version */
             version: number;
+        };
+        /**
+         * FreeProviderOut
+         * @description A platform with a free tier of its official API (app/providers/free_catalog.py): the
+         *     owner gets a key there and adds it as an ordinary provider with this address.
+         */
+        FreeProviderOut: {
+            /** Base Url */
+            base_url: string;
+            /** Key */
+            key: string;
+            /** Key Url */
+            key_url: string;
+            /** Name */
+            name: string;
+            /**
+             * Needs Account
+             * @description The address needs the account id ({account_id}).
+             */
+            needs_account: boolean;
+        };
+        /**
+         * FullAccessForAllOut
+         * @description «Полный доступ всем агентам»: whether every persistent agent of the office (and every
+         *     one added later, also by the Orchestrator) works without approvals.
+         */
+        FullAccessForAllOut: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Since
+             * @description When it was turned on; null = off.
+             */
+            since: string | null;
         };
         /** GitHubIntegrationOut */
         GitHubIntegrationOut: {
@@ -3315,7 +3458,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "openai" | "anthropic" | "mock";
+            kind: "openai" | "anthropic" | "mock" | "codex";
             /** Name */
             name: string;
         };
@@ -3787,7 +3930,8 @@ export interface components {
         };
         /** StartedRun */
         StartedRun: {
-            run: components["schemas"]["RunOut"];
+            /** @description The run; null while the task waits in line for its busy agent (it starts by itself when the agent is free). */
+            run: components["schemas"]["RunOut"] | null;
             task: components["schemas"]["TaskOut"];
         };
         /** StopAllResult */
@@ -3880,7 +4024,8 @@ export interface components {
         };
         /**
          * TaskContinue
-         * @description Continue a failed / cancelled task from where it stopped (POST /tasks/{id}/continue).
+         * @description Continue a finished task (POST /tasks/{id}/continue): a failed / cancelled one from
+         *     where it stopped, or a completed one with the owner's reply to its result.
          */
         TaskContinue: {
             /** Instruction */
@@ -3916,6 +4061,21 @@ export interface components {
             /** Subtasks */
             subtasks: components["schemas"]["TaskOut"][];
             task: components["schemas"]["TaskOut"];
+        };
+        /**
+         * TaskFileOut
+         * @description A file the owner sent to the task (POST /tasks/{id}/files): saved in the task's
+         *     workspace, where its agents read it.
+         */
+        TaskFileOut: {
+            /** Content Type */
+            content_type: string;
+            /** Filename */
+            filename: string;
+            /** Path */
+            path: string;
+            /** Size */
+            size: number;
         };
         /** TaskOut */
         TaskOut: {
@@ -4292,6 +4452,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_full_access_for_all_api_v1_agents_full_access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullAccessForAllOut"];
+                };
+            };
+        };
+    };
+    set_full_access_for_all_api_v1_agents_full_access_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentFullAccessUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullAccessForAllOut"];
                 };
             };
             /** @description Validation Error */
@@ -5921,6 +6134,26 @@ export interface operations {
             };
         };
     };
+    codex_status_api_v1_codex_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexStatusOut"];
+                };
+            };
+        };
+    };
     costs_api_v1_costs_get: {
         parameters: {
             query?: {
@@ -6720,6 +6953,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    free_catalog_api_v1_providers_free_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FreeProviderOut"][];
                 };
             };
         };
@@ -7696,6 +7949,44 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_task_file_api_v1_tasks__task_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** File */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskFileOut"];
                 };
             };
             /** @description Validation Error */

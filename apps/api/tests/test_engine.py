@@ -119,15 +119,17 @@ async def test_agent_runs_task_in_background_and_returns_to_idle(
         assert expected in types
 
 
-async def test_busy_agent_rejects_a_second_task(
+async def test_busy_agent_puts_a_second_task_in_line(
     app: FastAPI, owner: User, queue: RecordingQueue
 ) -> None:
     async with logged_in_client(app) as client:
         agent = await setup_agent(client)
         assert (await run_agent(client, agent["id"], "One")).status_code == 200
         second = await run_agent(client, agent["id"], "Two")
-    assert second.status_code == 409
-    assert second.json()["error"]["code"] == "agent_busy"
+    # Not refused (owner: «очередь задач»): it waits for the agent (tests/test_task_queue.py).
+    assert second.status_code == 200
+    assert second.json()["run"] is None
+    assert second.json()["task"]["status_reason"] == "waiting_for_agent"
 
 
 async def test_provider_error_fails_the_task_honestly(
@@ -409,3 +411,12 @@ async def test_idempotency_key_prevents_duplicate_runs(
         tasks = (await client.get("/api/v1/tasks")).json()["items"]
     assert len(tasks) == 1
     assert len(queue.enqueued) == 1
+
+
+def test_step_progress_fills_fast_then_slows_and_never_ends_before_done() -> None:
+    from app.agents.engine import step_progress
+
+    values = [step_progress(n, 4) for n in (0, 1, 2, 4, 8, 12, 40, 400)]
+    assert values == sorted(values)
+    assert values[0] == 0 and values[3] == 47 and values[-1] <= 95
+    assert step_progress(5, 0) == 0

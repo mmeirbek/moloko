@@ -4,6 +4,7 @@ import type { MessageOut, MessagePage } from "@moloko/shared-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { taskKeys } from "@/lib/api/agents";
 import { attachStream, cancelMessage, chatKeys, listMessages, sendMessage } from "@/lib/api/chat";
 
 type Patch = (messages: MessageOut[]) => MessageOut[];
@@ -43,8 +44,21 @@ export function useChatThread(chatId: string) {
         patch((ms) => ms.map((m) => (m.id === message.id ? message : m)));
         void queryClient.invalidateQueries({ queryKey: chatKeys.list });
       },
+      // Work for the agents: the chat's answer goes away, the question links to their run.
+      onHandedOff: ({ message_id, run_id }: { message_id: string; run_id: string }) => {
+        patch((ms) => {
+          const at = ms.findIndex((m) => m.id === message_id);
+          const question = [...ms.slice(0, Math.max(at, 0))].reverse().find((m) => m.role === "user");
+          return ms
+            .filter((m) => m.id !== message_id)
+            .map((m) => (m.id === question?.id ? { ...m, agent_run_id: run_id } : m));
+        });
+        void queryClient.invalidateQueries({ queryKey: chatKeys.messages(chatId) });
+        void queryClient.invalidateQueries({ queryKey: chatKeys.list });
+        void queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      },
     }),
-    [patch, queryClient],
+    [patch, queryClient, chatId],
   );
 
   // Abort open streams when leaving the page (the server keeps generating).
@@ -76,6 +90,7 @@ export function useChatThread(chatId: string) {
     async (content: string, modelConfigId: string | null, attachmentIds: string[] = []): Promise<boolean> => {
       setSendError(null);
       let assistantId: string | null = null;
+      let accepted = false;
       const controller = new AbortController();
       controllers.current.add(controller);
       try {
@@ -84,6 +99,13 @@ export function useChatThread(chatId: string) {
           { content, model_config_id: modelConfigId, attachment_ids: attachmentIds },
           {
             onCreated: (user, assistant) => {
+              accepted = true;
+              if (!assistant) {
+                // In line behind the answer being written: answered right after, and that
+                // answer is re-attached to like one started on another device.
+                patch((ms) => [...ms, user]);
+                return;
+              }
               assistantId = assistant.id;
               attached.current = assistant.id; // we are already streaming it
               patch((ms) => [...ms, user, assistant]);
@@ -100,7 +122,7 @@ export function useChatThread(chatId: string) {
       } finally {
         controllers.current.delete(controller);
       }
-      return assistantId !== null;
+      return accepted;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatId, handlers, patch, queryClient],

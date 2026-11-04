@@ -63,10 +63,14 @@ export function listPickerModels(signal?: AbortSignal): Promise<ModelOut[]> {
 }
 
 export type StreamHandlers = {
-  onCreated?: (user: MessageOut, assistant: MessageOut) => void;
+  /** `assistant` is null for a message sent while an answer is still being written: it waits
+   * in line and is answered right after (the answer then streams like one from another device). */
+  onCreated?: (user: MessageOut, assistant: MessageOut | null) => void;
   onSnapshot?: (text: string) => void;
   onDelta?: (text: string) => void;
   onFinished?: (message: MessageOut) => void;
+  /** The chat gave the message to the agents (its answer is removed; theirs comes later). */
+  onHandedOff?: (handoff: { message_id: string; task_id: string; run_id: string }) => void;
 };
 
 async function consume(response: Response, handlers: StreamHandlers): Promise<void> {
@@ -74,13 +78,15 @@ async function consume(response: Response, handlers: StreamHandlers): Promise<vo
   for await (const { event, data } of readSse(response.body)) {
     const d = data as Record<string, unknown>;
     if (event === "message.created") {
-      handlers.onCreated?.(d.user_message as MessageOut, d.assistant_message as MessageOut);
+      handlers.onCreated?.(d.user_message as MessageOut, (d.assistant_message as MessageOut | null) ?? null);
     } else if (event === "message.snapshot") {
       handlers.onSnapshot?.(String(d.text ?? ""));
     } else if (event === "message.delta") {
       handlers.onDelta?.(String(d.text ?? ""));
     } else if (event === "message.completed" || event === "message.failed") {
       handlers.onFinished?.(d.message as MessageOut);
+    } else if (event === "message.handed_off") {
+      handlers.onHandedOff?.({ message_id: String(d.message_id), task_id: String(d.task_id), run_id: String(d.run_id) });
     }
   }
 }
