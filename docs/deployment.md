@@ -185,6 +185,18 @@ curl -s http://127.0.0.1:8080/api/v1/health
 После перезагрузки сервера Docker сам поднимает все контейнеры (`restart: unless-stopped`).
 Бэкенд ждёт готовности PostgreSQL и применяет миграции.
 
+### 4a. Автодеплой после каждого пуша
+
+Сервер сам выкатывает каждый новый коммит ветки `main` — но только тот, у которого все проверки CI на GitHub прошли (бэкенд, фронтенд, распознавание речи, Docker). Красный CI — коммит пропускается; упавший деплой не повторяется (исправьте и запушьте снова или выкатите вручную). Выкатывается ровно проверенный коммит, даже если за это время запушили ещё один.
+
+```bash
+infrastructure/scripts/autodeploy.sh --install    # включить (cron, каждые 2 минуты; sudo не нужен)
+infrastructure/scripts/autodeploy.sh --uninstall  # выключить
+tail -f ~/autodeploy.log                         # что происходило
+```
+
+Журнал каждого деплоя — `~/deploy-auto-<коммит>.log` (хранятся последние 10). Список пропущенных коммитов — `~/.local/state/moloko-autodeploy/skipped`.
+
 ## 5. Инструменты агентов (песочница, GitHub, MCP)
 
 - **Песочница.** Сервис `sandbox` — единственный, кому доступен Docker (`/var/run/docker.sock`). Команды агентов выполняются в отдельных контейнерах без сети и без root. Нужен Docker Engine 26 или новее: проверьте `docker version`. Образ для команд — `moloko-sandbox:local` (Python 3.12, Node.js 22 с npm/npx, git, make). Его собирает `deploy.sh`; вручную: `docker compose --profile sandbox-image build sandbox-image`. Без него агенты не смогут выполнять команды. Лимиты на одну команду по умолчанию: 2 ГБ памяти, 512 процессов, до 10 минут (`SANDBOX_MEMORY_MB`, `SANDBOX_PIDS_LIMIT`, `SANDBOX_TIMEOUT_SECONDS`). Этого хватает на `npm ci`, проверку типов и сборку Next.js. `init-env.sh --add-missing` (его запускает `deploy.sh`) заменяет в `.env` старые значения по умолчанию (`python:3.12.16-slim`, 512, 128, 60) на новые. Значения, которые вы меняли сами, он не трогает.
